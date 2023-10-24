@@ -496,15 +496,16 @@ afterEvaluate {
 			}
 			
 			// write the classpath file
-			buildDir.resolve("classpath.txt").let { file ->
-				file.writeText("""
+			val cpPath = buildDir.resolve("classpath.txt")
+			from(cpPath) {
+				into("bin")
+			}
+			doFirst {
+				cpPath.writeText("""
 					|-cp "\
 					|${classpath.joinToString(":\\\n") { "libs/${it.name}" }}
 					|"
 				""".trimMargin())
-				from(file) {
-					into("bin")
-				}
 			}
 
 			// copy the executable scripts
