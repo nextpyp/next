@@ -1,0 +1,85 @@
+#!/bin/bash
+
+echo "HostProcessor started"
+
+
+pidpath="/tmp/micromon.hostprocessor.pid"
+pipepath="/tmp/micromon.hostprocessor.pipe"
+
+
+# make sure the named pipe is ready
+if [ ! -p "$pipepath" ]; then
+  echo "Named pipe does not exist at $pipepath"
+  exit 1
+fi
+
+
+# tell the world the host processor is running
+echo "$$" > "$pidpath"
+
+# clean up the pid file and the pipe when done
+trap 'echo "HostProcessor exited"; rm "$pidpath"; rm "$pipepath"' EXIT
+
+
+# listen for commands on the named pipe
+while :; do
+
+  # wait for the next command and then read it
+  read -r cmdtype cmdbody < "$pipepath"
+
+  # what did we get?
+  echo "cmd type=$cmdtype, body=$cmdbody"
+
+  # process the command
+  case "$cmdtype" in
+
+    # empty command, skip it
+    "");;
+
+
+    # launch a new process
+    "exec")
+
+      # split the command body into outpath and commands
+      read -r cmdout cmdcmds <<EOF
+$cmdbody
+EOF
+
+      # launch the command in a shell
+      /bin/sh -c "$cmdcmds" > "$cmdout" 2>&1 &
+
+      # respond with the pid
+      echo "$!" > "$pipepath"
+    ;;
+
+
+    # check on the status of a previously-launched process
+    "status")
+
+      # return the process status
+      # the cmdbody is the pid
+      status=$(grep "^State:\s" < "/proc/$cmdbody/status")
+      echo "$status" > "$pipepath"
+    ;;
+
+
+    # kill a previously-launched process
+    "kill")
+
+      # the cmdbody is the pid
+      kill "$cmdbody"
+
+      # send some kind of response back
+      echo "ok" > "$pipepath"
+    ;;
+
+
+    *)
+      echo "unrecognized command type: $cmdtype"
+    ;;
+
+  esac
+
+done
+
+echo "HostProcessor finished"

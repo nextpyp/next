@@ -1,0 +1,12 @@
+#!/bin/sh
+
+# check args
+if [ $# -eq 0 ] ; then
+    echo "Usage:"
+    echo "   startrprox <example.org | localhost | 12.34.65.78>"
+    exit 1
+fi
+
+mkdir -p /var/www/reverse-proxy
+
+singularity instance start --bind /var/www/reverse-proxy reverse-proxy.sif reverse-proxy "$1"

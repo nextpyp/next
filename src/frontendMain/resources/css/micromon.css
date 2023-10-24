@@ -1,0 +1,3398 @@
+
+body {
+	margin-top: 20px;
+	margin-bottom: 20px;
+}
+
+a {
+	cursor: pointer;
+}
+
+.circular {
+	border-radius: 10000px;
+}
+
+.js-plotly-plot {
+	/* always expand to fill the container elem */
+	width: 100%;
+	height: 100%;
+}
+
+div.container {
+	/* turn off bootstrap's page width limits */
+	max-width: inherit;
+	padding-left: 4px;
+	padding-right: 4px;
+}
+
+/* for bigger screens, use a bigger padding */
+@media (min-width: 700px) {
+	div.container {
+		padding-left: 10px;
+		padding-right: 10px;
+	}
+}
+
+div.empty,
+span.empty {
+	color: #666666;
+	font-style: italic;
+}
+
+.spaced {
+	margin: 20px;
+}
+
+span.icon {
+	font-style: normal !important;
+}
+
+button.image-button {
+	border: none;
+	padding: 0;
+}
+
+button.image-button.reconstruction-node img {
+	width: 256px;
+}
+
+/* BOOTSTRAP TWEAKS */
+
+.btn-primary.disabled, .btn-primary:disabled {
+    background-color: #9dadba;
+    border-color: #9dadba;
+}
+
+.btn.with-left-margin {
+    margin-left: 5px;
+}
+
+
+/* VIEWPORT */
+
+.viewport .viewport-header {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+    background-color: #f8f9fa;
+}
+
+.viewport .navbar {
+	flex-grow: 1;
+	padding: 2px;
+}
+
+.viewport .navbar .navbar-brand img.logo {
+	height: 45px;
+	/* move the logo up a bit to make room for the version text */
+	position: relative;
+	top: -2px;
+}
+
+.viewport .navbar .navbar-brand {
+	position: relative;
+}
+
+.viewport .navbar .navbar-brand .version {
+	font-size: 12px;
+	/* position the version text in the bottom-right of the logo image */
+	position: absolute;
+	right: 0;
+	bottom: 0;
+}
+
+.viewport .user-chrome {
+	padding-right: 12px;
+}
+
+
+/* DOCK VIEW MODE */
+
+html.mode-dock {
+	margin: 0;
+	padding: 0;
+	width: 100%;
+	height: 100%;
+}
+
+body.mode-dock {
+	margin: 0;
+	padding: 0;
+	width: 100%;
+	height: 100%;
+	background-color: #dfe6ee;
+}
+
+div.container.mode-dock {
+	margin: 0;
+	padding: 0;
+	width: 100%;
+	height: 100%;
+}
+
+div.viewport.mode-dock {
+	margin: 0;
+	padding: 0;
+	width: 100%;
+	height: 100%;
+	display: flex;
+	flex-direction: column;
+}
+
+div.viewport.mode-dock div.views {
+	flex-grow: 1;
+	overflow-y: hidden;
+}
+
+div.dock-page {
+	height: 100%;
+	padding: 10px;
+	border-top: solid 1px #848ca0;
+	box-shadow: inset 0px 2px 2px 0px #31344821;
+	background-color: #fff;
+	overflow-y: auto;
+}
+
+div.dock-stage {
+	height: 100%;
+	padding: 4px;
+	border-top: solid 1px #848ca0;
+	box-shadow: inset 0px 2px 2px 0px #31344854;
+}
+
+div.dock-window {
+	margin: 7px;
+	padding: 4px;
+	background-color: #ffffff;
+	border-radius: 6px;
+	border: solid 1px #bdc1da;
+	box-shadow: 1px 2px 2px 0px #31344854;
+}
+
+
+/* SPINNERS */
+
+div.loading span.icon,
+span.loading span.icon {
+	color: #333333;
+	margin-right: 8px;
+}
+
+div.loading span,
+span.loading span {
+	color: #666666;
+	font-size: 20px;
+	font-style: italic;
+}
+
+div.loading.no-height {
+    position: absolute;
+    transform: translateY(70px);
+}
+
+div.error-message span.icon {
+	color: #c51818;
+	margin-right: 8px;
+}
+
+div.error-message span {
+	color: #710b0b;
+	font-style: italic;
+}
+
+
+/* VIEW DEFAULTS */
+
+div.views h1 {
+	font-size: 140%;
+}
+
+div.views .highlighted {
+	background-color: #a3e9ff;
+}
+
+
+/* SINGLE PARTICLE PREPROCESSING VIEW */
+
+div.single-particle-preprocessing {
+	position: relative;
+}
+
+div.single-particle-preprocessing .live .stats {
+	margin-left: 4px;
+	margin-top: 10px;
+	margin-bottom: 6px;
+}
+
+div.single-particle-preprocessing .live .stats .log-button {
+	margin-left: 20px;
+}
+
+div.single-particle-preprocessing div.pyp-stats {
+	margin-top: 6px;
+    margin-bottom: 6px;
+    margin-left: 10px;
+    color: #666666;
+}
+
+div.single-particle-preprocessing .websocket-control {
+	position: absolute;
+	top: 10px;
+	right: 10px;
+}
+
+.single-particle-preprocessing .hyper-gallery {
+	margin-top: 10px;
+}
+
+
+/* PARTICLE CONTROLS */
+
+.particle-controls button {
+    margin-left: 30px;
+}
+
+.particle-controls .label {
+	font-weight: bold;
+}
+
+.particle-controls .name {
+    margin-left: 10px;
+    display: inline-block;
+    width: 163px;
+}
+
+/* 3D VIEW */
+
+div.threeD-render {
+    display: flex;
+    justify-content: center;
+}
+
+div.threeD {
+    position: relative;
+}
+
+div.threeD-status {
+    width: 50%;
+    display: inline-flex;
+    align-items: center
+}
+
+div.threeD-status label {
+    margin-bottom: 0.1rem
+}
+
+div.threeD-status .size-label {
+    width: 16%;
+    margin-left: 6px;
+}
+
+div.threeD-status .progress-label {
+    width: 12%;
+    margin-left: 6px;
+}
+
+div.threeD-status .progress {
+    width: 50%;
+    display: inline-flex;
+}
+
+div.threeD-status .cancel {
+	width: 18px;
+	height: 18px;
+	font-size: 10px;
+	padding-left: 3px;
+	padding-right: 3px;
+	padding-top: 0px;
+	padding-bottom: 0px;
+	margin-left: 4px;
+	margin-top: auto;
+	margin-bottom: auto;
+	background-color: #fa0000;
+	border-color: #fa0000;
+}
+
+div.threeD span.model {
+    margin-left: -30px;
+    display: flex;
+    margin-top: 20px;
+}
+
+div.threeD span.model div.form-group {
+    margin-left: 40px;
+}
+
+div.threeD span.model select {
+    display: inline-block;
+    width: 160px;
+    margin-left: 10px;
+}
+
+div.threeD-controls {
+    display: inline-block;
+    margin-top: 12px;
+}
+
+div.threeD-controls button {
+    margin-bottom: 20px;
+    margin-top: 2px;
+}
+
+/* Override dat.gui styles for 3D VIEW */
+
+.dg li.save-row {
+    display: none
+}
+
+.dg .cr.function:hover, .dg .cr.boolean:hover {
+    background-color: #ccc;
+}
+
+.dg li.cr.disabled {
+    background-color: #ccc
+}
+
+.dg li.cr.disabled, .dg li.cr.disabled div, .dg li.cr.disabled div span {
+    cursor: default !important;
+}
+
+.dg {
+    color: black;
+    font: unset;
+    font-size: 12px;
+    text-shadow: unset;
+    line-height: normal;
+    border: 4px solid #f0f0f0;
+    background-color: #f0f0f0;
+}
+
+.dg .cr.number input[type=text] {
+    color: var(--primary);
+    background-color: #f0f0f0;
+    line-height: normal;
+}
+
+.dg .c input[type=text] {
+    line-height: normal;
+    height: 19px;
+}
+
+.dg .c .slider {
+    background-color: #f0f0f0
+}
+
+.dg .c .slider:hover {
+    background-color: #d0d0d0
+}
+
+.dg .c .slider-fg {
+    background-color: var(--primary)
+}
+
+.dg .c .slider:hover .slider-fg {
+    background-color: var(--primary);
+    filter: brightness(85%)
+}
+
+.dg li:not(.folder) {
+    background-color: white;
+}
+
+.dg li.title {
+    background-color: #f0f0f0;
+    background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAAITYAACE2AeEffZ4AAAAnSURBVBhXY/zw4cN/BjTABKVRACMQY6oEaocyIQDEB2uHSUBoBgYAtUUQF+CKuisAAAAASUVORK5CYII=");
+    border-bottom: 1px solid black;
+}
+
+.dg .closed li.title {
+    background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAAITYAACE2AeEffZ4AAAAvSURBVBhXY/zw4cN/BiAQEBBgALJBTAYmMAkFIAkQQBEEAZAEhiDICBRBiJkMDAAHbgzZhqD9NgAAAABJRU5ErkJggg==")
+}
+
+.dg li.folder {
+    background-color: #f0f0f0
+}
+
+.dg.main .close-button.close-bottom {
+    background-color: #f0f0f0;
+    position: relative;
+    left: -4px;
+}
+
+/* FLAT SELECTOR PANEL */
+
+.flat-selector ul.nav {
+  margin-top: 10px;
+  margin-bottom: 10px;
+  margin-left: 4px;
+  border: none !important;
+}
+
+.flat-selector ul.nav a.nav-link {
+  border: none !important;
+}
+
+.flat-selector .nav-link {
+  border-radius: unset;
+  margin-left: -1px;
+  margin-top: -1px;
+  margin-right: -1px;
+  padding: 5px 20px;
+}
+
+.flat-selector li.nav-item {
+  border-left: 1px solid var(--primary);
+  border-top: 1px solid var(--primary);
+  border-bottom: 1px solid var(--primary);
+}
+
+.flat-selector li.nav-item:first-of-type {
+  border-top-left-radius: 8px;
+  border-bottom-left-radius: 8px;
+}
+
+.flat-selector li.nav-item:first-of-type .nav-link {
+  border-top-left-radius: 8px;
+  border-bottom-left-radius: 8px;
+}
+
+.flat-selector li.nav-item:last-of-type {
+  border-top-right-radius: 8px;
+  border-bottom-right-radius: 8px;
+  border-right: 1px solid var(--primary);
+}
+
+.flat-selector li.nav-item:last-of-type .nav-link {
+  border-top-right-radius: 8px;
+  border-bottom-right-radius: 8px;
+}
+
+.flat-selector a.nav-link.active {
+  background-color: var(--primary) !important;
+  color: white !important;
+}
+
+/* NUMERIC NAVIGATION */
+
+div.numeric-nav {
+    width: calc(50vw - 7px);
+    margin-left: 7px;
+    display: inline-block;
+}
+
+div.numeric-nav.full-width-nav {
+    width: calc(100% - 7px);
+    margin-left: 7px;
+    display: inline-block;
+}
+
+div.numeric-nav div.nav-container {
+    margin: 10px 0px;
+    width: calc(100% - 50px);
+    display: inline-block;
+}
+
+div.numeric-nav div.nav-container button {
+    margin-left: 4px;
+    margin-right: 4px;
+}
+
+div.numeric-nav div.nav-container span.counter {
+	display: inline-block;
+	width: 160px;
+	margin-left: 10px;
+	margin-right: 10px;
+	text-align: center;
+	line-height: 38px;
+}
+
+div.numeric-nav .form-check {
+    display: inline-block;
+    margin-left: 20px;
+}
+
+/* RADIO SELECTION */
+
+label.radio-label {
+    margin-right: 6px;
+}
+
+div.radio-selection-nav {
+    display: inline-block;
+    margin-top: -10px;
+}
+
+div.radio-selection-nav > div {
+    position: relative;
+    top: 1px;
+    margin-right: 20px;
+    display: inline-block;
+}
+
+div.radio-selection-nav button {
+    margin: 6px;
+}
+
+div.radio-holder {
+    display: inline-block;
+    margin-bottom: -27px;
+}
+
+label.radio-selection .radio-selection-check {
+    width: 30px;
+    height: 30px;
+    border-radius: 15px;
+    border: 2px solid var(--primary);
+    background-color: white;
+    margin: 2px;
+    margin-bottom: -32px;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    cursor: pointer;
+}
+
+label.radio-selection span {
+    position: relative;
+    font-size: 15px;
+    color: var(--primary);
+    display: block;
+    text-align: center;
+    font-weight: bold;
+    left: -0.05ex;
+    cursor: pointer;
+    /* disable selection */
+    -webkit-touch-callout: none;
+      -webkit-user-select: none;
+       -khtml-user-select: none;
+         -moz-user-select: none;
+          -ms-user-select: none;
+              user-select: none;
+}
+
+label.radio-selection .radio-selection-check:checked {
+    background-color: var(--primary);
+}
+
+label.radio-selection .radio-selection-check:checked ~ span {
+    color: white;
+}
+/* TOMOGRAPHY PREPROCESSING VIEW */
+
+div.tomography-preprocessing {
+	position: relative;
+}
+
+div.tomography-preprocessing div.tiltseries-stats {
+	margin-top: 6px;
+    margin-bottom: 6px;
+    margin-left: 10px;
+    color: #666666;
+}
+
+div.tomography-preprocessing div.pyp-stats {
+	margin-top: 6px;
+    margin-bottom: 6px;
+    margin-left: 10px;
+    color: #666666;
+}
+
+div.tomography-preprocessing div.tomography-preprocessing-table div.filters {
+	margin-top: 20px;
+	margin-bottom: 20px;
+}
+
+div.tomography-preprocessing div.tomography-preprocessing-table div.filters div.title {
+	font-weight: bold;
+	font-size: 16px;
+}
+
+div.tomography-preprocessing div.tomography-preprocessing-table div.filters div.filter {
+	margin-bottom: 10px;
+}
+
+div.tomography-preprocessing div.tomography-preprocessing-table div.filters div.filter div.form-group {
+	float: left;
+	width: 200px;
+	margin-top: 20px;
+	margin-bottom: 0px;
+}
+
+div.tomography-preprocessing div.tomography-preprocessing-table div.filters div.filter div.slider {
+	width: 100%;
+	padding-top: 50px;
+	padding-left: 240px;
+	padding-right: 80px;
+	padding-bottom: 20px;
+}
+
+div.tomography-preprocessing div.tomography-preprocessing-table div.filters div.filter button {
+	float: right;
+	margin-top: 40px;
+}
+
+div.tomography-preprocessing div.tomography-preprocessing-table div.filter-buttons span.matched {
+	font-style: italic;
+}
+
+div.tomography-preprocessing div.tomography-preprocessing-table div.filter-buttons button {
+	margin-right: 30px;
+}
+
+div.tomography-preprocessing div.tomography-preprocessing-table div.rows {
+	margin-top: 20px;
+	margin-bottom: 10px;
+}
+
+div.tomography-preprocessing div.tomography-preprocessing-table div.rows div.form-group {
+	display: inline-block;
+	}
+
+.tomography-particle-preprocessing .hyper-gallery {
+	margin-top: 10px;
+}
+
+
+/* REFINEMENT VIEW */
+
+.refinements-view {
+	position: relative;
+}
+
+.refinements-view .websocket-control {
+	position: absolute;
+	top: 10px;
+	right: 10px;
+}
+
+.refinements-view div.reconstruction-stats {
+    margin-left: 10px;
+}
+
+.refinements-view .reconstruction-stats .log-button {
+	margin-left: 20px;
+}
+
+.refinements-view .reconstruction-options select {
+    display: inline-block;
+    width: 406px;
+    margin-left: 10px;
+}
+
+.refinements-view .reconstruction-pr-hist {
+	display: flex;
+	flex-direction: row;
+}
+
+.refinements-view .reconstruction-pr-hist > * {
+	width: 50%;
+}
+
+.refinements-view .reconstruction-class-resize {
+    text-align: right;
+    margin-right: 10px;
+}
+
+.refinements-view .reconstruction-thumbs div.thumbnails {
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+}
+
+.refinements-view .reconstruction-thumbs div.thumbnails div.thumbnail {
+	margin: 10px;
+	display: inline-block;
+	text-align: center;
+	position: relative;
+	border: solid #5e656e 3px;
+    border-radius: 4px;
+    background-color: #5e656e;
+}
+
+.refinements-view .reconstruction-thumbs div.thumbnails div.thumbnail.small {
+	width: calc(12.5% - 20px)
+}
+
+.refinements-view .reconstruction-thumbs div.thumbnails div.thumbnail.medium {
+	width: calc(25% - 20px)
+}
+
+.refinements-view .reconstruction-thumbs div.thumbnails div.thumbnail.large {
+	width: calc(50% - 20px)
+}
+
+.refinements-view .reconstruction-thumbs div.thumbnails div.thumbnail img {
+	display: block;
+	cursor: pointer;
+	width: 100%;
+}
+
+.refinements-view .reconstruction-thumbs div.thumbnails div.thumbnail span {
+    display: block;
+    width: 100%;
+    overflow: hidden;
+    bottom: 0px;
+    background-color: #505050;
+    color: #ffffff;
+    font-size: 70%;
+    cursor: pointer;
+}
+
+.refinements-view .reconstruction-thumbs div.buttons {
+	line-height: 40px;
+}
+
+.refinements-view .reconstruction-thumbs div.buttons div.title {
+	font-size: 20px;
+	font-weight: bold;
+    margin-left: 10px;
+}
+
+.refinements-view .reconstruction-thumbs div.buttons div.right {
+	float: right;
+}
+
+.refinements-view .refinements-tab .header {
+	margin-top: 20px;
+	margin-bottom: 20px;
+	margin-left: 10px;
+	/* NOTE: this header should have a fixed height!
+		otherwise the hypergallery won't update its position after any changes
+	*/
+	height: 25px;
+}
+
+.refinements-view .refinements-tab .particles-single-image {
+	position: relative;
+}
+
+.refinements-view .refinements-tab .particles-single-image .image-panel {
+    position: absolute;
+    top: 40px;
+    right: 20px;
+    background-color: #ffffff;
+    padding-left: 20px;
+    padding-right: 20px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    border: solid 2px #999999;
+    border-radius: 10px;
+}
+
+.refinements-view .refinements-tab .particles-single-image .full-width-image {
+    margin: 5px 0px;
+}
+
+.refinements-view .refinements-tab .single-image-controls button {
+    margin: 5px;
+}
+
+.refinements-view .refinements-tab .single-image-controls .prev-next-button {
+    width: 175px;
+}
+
+.refinements-view .refinements-tab .single-image-controls {
+    text-align: center;
+    margin-top: 5px;
+}
+
+.refinements-view .refinements-tab .hyper-gallery .thumbnails-hyperlist a.thumbnail.image-selected {
+    border-color: var(--primary);
+}
+
+.refinements-view .refinements-tab .hyper-gallery .thumbnails-hyperlist a.thumbnail.image-selected span.label {
+    background-color: var(--primary);
+}
+
+.refinements-view .refinements-tab .red-close-button {
+    margin-left: 0px;
+    /* background-color: var(--red);
+    border-color: var(--red); */ /* UNCOMMENT FOR RED */
+}
+
+.refinements-view .refinements-tab .red-close-button:hover, .red-close-button:focus, .red-close-button:active {
+    /* background-color: #c82232 !important;
+    border-color: #c52030 !important; */ /* UNCOMMENT FOR RED */
+}
+
+.refinements-view .classes-movie-tab .content {
+	display: flex;
+	flex-direction: row;
+	gap: 20px;
+}
+
+.refinements-view .classes-movie-tab .content .classes {
+	width: 180px;
+}
+
+.refinements-view .classes-movie-tab .content .classes .class-item {
+	display: flex;
+	flex-direction: row;
+	gap: 20px;
+}
+
+.refinements-view .classes-movie-tab .content .classes .class-item .label {
+	flex-grow: 1;
+}
+
+
+/* TOMOGRAPHY PREPROCESSING VIEW */
+
+div.tomography-preprocessing {
+	position: relative;
+}
+
+div.tomography-preprocessing .live .stats {
+	margin-left: 4px;
+	margin-top: 10px;
+	margin-bottom: 6px;
+}
+
+div.tomography-preprocessing .live .stats .log-button {
+	margin-left: 20px;
+}
+
+div.tomography-preprocessing div.pyp-stats {
+	margin-top: 6px;
+    margin-bottom: 6px;
+    margin-left: 10px;
+    color: #666666;
+}
+
+div.tomography-preprocessing .websocket-control {
+	position: absolute;
+	top: 10px;
+	right: 10px;
+}
+
+.full-width-image {
+    width: 100%;
+}
+
+div.new-delete-load button {
+    margin-left: 30px;
+    margin-top: -4px;
+}
+
+div.new-delete-load input {
+    margin-left: 10px;
+    display: inline-block;
+    width: 163px;
+    margin-top: 15px;
+}
+
+
+.particles-gallery img {
+    width: 256px;
+}
+
+/* TILT SERIES GIF IMAGE */
+
+.controllable-sprite {
+    overflow: hidden;
+    position: relative;
+}
+
+.controllable-sprite img {
+    position: absolute;
+    max-width: unset !important;
+}
+
+.sprite-controls-container {
+    width: 100%;
+    display: flex;
+}
+
+.sprite-controls-container .tomo-gif-slider {
+	-webkit-appearance: none;
+	width: 100%;
+    position: relative;
+	height: 10px;
+	border-radius: 7.5px;
+	background: #aaa;
+	outline: none;
+	opacity:0.7;
+	-webkit-transition: opacity .05s ease-in-out;
+	transition: opacity .05s ease-in-out;
+    margin-bottom: 0px;
+}
+
+.sprite-controls-container .tomo-gif-slider:hover {
+	opacity:1;
+}
+
+.sprite-controls-container .tomo-gif-slider::-webkit-slider-thumb,
+.sprite-controls-container .tomo-gif-slider::-moz-range-thumb {
+	-webkit-appearance: none;
+	appearance: none;
+	width: 15px;
+	height: 15px;
+	border-radius: 50%;
+	background: var(--primary);
+	cursor: pointer;
+}
+
+.sprite-controls-container .flex-grow {
+    flex-grow: 1;
+}
+
+.sprite-controls-container .speed-selector {
+    border: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    -ms-appearance: none;
+    appearance: none;
+    padding-left: 3px;
+    outline-style: none;
+    font-weight: bold;
+    color: #444;
+    text-shadow: 0px 0px 1px #444;
+    text-align: right;
+    background-color: white;
+    cursor: pointer
+}
+
+.sprite-controls-container .current-frame-label {
+    width: 50px;
+    text-align: right;
+}
+
+.sprite-controls-container label {
+    margin-bottom: 0px;
+}
+
+.sprite-controls-container .fas {
+    color: #444;
+    text-shadow: 0px 0px 1px #444;
+    margin: 1px 10px;
+    cursor: pointer;
+    line-height: unset;
+}
+
+.sprite-controls-container .sprite-checkbox:not(.checked) {
+    opacity: 0.5;
+}
+
+.sprite-controls-container .count-label {
+    margin-right: 5px;
+}
+
+.opaque-background {
+    background-color: white;
+}
+
+/* TILT LINE */
+
+.tilt-angle-line {
+    width: 100%;
+    height: 100%;
+    margin-bottom: -100%;
+    z-index: 2;
+    position: relative;
+    top: calc(50% - 0.75px);
+}
+
+.tilt-angle-line div {
+    background-color: red;
+    position: relative;
+    left: -50%;
+    width: 200%;
+    height: 1.5px;
+}
+
+/* TILT REFERENCE LINE */
+
+.tilt-reference-line {
+    width: 100%;
+    height: 100%;
+    margin-bottom: -100%;
+    z-index: 2;
+    position: relative;
+    top: calc(50% - 0.75px);
+}
+
+.tilt-reference-line div {
+    background-color: var(--primary);
+    position: relative;
+    left: -50%;
+    width: 200%;
+    height: 1.5px;
+}
+
+/* MODAL SELECTION */
+
+div.modal-selection-container {
+	margin: auto;
+	position: relative;
+}
+
+div.modal-selection-container.aspect-unlocked {
+	width: 100%;
+	height: 100%;
+}
+
+div.modal-selection-container.aspect-locked {
+	max-width: 100%;
+	max-height: 100%;
+}
+
+img.modal-selection-image {
+	display: none;
+	position: relative;
+	max-width: 100%;
+	max-height: 100%;
+}
+
+div.modal-selection-div {
+	display: inline-block;
+	position: absolute;
+	cursor: pointer;
+}
+
+div.modal-selection-div.holds-image {
+    padding: 5px;
+}
+
+div.modal-selection-div:hover {
+	filter: brightness(0.95)
+}
+
+div.modal-selection-plot {
+	float: left;
+}
+
+div.modal-selection-plot > div {
+	height: 100%;
+}
+
+div.modal-selection-image > div {
+	max-width: 100%;
+	max-height: 100%;
+}
+
+.modal-selection-div * {
+    cursor: pointer;
+}
+
+.modal-selection-div:before {
+    content: "" attr(data-tilt-angle) "\00b0 ";
+    position: absolute;
+    display: block;
+    font-weight: bold;
+    font-size: 14px;
+    padding: 0px 5px;
+    z-index: 2;
+}
+
+.modal-selection-div:hover:before {
+    content: attr(data-tilt-angle) "\00b0  (click to view)";
+}
+
+.modal-selection-div.holds-image:before {
+    background-color: #fffa;
+}
+
+.modal-selection-container .filter-check {
+	display: inline-block;
+	position: absolute;
+	border-radius: 6px;
+	background-color: #fff;
+	padding-left: 16px;
+	padding-right: 10px;
+	padding-top: 3px;
+	padding-bottom: 2px;
+	margin-bottom: 10px;
+	margin-right: 10px;
+}
+
+  
+/* SIZED PANEL */
+
+div.sized-panel {
+	vertical-align: top;
+	display: inline-block;
+	margin: 10px;
+	max-width: 96%;
+}
+
+div.tomo-sized-panel {
+	vertical-align: top;
+	display: inline-block;
+	margin: 10px;
+	max-width: 96%;
+	margin-top: 0px;
+}
+
+div.sized-panel div.buttons {
+	line-height: 40px;
+}
+
+div.sized-panel div.buttons div.title {
+	font-size: 20px;
+	font-weight: bold;
+}
+
+div.sized-panel div.buttons div.right {
+	float: right;
+}
+
+div.sized-panel img {
+	max-width: 100%;
+}
+
+
+/* ADMIN VIEW */
+
+div.admin h3.welcome {
+	text-align: right;
+}
+
+div.admin input.useridSearch {
+	width: 200px;
+	margin-bottom: 20px;
+}
+
+div.admin .table {
+	width: 600px;
+}
+
+div.admin .table .actionsColumn button {
+	width: 28px;
+	height: 28px;
+	padding: inherit;
+	margin-left: 6px;
+	margin-right: 6px;
+}
+
+div.admin div.tab {
+	padding: 20px;
+}
+
+div.admin input.sessionSearch {
+	width: 300px;
+	margin-bottom: 20px;
+}
+
+div.admin-popup h1 {
+	font-size: 140%;
+}
+
+div.admin-popup div.block {
+	margin-top: 20px;
+	margin-bottom: 20px;
+}
+
+
+/* NEW SESSION VIEW */
+
+div.startSession form {
+	max-width: 400px;
+	margin-left: inherit;
+}
+
+div.startSession .col-sm-2 {
+	flex: 0 0 40%;
+	max-width: 40%;
+}
+
+div.startSession .col-sm-10 {
+	flex: 0 0 60%;
+	max-width: 60%;
+}
+
+div.startSession button.start {
+	margin-left: 160px;
+}
+
+
+/* DASHBOARD VIEW */
+
+div.dashboard {
+	display: flex;
+	flex-direction: column;
+}
+
+.dashboard .selection {
+	min-height: 56px;
+	padding: 4px;
+}
+
+.dashboard .selection .description {
+	display: flex;
+	flex-direction: row;
+	gap: 20px;
+}
+
+.dashboard .selection .description .entry .label {
+	font-weight: bold;
+	margin-right: 1em;
+}
+
+.dashboard .selection .search-box-container {
+	position: relative;
+	display: inline-block;
+	width: 300px;
+	margin-right: 20px;
+	margin-bottom: 10px;
+}
+
+.dashboard .selection .search-box-container .search-box {
+	padding-left: 36px;
+}
+
+.dashboard .selection .search-box-container .search-box-icon {
+	position: absolute;
+	top: 12px;
+	left: 12px;
+	color: #aaaaaa;
+}
+
+.dashboard .selection .search-second-container {
+	display: inline-block;
+}
+
+.dashboard .selection .sharing {
+	width: 160px !important; /* override bootstrap defaults, which look bad here */
+	vertical-align: inherit; /* need to override bootstrap default here too */
+}
+
+.dashboard .selection .search-results {
+	margin-left: 20px;
+}
+
+.dashboard .selection-buttons {
+	padding: 4px;
+}
+
+.dashboard .selection-buttons button {
+	margin-right: 10px;
+}
+
+div.dashboard div.projects {
+	display: flex;
+	flex-direction: row;
+	flex-wrap: wrap;
+	flex-grow: 1;
+	align-items: flex-start;
+	align-content: flex-start;
+	overflow-y: auto;
+}
+
+div.dashboard div.projects div.empty {
+	width: 100%;
+	text-align: center;
+	margin-top: 100px;
+}
+
+.dashboard .projects .project {
+	cursor: pointer;
+	position: relative;
+	height: 226px;
+	max-width: calc(100% - 20px);
+}
+
+.dashboard .projects .project.selected:after {
+	content: '';
+	position: absolute;
+	top: -8px;
+	bottom: -8px;
+	left: -8px;
+	right: -8px;
+	border: solid 3px #007bff;
+	border-radius: 6px;
+}
+
+.dashboard .projects .project .project-title {
+	display: flex;
+	flex-direction: row;
+	margin-bottom: 6px;
+}
+
+.dashboard .projects .project .project-name {
+	font-weight: bold;
+	flex-grow: 1;
+	padding-left: 6px;
+}
+
+.dashboard .projects .project .project-owner {
+	margin-left: 10px;
+}
+
+.dashboard .projects .project .project-owner .icon {
+	margin-right: 6px;
+}
+
+.dashboard .projects .project .representative-images {
+	clear: both;
+	margin-bottom: 6px;
+	display: flex;
+	flex-direction: row;
+	gap: 12px;
+	margin-left: 6px;
+	margin-right: 6px;
+}
+
+.dashboard .projects .project .representative-images .representative-image-container {
+	max-width: 256px;
+}
+
+.dashboard .projects .project .representative-images img {
+	width: 100%;
+	height: 180px;
+	object-fit: cover;
+}
+
+div.dashboard div.running-jobs h1 {
+	font-size: 110%;
+}
+
+div.dashboard div.running-jobs span.status-icon {
+	margin-right: 6px;
+}
+
+div.dashboard div.running-jobs div.status {
+	padding-left: 24px;
+}
+
+div.dashboard div.running-jobs div.status div.timestamp {
+	font-size: 84%;
+}
+
+a.running-link-grid:hover a.running-link-grid:visited { 
+	text-decoration: none;
+	color: var(--primary);
+}
+
+a.dashboard-status-icon { 
+	text-decoration: none;
+	padding-right: 10px;
+}
+
+div.running-project-grid {
+	display: inline-block;
+	padding: 6px;
+}
+
+div.dashboard .not-logged-in {
+	text-align: center;
+	margin-top: 60px;
+	margin-bottom: 60px;
+}
+
+
+/* PROJECT VIEW */
+
+div.project-view {
+	height: 100%;
+	display: flex;
+	flex-direction: column;
+}
+
+div.project-view div.toolbar {
+	border-top: solid 1px #cccfd7;
+	background-color: #f8f9fa;
+	padding: 8px;
+	display: flex;
+	flex-direction: row;
+}
+
+.project-view .toolbar-left,
+.project-view .toolbar-center,
+.project-view .toolbar-right {
+	display: flex;
+	flex-direction: row;
+	gap: 10px;
+}
+
+div.project-view div.toolbar-fill {
+	flex-grow: 1;
+}
+
+div.project-view div.panel-project {
+	flex-grow: 1;
+	overflow-y: hidden;
+}
+
+/* HACKHACK: KVision's internal divs for the DockPanel widget need some tweaking to get scrolling working properly */
+div.project-view div.panel-project > div > div {
+	height: 100%;
+}
+
+/* HACKHACK: KVision's internal divs for the StackPanel widget need some tweaking to get scrolling working properly */
+div.project-view div.panel-project-right > div {
+	height: 100%;
+}
+
+/* HACKHACK: needed so flexbox will enforce width restrictions on the project panel */
+.project-view .panel-project > div > div > div > div:first-child { /* container of .panel-project-left */
+	min-width: 0;
+}
+
+div.project-view div.panel-project-left {
+	height: 100%;
+	display: flex;
+	flex-direction: column;
+}
+
+.project-view .panel-project-left .panel-project-bottom {
+	background-color: #f8f9fa;
+    border-right: solid 1px #cccfd7;
+}
+
+div.project-view div.panel-project-right {
+	max-width: 400px;
+	height: 100%;
+	background-color: #f8f9fa;
+	border-top: solid 1px #cccfd7;
+}
+
+div.project-view div.diagram {
+	border-top: solid 1px #848ca0;
+	border-right: solid 1px #848ca0;
+	border-bottom: solid 1px #848ca0;
+	box-shadow: inset -2px 2px 2px 0px #31344854;
+	position: relative; /* so popups can be absolutely positioned on diagram elements */
+	flex-grow: 1;
+}
+
+div.project-view div.diagram div.stage-container {
+	height: 100%;
+}
+
+div.project-view div.diagram div.stage {
+	/* NOTE:
+		can't have a background color here, or the link lines won't be visible
+		also, there's no point in styling this because nodes can be placed outside of the stage
+		it just looks weird
+		this element is less of a stage and more of a point-of-origin for transformations
+	*/
+}
+
+div.project-view div.diagram div.node {
+	background-color: #ffffff;
+	border-radius: 6px;
+	border: solid 2px #8e92a2;
+	box-shadow: 1px 2px 2px 0px #31344854;
+	cursor: auto;
+	user-select: unset;
+	white-space: nowrap;
+}
+
+/* TODO: how to re-create selected nodes? look at default node code? */
+div.project-view div.diagram div.node div.css-pnz53c { /* selected node */
+
+	/* undo the default styles */
+    font-family: unset;
+    color: unset;
+    font-size: unset;
+
+    /* add our own styles */
+	background-color: #ffffff;
+	border-radius: 6px;
+	border: solid 1px #bdc1da;
+	box-shadow: 1px 2px 2px 0px #31344854;
+
+	/* TODO: probably don't need to re-create regular node styles here, can just add selected class to div */
+}
+div.project-view div.diagram div.node div.css-pnz53c:after {
+	content: '';
+	position: absolute;
+	top: -8px;
+	bottom: -8px;
+	left: -8px;
+	right: -8px;
+	border: solid 3px #007bff;
+	border-radius: 6px;
+}
+
+div.project-view div.diagram div.node .selected {
+	outline: solid 6px #007bff;
+	outline-offset: 10px;
+	border-radius: 6px;
+}
+
+div.project-view div.diagram div.node div.title {
+	background: linear-gradient(to bottom, #d9dfe6 0%, #b5bcc4 100%);
+	padding-right: 6px;
+	border: none;
+	border-top-left-radius: 3px;
+	border-top-right-radius: 3px;
+	display: flex;
+	flex-direction: row;
+	cursor: pointer;
+}
+
+div.project-view div.diagram div.node div.title span.icon {
+	margin-right: 4px;
+	background-color: #69696942;
+    padding-left: 4px;
+    padding-right: 4px;
+    line-height: 22px;
+    border-top-left-radius: 3px;
+}
+
+div.project-view div.diagram div.node div.title span.text {
+	flex-grow: 1;
+}
+
+div.project-view div.diagram div.node div.title span.buttons {
+	line-height: 22px;
+	margin-left: 6px;
+}
+
+div.project-view div.diagram div.node div.title span.buttons button {
+	font-size: 10px;
+	padding-left: 4px;
+	padding-right: 4px;
+	padding-top: 2px;
+	padding-bottom: 2px;
+	margin-left: 4px;
+}
+
+div.project-view div.diagram div.node div.content {
+	padding: 8px;
+}
+
+div.project-view div.diagram div.node div.ports {
+	display: flex;
+	flex-direction: row;
+	font-size: 14px;
+    line-height: 20px;
+    margin-bottom: 2px;
+}
+
+div.project-view div.diagram div.node div.ports div.center-ports {
+	flex-grow: 1;
+}
+
+div.project-view div.diagram div.node div.ports div.left-port {
+	display: flex;
+	flex-direction: row;
+	background-color: #c9ced3;
+	padding-right: 10px;
+	border-bottom-right-radius: 10px;
+	border-top-right-radius: 10px;
+	margin-top: 2px;
+	margin-bottom: 2px;
+}
+
+div.project-view div.diagram div.node div.ports div.right-port {
+	display: flex;
+	flex-direction: row;
+	background-color: #c9ced3;
+    padding-left: 10px;
+    border-bottom-left-radius: 10px;
+    border-top-left-radius: 10px;
+	margin-top: 2px;
+	margin-bottom: 2px;
+}
+
+div.project-view div.diagram div.node div.ports div.port {
+	width: 20px;
+	height: 20px;
+	border: solid 2px #004791;
+    background: linear-gradient(to bottom, #2d92ff 0%, #0065d0 100%);
+}
+
+div.project-view div.diagram div.node div.ports div.in-port {
+    border-bottom-right-radius: 8px;
+    border-top-right-radius: 8px;
+    border-left: none;
+    box-shadow: -2px 0px 0px #004791;
+    margin-right: 6px;
+}
+
+div.project-view div.diagram div.node div.ports div.out-port {
+    border-bottom-left-radius: 8px;
+    border-top-left-radius: 8px;
+    border-right: none;
+    box-shadow: 2px 0px 0px #004791;
+    margin-left: 6px;
+    cursor: pointer;
+}
+
+div.project-view div.diagram span.user-card {
+	border: solid 1px #c0c5ca;
+	border-radius: 6px;
+	padding: 2px 6px;
+	background-color: #0026561f;
+	box-shadow: 1px 2px 2px #0026561f;
+	margin: 2px 4px;
+	white-space: nowrap;
+}
+
+div.project-view div.diagram span.user-card span.icon {
+	margin-right: 4px;
+}
+
+div.project-view div.diagram span.ellipsis {
+	text-overflow: ellipsis;
+	overflow: hidden;
+}
+
+.ellipsis {
+	text-overflow: ellipsis;
+	overflow: hidden;
+	max-width: 250px;
+}
+
+div.project-view div.use-data-popup {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+	padding: 16px;
+	width: 400px;
+}
+
+div.project-view div.use-data-popup .entry button {
+	display: block;
+}
+
+.project-view .use-data-popup .entry .description {
+	margin-left: 32px;
+	margin-top: 4px;
+}
+
+div.import-data-popup {
+	padding: 6px;
+}
+
+div.import-data-popup button {
+	display: block;
+	margin-top: 10px;
+	margin-bottom: 10px;
+}
+
+div.import-data-popup h1 {
+	font-size: 130%;
+	font-weight: bold;
+}
+
+.import-workflows-popup {
+	padding: 6px;
+}
+
+.import-workflows-popup .modal-dialog {
+	max-width: 80%;
+}
+
+.import-workflows-popup .workflows {
+	display: flex;
+	flex-direction: column;
+	gap: 40px;
+}
+
+.import-workflows-popup .workflows .workflow .header {
+	display: flex;
+	flex-direction: row;
+	justify-content: space-between;
+	align-items: flex-start;
+	gap: 16px;
+}
+
+.import-workflows-popup .workflows .workflow .header h1 {
+	display: inline-block;
+	font-size: 130%;
+	font-weight: bold;
+	min-height: 3.2rem;
+}
+
+.import-workflows-popup .workflows .workflow .description {
+	margin-left: 20px;
+}
+
+
+/* PROJECT VIEW - JOBS MONITOR */
+
+div.project-view div.jobs-monitor {
+	padding-left: 6px;
+	padding-right: 6px;
+	padding-top: 10px;
+	padding-bottom: 10px;
+	height: 100%;
+	display: flex;
+	flex-direction: column;
+}
+
+div.project-view div.jobs-monitor h1 {
+	font-size: 130%;
+}
+
+div.project-view div.jobs-monitor div.runs {
+	flex-grow: 1;
+	overflow-y: auto;
+	overflow-x: clip;
+	padding-bottom: 80px;
+	padding-left: 20px;
+	padding-right: 30px; /* leave room for a scrollbar */
+}
+
+div.project-view div.jobs-monitor div.runs div.run div.disclosure-content {
+	overflow-x: hidden; /* NOTE: clip does not work here */
+}
+
+div.project-view div.jobs-monitor div.runs div.disclosure-label {
+	white-space: nowrap;
+}
+
+div.project-view div.jobs-monitor div.runs .load-older-runs {
+	white-space: nowrap;
+}
+
+div.project-view div.jobs-monitor div.runs div.run div.disclosure-label {
+	display: flex;
+	flex-direction: row;
+}
+
+div.project-view div.jobs-monitor div.runs div.run div.disclosure-label > span.status-icon {
+	margin-top: auto;
+	margin-bottom: auto;
+}
+
+div.project-view div.jobs-monitor div.runs div.run div.disclosure-label > span.label {
+	margin-left: 4px;
+	flex-grow: 1;
+}
+
+div.project-view div.jobs-monitor div.runs div.run div.job div.disclosure-label > span.status-icon {
+	margin-top: auto;
+	margin-bottom: auto;
+}
+
+div.project-view div.jobs-monitor div.runs div.run div.job div.disclosure-label > span.name {
+	margin-left: 4px;
+}
+
+div.project-view div.jobs-monitor div.runs div.run div.cluster-job {
+	margin-left: 18px;
+}
+
+div.project-view div.jobs-monitor div.runs div.run div.cluster-job div.label-row {
+	display: flex;
+	flex-direction: row;
+}
+
+div.project-view div.jobs-monitor div.runs div.run div.cluster-job div.label-row > div.label {
+	flex-grow: 1;
+	white-space: nowrap;
+	overflow: hidden;
+}
+
+div.project-view div.jobs-monitor div.runs div.run div.cluster-job div.label-row > div.label > span.name {
+	margin-left: 4px;
+}
+
+div.project-view div.jobs-monitor div.runs div.run div.cluster-job div.count {
+	text-align: right;
+	white-space: nowrap;
+}
+
+div.project-view div.jobs-monitor div.runs div.run div.cluster-job div.count span.group {
+    display: inline-block;
+	width: 63px;
+	margin-left: 8px;
+	font-size: 86%; /* 90% here causes the rotating gear to wobble off-center a bit, 86% looks more centered */
+	text-align: left;
+}
+
+div.project-view div.jobs-monitor div.runs div.run div.cluster-job div.count span.group .label {
+	margin-left: 4px;
+}
+
+div.project-view div.jobs-monitor div.runs div.run button {
+	width: 18px;
+	height: 18px;
+	font-size: 10px;
+	padding-left: 3px;
+	padding-right: 3px;
+	padding-top: 0px;
+	padding-bottom: 0px;
+	margin-left: 4px;
+	margin-top: auto;
+	margin-bottom: auto;
+}
+
+div.project-view div.jobs-monitor div.runs div.run button.cancel {
+	background-color: #fa0000;
+	border-color: #fa0000;
+}
+
+div.project-view div.jobs-monitor div.runs > div.empty {
+	white-space: nowrap;
+	margin-left: 10px;
+	margin-right: 10px;
+}
+
+div.project-view .websocket-control {
+	height: 100%;
+	display: flex;
+	align-items: center;
+}
+
+
+/* PROJECT VIEW - RUN POPUP */
+
+.project-run-popup h1 {
+	font-size: 120%;
+}
+
+.project-run-popup h1:not(:first-child) {
+	margin-top: 20px;
+}
+
+.project-run-popup h1 button {
+	width: 24px;
+	height: 24px;
+	margin-left: 6px;
+	padding: 0;
+}
+
+.project-run-popup .nodes-list {
+	margin-left: 20px;
+}
+
+.project-run-popup .nodes-list .node-entry {
+	display: inline-block;
+	padding-left: 6px;
+    padding-right: 6px;
+}
+
+.project-run-popup .nodes-list .node-entry .icon {
+	display: inline-block;
+	width: 22px;
+	text-align: center;
+	margin-right: 8px;
+}
+
+.project-run-popup .nodes-list .node-entry input {
+	margin-right: 10px;
+}
+
+.project-run-popup .nodes-list .invalid {
+	outline: solid 1px #f00;
+    outline-offset: 1px;
+    border-radius: 8px;
+}
+
+.project-run-popup .validation-message {
+	margin-top: 10px;
+	color: #ff0000;
+}
+
+
+/* PROJECT VIEW - LARGE IMAGE POPUP */
+
+.large-image-popup .modal-dialog {
+	max-width: 1100px;
+	text-align: center;
+}
+
+img.large-scale-down {
+	width: 100%;
+	max-width: 1024px;
+}
+
+
+/* PROJECT VIEW - DELETE JOBS POPUP */
+
+.delete-jobs-popup .running-job {
+	color: #ff0000;
+}
+
+
+/* CLUSTER JOB LOGS */
+
+.cluster-job-logs .modal-dialog {
+	width: 90%;
+	max-width: 9999px;
+}
+
+.cluster-job-logs .modal-body {
+	display: flex;
+	flex-direction: column;
+	overflow-y: hidden;
+}
+
+.cluster-job-logs .commands {
+	flex-shrink: 0;
+	font-family: monospace;
+	font-size: 85%;
+	margin-bottom: 10px;
+}
+
+.cluster-job-logs .tabs {
+    display: flex;
+    flex-direction: column;
+    overflow-y: hidden;
+}
+
+.cluster-job-logs .tabs > ul {
+	/* the tab buttons container, need to override kvision/bootstrap styles */
+	flex-shrink: 0;
+}
+
+.cluster-job-logs .tabs > div {
+	/* the tabs container, need to override kvision/bootstrap styles */
+	flex-shrink: 1;
+	display: flex;
+	flex-direction: column;
+	overflow-y: hidden;
+}
+
+.cluster-job-logs .stream {
+	display: flex;
+	flex-direction: column;
+	overflow-y: hidden;
+	padding-top: 10px;
+}
+
+.cluster-job-logs .logs {
+	display: flex;
+	flex-direction: column;
+	overflow-y: hidden;
+	padding-top: 10px;
+}
+
+.cluster-job-logs .logs .header {
+	display: flex;
+	flex-direction: row;
+	gap: 20px;
+	margin-bottom: 16px;
+}
+
+.cluster-job-logs .logs .header .result .icon {
+	margin-right: 0.3em;
+}
+
+.cluster-job-logs .logs .log {
+	flex-shrink: 1;
+	display: flex;
+	flex-direction: column;
+	overflow-y: hidden;
+	padding-top: 10px;
+}
+
+.cluster-job-logs .logs > * {
+	flex-shrink: 0;
+}
+
+.cluster-job-logs .logs .log pre {
+	margin-bottom: 0;
+}
+
+.cluster-job-logs .logs .array-id {
+	width: 120px;
+	display: inline-block;
+	margin-left: 20px;
+	margin-right: 10px;
+}
+
+.cluster-job-logs-pinned {
+	padding: 8px;
+	max-height: 400px;
+	display: flex;
+	flex-direction: column;
+	overflow-y: hidden;
+}
+
+.cluster-job-logs-pinned .header {
+	display: flex;
+	flex-direction: row;
+}
+
+.cluster-job-logs-pinned .header .title {
+	flex-grow: 1;
+	font-size: 120%;
+}
+
+.cluster-job-logs-pinned .header .button {
+	width: 24px;
+	height: 24px;
+	padding: 0;
+	margin-left: 10px;
+}
+
+
+/* LOG STREAMER */
+
+.log-streamer {
+	display: flex;
+	flex-direction: column;
+	overflow-y: hidden;
+}
+
+.log-streamer .header {
+	flex-shrink: 0;
+	margin-top: 4px;
+	margin-bottom: 4px;
+	display: flex;
+	flex-direction: row;
+	gap: 20px;
+}
+
+.log-streamer .header .result {
+	width: 200px;
+}
+
+.log-streamer .header .result .icon {
+	margin-right: 0.3em;
+}
+
+.log-streamer .header .spacer {
+	flex-grow: 1;
+}
+
+.log-streamer .header .pin-button {
+	width: 26px;
+    height: 26px;
+    padding: 2px;
+    font-size: 16px;
+}
+
+/**
+	NOTE: don't name CSS classes `progress` or `progress-bar` here,
+	since Bootstrap has top-level CSS classes named exactly that.
+*/
+.log-streamer .tqdm-progress {
+	margin-left: 10px;
+}
+
+.log-streamer .tqdm-progress .box {
+	display: inline-block;
+	width: 400px;
+}
+
+.log-streamer .tqdm-progress .bar {
+	display: inline-block;
+	background-color: #07f22c;
+	text-align: center;
+}
+
+.log-streamer .tqdm-progress .times {
+	margin-left: 20px;
+}
+
+.log-streamer .tqdm-progress .times .elapsed {
+	margin-right: 10px;
+}
+
+.log-streamer .tqdm-progress .times .remaining {
+	margin-left: 10px;
+}
+
+.log-streamer .tqdm-progress .rate {
+	margin-left: 20px;
+}
+
+.log-streamer .tqdm-progress .rate .unit {
+	margin-left: 6px;
+}
+
+
+/* POPUPS AND DIALOGS */
+
+div.max-height-dialog {
+	height: 100%;
+	padding-top: 40px;
+	padding-bottom: 40px;
+}
+
+div.max-height-dialog div.modal-dialog {
+	height: 100%;
+	margin-top: 0;
+	margin-bottom: 0;
+}
+
+div.max-height-dialog div.modal-dialog div.modal-content {
+	max-height: 100%;
+}
+
+div.max-height-dialog div.modal-dialog div.modal-content div.modal-body {
+	overflow-y: auto;
+}
+
+div.modal-dialog div.modal-content div.modal-footer button.reset-button {
+	margin-right: 60px;
+}
+
+div.full-height-dialog {
+	height: 100%;
+	padding-top: 40px;
+	padding-bottom: 40px;
+}
+
+div.full-height-dialog div.modal-dialog {
+	height: 100%;
+	margin-top: 0;
+	margin-bottom: 0;
+}
+
+div.full-height-dialog div.modal-dialog div.modal-content {
+	height: 100%;
+}
+
+div.full-height-dialog div.modal-dialog div.modal-content div.modal-body {
+	overflow-y: auto;
+}
+
+div.full-width-dialog div.modal-dialog {
+	max-width: 100%;
+	margin-left: 40px;
+	margin-right: 40px;
+}
+
+
+/* ARGS FORMS */
+
+div.args-form-popup div.modal-dialog {
+	width: 90%;
+	max-width: 90%;
+}
+
+.args-form-popup h2 {
+	font-size: 120%;
+}
+
+/* get rid of width limitations imposed by KVision */
+div.args-form-popup form.form-horizontal div.col-sm-10 {
+	flex: initial;
+	max-width: initial;
+}
+
+div.args-form div.form-group {
+	margin-bottom: 0;
+}
+
+div.args-form div.form-group label {
+	display: none;
+	margin-bottom: 0;
+}
+
+div.args-form label {
+	width: 100%;
+	text-align: right;
+	margin-bottom: 0;
+}
+
+.args-form table tr.advanced {
+	background-color: #f0f6fa;
+}
+
+div.args-form table td {
+	padding: 6px;
+}
+
+div.args-form table td.icon {
+	line-height: 37px;
+}
+div.args-form table td.label {
+	line-height: 37px;
+}
+div.args-form table td.control {
+	white-space: nowrap;
+}
+div.args-form table td.description {
+	line-height: 37px;
+}
+
+div.args-form span.arg-icon {
+	display: inline-block;
+	text-align: center;
+	font-size: 14px;
+	width: 20px;
+	height: 20px;
+	line-height: 19px;
+	border: solid 1px;
+	border-radius: 4px;
+}
+
+div.args-form span.arg-icon-default {
+	background-color: #c5deff;
+	border-color: #1d67c9;
+	color: #1658b0;
+}
+
+div.args-form span.arg-icon-specified {
+	background-color: #d2ffcc;
+	border-color: #50be41;
+	color: #288e1a;
+}
+
+div.args-form span.arg-icon-required {
+	background-color: #ffcccc;
+	border-color: #be4141;
+	color: #8e1a1a;
+}
+
+div.args-form span.description {
+	font-size: 90%;
+}
+
+.args-form .options {
+	margin-top: 10px;
+	margin-bottom: 10px;
+}
+
+
+/* DISCLOSURE */
+
+div.disclosure {
+	display: flex;
+	flex-direction: row;
+}
+
+div.disclosure div.disclosure-icon {
+	width: 18px;
+}
+
+div.disclosure div.disclosure-icon span {
+	cursor: pointer;
+}
+
+div.disclosure div.disclosure-content {
+	flex-grow: 1;
+	max-width: 100%;
+}
+
+div.disclosure div.disclosure-content div.disclosure-label {
+	cursor: pointer;
+}
+
+div.disclosure div.disclosure-content div.disclosure-disclosed {
+	/* TODO ? */
+}
+
+
+/* FILESYSTEM PICKER */
+
+div.filesystem-picker {
+	line-height: 40px;
+}
+
+div.filesystem-picker button {
+	margin-right: 16px;
+}
+
+.filesystem-picker .path-prefix {
+	max-width: 500px;
+	display: inline-block;
+	vertical-align: bottom;
+	text-overflow: ellipsis;
+	overflow: hidden;
+}
+
+
+/* GLOB PICKER */
+
+div.glob-picker {
+	line-height: 40px;
+}
+
+div.glob-picker button {
+	margin-right: 16px;
+}
+
+div.glob-picker-popup button.count {
+	margin-right: 16px;
+}
+
+
+/* FILE BROWSER */
+
+div.file-browser {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+}
+
+div.file-browser .file-browser-location {
+	height: 56px;
+	flex-shrink: 0;
+	margin-bottom: 10px;
+	border-bottom: solid 1px #dee2e6;
+	display: flex;
+	flex-direction: row;
+	align-items: baseline;
+}
+
+div.file-browser .file-browser-location button {
+	margin-right: 16px;
+}
+
+div.file-browser .file-browser-location button.up-button {
+	margin-left: 20px;
+}
+
+div.file-browser .file-browser-location button.go-button {
+	margin-left: 20px;
+}
+
+div.file-browser .file-browser-content {
+	flex-grow: 1;
+	overflow: hidden;
+}
+
+div.file-browser .file-browser-folder {
+	display: flex;
+	flex-flow: column wrap;
+	overflow-x: auto;
+	height: 100%;
+}
+
+div.file-browser .file-browser-entry {
+	padding-left: 6px;
+	padding-right: 6px;
+	margin: 2px;
+	display: inline-block;
+	cursor: pointer;
+}
+
+div.file-browser .file-browser-entry.file-browser-entry-selected {
+	outline: solid 2px #007bff;
+	border-radius: 6px;
+}
+
+div.file-browser .file-browser-entry span.icon {
+	margin-right: 6px;
+}
+
+div.file-browser .file-browser-bottom {
+	line-height: 36px;
+	flex-shrink: 0;
+	margin-top: 10px;
+	padding-top: 8px;
+	border-top: solid 1px #dee2e6;
+	display: flex;
+	flex-direction: row;
+	flex-wrap: wrap;
+}
+
+div.file-browser .file-browser-bottom .file-browser-metadata {
+	min-width: 300px;
+	/* this component REALLY needs to stay the same size, otherwise the inteface can be unusable! */
+	height: 40px;
+	overflow-y: clip;
+}
+
+div.file-browser .file-browser-bottom .file-browser-spacer {
+	flex-grow: 1;
+}
+
+div.file-browser .file-browser-bottom .file-browser-controls {
+	min-width: 300px;
+	display: flex;
+	flex-direction: row;
+}
+
+div.file-browser .file-browser-bottom .file-browser-controls .file-browser-count {
+	white-space: nowrap;
+}
+
+div.file-browser .file-browser-bottom .file-browser-controls .file-browser-glob {
+	margin-left: 10px;
+	margin-right: 10px;
+}
+
+
+/* WEBSOCKET CONTROL */
+
+.websocket-control .popover-body .error-message {
+	display: block;
+}
+
+.websocket-control .popover-body .error-type {
+	display: inline;
+}
+
+
+/* TRI-STATE CHECK */
+
+.tristate-check {
+	display: inline-block;
+	font-size: 22px;
+	cursor: pointer;
+}
+
+
+/* REVERSE CHECK */
+
+.reverse-check {
+	display: inline-block;
+	font-size: 22px;
+	cursor: pointer;
+}
+
+
+/* MICROGRAPH PLOTS */
+
+.micrograph-plots .top-plots {
+	display: flex;
+	flex-wrap: wrap;
+}
+
+.micrograph-plots .top-plots > div {
+	display: inline-block;
+	min-width: 260px;
+	height: 200px;
+	margin-left: 6px;
+	margin-right: 6px;
+}
+
+.micrograph-plots .container-ctfdist {
+	flex-grow: 1;
+}
+
+.micrograph-plots .container-resdist {
+	flex-grow: 1;
+}
+
+.micrograph-plots .container-dfdist {
+	flex-grow: 1;
+}
+
+.micrograph-plots .container-df1vsdf2 {
+	flex-grow: 1;
+}
+
+.micrograph-plots .container-astig {
+	/* nothing needed yet */
+}
+
+.micrograph-plots .plot-ctfdist {
+	width: 100%;
+	height: 100%;
+}
+
+.micrograph-plots .plot-resdist {
+	width: 100%;
+	height: 100%;
+}
+
+.micrograph-plots .plot-dfdist {
+	width: 100%;
+	height: 100%;
+}
+
+.micrograph-plots .plot-df1vsdf2 {
+	width: 100%;
+	height: 100%;
+}
+
+.micrograph-plots .plot-astig {
+	width: 100%;
+	height: 100%;
+}
+
+.micrograph-plots .plot-defocus {
+	margin-top: 20px;
+	height: 160px;
+}
+
+.micrograph-plots .plot-resolution {
+	margin-top: 20px;
+	height: 160px;
+}
+
+.micrograph-plots .plot-averageMotion {
+	margin-top: 20px;
+	height: 160px;
+}
+
+.micrograph-plots .plot-particles {
+	margin-top: 20px;
+	height: 160px;
+}
+
+.tooltip-inner-micrograph {
+	/* turn off the max width that bootstrap uses for tooltips */
+	max-width: inherit;
+}
+
+.tooltip-inner-micrograph img {
+	margin-top: 4px;
+	margin-bottom: 4px;
+	margin-right: 10px;
+	float: left;
+}
+
+.tooltip-inner-micrograph table.properties {
+	display: inline-block;
+	text-align: left;
+}
+
+.tooltip-inner-micrograph table.properties td:first-child {
+	text-align: right;
+	font-weight: bold;
+	padding-right: 10px;
+}
+
+.tooltip-inner-micrograph div.doorstop {
+	height: 0px;
+	clear: left;
+}
+
+/* FILTER TABLE */
+
+.filter-table .filters-title {
+	font-weight: bold;
+	font-size: 16px;
+}
+
+.filter-table .filters {
+	margin-top: 20px;
+	margin-bottom: 20px;
+}
+
+.filter-table .filters .filter {
+	margin-bottom: 10px;
+}
+
+.filter-table .filters .filter .form-group {
+	float: left;
+	width: 200px;
+	margin-top: 20px;
+	margin-bottom: 0px;
+}
+
+.filter-table .filters .filter .slider {
+	width: 100%;
+	padding-top: 50px;
+	padding-left: 240px;
+	padding-right: 80px;
+	padding-bottom: 20px;
+}
+
+.filter-table .filters .filter button {
+	float: right;
+	margin-top: 40px;
+}
+
+.filter-table .filters-load-save {
+	margin-top: 10px;
+}
+
+.filter-table .filters-load-save input.name {
+	display: inline-block;
+	width: 200px;
+}
+
+.filter-table .filters-load-save input.name.filter-name-error {
+	border: 2px solid red;
+}
+
+.filter-table .filters-load-save > * {
+	margin-right: 30px;
+}
+
+.filter-table .filter-buttons .matched {
+	font-style: italic;
+}
+
+.filter-table .filter-buttons button {
+	margin-right: 30px;
+}
+
+.filter-table .rows {
+	margin-top: 20px;
+	margin-bottom: 10px;
+}
+
+.filter-table .rows .form-group {
+	display: inline-block;
+}
+
+.filter-table .rows select {
+	display: inline-block;
+	width: inherit;
+	margin-left: 8px;
+}
+
+.filter-table .rows span {
+	margin-left: 8px;
+	margin-right: 8px;
+}
+
+.filter-table .columns {
+	display: flex;
+	flex-direction: row;
+}
+
+.filter-table .tabulator {
+	flex-grow: 1;
+}
+
+.filter-table .viewpane {
+	vertical-align: top;
+    padding-left: 20px;
+    min-width: 550px;
+}
+
+.filter-table .viewpane .controls {
+	display: flex;
+	flex-direction: row;
+	flex-wrap: nowrap;
+	align-items: center;
+    gap: 20px;
+}
+
+.filter-table .viewpane .controls button {
+	display: block;
+	margin-bottom: 10px;
+}
+
+.filter-table .viewpane .controls .form-check {
+	margin-bottom: 10px;
+}
+
+.filter-table .viewpane .empty {
+	text-align: center;
+	margin-top: 40px;
+}
+
+.filter-table .viewpane .hurray {
+	text-align: center;
+}
+
+.filter-table .viewpane .hurray span {
+	margin-left: 8px;
+	margin-right: 8px;
+}
+
+.filter-table .viewpane .hurray .trophy {
+	font-size: 500%;
+	color: #c5d0db;
+}
+
+
+/* HYPER GALLERY */
+
+
+.hyper-gallery .thumbnails-hyperlist {
+	position: fixed !important;
+	left: 20px;
+	right: 20px;
+	bottom: 0px;
+	/* top set by js */
+	/* override the element styles set by hyperlist */
+	width: inherit !important;
+	height: inherit !important;
+}
+
+.hyper-gallery .thumbnails-hyperlist .thumbnail {
+	margin: 10px;
+	display: inline-block;
+	text-align: center;
+	position: relative;
+	border: solid #5e656e 3px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.hyper-gallery .thumbnails-hyperlist .thumbnail .label {
+	display: block;
+	width: 100%;
+	overflow: hidden;
+	position: absolute;
+	bottom: 0px;
+	background-color: #00000066;
+	color: #ffffff;
+	font-size: 70%;
+}
+
+
+/* MICROGRAPH/TILTSERIES PLOTS */
+
+.preprocessing-plots {
+	margin-top: 20px;
+}
+
+.preprocessing-plots .top-plots {
+	display: flex;
+	flex-wrap: wrap;
+}
+
+.preprocessing-plots .top-plots > div {
+	display: inline-block;
+	min-width: 260px;
+	height: 200px;
+	margin-left: 6px;
+	margin-right: 6px;
+}
+
+.preprocessing-plots .container-ctfdist {
+	flex-grow: 1;
+}
+
+.preprocessing-plots .container-resdist {
+	flex-grow: 1;
+}
+
+.preprocessing-plots .container-dfdist {
+	flex-grow: 1;
+}
+
+.preprocessing-plots .container-df1vsdf2 {
+	flex-grow: 1;
+}
+
+.preprocessing-plots .container-astig {
+	/* nothing needed yet */
+}
+
+.preprocessing-plots .plot-ctfdist {
+	width: 100%;
+	height: 100%;
+}
+
+.preprocessing-plots .plot-resdist {
+	width: 100%;
+	height: 100%;
+}
+
+.preprocessing-plots .plot-dfdist {
+	width: 100%;
+	height: 100%;
+}
+
+.preprocessing-plots .plot-df1vsdf2 {
+	width: 100%;
+	height: 100%;
+}
+
+.preprocessing-plots .plot-astig {
+	width: 100%;
+	height: 100%;
+}
+
+.preprocessing-plots .plot-defocus {
+	margin-top: 20px;
+	height: 160px;
+}
+
+.preprocessing-plots .plot-resolution {
+	margin-top: 20px;
+	height: 160px;
+}
+
+.preprocessing-plots .plot-averageMotion {
+	margin-top: 20px;
+	height: 160px;
+}
+
+.preprocessing-plots .plot-particles {
+	margin-top: 20px;
+	height: 160px;
+}
+
+
+/* SESSIONS VIEW */
+
+.sessions .table {
+	width: 1200px;
+}
+
+.sessions .filters .form-group {
+	display: inline-block;
+	margin-right: 40px;
+}
+
+.sessions .filters .form-group .dropdown {
+	margin-left: 10px;
+	width: 200px;
+}
+
+.sessions .table .actionsColumn button {
+	width: 28px;
+	height: 28px;
+	padding: inherit;
+	margin-left: 6px;
+	margin-right: 6px;
+}
+
+.sessions .table .tabulator-placeholder span {
+	font-size: 100%;
+	color: #666666;
+	font-style: italic;
+}
+
+.sessions .start-buttons {
+	margin-top: 10px;
+	margin-bottom: 20px;
+}
+
+.sessions .start-buttons button {
+	margin-right: 20px;
+}
+
+.sessions .running-sessions .sessions-list {
+	display: flex;
+	flex-direction: row;
+}
+
+.sessions .running-sessions .sessions-list .sessions-entry {
+	margin-right: 40px;
+}
+
+.sessions .running-sessions .sessions-list .sessions-entry > a {
+	font-size: 120%;
+}
+
+
+/* SESSION VIEW */
+
+.session .header {
+	text-align: right;
+	float: right;
+}
+
+.session .stats {
+	margin-bottom: 20px;
+}
+
+.session .settings {
+	margin-top: 20px;
+}
+
+.session .settings form .form-group {
+	max-width: 600px;
+	display: flex;
+	flex-direction: row;
+}
+
+.session .settings form .form-group label {
+	min-width: 140px;
+	text-align: right;
+	margin-right: 14px;
+	line-height: 37px;
+}
+
+.session .settings form .form-group label::after {
+	content: ": ";
+}
+
+.session .settings form .buttons {
+	text-align: right;
+}
+
+.session .settings form .buttons button {
+	margin-left: 20px;
+}
+
+.session .ops {
+	margin-bottom: 40px;
+}
+
+.session .ops table.controls {
+	margin-top: 20px;
+	margin-bottom: 20px;
+	border-collapse: separate;
+	border-spacing: 10px;
+}
+
+.session .ops .controls thead {
+	font-weight: bold;
+	text-align: center;
+}
+
+.session .ops .controls td.daemon {
+	width: 200px;
+}
+
+.session .ops .controls td.status {
+	width: 300px;
+}
+
+.session .ops .controls td.buttons button {
+	margin-right: 8px;
+}
+
+.session .ops h1 {
+	margin-top: 30px;
+}
+
+.session .ops .session-filesystem-monitor table {
+	border-collapse: separate;
+	border-spacing: 10px;
+	width: 100%;
+	max-width: 1000px;
+	white-space: nowrap;
+}
+
+.session .ops .session-filesystem-monitor table .bar {
+	width: 100%;
+}
+
+.session .ops .session-transfer-monitor .counts {
+	border-collapse: separate;
+	border-spacing: 10px;
+}
+
+.session .ops .session-transfer-monitor .counts tbody td {
+	text-align: right;
+}
+
+.session .ops .session-transfer-monitor .transfers {
+	border-collapse: separate;
+	border-spacing: 10px;
+	width: 100%;
+	max-width: 1000px;
+	white-space: nowrap;
+}
+
+.session .ops .session-transfer-monitor .transfers .size {
+	text-align: right;
+}
+
+.session .ops .session-transfer-monitor .transfers .bar {
+	width: 100%;
+}
+
+.session .ops .session-jobs-monitor .buttons {
+	margin-top: 10px;
+}
+
+.session-exports-monitor .modal-dialog {
+	max-width: 600px;
+}
+
+.session-exports-monitor .export {
+	display: flex;
+	flex-direction: row;
+	gap: 10px;
+	margin-bottom: 0.8em;
+}
+
+.session-exports-monitor .export .name {
+	width: 300px;
+}
+
+.session-exports-monitor .export button {
+	width: 18px;
+	height: 18px;
+	font-size: 10px;
+	padding-left: 3px;
+	padding-right: 3px;
+	padding-top: 0px;
+	padding-bottom: 0px;
+	margin-top: auto;
+	margin-bottom: auto;
+}
+
+.session-exports-monitor .export span.icon {
+	margin-top: auto;
+	margin-bottom: auto;
+}
+
+.session-exports-monitor .export button.cancel {
+	background-color: #fa0000;
+	border-color: #fa0000;
+}
+
+.session .live .stats {
+	margin-left: 4px;
+	margin-top: 10px;
+}
+
+.session .live .stats .log-button {
+	margin-left: 20px;
+}
+
+.session .ops .session-speeds-monitor .speeds-plot {
+	width: 100%;
+	height: 400px;
+	padding-right: 20px;
+}
+
+.session .twod-classes .controls {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.session .twod-classes .controls .description {
+	margin-left: 10px;
+}
+
+
+/* BIG LIST NAV */
+
+.big-list-nav {
+	margin-top: 10px;
+}
+
+.big-list-nav button {
+	margin-left: 4px;
+	margin-right: 4px;
+}
+
+.big-list-nav .counter {
+	display: inline-block;
+	margin-left: 10px;
+	margin-right: 10px;
+	text-align: center;
+	line-height: 30px;
+}
+
+.big-list-nav .counter .index {
+	display: inline-block;
+	width: 60px;
+	padding-left: 4px;
+	padding-right: 4px;
+	padding-top: 0px;
+	padding-bottom: 0px;
+	margin-right: 6px;
+	text-align: right;
+}
+
+.big-list-nav .counter .count {
+	display: inline-block;
+	width: 50px;
+	text-align: left;
+	margin-left: 6px;
+}
+
+.big-list-nav .form-check {
+	display: inline-block;
+	margin-left: 20px;
+}
+
+
+/* SESSION LOGS */
+
+.session-logs-popup .modal-dialog {
+	width: 90%;
+	max-width: 9999px;
+}
+
+.session-logs-popup .modal-body {
+	display: flex;
+	flex-direction: column;
+	overflow-y: hidden;
+}
+
+.session-logs-popup .logs-container {
+	display: flex;
+	flex-direction: column;
+	overflow-y: hidden;
+}
+
+
+/** SESSION JOBS LOGS */
+
+.session-jobs-logs-popup .modal-dialog {
+	width: 90%;
+	max-width: 9999px;
+}
+
+.session-jobs-logs-popup .modal-body {
+	display: flex;
+	flex-direction: column;
+	overflow-y: hidden;
+}
+
+.session-jobs-logs-popup label {
+	width: 100px;
+}
+
+.session-jobs-logs-popup .form-control {
+	width: 300px !important;
+}
+
+
+/* DROPDOWN MENUS */
+
+.dropdown-menu .dropdown-item .icon {
+	display: inline-block;
+	width: 30px;
+}
+
+
+/* LOG VIEW */
+
+.log-view {
+	display: flex;
+	flex-direction: column;
+	overflow-y: hidden;
+}
+
+.log-view .controls {
+	padding-bottom: 8px;
+	border-bottom: solid 1px #dee2e6;
+	margin-bottom: 8px;
+	display: flex;
+	flex-direction: row;
+	gap: 20px;
+}
+
+.log-view .log-line {
+	line-height: 1.2;
+	vertical-align: baseline;
+}
+
+.log-view .log-line td:first-child { /* the line number */
+	text-align: right;
+	padding-right: 14px;
+	color: #999999;
+	font-family: monospace;
+	font-size: 80%;
+}
+
+.log-view .log-line td:last-child { /* the line text */
+	white-space: pre-wrap; /* wrapping should be on by default */
+	font-family: monospace;
+	font-size: 85%;
+}
+
+.log-view table.nowrap .log-line td:last-child {
+	white-space: pre;
+}
+
+.log-view table .log-line .debug {
+	display: none;
+}
+.log-view table.show-debug-info .log-line .debug {
+	display: inline-block;
+}
+
+
+.log-view .log-scroller {
+	overflow: auto;
+	padding-bottom: 8px;
+}
+
+.log-view .log-scroller table {
+	overflow: visible;
+}
+
+.log-view-popup .modal-dialog {
+	width: 90%;
+	max-width: 9999px;
+}
+
+
+/* CHIP */
+
+.chip {
+	display: inline-block;
+	padding-left: 6px;
+	padding-right: 6px;
+	padding-top: 1px;
+	padding-bottom: 2px;
+	border: solid 1px #b9b9b9;
+	border-radius: 8px;
+	background-color: #e2e7ec;
+}
+
+.chip .chip-button {
+	height: 16px;
+	font-size: 10px;
+	padding-left: 3px;
+	padding-right: 3px;
+	padding-top: 0px;
+	padding-bottom: 0px;
+	margin-right: 6px;
+}
+
+
+/* PROJECT SHARING POPUP */
+
+.project-sharing-popup .modal-body h1 {
+	font-size: 120%;
+}
+
+.project-sharing-popup .modal-body .shared-users .chip {
+	margin-right: 8px;
+}
+
+.project-sharing-popup .modal-body .add-user {
+	margin-top: 10px;
+}
+
+.project-sharing-popup .modal-body .add-user .add-user-button {
+	margin-left: 10px;
+}
+
+
+/* SCALE BAR */
+
+.scale-bar {
+	position: absolute;
+	color: #ffffff;
+	font-size: 20px;
+	font-weight: bold;
+	bottom: 0;
+	margin-bottom: 10px;
+	display: flex;
+	flex-direction: column;
+	overflow-x: visible;
+}
+
+.scale-bar.left {
+	left: 0;
+	margin-left: 10px;
+	align-items: flex-start;
+}
+
+.scale-bar.right {
+	right: 0;
+	margin-right: 10px;
+	align-items: flex-end;
+}
+
+.scale-bar .bar {
+	width: 100%;
+	height: 12px;
+	background-color: #ffffff;
+}
+
+.scale-bar .label {
+	white-space: nowrap;
+}
+
+
+/* ADMIN Jops */
+
+.admin-jobs .indent {
+	padding-left: 20px;
+}
+
+
+/* ADMIN STANDALONE */
+
+.admin-standalone .indent {
+	padding-left: 20px;
+}
+
+
+/* TOMO VIRION THRESHOLDS */
+
+.tomo-virion-thresholds .cols {
+	display: flex;
+	flex-direction: row;
+}
+
+.tomo-virion-thresholds .header {
+	margin-top: 20px;
+	margin-bottom: 10px;
+	margin-left: 10px;
+}
+
+.tomo-virion-thresholds .tabulator {
+	width: 300px;
+}
+
+.tomo-virion-thresholds .virion {
+	flex-grow: 1;
+	padding: 16px;
+}
+
+.tomo-virion-thresholds .virion .radios {
+	display: flex;
+	flex-direction: row;
+	/* NOTE: columns are 120 px wide, but the radios are 34 px wide */
+	gap: 86px; /* 120 - 34 */
+	padding-left: 44px; /* 120/2 - 34/2 */
+}
+
+.tomo-virion-thresholds .virion map area {
+	cursor: pointer;
+}
+
+.tomo-virion-thresholds .virion .hurray {
+	margin-top: 100px;
+	text-align: center;
+}
+
+.tomo-virion-thresholds .virion .hurray span {
+	margin-left: 8px;
+	margin-right: 8px;
+}
+
+.tomo-virion-thresholds .virion .hurray .trophy {
+	font-size: 500%;
+	color: #c5d0db;
+}
+
+
+/* SORTABLE LIST */
+
+.sortable-list {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.sortable-list .drop-target {
+	height: 12px;
+}
+
+.sortable-list .drop-target > * {
+	pointer-events: none;
+}
+
+.sortable-list .drop-target .bar {
+	height: 3px;
+	position: relative;
+	top: 50%;
+	margin-left: 10px;
+	margin-right: 10px;
+}
+
+.sortable-list .drop-target.dragging .bar {
+	background-color: #0060df;
+}
+
+.sortable-list .item {
+	border: solid 1px #999999;
+	border-radius: 6px;
+	cursor: pointer;
+	padding-left: 10px;
+	padding-right: 10px;
+	padding-top: 2px;
+	padding-bottom: 2px;
+}
+
+.sortable-list .item.fade-out {
+	animation-name: sortable-list-fade-out;
+	animation-duration: 300ms;
+	animation-timimg-function: ease-in-out;
+}
+
+.sortable-list .item.slide-down {
+	animation-name: sortable-list-slide-down;
+	animation-duration: 300ms;
+	animation-timimg-function: ease-in-out;
+}
+
+.sortable-list .item.slide-up {
+	animation-name: sortable-list-slide-up;
+	animation-duration: 300ms;
+	animation-timimg-function: ease-in-out;
+}
+
+@keyframes sortable-list-fade-out {
+	from {
+		opacity: 100%;
+	}
+
+	to {
+		opacity: 0%;
+	}
+}
+
+@keyframes sortable-list-slide-down {
+	from {
+		transform: translateY(0%);
+	}
+	to {
+		transform: translateY(calc(100% + 14px));
+	}
+}
+
+@keyframes sortable-list-slide-up {
+	from {
+		transform: translateY(0%);
+	}
+	to {
+		transform: translateY(calc(-100% - 14px));
+	}
+}

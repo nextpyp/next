@@ -1,0 +1,104 @@
+#!/bin/sh
+
+# exit the installer if any command fails
+set -e
+
+
+# the installer should be run as root
+if [ "$(whoami)" != "root" ]; then
+  echo "This installer should be run as root"
+  exit 1
+fi
+
+
+# settings
+appDaemon="nextPYP"
+rproxDaemon="nextPYP-rprox"
+systemddir="/lib/systemd/system"
+
+
+# gather info about the local environment
+here=$(pwd)
+hostname=$(hostname)
+
+# get the username
+username=$PYP_USER
+if [ -z "$username" ]; then
+  echo "No PYP_USER set."
+  exit
+fi
+
+# get the domain, if any
+if [ -n "$PYP_DOMAIN" ]; then
+  domain=$PYP_DOMAIN
+else
+  domain=$hostname
+fi
+
+echo "Installing systemd integrations for user $username on domain $domain"
+
+
+configPath="$here/config.toml"
+
+
+# relevant documentation on systemd:
+# https://www.freedesktop.org/software/systemd/man/systemd.unit.html
+# https://www.freedesktop.org/software/systemd/man/systemd.exec.html
+# https://www.freedesktop.org/software/systemd/man/systemd.service.html
+
+
+# make the unit file for the application server
+appFile="$systemddir/$appDaemon.service"
+cat << EOF > "$appFile"
+[Unit]
+Description=$appDaemon
+
+[Service]
+Type=forking
+Restart=always
+RestartSec=1
+WorkingDirectory=$here
+User=$username
+Environment=PYP_CONFIG=$configPath
+ExecStart=/usr/bin/nextpyp-start
+ExecStop=/usr/bin/nextpyp-stop
+
+[Install]
+WantedBy = multi-user.target
+EOF
+chmod go-w "$appFile"
+
+
+# make the unit file for the reverse proxy server
+rproxFile="$systemddir/$rproxDaemon.service"
+cat << EOF > "$rproxFile"
+[Unit]
+Description=$rproxDaemon
+
+[Service]
+Type=forking
+Restart=always
+RestartSec=1
+WorkingDirectory=$here
+ExecStart="/usr/bin/nextpyp-startrprox" "$domain"
+ExecStop=/usr/bin/nextpyp-stoprprox
+
+[Install]
+WantedBy = multi-user.target
+EOF
+chmod go-w "$rproxFile"
+
+
+# poke systemd to recognize the new daemons
+systemctl daemon-reload
+
+# start the demons now
+systemctl start $appDaemon
+systemctl start $rproxDaemon
+
+# set the daemons to start at boot too
+systemctl enable $appDaemon
+systemctl enable $rproxDaemon
+
+
+echo "Finished installing systemd integrations"

@@ -1,0 +1,189 @@
+#!/bin/sh
+
+# exit the installer if any command fails
+set -e
+
+
+# the installer should be run as root
+if [ "$(whoami)" != "root" ]; then
+  echo "This installer should be run as root"
+  exit 1
+fi
+
+
+# settings
+version="nightly"
+# TODO: actual release versions
+#version="v1.0"
+
+
+# gather info about the local environment
+here=$(pwd)
+hostname=$(hostname)
+
+# get the username
+username=$PYP_USER
+if [ -z "$username" ]; then
+  echo "No PYP_USER set."
+  exit
+fi
+
+# get the usergroup
+usergroup=$PYP_GROUP
+if [ -z "$usergroup" ]; then
+  if getent group "$username"; then
+    usergroup=$username
+  else
+    echo "$username is apparently not a valid group. Choose the pyp group by setting PYP_GROUP"
+    exit
+  fi
+fi
+
+# get the domain, if any
+if [ -n "$PYP_DOMAIN" ]; then
+  domain=$PYP_DOMAIN
+else
+  domain=$hostname
+fi
+echo "Installing nextPYP $version for user $username on domain $domain ..."
+
+
+
+# make a way to do things as the specified user
+# user do, `usdo`, the complement of `sudo`
+usdo="sudo -u $username"
+
+
+# download the distribution files
+echo "Downloading installation files ..."
+www="https://nextpyp.app/files/pyp/$version"
+wgetopts="-nv"
+# for interactive use, it's helpful to turn on the progress bar to track long downloads
+#wgetopts="$wgetopts --progress=bar"
+$usdo wget $wgetopts -O "nextPYP.sif" "$www/nextPYP.sif"
+$usdo wget $wgetopts -O "reverse-proxy.sif" "$www/reverse-proxy.sif"
+$usdo wget $wgetopts -O "pyp.sif" "$www/pyp.sif"
+$usdo wget $wgetopts -O "start" "$www/start"
+$usdo wget $wgetopts -O "stop" "$www/stop"
+$usdo wget $wgetopts -O "startrprox" "$www/startrprox"
+$usdo wget $wgetopts -O "stoprprox" "$www/stoprprox"
+$usdo wget $wgetopts -O "install-systemd" "$www/install-systemd"
+$usdo wget $wgetopts -O "uninstall-systemd" "$www/uninstall-systemd"
+$usdo wget $wgetopts -O "uninstall" "$www/uninstall"
+
+$usdo chmod u+x start stop startrprox stoprprox install-systemd uninstall-systemd uninstall
+
+
+# copy the executables into /usr/bin (otherwise SELinux will deny access)
+cp "$here/start" "/usr/bin/nextpyp-start"
+chmod ugo+rx "/usr/bin/nextpyp-start"
+cp "$here/stop" "/usr/bin/nextpyp-stop"
+chmod ugo+rx "/usr/bin/nextpyp-stop"
+cp "$here/startrprox" "/usr/bin/nextpyp-startrprox"
+chmod ugo+rx "/usr/bin/nextpyp-startrprox"
+cp "$here/stoprprox" "/usr/bin/nextpyp-stoprprox"
+chmod ugo+rx "/usr/bin/nextpyp-stoprprox"
+
+
+# download the workflow files
+workflowDir="$here/workflows"
+workflowWww="$www/workflows"
+$usdo mkdir -p "$workflowDir"
+$usdo wget $wgetopts -O "$workflowDir/spr_tutorial.toml" "$workflowWww/spr_tutorial.toml"
+$usdo wget $wgetopts -O "$workflowDir/tomo_tutorial.toml" "$workflowWww/tomo_tutorial.toml"
+$usdo wget $wgetopts -O "$workflowDir/class_tutorial.toml" "$workflowWww/class_tutorial.toml"
+
+# create initial directories
+localDir="$here/local"
+$usdo mkdir -p "$localDir"
+$usdo chown "$username:$usergroup" "$localDir"
+echo "Created local directory: $localDir"
+
+sharedDir="$here/shared"
+$usdo mkdir -p "$sharedDir"
+$usdo chown "$username:$usergroup" "$sharedDir"
+echo "Created shared directory: $sharedDir"
+
+# create configuration file
+$usdo mkdir -p "/home/$username/.config"
+echo "Created /home/$username/.config directory"
+
+# generate the initial configuration
+configPath="$here/config.toml"
+if [ -f "$configPath" ]; then
+  echo "Using existing configuration file: $configPath"
+else
+  cat << EOF > "$configPath"
+
+[pyp]
+# path to the PYP container file, from a SLURM compute node's point of view
+container = '$here/pyp.sif'
+
+# fast storage for temporary files, ideally local to the compute node
+scratch = '/tmp/pyp'
+
+
+[slurm]
+
+# user account for the SLURM login node
+user = '$username'
+
+# hostname for the SLURM login node
+host = '$domain'
+
+# maximum memory (in GiB) available on SLURM compute nodes
+memoryPerNode = 2
+
+# maximum CPU cores available on SLURM compute nodes
+cpusPerNode = 2
+
+
+[web]
+
+# storage space for website files, database, etc
+# for best performance, this should be on a filesystem local to the web server
+localDir = '$localDir'
+
+# storage space for files shared between the web server and the SLURM cluster
+# this area should have a lot of available space for large files
+sharedDir = '$sharedDir'
+
+# URL of the web server, from a SLURM compute node's point of view
+webhost = 'https://$domain'
+
+# directories for workflow files
+workflowDirs = ['$workflowDir']
+
+EOF
+  echo "Created configuration file: $configPath"
+fi
+
+# generate SSH key
+sshdir="/home/$username/.ssh"
+keyfile="$sshdir/id_rsa"
+if [ ! -d "$sshdir" ]; then
+  $usdo mkdir -p "$sshdir"
+  echo "Created SSH directory: $sshdir"
+fi
+if [ ! -f "$keyfile" ]; then
+  $usdo ssh-keygen -t rsa -N "" -f "$keyfile"
+  $usdo cat "$keyfile.pub" >> "$sshdir/authorized_keys"
+  echo "Generated SSH key: $keyfile"
+else
+  echo "Using existing SSH key: $keyfile"
+fi
+
+
+# configure firewall to allow HTTP/HTTPs traffic, if it's running
+if systemctl is-active --quiet firewalld; then
+  echo "Configuring firewall ..."
+  firewall-cmd --permanent --zone=public --add-service=http
+  firewall-cmd --permanent --zone=public --add-service=https
+  firewall-cmd --reload
+  echo "Configured firewall to allow HTTP/HTTPs traffic"
+else
+  echo "No firewall running, skipped configuration"
+fi
+
+
+echo "Finished installing nextPYP $version"

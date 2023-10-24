@@ -1,0 +1,51 @@
+
+Bootstrap: docker
+From: rockylinux:8.7
+# NOTE: Rocky 8 is supported until 2029
+#       see: https://wiki.rockylinux.org/rocky/version/
+#       and MongoDB 4.4 is only supported up to Rocky 8, it's unavailable for Rocky 9
+# TODO: will the minimal version work? and save us any space? container is over 430 MiB now!
+IncludeCmd: no
+
+%files
+	config/centos.repo /etc/yum.repos.d/micromon.repo
+	config/supervisord.conf /etc/supervisor/
+	config/mongod.conf /etc/mongod.conf.template
+	config/init.sh /opt/micromon/
+	config/mongo.repo /etc/yum.repos.d/mongodb-org-4.4.repo
+	build/image/* /opt/micromon/
+	/media/pyp/config/pyp_config.toml /opt/micromon
+
+%post
+
+	# install packages
+	dnf clean all
+	dnf -y update
+	dnf install -y epel-release
+	dnf install -y python39 python39-pip mongodb-org java-17-openjdk openssh-clients
+	# NOTE: Java 17 is the current LTS Java release, supported until ... unclear. Java is weird now
+	# see: https://en.wikipedia.org/wiki/Java_version_history
+	# NOTE: Python 3.9 is the newest Python packaged for Rocky 8, and is supported until 2025
+	# see: https://devguide.python.org/versions/
+	dnf clean all
+
+	# install supervisor
+	pip3 install supervisor
+
+	# fix file permissions, the VM shared folder borks all of them 8<
+	chmod -R ugo-x,ugo+rX /opt/micromon
+	chmod ugo+x /opt/micromon/*.sh
+	chmod ugo+x /opt/micromon/bin/*.sh
+	chmod ugo-x,go+r /etc/mongod.conf.template
+	chmod ugo-x,go+r /etc/supervisor/supervisord.conf
+
+%startscript
+	# NOTE: try as you might, nothing echo'd here will show up anywhere visible =(
+	# but you can log things in the init script below.
+	# Those logs show up at: <config.toml:web.localDir>/logs/init.log
+	cd /opt/micromon
+	/opt/micromon/init.sh
+
+%apprun cli
+	cd /opt/micromon
+	/opt/micromon/bin/cli.sh $@

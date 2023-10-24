@@ -1,0 +1,28 @@
+
+# NOTE: all paths are in the VM filesystem
+
+[pyp]
+container = '/media/micromon/run/pyp.sif'
+scratch = '/tmp/nextPYP/scratch'
+binds = [
+	'/media/pyp/tests/'
+]
+sources = '/media/pyp'
+
+[slurm]
+user = '$user'
+host = 'localhost'
+memoryPerNode = 2
+cpusPerNode = 2
+mpirun = '/usr/lib64/openmpi/bin/mpirun'
+
+[web]
+localDir = '/home/$user/nextPYP/local'
+sharedDir = '/home/$user/nextPYP/shared'
+webhost = 'http://localhost:8080'
+debug = true
+auth = "none"
+heapMiB = 2048
+databaseGB = 1
+jmx = false
+oomdump = true

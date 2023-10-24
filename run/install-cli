@@ -1,0 +1,138 @@
+#!/bin/sh
+
+# exit the installer if any command fails
+set -e
+
+# settings
+version="nightly"
+# TODO: actual release versions
+#version="v1.0"
+
+# gather info about the local environment
+here=$(pwd)
+hostname=$(hostname)
+
+# get the domain, if any
+if [ -n "$PYP_DOMAIN" ]; then
+  domain=$PYP_DOMAIN
+else
+  domain=$hostname
+fi
+echo "Installing PYP $version on domain $domain ..."
+
+
+# download the distribution files
+echo "Downloading installation files ..."
+www="https://nextpyp.app/files/pyp/$version"
+wwwcli="$www/cli"
+wgetopts="-nv"
+
+cli="$here/cli"
+mkdir -p "$cli"
+
+wget $wgetopts -O "$cli/launcher" "$wwwcli/launcher"
+wget $wgetopts -O "$cli/pyp_clean.sh" "$wwwcli/pyp_clean.sh"
+wget $wgetopts -O "$cli/pyp_csp.sh" "$wwwcli/pyp_csp.sh"
+wget $wgetopts -O "$cli/pyp_export.sh" "$wwwcli/pyp_export.sh"
+wget $wgetopts -O "$cli/pyp_gain.sh" "$wwwcli/pyp_gain.sh"
+wget $wgetopts -O "$cli/pyp_mask.sh" "$wwwcli/pyp_mask.sh"
+wget $wgetopts -O "$cli/pyp_prl.sh" "$wwwcli/pyp_prl.sh"
+wget $wgetopts -O "$cli/pyp_rlp.sh" "$wwwcli/pyp_rlp.sh"
+wget $wgetopts -O "pyp.sif" "$www/pyp.sif"
+
+chmod ugo+rx $cli/launcher
+chmod ugo+rx "$cli/pyp_csp.sh"
+chmod ugo+rx "$cli/pyp_gain.sh"
+chmod ugo+rx "$cli/pyp_rlp.sh"
+chmod ugo+rx "$cli/pyp_prl.sh"
+chmod ugo+rx "$cli/pyp_clean.sh"
+chmod ugo+rx "$cli/pyp_mask.sh"
+chmod ugo+rx "$cli/pyp_export.sh"
+
+# copy the executables into /usr/bin (otherwise SELinux will deny access)
+ln="ln -sf"
+$ln "$cli/launcher" "pyp"
+$ln "$cli/launcher" "streampyp"
+$ln "$cli/launcher" "psp"
+$ln "$cli/launcher" "fyp"
+$ln "$cli/launcher" "byp"
+$ln "$cli/pyp_clean.sh" "pcl"
+$ln "$cli/pyp_csp.sh" "csp"
+$ln "$cli/pyp_export.sh" "pex"
+$ln "$cli/pyp_gain.sh" "gyp"
+$ln "$cli/pyp_mask.sh" "pmk"
+$ln "$cli/pyp_prl.sh" "prl"
+$ln "$cli/pyp_rlp.sh" "rlp"
+
+# create configuration file
+mkdir -p "$HOME/.config"
+echo "Created ~/.config directory"
+
+# generate the initial configuration
+configPath="$here/config.toml"
+if [ -f "$configPath" ]; then
+  echo "Using existing configuration file: $configPath"
+else
+  cat << EOF > "$configPath"
+
+[pyp]
+
+# path to the PYP container file, from a SLURM compute node's point of view
+container = '$here/pyp.sif'
+
+# fast storage for temporary files, ideally local to the compute node
+scratch = '/tmp/pyp'
+
+# Bind network locations as needed
+# binds = [ '/nfs', '/opt']
+
+[slurm]
+
+# user account for the SLURM login node
+user = '$(whoami)'
+
+# hostname for the SLURM login node
+host = '$domain'
+
+# configure SLURM partitions here
+# queues = [ "normal" ]
+
+# configure GPU partitions here
+# gpuQueues = [ "gpu" ]
+
+# path to SLURM executables
+# path = '/opt/slurm/bin'
+
+EOF
+  echo "Created configuration file: $configPath"
+fi
+
+# generate SSH key
+sshdir="/home/$(whoami)/.ssh"
+keyfile="$sshdir/id_rsa"
+if [ ! -d "$sshdir" ]; then
+  mkdir -p "$sshdir"
+  echo "Created SSH directory: $sshdir"
+fi
+if [ ! -f "$keyfile" ]; then
+  ssh-keygen -t rsa -N "" -f "$keyfile"
+  cat "$keyfile.pub" >> "$sshdir/authorized_keys"
+  echo "Generated SSH key: $keyfile"
+else
+  echo "Using existing SSH key: $keyfile"
+fi
+
+echo ""
+echo "To complete the installation the following steps are required:"
+echo "##############################################################"
+echo ""
+echo "1) Add the installation directory to your PATH, e.g.:"
+echo ""
+echo "\texport PATH=\$PATH:$here"
+echo ""
+echo "2) Point PYP_CONFIG to the location of the configuration file, e.g.:"
+echo ""
+echo "\texport PYP_CONFIG=$here/config.toml"
+echo ""
+echo "##############################################################"
+echo "Finished installing PYP $version!"

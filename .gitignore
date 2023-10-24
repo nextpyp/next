@@ -1,0 +1,14 @@
+.*/
+/build/
+/run/config.toml
+/run/*.pid
+/.gettext.json
+/local.properties
+*.sif
+*.imp
+*.ipr
+*.iws
+*.idea
+*.pyc
+**/*.project
+**/*.classpath

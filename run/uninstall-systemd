@@ -1,0 +1,30 @@
+#!/bin/sh
+
+# exit the installer if any command fails
+set -e
+
+
+# the uninstaller should be run as root
+if [ "$(whoami)" != "root" ]; then
+  echo "This uninstaller should be run as root"
+  exit 1
+fi
+
+
+# settings
+appDaemon="nextPYP"
+rproxDaemon="nextPYP-rprox"
+systemddir="/usr/lib/systemd/system"
+
+
+systemctl disable $appDaemon
+systemctl disable $rproxDaemon
+
+systemctl stop $appDaemon
+systemctl stop $rproxDaemon
+
+rm "$systemddir/$appDaemon.service"
+rm "$systemddir/$rproxDaemon.service"
+
+# poke systemd to recognize the removal of the daemons
+systemctl daemon-reload

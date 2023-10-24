@@ -1,0 +1,9 @@
+#!/bin/sh
+
+singularity instance stop nextPYP
+
+# stop the host processor too, if needed
+pidpath="/tmp/micromon.hostprocessor.pid"
+if [ -f "$pidpath" ]; then
+  kill -s TERM "$(cat "$pidpath")"
+fi

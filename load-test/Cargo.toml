@@ -1,0 +1,13 @@
+
+[package]
+name = "load-test"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+goose = "0.17.2"
+goose-eggs = "0.5.1"
+tokio = "1.32.0"
+clap = { version = "4.4.6", features = ["derive"] }
+async-trait = "0.1.73"
+http = "0.2.9"

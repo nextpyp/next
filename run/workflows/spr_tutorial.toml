@@ -1,0 +1,172 @@
+
+name = "Single-particle tutorial (EMPIAR-10025)"
+description = """\
+    This tutorial shows the end-to-end process to convert raw movies from EMPIAR-10025 (T20S proteasome) into a ~3A resolution structure.\
+    """
+
+# comments here are useful to share info with other workflow authors looking at this file
+[blocks.rawdata]
+blockId = "sp-rawdata"
+name = "Raw Data"
+
+[blocks.rawdata.args]
+data_path = { ask = true }
+scope_pixel = 0.66
+scope_voltage = 300
+gain_reference = { ask = true }
+gain_flipv = true
+
+[blocks.preprocessing]
+blockId = "sp-preprocessing"
+name = "Pre-processing"
+parent = "rawdata"
+
+[blocks.preprocessing.args]
+detect_rad = 80
+detect_method = "all"
+detect_dist = 40
+slurm_tasks = { ask = true }            # e.g.: 7 (32 for movie refinement)
+slurm_memory = { ask = true }           # e.g.: 14 (300 for movie refinement)
+slurm_walltime = { ask = true }         # e.g.: 20:00:00
+slurm_queue = { ask = true }
+slurm_merge_tasks = { ask = true }      # e.g.: 7
+slurm_merge_memory = { ask = true }     # e.g.: 14
+slurm_merge_queue = { ask = true }
+
+[blocks.refinement]
+blockId = "sp-coarse-refinement"
+name = "refinement"
+parent = "preprocessing"
+
+[blocks.refinement.args]
+particle_mw = 700
+particle_rad = 85
+particle_sym = "D7"
+extract_box = 128
+extract_bin = 4
+refine_model = { ask = true }
+refine_maxiter = 4
+refine_parfile = 'auto'
+refine_rhref = "8:7:6"
+refine_fboost = true
+reconstruct_cutoff = "0"
+
+[blocks.particle_filtering]
+blockId = "sp-fine-refinement"
+name = "Particles filtering"
+parent = "refinement"
+
+[blocks.particle_filtering.args]
+extract_box = 128
+extract_bin = 4
+particle_mw = 700
+particle_rad = 85
+particle_sym = "D7"
+clean_spr_auto = true
+clean_parfile = "auto"
+clean_dist = 20
+refine_model = 'auto'
+clean_discard = true
+
+[blocks.particle_refinement]
+blockId = "sp-coarse-refinement"
+name = "Particle refinement"
+parent = "particle_filtering"
+
+[blocks.particle_refinement.args]
+extract_box = 256
+extract_bin = 2
+particle_mw = 700
+particle_rad = 85
+particle_sym = "D7"
+refine_maxiter = 6
+refine_rhref = "6:4:3"
+refine_mode = '1'
+refine_model = 'auto'
+refine_parfile = 'auto'
+refine_fboost = true
+
+[blocks.mask_generation]
+blockId = "sp-masking"
+name = "Create shape mask"
+parent = "particle_refinement"
+
+[blocks.mask_generation.args]
+mask_model = "auto"
+mask_threshold = 0.3
+
+[blocks.local_refinement]
+blockId = "sp-coarse-refinement"
+name = "Local refinement"
+parent = "particle_refinement"
+
+[blocks.local_refinement.args]
+extract_box = 256
+extract_bin = 2
+particle_mw = 700
+particle_rad = 85
+particle_sym = "D7"
+refine_maxiter = 3
+refine_rhref = "3"
+refine_mode = '1'
+refine_model = 'auto'
+refine_parfile = 'auto'
+refine_maskth = 'auto'
+refine_fboost = true
+
+[blocks.ctf_refinement]
+blockId = "sp-coarse-refinement"
+name = "CTF refinement"
+parent = "local_refinement"
+
+[blocks.ctf_refinement.args]
+extract_box = 256
+extract_bin = 2
+particle_mw = 700
+particle_rad = 85
+particle_sym = "D7"
+refine_maxiter = 2
+refine_rhref = "3"
+refine_mode = '1'
+refine_fboost = true
+refine_model = 'auto'
+refine_parfile = 'auto'
+refine_maskth = 'auto'
+csp_Grid_spr = "8,8"
+csp_refine_ctf = true
+
+[blocks.movie_refinement]
+blockId = "sp-flexible-refinement"
+name = "Movie refinement"
+parent = "ctf_refinement"
+
+[blocks.movie_refinement.args]
+extract_box = 256
+extract_bin = 2
+particle_mw = 700
+particle_rad = 85
+particle_sym = "D7"
+refine_maxiter = 3
+refine_rhref = "3"
+refine_skip = true
+refine_fboost = true
+refine_model = 'auto'
+refine_parfile = 'auto'
+refine_maskth = 'auto'
+csp_refine_ctf = false
+csp_spatial_sigma = 15.0
+csp_transreg = true
+csp_frame_refinement = true
+csp_UseImagesForRefinementMax = 60
+dose_weighting_enable = true
+dose_weighting_fraction = 4
+
+[blocks.sharpening]
+blockId = "sp-postprocessing"
+name = "Postprocessing"
+parent = "movie_refinement"
+
+[blocks.sharpening.args]
+sharpen_input_map = 'auto'
+sharpen_automask_threshold = 0.5
+sharpen_adhoc_bfac = -50

@@ -1,0 +1,24 @@
+#!/bin/sh
+
+# exit the installer if any command fails
+set -e
+
+
+# the uninstaller should be run as root
+if [ "$(whoami)" != "root" ]; then
+  echo "This uninstaller should be run as root"
+  exit 1
+fi
+
+
+echo "Uninstalling nextPYP ..."
+
+
+# delete the executables from /usr/bin
+rm "/usr/bin/nextpyp-start"
+rm "/usr/bin/nextpyp-stop"
+rm "/usr/bin/nextpyp-startrprox"
+rm "/usr/bin/nextpyp-stoprprox"
+
+
+echo "Finished uninstalling nextPYP"

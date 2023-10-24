@@ -1,0 +1,46 @@
+
+Bootstrap: docker
+From: caddy
+IncludeCmd: no
+
+%environment
+	export XDG_DATA_HOME=/var/www/reverse-proxy
+	export XDG_CONFIG_HOME=/var/www/reverse-proxy
+
+%post
+	mkdir -p /var/www/reverse-proxy/data
+
+%startscript
+
+	# read inputs
+	domain="$1"
+
+	# if the domain is an ipv4 address or localhost, turn on the self-signed certs
+	case "$domain" in
+		*.[0-9] | *.[0-9][0-9] | *.[0-9][0-9][0-9] | localhost)
+			tls="tls internal"
+			;;
+		*)
+			tls = ""
+			;;
+	esac
+
+	# make sure the caddy writeable directory exists
+	mkdir -p /var/www/reverse-proxy/caddy
+
+# write out the Caddyfile
+cat << EOF > /var/www/reverse-proxy/Caddyfile
+$domain {
+	reverse_proxy localhost:8080
+	$tls
+	handle_errors {
+		respond "The reverse proxy server is working, but the application server is not available."
+	}
+}
+EOF
+
+	# finally, run caddy
+	exec caddy run --config /var/www/reverse-proxy/Caddyfile
+
+%runscript
+	echo "Use 'instance start' instead of 'run'."
