@@ -1,5 +1,6 @@
 package edu.duke.bartesaghi.micromon.pyp
 
+import edu.duke.bartesaghi.micromon.exists
 import edu.duke.bartesaghi.micromon.files.*
 import edu.duke.bartesaghi.micromon.jobs.Job
 import edu.duke.bartesaghi.micromon.mongo.Database
@@ -84,8 +85,14 @@ class Reconstruction(doc: Document) {
     fun getLog(job: Job): String {
         val dir = job.dir.resolve("frealign").resolve("log")
         val reconstructionString = filenameFragment(job)
-        val searchLog = dir.resolve("${reconstructionString}_msearch.log").readString()
-        val reconstLog = dir.resolve("${reconstructionString}_mreconst.log").readString()
+        val searchLog = dir.resolve("${reconstructionString}_msearch.log")
+			.takeIf { it.exists() }
+			?.readString()
+			?: ""
+        val reconstLog = dir.resolve("${reconstructionString}_mreconst.log")
+			.takeIf { it.exists() }
+			?.readString()
+			?: ""
         return searchLog + "\n" + reconstLog
     }
 
