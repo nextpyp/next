@@ -261,7 +261,7 @@ class PlayBar(
 		add(label)
 		add(playPauseButton)
 		// add the raw HTML elements to a wrapper to protect them from the shadow dom madness
-		add(unshadow(slider))
+		add(unshadow(slider, classes = setOf("flex-grow")))
 		add(loopButton)
 		add(boomerangButton)
 		add(unshadow(speedSelector))

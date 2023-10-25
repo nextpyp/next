@@ -124,8 +124,8 @@ open class UnshadowedWidget(classes: Set<String>? = null) : Widget() {
 		super.addAfterInsertHook(hook)
 }
 
-fun unshadow(elem: HTMLElement) =
-	UnshadowedWidget().apply {
+fun unshadow(elem: HTMLElement, classes: Set<String>? = null) =
+	UnshadowedWidget(classes).apply {
 		this.elem.appendChild(elem)
 	}
 
