@@ -1126,7 +1126,6 @@ div.sized-panel div.buttons {
 	line-height: 40px;
 	display: flex;
 	flex-direction: row;
-	gap: 10px;
 }
 
 div.sized-panel div.buttons div.title {

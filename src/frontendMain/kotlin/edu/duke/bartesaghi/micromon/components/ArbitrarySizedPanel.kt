@@ -69,10 +69,10 @@ open class ArbitrarySizedPanel(
 
 		// build the DOM
 		div(classes = setOf("buttons")) {
-			add(this@ArbitrarySizedPanel.rightDiv)
-			this@ArbitrarySizedPanel.rightDiv.add(this@ArbitrarySizedPanel.plusButton)
-			this@ArbitrarySizedPanel.rightDiv.add(this@ArbitrarySizedPanel.minusButton)
 			div(title, classes = setOf("title"))
+			add(this@ArbitrarySizedPanel.rightDiv)
+			this@ArbitrarySizedPanel.rightDiv.add(this@ArbitrarySizedPanel.minusButton)
+			this@ArbitrarySizedPanel.rightDiv.add(this@ArbitrarySizedPanel.plusButton)
 		}
 
 		updateSize()
