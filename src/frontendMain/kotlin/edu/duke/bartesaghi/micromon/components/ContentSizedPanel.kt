@@ -68,8 +68,8 @@ open class ContentSizedPanel(
 		div(classes = setOf("buttons")) {
 			div(title, classes = setOf("title"))
 			add(this@ContentSizedPanel.rightDiv)
-			this@ContentSizedPanel.rightDiv.add(this@ContentSizedPanel.minusButton)
 			this@ContentSizedPanel.rightDiv.add(this@ContentSizedPanel.plusButton)
+			this@ContentSizedPanel.rightDiv.add(this@ContentSizedPanel.minusButton)
 		}
 
 		updateSize()

@@ -1126,6 +1126,8 @@ div.sized-panel div.buttons {
 	line-height: 40px;
 	display: flex;
 	flex-direction: row;
+	margin-bottom: 2px;
+	align-items: flex-start;
 }
 
 div.sized-panel div.buttons div.title {
@@ -1135,7 +1137,9 @@ div.sized-panel div.buttons div.title {
 }
 
 div.sized-panel div.buttons div.right {
-	/* nothing needed here anymore */
+	display: flex;
+	flex-direction: row;
+	gap: 2px
 }
 
 div.sized-panel img {
