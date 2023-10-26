@@ -72,7 +72,7 @@ $usdo wget $wgetopts -O "install-systemd" "$www/install-systemd"
 $usdo wget $wgetopts -O "uninstall-systemd" "$www/uninstall-systemd"
 $usdo wget $wgetopts -O "uninstall" "$www/uninstall"
 
-$usdo chmod u+x start stop startrprox stoprprox install-systemd uninstall-systemd uninstall
+$usdo chmod u+x start stop startrprox stoprprox install-systemd uninstall-systemd uninstall hostprocessor
 
 
 # copy the executables into /usr/bin (otherwise SELinux will deny access)
