@@ -21,7 +21,7 @@ class ClassesTab(
 	val job: JobData,
 	val state: IntegratedRefinementView.State,
 	urlParams: UrlParams?
-) : Div(), PathableTab {
+) : Div(classes = setOf("classes-tab")), PathableTab {
 
 	data class UrlParams(
 		val iteration: String,
@@ -58,7 +58,7 @@ class ClassesTab(
 	override var onPathChange = {}
 	override var isActiveTab = false
 
-	private val iterationNav = state.iterationNav.makeInstance()
+	private val iterationNav = state.iterationNav.clone()
 
 	private val classRadio = RadioSelection(
 		labelText = "Classes: ",
@@ -87,7 +87,7 @@ class ClassesTab(
 
 	init {
 
-		val classes = state.iterationNav.iteration
+		val classes = state.currentIteration
 			?.let { state.reconstructions.withIteration(it) }
 			?.classes
 			?: emptyList()
@@ -107,8 +107,10 @@ class ClassesTab(
 		val me = this@ClassesTab
 		div {
 
-			add(me.iterationNav)
-			add(me.classRadio)
+			div(classes = setOf("tabnav")) {
+				add(me.iterationNav)
+				add(me.classRadio)
+			}
 
 			div(classes = setOf("reconstruction-thumbs")) {
 				add(me.thumbsPanel)
@@ -123,7 +125,7 @@ class ClassesTab(
 		update()
 
 		// wire up events to listen to any future changes
-		iterationNav.onIterationChange = {
+		iterationNav.onShow = {
 			update()
 			// only update the path if we're the active tab, to prevent races
 			if (isActiveTab) {
@@ -147,7 +149,7 @@ class ClassesTab(
 			.toIntOrNull()
 			?.takeIf { it >= iterations.first() && it <= iterations.last() }
 			?: return
-		state.iterationNav.setIteration(iteration)
+		state.currentIteration = iteration
 
 		// apply the classes
 		val allClasses = state.reconstructions.withIteration(iteration)
@@ -162,7 +164,7 @@ class ClassesTab(
 	}
 
 	override fun path(): String {
-		val iteration = state.iterationNav.iteration
+		val iteration = state.currentIteration
 		val classNums = classRadio.getCheckedIndices()
 			.map { it.indexToClassNum() }
 		return pathFragment + if (iteration != null) {
@@ -183,7 +185,7 @@ class ClassesTab(
 		occupancyPlot.selectedClasses = emptyList()
 		occupancyPlot.update()
 
-		val iteration = state.iterationNav.iteration
+		val iteration = state.currentIteration
 			?: run {
 				thumbsElem.emptyMessage("No iteration selected")
 				return

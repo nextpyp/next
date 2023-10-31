@@ -11,41 +11,122 @@ import io.kvision.html.*
 /**
  * Shows the first, prev 100/10/1, next 1/10/100, last, etc buttons to navigate a big list.
  */
-class BigListNav(
-	val items: List<Any>,
-	initialIndex: Int = items.size - 1,
-	has100: Boolean = true,
-	val onShow: (Int) -> Unit
+class BigListNav private constructor(
+	private var core: Core,
+	var onShow: (Int) -> Unit
 ) : Div(classes = setOf("big-list-nav")) {
 
-	// start with the last item
-	var currentIndex = initialIndex
-		private set
+	constructor(
+		items: List<Any>,
+		initialIndex: Int? = items.indices.lastOrNull(),
+		// NOTE: don't use if-like constructs in the above expression or it will trigger a compiler bug! =(
+		initialLive: Boolean = true,
+		has100: Boolean = true,
+		onShow: (Int) -> Unit = {}
+	) : this(Core(items, initialIndex, initialLive, has100), onShow)
+
+	class Core(
+		val items: List<Any>,
+		var index: Int?,
+		var live: Boolean,
+		val has100: Boolean
+	) {
+		val instances = ArrayList<BigListNav>()
+
+		fun showItem(index: Int, stopLive: Boolean) {
+
+			if (stopLive) {
+				live = false
+			}
+
+			this.index = index
+
+			updateAll()
+			for (instance in instances) {
+				instance.onShow(index)
+			}
+		}
+
+		fun setLive(value: Boolean) {
+			console.log("setLive", value) // TEMP
+			live = value
+			if (value) {
+				// turning on live mode, go to the newest item
+				items.size
+					.takeIf { it > 0 }
+					?.let { showItem(it - 1, false) }
+			} else {
+				updateAll()
+			}
+		}
+
+		private fun updateAll() {
+			for (instance in instances) {
+				instance.update()
+			}
+		}
+
+		fun newItem() {
+			if (live) {
+				val index = (items.size - 1)
+					.takeIf { it >= 0 }
+					?: return
+				showItem(index, false)
+			} else {
+				updateAll()
+			}
+		}
+
+		fun cleared() {
+			index = null
+			live = true
+			updateAll()
+		}
+
+		fun reshow() {
+			val index = index
+				?: return
+			showItem(index, false)
+		}
+	}
+
+	val currentIndex: Int?
+		get() = core.index
 
 	private val navFirst = button("", icon = "fas fa-step-backward").apply {
 		onClick {
-			showItem(0, true)
+			if (core.items.isNotEmpty()) {
+				core.showItem(0, true)
+			}
 		}
 		enabled = false
 	}
 
-	private val navBack100 = if (has100) button("100", icon = "fas fa-angle-double-left").apply {
-		onClick {
-			showItem(currentIndex - 100, true)
+	private val navBack100 =
+		if (core.has100) {
+			button("100", icon = "fas fa-angle-double-left").apply {
+				onClick {
+					core.index
+						?.let { core.showItem(it - 100, true) }
+				}
+				enabled = false
+			}
+		} else {
+			null
 		}
-		enabled = false
-	} else null
 
 	private val navBack10 = button("10", icon = "fas fa-angle-double-left").apply {
 		onClick {
-			showItem(currentIndex - 10, true)
+			core.index
+				?.let { core.showItem(it - 10, true) }
 		}
 		enabled = false
 	}
 
 	private val navBack = button("1", icon = "fas fa-angle-left").apply {
 		onClick {
-			showItem(currentIndex - 1, true)
+			core.index
+				?.let { core.showItem(it - 1, true) }
 		}
 		enabled = false
 	}
@@ -70,28 +151,38 @@ class BigListNav(
 
 	private val navForward = button("1", icon = "fas fa-angle-right").apply {
 		onClick {
-			showItem(currentIndex + 1, true)
+			core.index
+				?.let { core.showItem(it + 1, true) }
 		}
 		enabled = false
 	}
 
 	private val navForward10 = button("10", icon = "fas fa-angle-double-right").apply {
 		onClick {
-			showItem(currentIndex + 10, true)
+			core.index
+				?.let { core.showItem(it + 10, true) }
 		}
 		enabled = false
 	}
 
-	private val navForward100 = if (has100) button("100", icon = "fas fa-angle-double-right").apply {
-		onClick {
-			showItem(currentIndex + 100, true)
+	private val navForward100 =
+		if (core.has100) {
+			button("100", icon = "fas fa-angle-double-right").apply {
+				onClick {
+					core.index
+						?.let { core.showItem(it + 100, true) }
+				}
+				enabled = false
+			}
+		} else {
+			null
 		}
-		enabled = false
-	} else null
 
 	private val navLast = button("", icon = "fas fa-step-forward").apply {
 		onClick {
-			showItem(items.size - 1, true)
+			core.items.size
+				.takeIf { it > 0 }
+				?.let { core.showItem(it - 1, true) }
 		}
 		enabled = false
 	}
@@ -100,74 +191,71 @@ class BigListNav(
 		style = CheckBoxStyle.PRIMARY
 		onEvent {
 			change = {
-				if (value) {
-					showItem(items.size - 1, false)
-				}
+				core.setLive(value)
 			}
 		}
 	}
 
+
 	init {
-		showItem(currentIndex, stopLive=false)
+		core.instances.add(this)
+		update()
 	}
 
 	fun showItem(index: Int, stopLive: Boolean) {
 
-		if (stopLive) {
-			navLive.value = false
+		// validate the index
+		if (index < 0 || index >= core.items.size) {
+			return
 		}
 
-		currentIndex = index
-		updateUI()
-		onShow(currentIndex)
+		core.showItem(index, stopLive)
 	}
 
 	/** call this to update the UI after adding a new item to the list */
 	fun newItem() {
-		if (navLive.value) {
-			showItem(items.size - 1, false)
-		} else {
-			updateUI()
-		}
+		core.newItem()
 	}
 
 	/** call this to update the UI after adding clearing the items list */
 	fun cleared() {
-		currentIndex = -1
-		navIndex.value = null
-		navLive.value = true
-		updateUI()
+		core.cleared()
 	}
 
 	fun reshow() {
-		showItem(currentIndex, false)
+		core.reshow()
 	}
 
-	private fun updateUI() {
+	private fun update() {
 
-		navFirst.enabled = currentIndex > 0
-		navBack100?.enabled = currentIndex >= 100
-		navBack10.enabled = currentIndex >= 10
-		navBack.enabled = currentIndex > 0
+		navFirst.enabled = core.index?.let { it > 0 } ?: false
+		navBack100?.enabled = core.index?.let { it >= 100 } ?: false
+		navBack10.enabled = core.index?.let { it >= 10 } ?: false
+		navBack.enabled = core.index?.let { it > 0 } ?: false
 
 		writeIndex()
-		navCount.content = "${items.size}"
+		navCount.content = "${core.items.size}"
 
-		navForward.enabled = currentIndex + 1 < items.size
-		navForward10.enabled = currentIndex + 10 < items.size
-		navForward100?.enabled = currentIndex + 100 < items.size
-		navLast.enabled = currentIndex != items.size - 1
+		navForward.enabled = core.index?.let { it + 1 < core.items.size } ?: false
+		navForward10.enabled = core.index?.let { it + 10 < core.items.size } ?: false
+		navForward100?.enabled = core.index?.let { it + 100 < core.items.size } ?: false
+		navLast.enabled = core.index?.let { it != core.items.size - 1 } ?: false
+
+		navLive.value = core.live
+		console.log("update, live=", core.live) // TEMP
 	}
 
 	private fun writeIndex() {
-		navIndex.value = "${currentIndex + 1}"
+		navIndex.value =
+			core.index
+				?.let { "${it + 1}" }
 	}
 
 	private fun readIndex(): Int? =
 		navIndex.value
 			?.toIntOrNull()
 			?.let { it - 1 }
-			?.takeIf { it >= 0 && it < items.size }
+			?.takeIf { it >= 0 && it < core.items.size }
 
 	private fun onIndex() {
 
@@ -181,6 +269,15 @@ class BigListNav(
 		}
 
 		// apply the new index
-		showItem(newIndex, true)
+		core.showItem(newIndex, true)
 	}
+
+	/**
+	 * Creates another instance of this control that shares the same state,
+	 * but can call a different callback function when the value changes.
+	 *
+	 * Useful for sharing the same control across different tabs with each tab showing different content.
+	 */
+	fun clone(onShow: (Int) -> Unit = {}): BigListNav =
+		BigListNav(core, onShow)
 }

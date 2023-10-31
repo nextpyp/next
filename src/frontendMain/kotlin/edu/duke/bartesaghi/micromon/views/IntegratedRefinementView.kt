@@ -144,7 +144,25 @@ class IntegratedRefinementView(
 				initialReconstructions.forEach { add(it) }
 			}
 
-		val iterationNav = IterationNav(reconstructions.iterations)
+		val iterationNav = BigListNav(
+			reconstructions.iterations,
+			initialIndex = reconstructions.iterations.size
+				.takeIf { it > 0 }
+				?.let { it - 1 },
+			initialLive = true,
+			has100 = false
+		)
+
+		var currentIteration: Int?
+			get() = iterationNav.currentIndex
+				?.let { reconstructions.iterations[it] }
+			set(value) {
+				val index = reconstructions.iterations
+					.indexOfFirst { it == value }
+					.takeIf { it >= 0 }
+					?: return
+				iterationNav.showItem(index, false)
+			}
 
 		fun addReconstruction(reconstruction: ReconstructionData) {
 
@@ -155,7 +173,7 @@ class IntegratedRefinementView(
 
 			// then update the navs if we added a new iteration
 			if (isNewIteration) {
-				iterationNav.addIteration(reconstruction.iteration)
+				iterationNav.newItem()
 			}
 		}
 	}

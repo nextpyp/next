@@ -53,7 +53,7 @@ class ClassesMovieTab(
 
 	override var onPathChange = {}
 	override var isActiveTab = false
-	private val iterationNav = state.iterationNav.makeInstance()
+	private val iterationNav = state.iterationNav.clone()
 
 	private val classItems = ArrayList<ClassItem>()
 	private val sortable = SortableList(classItems, classes = setOf("classes"))
@@ -72,7 +72,7 @@ class ClassesMovieTab(
 		}
 
 		// wire up events
-		iterationNav.onIterationChange = {
+		iterationNav.onShow = {
 			update()
 		}
 		sortable.onReorder = {
@@ -87,7 +87,7 @@ class ClassesMovieTab(
 		contentElem.removeAll()
 
 		// grab the classes for this iteration
-		val numClasses = state.iterationNav.iteration
+		val numClasses = state.currentIteration
 			?.let { state.reconstructions.withIteration(it) }
 			?.classes
 			?.size
@@ -164,7 +164,7 @@ class ClassesMovieTab(
 
 			imageElems.clear()
 
-			val iteration = tab.state.iterationNav.iteration
+			val iteration = tab.state.currentIteration
 				?: return
 
 			for (classItem in tab.classItems) {

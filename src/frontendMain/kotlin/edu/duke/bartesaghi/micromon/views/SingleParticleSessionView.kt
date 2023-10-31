@@ -705,13 +705,18 @@ class SingleParticleSessionView(
 				return
 			}
 
-			val twoDClasses = list.getOrNull(nav.currentIndex)
+			val currentIndex = nav.currentIndex
+				?: run {
+					panelElem.div("(no iteration selected)", classes = setOf("empty"))
+					return
+				}
+			val twoDClasses = list.getOrNull(currentIndex)
 				?: run {
 					panelElem.div("(selected 2D classes not found)", classes = setOf("empty"))
 					return
 				}
 
-			descriptionElem.content = "Iteration ${nav.currentIndex + 1} at ${Date(twoDClasses.created).toLocaleString()}"
+			descriptionElem.content = "Iteration ${currentIndex + 1} at ${Date(twoDClasses.created).toLocaleString()}"
 			panelElem.image(twoDClasses.imageUrlSession(imagePanel.size))
 		}
 
