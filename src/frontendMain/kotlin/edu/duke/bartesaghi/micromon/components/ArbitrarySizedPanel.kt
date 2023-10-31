@@ -24,6 +24,12 @@ open class ArbitrarySizedPanel(
 		}
 	}
 
+	var panelTitle: String = title
+		set(value) {
+			field = value
+			titleElem.content = value
+		}
+
 	var onResize: (index: Int) -> Unit = {}
 
 	var index: Int = initialIndex ?: 0
@@ -32,6 +38,8 @@ open class ArbitrarySizedPanel(
 			updateSize()
 			fireResize()
 		}
+
+	private val titleElem = Div(title, classes = setOf("title"))
 
 	val rightDiv = Div(classes = setOf("right"))
 
@@ -69,7 +77,7 @@ open class ArbitrarySizedPanel(
 
 		// build the DOM
 		div(classes = setOf("buttons")) {
-			div(title, classes = setOf("title"))
+			add(this@ArbitrarySizedPanel.titleElem)
 			add(this@ArbitrarySizedPanel.rightDiv)
 			this@ArbitrarySizedPanel.rightDiv.add(this@ArbitrarySizedPanel.plusButton)
 			this@ArbitrarySizedPanel.rightDiv.add(this@ArbitrarySizedPanel.minusButton)

@@ -191,7 +191,6 @@ class RefinementsTab(
 	)
 
 	private val imagePanel = SequencePanel(
-		imageType.title,
 		imageType.sizes,
 		onPrev = {
 			// previous is newer, so higher index
@@ -305,6 +304,7 @@ class RefinementsTab(
 		val target = index
 			?.let { targets.getOrNull(it) }
 		if (target != null) {
+			imagePanel.panelTitle = target.id
 			imagePanel.elem.removeAll()
 			imageType.showPanel(job, target, imagePanel)
 			imagePanel.display = Display.BLOCK

@@ -11,14 +11,13 @@ import io.kvision.html.*
 * Show a single image in a resiable panel, with prev/next buttons
 */
 class SequencePanel(
-	title: String,
 	sizes: List<Int>,
 	onPrev: () -> Unit = {},
 	onNext: () -> Unit = {},
 	onClose: () -> Unit = {},
 	onResize: () -> Unit = {},
 	classes: Set<String> = emptySet()
-) : ArbitrarySizedPanel(title, sizes, Storage.refinementsTabPanelSizeIndex, classes = classes) {
+) : ArbitrarySizedPanel("", sizes, Storage.refinementsTabPanelSizeIndex, classes = classes) {
 
     val elem = Div(null, classes = setOf("full-width-image"))
 
