@@ -48,7 +48,6 @@ class BigListNav private constructor(
 		}
 
 		fun setLive(value: Boolean) {
-			console.log("setLive", value) // TEMP
 			live = value
 			if (value) {
 				// turning on live mode, go to the newest item
@@ -242,7 +241,6 @@ class BigListNav private constructor(
 		navLast.enabled = core.index?.let { it != core.items.size - 1 } ?: false
 
 		navLive.value = core.live
-		console.log("update, live=", core.live) // TEMP
 	}
 
 	private fun writeIndex() {
