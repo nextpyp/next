@@ -476,6 +476,19 @@ fun <T:Throwable> T.cleanupStackTrace(): T = apply {
 	}
 }
 
+/**
+ * When you want to be really extra super careful your error handling code doesn't throw additional exceptions
+ */
+fun <T:Throwable> T.tryCleanupStackTraceOrDont(): T =
+	try {
+		cleanupStackTrace()
+	} catch (t: Throwable) {
+		// error occurred during error handling
+		// uuuhh... that's not great
+		// just pretend all of this never happened
+		this
+	}
+
 
 fun TomlTable.getTableOrThrow(key: String, pos: TomlPosition? = null): TomlTable =
 	getTable(key) ?: throw TomlParseException("missing field \"$key\"", pos)

@@ -139,6 +139,9 @@ class TomographyImportDataJob(
 	override fun resolveFilter(filter: PreprocessingFilter): List<String> =
 		FilteredJob.resolveFilterTiltSeries(idOrThrow, filter)
 
+	override fun newestArgValues(): ArgValuesToml? =
+		args.newest()?.args?.values
+
 	override fun finishedArgValues(): ArgValuesToml? =
 		args.finished?.values
 }

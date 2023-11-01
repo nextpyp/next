@@ -134,6 +134,9 @@ class SingleParticleRawDataJob(
 	fun diagramImageURL(): String =
 		representativeImageUrl(representativeImage())
 
+	override fun newestArgValues(): ArgValuesToml? =
+		args.newest()?.args?.values
+
 	override fun finishedArgValues(): ArgValuesToml? =
 		args.finished?.values
 }

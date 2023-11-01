@@ -318,6 +318,12 @@ abstract class Job(
 		pypParameters()
 			?: throw ServiceException("no pyp parameters available")
 
+	fun pypParametersOrNewestArgs(): ArgValues =
+		pypParameters()
+			?: newestArgValues()?.toArgValues(Backend.pypArgs)
+			?: ArgValues(Backend.pypArgs)
+
+	abstract fun newestArgValues(): ArgValuesToml?
 	abstract fun finishedArgValues(): ArgValuesToml?
 
 	fun finishedArgValuesOrThrow(): ArgValuesToml =

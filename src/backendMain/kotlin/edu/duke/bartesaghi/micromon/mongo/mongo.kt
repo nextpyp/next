@@ -10,14 +10,17 @@ import com.mongodb.client.model.Filters.*
 import com.mongodb.client.model.ReplaceOptions
 import edu.duke.bartesaghi.micromon.base62Decode
 import edu.duke.bartesaghi.micromon.base62Encode
+import edu.duke.bartesaghi.micromon.mongo.migrations.Migrations
 import org.bson.Document
 import java.util.concurrent.TimeUnit
 
 
 object Database : AutoCloseable {
 
-	val host = "localhost"
-	val port = 27017
+	private const val HOST = "localhost"
+	private const val PORT = 27017
+	private const val NAME = "micromon"
+
 	val client: MongoClient =
 		MongoClients.create(
 			MongoClientSettings.builder()
@@ -29,11 +32,13 @@ object Database : AutoCloseable {
 					settings.readTimeout(5, TimeUnit.SECONDS)
 					settings.connectTimeout(5, TimeUnit.SECONDS)
 				}
-				.applyConnectionString(ConnectionString("mongodb://$host:$port"))
+				.applyConnectionString(ConnectionString("mongodb://$HOST:$PORT"))
 				.build()
 		)
-	
-	val db = client.getDatabase("micromon")
+
+	/** returns true iff this is the first time we're accessing the database and it needs to be intialized */
+	val isNew = NAME !in client.listDatabaseNames()
+	val db = client.getDatabase(NAME)
 
 	fun init() {
 		// dummy function just to make sure initializers get called
@@ -126,6 +131,12 @@ object Database : AutoCloseable {
 
 	val tiltExclusions = TiltExclusions()
 	val sessionExports = SessionExports()
+
+	init {
+		// after all database collections are up and running,
+		// run any needed database migrations before anything else can access the collections
+		Migrations.update(this)
+	}
 }
 
 fun Document.getDocument(key: String) =

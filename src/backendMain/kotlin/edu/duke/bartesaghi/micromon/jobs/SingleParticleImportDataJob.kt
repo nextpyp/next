@@ -140,6 +140,9 @@ class SingleParticleImportDataJob(
 	override fun resolveFilter(filter: PreprocessingFilter): List<String> =
 		FilteredJob.resolveFilterMicrographs(idOrThrow, filter)
 
+	override fun newestArgValues(): ArgValuesToml? =
+		args.newest()?.args?.values
+
 	override fun finishedArgValues(): ArgValuesToml? =
 		args.finished?.values
 }

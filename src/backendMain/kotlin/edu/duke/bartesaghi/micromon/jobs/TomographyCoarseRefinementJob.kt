@@ -153,6 +153,9 @@ class TomographyCoarseRefinementJob(
 		representativeImage()?.let { representativeImageUrl(it) }
 			?: "img/placeholder/${ImageSize.Small.id}"
 
+	override fun newestArgValues(): ArgValuesToml? =
+		args.newest()?.args?.values
+
 	override fun finishedArgValues(): ArgValuesToml? =
 		args.finished?.values
 }
