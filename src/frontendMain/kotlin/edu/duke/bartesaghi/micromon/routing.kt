@@ -8,16 +8,44 @@ import io.kvision.core.Widget
 import io.kvision.core.onEvent
 import io.kvision.html.Link
 import io.kvision.navigo.Navigo
-import io.kvision.routing.Strategy
 import kotlin.js.RegExp
 
 
 const val urlToken = "[^/]+"
 
 
-// override the default Routing class,
-// so we can have more control over the hash string
-// and so we can have better pause behavior too
+/**
+ * Override the default Routing class,
+ * so we can have more control over the hash string
+ * and so we can have better URL showing behavior too.
+ *
+ * NOTE:
+ * This code is based on KVision's bundling of Navigo, which has a ... complicated provenance.
+ *
+ * We're using KVision v4.5.0 which bundles io.kvision:navigo-kotlin-ng:0.0.1
+ *   https://github.com/rjaros/kvision/blob/4.5.0/gradle.properties
+ * That module relies on Navigo v8.8.12
+ *   https://github.com/rjaros/navigo-kotlin-ng/tree/0.0.1
+ * There's also a v0.0.2 module based on Navigo v8.11.1
+ *   https://github.com/rjaros/navigo-kotlin-ng/tree/0.0.2
+ *   KVision adopted it in v5.0.0
+ *     https://github.com/rjaros/kvision/commit/021e32600a76d77893a621d7f07ca5055221733a
+ *     https://github.com/rjaros/kvision/blob/58801e97b8098c24c7764c261859567e099fb4a0/gradle.properties
+ * There's also apparently a v0.0.3 module
+ *   Reason?
+ *     https://github.com/rjaros/kvision/issues/405
+ *   This is the newest one
+ *   KVision adopted it in v5.10.1
+ *     https://github.com/rjaros/kvision/commit/0cf495014f7e9278d5029f0dc70fe9e2739c592b
+ *     https://github.com/rjaros/kvision/commit/377f3ad01f2e468a7d6b75f779b9bd1ff7320568
+ *
+ * Alas, Navigo stopped using version tags after v8.1, but here are roughly the code snapshots:
+ *   v8.8.12
+ *     https://github.com/krasimir/navigo/tree/0b6df8c6e877fdd46500dd159f6e45c221048982
+ *   v8.11.1
+ *     https://github.com/krasimir/navigo/tree/8784291784b898f486f565e7d3d5cf44297d250e
+ *     this appears to be the newest release!
+ */
 class Routing {
 
 	companion object {
@@ -26,7 +54,7 @@ class Routing {
 
 	private val nav = Navigo("/", jsObject {
 		this.hash = true
-		this.strategy = Strategy.ONE.name
+		this.strategy = "ONE"
 		this.noMatchWarning = false
 	})
 
@@ -167,22 +195,10 @@ class Routing {
 	 * but update the address bar to show the url anyway
 	 */
 	fun show(path: String) {
-
-		// don't show a URL that's already showing
-		// this apparently sends navigo into a NASTY loop where it tries to load thousands of routes at once
-		// the loop is thankfully killed by the browser because it looks like (and is) routing API abuse
-		// but we should avoid that death loop if we can, because it completely wrecks the UX
-		val currentPath = nav.getCurrentLocation().hashString
-		if (path == currentPath) {
-			return
-		}
-
 		nav.navigate(path, jsObject {
+			// tell navigo not to actually run any route handlers,
+			// since we just want to show the URL but not actually navigate anywhere
 			this.callHandler = false
-
-			// setting these navigo options seems to prevent the death loop too
-			this.callHooks = false
-			this.force = true
 		})
 	}
 }

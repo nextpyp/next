@@ -260,7 +260,12 @@ kotlin {
 				implementation("io.kvision:kvision-tabulator:$kvisionVersion")
 				implementation("io.kvision:kvision-pace:$kvisionVersion")
 				implementation("io.kvision:kvision-moment:$kvisionVersion")
-				implementation("io.kvision:kvision-routing-navigo-ng:$kvisionVersion")
+				//implementation("io.kvision:kvision-routing-navigo-ng:$kvisionVersion")
+				implementation("io.kvision:navigo-kotlin-ng:0.0.3")
+				// NOTE: The above library uses a module from a newer KVision release
+				//       to try to work around a bug in Navigo v8.8.12 that was fixed in a later release.
+				//       It uses the Navigo wrapper rather than the KVision module around it,
+				//       because we re-wrote the KVision shim code in our project anyway.
 				implementation("io.kvision:kvision-toast:$kvisionVersion")
 
 				implementation("org.jetbrains.kotlinx:kotlinx-html-js:0.7.2") // Apache 2
