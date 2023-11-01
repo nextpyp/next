@@ -39,4 +39,17 @@ data class ImageDims(
 	val depth: Int,
 	/** the binning factor, same for all dimensions */
 	val binningFactor: Int
-)
+) {
+
+	companion object {
+
+		/**
+		 * Slicing applies an extra binning factor of 2,
+		 * so there are always half as many slices as z-voxels.
+		 */
+		const val SLICE_FACTOR = 2
+	}
+
+	val numSlices: Int get() =
+		depth/binningFactor/SLICE_FACTOR
+}

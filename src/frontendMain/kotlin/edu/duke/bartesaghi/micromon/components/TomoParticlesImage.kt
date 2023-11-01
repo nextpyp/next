@@ -192,7 +192,10 @@ class TomoParticlesImage(
     fun load() {
 
 		// load the tomogram slices, start in the middle
-		playableSprite.load(Scaler.NUM_SLICES, Scaler.NUM_SLICES/2 - 1) { sprite ->
+		val numSlices = tiltSeries.sourceDims?.numSlices
+			?: return
+
+		playableSprite.load(numSlices, numSlices/2 - 1) { sprite ->
 
 			// show the scale bar
 			sprite.add(ScaleBar(scaler))
@@ -393,7 +396,7 @@ class TomoParticlesImage(
 			?: return
 
 		// get the z-coordinate of the current slice, in binned voxels
-		val zSliceBinned = sprite.index.sliceToBinnedZ(scaler)
+		val zSliceBinned = sprite.index.sliceToBinnedZ()
 
 		// create markers for all the particles in range of the z slice
 		batch {
@@ -437,7 +440,7 @@ class TomoParticlesImage(
 		val particle = Particle3D(
 			x = click.x.normalizedToBinnedX(scaler),
 			y = click.y.flipNormalized().normalizedToBinnedY(scaler),
-			z = sprite.index.sliceToBinnedZ(scaler),
+			z = sprite.index.sliceToBinnedZ(),
 			r = radiusBinned
 		)
 
@@ -447,7 +450,7 @@ class TomoParticlesImage(
 		particlesInfo.particles[particleId] = particle
 
 		// make a new marker too
-		val zSliceBinned = sprite.index.sliceToBinnedZ(scaler)
+		val zSliceBinned = sprite.index.sliceToBinnedZ()
 		particlesInfo.makeMarker(particleId, particle, zSliceBinned, scaler)
 
 		particlesInfo.checkbox.update(particlesInfo)
