@@ -33,6 +33,8 @@ class BigListNav private constructor(
 	) {
 		val instances = ArrayList<BigListNav>()
 
+		var labeler: ((Any) -> String)? = null
+
 		fun showItem(index: Int, stopLive: Boolean) {
 
 			if (stopLive) {
@@ -88,6 +90,10 @@ class BigListNav private constructor(
 			showItem(index, false)
 		}
 	}
+
+	var labeler: ((Any) -> String)?
+		get() = core.labeler
+		set(value) { core.labeler = value }
 
 	val currentIndex: Int?
 		get() = core.index
@@ -233,7 +239,9 @@ class BigListNav private constructor(
 		navBack.enabled = core.index?.let { it > 0 } ?: false
 
 		writeIndex()
-		navCount.content = "${core.items.size}"
+		navCount.content = core.items
+			.takeIf { it.isNotEmpty() }
+			?.let { indexLabel(it.indices.last) }
 
 		navForward.enabled = core.index?.let { it + 1 < core.items.size } ?: false
 		navForward10.enabled = core.index?.let { it + 10 < core.items.size } ?: false
@@ -243,17 +251,28 @@ class BigListNav private constructor(
 		navLive.value = core.live
 	}
 
+	private fun indexLabel(index: Int): String =
+		// look for a label from the labeler first
+		labeler?.invoke(core.items[index])
+			// otherwise, just use the index as the label
+			?: "${index + 1}"
+
 	private fun writeIndex() {
 		navIndex.value =
-			core.index
-				?.let { "${it + 1}" }
+			core.index?.let { indexLabel(it) }
 	}
 
-	private fun readIndex(): Int? =
-		navIndex.value
-			?.toIntOrNull()
-			?.let { it - 1 }
-			?.takeIf { it >= 0 && it < core.items.size }
+	private fun readIndex(): Int? {
+
+		val value = navIndex.value
+			?: return null
+
+		// look for the value in the list of labels
+		return core.items.indices
+			.map { indexLabel(it) }
+			.indexOfFirst { it == value }
+			.takeIf { it >= 0 }
+	}
 
 	private fun onIndex() {
 

@@ -151,7 +151,10 @@ class IntegratedRefinementView(
 				?.let { it - 1 },
 			initialLive = true,
 			has100 = false
-		)
+		).apply {
+			// don't label the nav with the indices, use the iteration numbers themselves
+			labeler = { iteration -> iteration.toString() }
+		}
 
 		var currentIteration: Int?
 			get() = iterationNav.currentIndex
