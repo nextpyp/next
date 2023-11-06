@@ -400,7 +400,12 @@ actual class JobsService : IJobsService, Service {
 	}
 
 	override suspend fun pypStats(jobId: String): PypStats = sanitizeExceptions {
-		jobId.authJob(ProjectPermission.Read).job
-		return PypStats.from(Database.parameters.getParams(jobId))
+		val job = jobId.authJob(ProjectPermission.Read).job
+		val argsValues = Database.parameters.getParams(jobId)
+		return when (job.baseConfig.jobInfo.dataType) {
+			JobInfo.DataType.Micrograph -> PypStats.fromSingleParticle(argsValues)
+			JobInfo.DataType.TiltSeries -> PypStats.fromTomography(argsValues)
+			else -> throw NoSuchElementException("job ${job.baseConfig.id} has no data type")
+		}
 	}
 }

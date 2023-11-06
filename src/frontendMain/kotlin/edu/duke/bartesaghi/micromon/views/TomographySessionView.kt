@@ -603,25 +603,11 @@ class TomographySessionView(
 			val args = pypArgs.get()
 			val argsValues = session?.newestArgs?.values?.toArgValues(args)
 
-			fun Any?.toLabel(unit: String) =
-				this
-					?.let { "$it $unit" }
-					?: "(unknown)"
-			val voltage = argsValues?.scopeVoltage.toLabel("kV")
-			val pixelSize = argsValues?.scopePixel.toLabel("A")
-			val doseRate = (argsValues?.scopeDoseRate ?: args.scopeDoseRate.default).toLabel("e-/A^2")
-			// HACKHACK: particle_rad doesn't actually exist on the tomography side, but someday it will
-			val particleRadius = try {
-				argsValues?.tomoSpkRad
-			} catch (ex: NoSuchElementException) {
-				null
-			}?.let { it.toLabel("A") } ?: "(not set)"
-
 			statsElem.removeAll()
 			statsElem.add(TiltSeriesStats().apply {
 				update(tiltSeriesesData)
 			})
-			statsElem.div("Voltage $voltage, Pixel size $pixelSize, Dose rate $doseRate, Particle radius $particleRadius")
+			statsElem.add(PypStatsLine(PypStats.fromTomography(argsValues)))
 		}
 	}
 }

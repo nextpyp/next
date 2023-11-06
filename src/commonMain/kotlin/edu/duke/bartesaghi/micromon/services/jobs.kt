@@ -56,12 +56,20 @@ data class PypStats(
 
 	companion object {
 
-		fun from(values: ArgValues?) =
+		fun fromSingleParticle(values: ArgValues?) =
 			PypStats(
 				values?.scopeVoltage,
 				values?.scopePixel,
-				values?.scopeDoseRate,
+				values?.scopeDoseRateOrDefault,
 				values?.detectRad
+			)
+
+		fun fromTomography(values: ArgValues?) =
+			PypStats(
+				values?.scopeVoltage,
+				values?.scopePixel,
+				values?.scopeDoseRateOrDefault,
+				values?.tomoSpkRad
 			)
 	}
 }

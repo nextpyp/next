@@ -3,9 +3,7 @@ package edu.duke.bartesaghi.micromon.services
 import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.auth.authOrThrow
 import edu.duke.bartesaghi.micromon.cluster.ClusterJob
-import edu.duke.bartesaghi.micromon.jobs.RefinementJobs
-import edu.duke.bartesaghi.micromon.jobs.SingleParticlePreprocessingJob
-import edu.duke.bartesaghi.micromon.jobs.TomographyPreprocessingJob
+import edu.duke.bartesaghi.micromon.jobs.*
 import edu.duke.bartesaghi.micromon.linux.DF
 import edu.duke.bartesaghi.micromon.linux.TransferWatcher
 import edu.duke.bartesaghi.micromon.mongo.Database
@@ -125,7 +123,7 @@ object RealTimeService {
 			listener.onParams = { values ->
 				outgoing.trySendMessage(RealTimeS2C.UpdatedParameters(
 					imagesScale = job.imagesScale(values),
-					pypStats = PypStats.from(values)
+					pypStats = PypStats.fromSingleParticle(values)
 				))
 			}
 			listener.onMicrograph = { micrograph ->
@@ -153,7 +151,7 @@ object RealTimeService {
 			listener.onParams = { values ->
 				outgoing.trySendMessage(RealTimeS2C.UpdatedParameters(
 					imagesScale = job.imagesScale(values),
-					pypStats = PypStats.from(values)
+					pypStats = PypStats.fromTomography(values)
 				))
 			}
 			listener.onTiltSeries = { tiltSeries ->
@@ -185,7 +183,13 @@ object RealTimeService {
 			listener.onParams = { values ->
 				outgoing.trySendMessage(RealTimeS2C.UpdatedParameters(
 					imagesScale = job.imagesScale(values),
-					pypStats = PypStats.from(values)
+					pypStats = when (job.baseConfig.jobInfo.dataType) {
+						// reconstructions could be for either single particle jobs or tomography jobs,
+						// so we need to pick the correct version of the stats here
+						JobInfo.DataType.Micrograph -> PypStats.fromSingleParticle(values)
+						JobInfo.DataType.TiltSeries -> PypStats.fromTomography(values)
+						else -> throw NoSuchElementException("job ${job.baseConfig.id} has no data type")
+					}
 				))
 			}
 			listener.onReconstruction = { reconstruction ->
@@ -290,7 +294,7 @@ object RealTimeService {
 			listener.onParams = { values ->
 				outgoing.trySendMessage(RealTimeS2C.UpdatedParameters(
 					imagesScale = session.imagesScale(values),
-					pypStats = PypStats.from(values)
+					pypStats = PypStats.fromSingleParticle(values)
 				))
 			}
 			listener.onMicrograph = listener@{ micrographId ->
@@ -368,7 +372,7 @@ object RealTimeService {
 			listener.onParams = { values ->
 				outgoing.trySendMessage(RealTimeS2C.UpdatedParameters(
 					imagesScale = session.imagesScale(values),
-					pypStats = PypStats.from(values)
+					pypStats = PypStats.fromTomography(values)
 				))
 			}
 			listener.onTiltSeries = listener@{ tiltSeriesId ->

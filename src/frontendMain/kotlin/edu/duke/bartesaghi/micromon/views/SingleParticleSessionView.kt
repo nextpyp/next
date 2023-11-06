@@ -744,18 +744,9 @@ class SingleParticleSessionView(
 			val args = pypArgs.get()
 			val argsValues = session?.newestArgs?.values?.toArgValues(args)
 
-			fun Any?.toLabel(unit: String) =
-				this
-					?.let { "$it $unit" }
-					?: "(unknown)"
-			val voltage = argsValues?.scopeVoltage.toLabel("kV")
-			val pixelSize = argsValues?.scopePixel.toLabel("A")
-			val doseRate = (argsValues?.scopeDoseRate ?: args.scopeDoseRate.default).toLabel("e-/A^	2")
-			val particleRadius = argsValues?.detectRad?.let { it.toLabel("A") } ?: "(not set)"
-
 			statsElem.removeAll()
 			statsElem.div("Total: ${numMicrographs.formatWithDigitGroupsSeparator()} micrograph(s), ${numParticles.formatWithDigitGroupsSeparator()} particle(s)")
-			statsElem.div("Voltage $voltage, Pixel size $pixelSize, Dose rate $doseRate, Particle radius $particleRadius")
+			statsElem.add(PypStatsLine(PypStats.fromSingleParticle(argsValues)))
 		}
 	}
 }

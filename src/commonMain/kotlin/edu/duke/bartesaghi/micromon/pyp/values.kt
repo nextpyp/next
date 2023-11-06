@@ -109,6 +109,8 @@ val Args.scopeDoseRate: Arg
 	get() = argOrThrow("scope", "dose_rate")
 val ArgValues.scopeDoseRate: Double?
 	get() = get(args.scopeDoseRate) as Double?
+val ArgValues.scopeDoseRateOrDefault: Double
+	get() = getOrDefault(args.scopeDoseRate) as Double
 
 val Args.refineMode: Arg
 	get() = argOrThrow("refine", "mode")
