@@ -46,7 +46,7 @@ class ParticleLists {
 	}
 
 	fun deleteAll(ownerId: String) {
-		collection.deleteOne(filterOwner(ownerId))
+		collection.deleteMany(filterOwner(ownerId))
 	}
 
 
