@@ -129,6 +129,8 @@ class Config(toml: String) {
 	val standalone: Standalone?
 
 	data class Web(
+		val host: String,
+		val port: Int,
 		val localDir: Path,
 		val sharedDir: Path,
 		val auth: AuthType,
@@ -210,6 +212,9 @@ class Config(toml: String) {
 
 		web = doc.getTableOrThrow("web").run {
 			Web(
+				host = getString("host") ?: "127.0.0.1",
+				// NOTE: for security reasons, we should only bind to localhost by default, rather than all network iterfaces
+				port = getInt("port") ?: 8080,
 				localDir = getStringOrThrow("localDir").toPath(),
 				sharedDir = getStringOrThrow("sharedDir").toPath(),
 				auth = AuthType[getString("auth")] ?: AuthType.Login,
@@ -287,6 +292,8 @@ class Config(toml: String) {
 		}
 		append("""
 			|[web]
+			|             host:  ${web.host}
+			|             port:  ${web.port}
 			|        local dir:  ${web.localDir}
 			|       shared dir:  ${web.sharedDir}
 			|             auth:  ${web.auth}

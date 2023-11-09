@@ -17,6 +17,7 @@ cpusPerNode = 2
 mpirun = '/usr/lib64/openmpi/bin/mpirun'
 
 [web]
+host = '0.0.0.0'
 localDir = '/home/$user/nextPYP/local'
 sharedDir = '/home/$user/nextPYP/shared'
 webhost = 'http://localhost:8080'

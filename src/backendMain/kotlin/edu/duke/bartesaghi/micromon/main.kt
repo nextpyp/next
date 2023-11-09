@@ -29,10 +29,14 @@ import java.util.zip.GZIPOutputStream
 
 fun main() {
 
+	// initialize the backend first-thing, so we can get access to the configuration
+	Backend.init()
+
 	var initialized = false
 
 	embeddedServer(Netty,
-		port = 8080,
+		host = Backend.config.web.host,
+		port = Backend.config.web.port,
 		configure = {
 
 			// print out the engine configuration
@@ -178,7 +182,6 @@ fun Application.main() {
 	kvisionInit(initStaticResources = false)
 
 	// finally, call initializers for singleton/companion objects
-	Backend.init()
 	Database.init()
 	JobRunner.init()
 	AdminService.init()
