@@ -211,14 +211,16 @@ class Config(toml: String) {
 		}
 
 		web = doc.getTableOrThrow("web").run {
+			val host = getString("host") ?: "127.0.0.1"
+			// NOTE: for security reasons, we should only bind to localhost by default, rather than all network iterfaces
+			val port = getInt("port") ?: 8080
 			Web(
-				host = getString("host") ?: "127.0.0.1",
-				// NOTE: for security reasons, we should only bind to localhost by default, rather than all network iterfaces
-				port = getInt("port") ?: 8080,
+				host = host,
+				port = port,
 				localDir = getStringOrThrow("localDir").toPath(),
 				sharedDir = getStringOrThrow("sharedDir").toPath(),
 				auth = AuthType[getString("auth")] ?: AuthType.Login,
-				webhost = getStringOrThrow("webhost"),
+				webhost = getString("webhost") ?: "http://$host:$port",
 				debug = getBoolean("debug") ?: false,
 				cmdSendmail = getString("sendmail"),
 				filesystems = mapTables("web.filesystem") { table, pos ->
