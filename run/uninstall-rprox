@@ -1,0 +1,33 @@
+#!/bin/sh
+
+# exit the installer if any command fails
+set -e
+
+
+# the uninstaller should be run as root
+if [ "$(whoami)" != "root" ]; then
+  echo "This uninstaller should be run as root"
+  exit 1
+fi
+
+
+echo "Uninstalling nextPYP reverse proxy HTTP server ..."
+
+
+# delete the executables from /usr/bin
+rm "/usr/bin/nextpyp-startrprox"
+rm "/usr/bin/nextpyp-stoprprox"
+rm "/usr/bin/nextpyp-uninstall-rprox"
+
+
+# uninstall systemd integrations
+rproxDaemon="nextPYP-rprox"
+systemctl disable $rproxDaemon
+systemctl stop $rproxDaemon
+rm "/lib/systemd/system/$rproxDaemon.service"
+
+# poke systemd to recognize the removal of the daemon
+systemctl daemon-reload
+
+
+echo "Finished uninstalling nextPYP reverse proxy HTTP server."

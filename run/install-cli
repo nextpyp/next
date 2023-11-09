@@ -3,10 +3,19 @@
 # exit the installer if any command fails
 set -e
 
-# settings
-version="nightly"
-# TODO: actual release versions
-#version="v1.0"
+
+# build-time settings (to be filled in by a build script)
+version="__TARGET_VERSION__"
+
+
+# check that the build process actually ran
+tva=__TARGET
+tvb=_VERSION__
+if [ "$version" = "$tva$tvb" ]; then
+  echo "No version set by the build process."
+  exit
+fi
+
 
 # gather info about the local environment
 here=$(pwd)

@@ -130,6 +130,7 @@ binds="$binds --bind $localdir --bind $shareddir $configbinds"
 
 
 if [ -z "$PYP_HOSTPROCESSOR_OFF" ]; then
+
   # start the host processor on a named pipe, so the container can launch processes on the host OS
   pidpath="/tmp/micromon.hostprocessor.pid"
   pipepath="/tmp/micromon.hostprocessor.pipe"
@@ -140,8 +141,24 @@ if [ -z "$PYP_HOSTPROCESSOR_OFF" ]; then
   fi
   mkfifo "$pipepath"
   chmod go-rwx "$pipepath"
+
   binds="$binds --bind $pipepath"
-  ./hostprocessor > "$localdir/logs/hostprocessor" 2>&1 &
+
+  # get the host processor executable
+  if [ -n "$devpath" ]; then
+    # dev mode, look in the dev folder
+    hpexec="$devpath/run/hostprocesor"
+  else
+    # production mode, look in /usr/bin
+    hpexec="/usr/bin/nextpyp-hostprocessor"
+  fi
+  if [ ! -x "$hpexec" ]; then
+    echo "Host processor executable not found at $hpexec"
+    exit 1
+  fi
+
+  # actually start the host processor
+  "$hpexec" > "$localdir/logs/hostprocessor" 2>&1 &
 fi
 
 

@@ -1,0 +1,103 @@
+#!/bin/sh
+
+# exit the installer if any command fails
+set -e
+
+
+# the installer should be run as root
+if [ "$(whoami)" != "root" ]; then
+  echo "This installer should be run as root"
+  exit 1
+fi
+
+
+# build-time settings (to be filled in by a build script)
+version="__TARGET_VERSION__"
+
+
+# check that the build process actually ran
+tva=__TARGET
+tvb=_VERSION__
+if [ "$version" = "$tva$tvb" ]; then
+  echo "No version set by the build process."
+  exit
+fi
+
+
+# gather info about the local environment
+here=$(pwd)
+
+
+# get the domain name
+domain=$DOMAIN
+if [ -z "$domain" ]; then
+  echo "No DOMAIN set."
+  exit
+fi
+
+echo "Installing nextPYP $version reverse proxy HTTP server for domain $domain ..."
+
+
+# download the distribution files
+echo "Downloading installation files ..."
+www="https://nextpyp.app/files/pyp/$version"
+wgetopts="-nv"
+# for interactive use, it's helpful to turn on the progress bar to track long downloads
+#wgetopts="$wgetopts --progress=bar"
+wget $wgetopts -O "reverse-proxy.sif" "$www/reverse-proxy.sif"
+wget $wgetopts -O "startrprox" "$www/startrprox"
+wget $wgetopts -O "stoprprox" "$www/stoprprox"
+wget $wgetopts -O "uninstall-rprox" "$www/uninstall-rprox"
+
+
+# move the executables into /usr/bin (otherwise SELinux will deny access)
+mv "$here/startrprox" "/usr/bin/nextpyp-startrprox"
+chmod ug+rx "/usr/bin/nextpyp-startrprox"
+mv "$here/stoprprox" "/usr/bin/nextpyp-stoprprox"
+chmod ug+rx "/usr/bin/nextpyp-stoprprox"
+mv "$here/uninstall-rprox" "/usr/bin/nextpyp-uninstall-rprox"
+chmod ug+rx "/usr/bin/nextpyp-uninstall-rprox"
+
+
+# make the unit file for the reverse proxy server
+rproxDaemon="nextPYP-rprox"
+rproxFile="/lib/systemd/system/$rproxDaemon.service"
+cat << EOF > "$rproxFile"
+[Unit]
+Description=$rproxDaemon
+
+[Service]
+Type=forking
+Restart=always
+RestartSec=1
+WorkingDirectory=$here
+ExecStart="/usr/bin/nextpyp-startrprox" "$domain"
+ExecStop=/usr/bin/nextpyp-stoprprox
+
+[Install]
+WantedBy = multi-user.target
+EOF
+chmod go-w "$rproxFile"
+
+
+# poke systemd to recognize the new daemons
+systemctl daemon-reload
+
+# start the demon now and at boot too
+systemctl start $rproxDaemon
+systemctl enable $rproxDaemon
+
+
+# configure firewall to allow HTTP/HTTPs traffic, if it's running
+if systemctl is-active --quiet firewalld; then
+  echo "Configuring firewall ..."
+  firewall-cmd --permanent --zone=public --add-service=http
+  firewall-cmd --permanent --zone=public --add-service=https
+  firewall-cmd --reload
+  echo "Configured firewall to allow HTTP/HTTPs traffic"
+else
+  echo "No firewall running, skipped configuration"
+fi
+
+
+echo "Finished installing nextPYP $version reverse proxy HTTP server"

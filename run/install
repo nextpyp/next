@@ -11,15 +11,21 @@ if [ "$(whoami)" != "root" ]; then
 fi
 
 
-# settings
-version="nightly"
-# TODO: actual release versions
-#version="v1.0"
+# build-time settings (to be filled in by a build script)
+version="__TARGET_VERSION__"
+
+
+# check that the build process actually ran
+tva=__TARGET
+tvb=_VERSION__
+if [ "$version" = "$tva$tvb" ]; then
+  echo "No version set by the build process."
+  exit
+fi
 
 
 # gather info about the local environment
 here=$(pwd)
-hostname=$(hostname)
 
 # get the username
 username=$PYP_USER
@@ -34,19 +40,12 @@ if [ -z "$usergroup" ]; then
   if getent group "$username"; then
     usergroup=$username
   else
-    echo "$username is apparently not a valid group. Choose the pyp group by setting PYP_GROUP"
+    echo "$username is not a valid group. Choose the pyp group by setting PYP_GROUP"
     exit
   fi
 fi
 
-# get the domain, if any
-if [ -n "$PYP_DOMAIN" ]; then
-  domain=$PYP_DOMAIN
-else
-  domain=$hostname
-fi
-echo "Installing nextPYP $version for user $username on domain $domain ..."
-
+echo "Installing nextPYP $version for user $username ..."
 
 
 # make a way to do things as the specified user
@@ -61,30 +60,22 @@ wgetopts="-nv"
 # for interactive use, it's helpful to turn on the progress bar to track long downloads
 #wgetopts="$wgetopts --progress=bar"
 $usdo wget $wgetopts -O "nextPYP.sif" "$www/nextPYP.sif"
-$usdo wget $wgetopts -O "reverse-proxy.sif" "$www/reverse-proxy.sif"
 $usdo wget $wgetopts -O "pyp.sif" "$www/pyp.sif"
 $usdo wget $wgetopts -O "hostprocessor" "$www/hostprocessor"
 $usdo wget $wgetopts -O "start" "$www/start"
 $usdo wget $wgetopts -O "stop" "$www/stop"
-$usdo wget $wgetopts -O "startrprox" "$www/startrprox"
-$usdo wget $wgetopts -O "stoprprox" "$www/stoprprox"
-$usdo wget $wgetopts -O "install-systemd" "$www/install-systemd"
-$usdo wget $wgetopts -O "uninstall-systemd" "$www/uninstall-systemd"
 $usdo wget $wgetopts -O "uninstall" "$www/uninstall"
 
-$usdo chmod u+x start stop startrprox stoprprox install-systemd uninstall-systemd uninstall hostprocessor
 
-
-# copy the executables into /usr/bin (otherwise SELinux will deny access)
-cp "$here/start" "/usr/bin/nextpyp-start"
+# move the executables into /usr/bin (otherwise SELinux will deny access)
+mv "$here/start" "/usr/bin/nextpyp-start"
 chmod ugo+rx "/usr/bin/nextpyp-start"
-cp "$here/stop" "/usr/bin/nextpyp-stop"
+mv "$here/stop" "/usr/bin/nextpyp-stop"
 chmod ugo+rx "/usr/bin/nextpyp-stop"
-cp "$here/startrprox" "/usr/bin/nextpyp-startrprox"
-chmod ugo+rx "/usr/bin/nextpyp-startrprox"
-cp "$here/stoprprox" "/usr/bin/nextpyp-stoprprox"
-chmod ugo+rx "/usr/bin/nextpyp-stoprprox"
-
+mv "$here/hostprocessor" "/usr/bin/nextpyp-hostprocessor"
+chmod ugo+rx "/usr/bin/nextpyp-hostprocessor"
+mv "$here/uninstall" "/usr/bin/nextpyp-uninstall"
+chmod ugo+rx "/usr/bin/nextpyp-uninstall"
 
 # download the workflow files
 workflowDir="$here/workflows"
@@ -124,21 +115,6 @@ container = '$here/pyp.sif'
 scratch = '/tmp/pyp'
 
 
-[slurm]
-
-# user account for the SLURM login node
-user = '$username'
-
-# hostname for the SLURM login node
-host = '$domain'
-
-# maximum memory (in GiB) available on SLURM compute nodes
-memoryPerNode = 2
-
-# maximum CPU cores available on SLURM compute nodes
-cpusPerNode = 2
-
-
 [web]
 
 # storage space for website files, database, etc
@@ -149,9 +125,6 @@ localDir = '$localDir'
 # this area should have a lot of available space for large files
 sharedDir = '$sharedDir'
 
-# URL of the web server, from a SLURM compute node's point of view
-webhost = 'https://$domain'
-
 # directories for workflow files
 workflowDirs = ['$workflowDir']
 
@@ -159,32 +132,44 @@ EOF
   echo "Created configuration file: $configPath"
 fi
 
-# generate SSH key
-sshdir="/home/$username/.ssh"
-keyfile="$sshdir/id_rsa"
-if [ ! -d "$sshdir" ]; then
-  $usdo mkdir -p "$sshdir"
-  echo "Created SSH directory: $sshdir"
-fi
-if [ ! -f "$keyfile" ]; then
-  $usdo ssh-keygen -t rsa -N "" -f "$keyfile"
-  $usdo cat "$keyfile.pub" >> "$sshdir/authorized_keys"
-  echo "Generated SSH key: $keyfile"
-else
-  echo "Using existing SSH key: $keyfile"
-fi
+
+echo "Installing integrations with systemd ..."
+
+# relevant documentation on systemd:
+# https://www.freedesktop.org/software/systemd/man/systemd.unit.html
+# https://www.freedesktop.org/software/systemd/man/systemd.exec.html
+# https://www.freedesktop.org/software/systemd/man/systemd.service.html
 
 
-# configure firewall to allow HTTP/HTTPs traffic, if it's running
-if systemctl is-active --quiet firewalld; then
-  echo "Configuring firewall ..."
-  firewall-cmd --permanent --zone=public --add-service=http
-  firewall-cmd --permanent --zone=public --add-service=https
-  firewall-cmd --reload
-  echo "Configured firewall to allow HTTP/HTTPs traffic"
-else
-  echo "No firewall running, skipped configuration"
-fi
+# make the unit file for the application server
+appDaemon="nextPYP"
+appFile="/lib/systemd/system/$appDaemon.service"
+cat << EOF > "$appFile"
+[Unit]
+Description=$appDaemon
+
+[Service]
+Type=forking
+Restart=always
+RestartSec=1
+WorkingDirectory=$here
+User=$username
+Environment=PYP_CONFIG=$configPath
+ExecStart=/usr/bin/nextpyp-start
+ExecStop=/usr/bin/nextpyp-stop
+
+[Install]
+WantedBy = multi-user.target
+EOF
+chmod go-w "$appFile"
+
+
+# poke systemd to recognize the new daemons
+systemctl daemon-reload
+
+# start the demon now and at boot too
+systemctl start $appDaemon
+systemctl enable $appDaemon
 
 
 echo "Finished installing nextPYP $version"
