@@ -147,7 +147,7 @@ if [ -z "$PYP_HOSTPROCESSOR_OFF" ]; then
   # get the host processor executable
   if [ -n "$devpath" ]; then
     # dev mode, look in the dev folder
-    hpexec="$devpath/run/hostprocesor"
+    hpexec="$devpath/run/hostprocessor"
   else
     # production mode, look in /usr/bin
     hpexec="/usr/bin/nextpyp-hostprocessor"
