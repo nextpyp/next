@@ -414,10 +414,8 @@ object PypService {
 				virionId to threshold
 			}
 		val virionsAndThresholds = metadata.getArray("virion_coordinates")
-			?.takeIf { !it.isEmpty }
 			?.let { it.readParticles() to it.readVirionThresholds() }
 		val particles = metadata.getArray("spike_coordinates")
-			?.takeIf { !it.isEmpty }
 			?.readParticles()
 
 		// update the database
