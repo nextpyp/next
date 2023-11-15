@@ -65,7 +65,11 @@ $usdo wget $wgetopts -O "hostprocessor" "$www/hostprocessor"
 $usdo wget $wgetopts -O "start" "$www/start"
 $usdo wget $wgetopts -O "stop" "$www/stop"
 $usdo wget $wgetopts -O "uninstall" "$www/uninstall"
+$usdo wget $wgetopts -O "install-rprox" "$www/install-rprox"
 
+# NOTE: we don't make the local scripts in $here executable
+#       instead, the installation instructions ask the user to inspect them first
+#       and then chmod +x later if satisfied
 
 # move the executables into /usr/bin (otherwise SELinux will deny access)
 mv "$here/start" "/usr/bin/nextpyp-start"
@@ -74,8 +78,6 @@ mv "$here/stop" "/usr/bin/nextpyp-stop"
 chmod ugo+rx "/usr/bin/nextpyp-stop"
 mv "$here/hostprocessor" "/usr/bin/nextpyp-hostprocessor"
 chmod ugo+rx "/usr/bin/nextpyp-hostprocessor"
-mv "$here/uninstall" "/usr/bin/nextpyp-uninstall"
-chmod ugo+rx "/usr/bin/nextpyp-uninstall"
 
 # download the workflow files
 workflowDir="$here/workflows"
@@ -96,9 +98,17 @@ $usdo mkdir -p "$sharedDir"
 $usdo chown "$username:$usergroup" "$sharedDir"
 echo "Created shared directory: $sharedDir"
 
-# create configuration file
-$usdo mkdir -p "/home/$username/.config"
-echo "Created /home/$username/.config directory"
+# create the home configuration folder, if needed (needed by apptainer)
+home=/home/$username
+if [ ! -d "$home" ]; then
+  mkdir -p "$home"
+  chown -R "$username:$usergroup" "$home"
+  chmod u+rwx,go+rx,go-w "$home"
+fi
+if [ ! -d "$home/.config" ]; then
+  $usdo mkdir -p "$home/.config"
+  echo "Created $home/.config directory"
+fi
 
 # generate the initial configuration
 configPath="$here/config.toml"
@@ -128,9 +138,16 @@ sharedDir = '$sharedDir'
 # directories for workflow files
 workflowDirs = ['$workflowDir']
 
+# authentication mode: how to log into the website
+# disable authentication entirely in single-user mode
+auth = "none"
+
 EOF
   echo "Created configuration file: $configPath"
 fi
+
+# make sure others can't write to the config file
+chmod o-w "$configPath"
 
 
 echo "Installing integrations with systemd ..."

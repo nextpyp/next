@@ -18,7 +18,6 @@ echo "Uninstalling nextPYP ..."
 rm "/usr/bin/nextpyp-start"
 rm "/usr/bin/nextpyp-stop"
 rm "/usr/bin/nextpyp-hostprocessor"
-rm "/usr/bin/nextpyp-uninstall"
 
 
 # uninstall systemd integrations

@@ -49,14 +49,15 @@ wget $wgetopts -O "startrprox" "$www/startrprox"
 wget $wgetopts -O "stoprprox" "$www/stoprprox"
 wget $wgetopts -O "uninstall-rprox" "$www/uninstall-rprox"
 
+# NOTE: we don't make the local scripts in $here executable
+#       instead, the installation instructions ask the user to inspect them first
+#       and then chmod +x later if satisfied
 
 # move the executables into /usr/bin (otherwise SELinux will deny access)
 mv "$here/startrprox" "/usr/bin/nextpyp-startrprox"
 chmod ug+rx "/usr/bin/nextpyp-startrprox"
 mv "$here/stoprprox" "/usr/bin/nextpyp-stoprprox"
 chmod ug+rx "/usr/bin/nextpyp-stoprprox"
-mv "$here/uninstall-rprox" "/usr/bin/nextpyp-uninstall-rprox"
-chmod ug+rx "/usr/bin/nextpyp-uninstall-rprox"
 
 
 # make the unit file for the reverse proxy server
@@ -96,7 +97,7 @@ if systemctl is-active --quiet firewalld; then
   firewall-cmd --reload
   echo "Configured firewall to allow HTTP/HTTPs traffic"
 else
-  echo "No firewall running, skipped configuration"
+  echo "No firewalld running, skipped configuration"
 fi
 
 
