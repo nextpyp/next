@@ -185,7 +185,7 @@ class Config(toml: String) {
 
 		slurm = doc.getTable("slurm")?.run {
 			Slurm(
-				user = getStringOrThrow("user"),
+				user = getString("user") ?: System.getProperty("user.name"),
 				host = getStringOrThrow("host"),
 				key = getString("key")?.toPath() ?: SshPoolConfig.defaultKeyPath,
 				port = getInt("port") ?: SshPoolConfig.defaultPort,
