@@ -29,9 +29,9 @@ here=$(pwd)
 
 
 # get the domain name
-domain=$DOMAIN
+domain=$PYP_DOMAIN
 if [ -z "$domain" ]; then
-  echo "No DOMAIN set."
+  echo "No PYP_DOMAIN set."
   exit
 fi
 

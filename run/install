@@ -59,13 +59,15 @@ www="https://nextpyp.app/files/pyp/$version"
 wgetopts="-nv"
 # for interactive use, it's helpful to turn on the progress bar to track long downloads
 #wgetopts="$wgetopts --progress=bar"
-$usdo wget $wgetopts -O "nextPYP.sif" "$www/nextPYP.sif"
-$usdo wget $wgetopts -O "pyp.sif" "$www/pyp.sif"
-$usdo wget $wgetopts -O "hostprocessor" "$www/hostprocessor"
-$usdo wget $wgetopts -O "start" "$www/start"
-$usdo wget $wgetopts -O "stop" "$www/stop"
-$usdo wget $wgetopts -O "uninstall" "$www/uninstall"
-$usdo wget $wgetopts -O "install-rprox" "$www/install-rprox"
+wget $wgetopts -O "nextPYP.sif" "$www/nextPYP.sif"
+wget $wgetopts -O "pyp.sif" "$www/pyp.sif"
+wget $wgetopts -O "hostprocessor" "$www/hostprocessor"
+wget $wgetopts -O "start" "$www/start"
+wget $wgetopts -O "stop" "$www/stop"
+wget $wgetopts -O "uninstall" "$www/uninstall"
+wget $wgetopts -O "install-rprox" "$www/install-rprox"
+
+chmod ugo+r "nextPYP.sif" "pyp.sif" "uninstall" "install-rprox"
 
 # NOTE: we don't make the local scripts in $here executable
 #       instead, the installation instructions ask the user to inspect them first
@@ -82,20 +84,21 @@ chmod ugo+rx "/usr/bin/nextpyp-hostprocessor"
 # download the workflow files
 workflowDir="$here/workflows"
 workflowWww="$www/workflows"
-$usdo mkdir -p "$workflowDir"
-$usdo wget $wgetopts -O "$workflowDir/spr_tutorial.toml" "$workflowWww/spr_tutorial.toml"
-$usdo wget $wgetopts -O "$workflowDir/tomo_tutorial.toml" "$workflowWww/tomo_tutorial.toml"
-$usdo wget $wgetopts -O "$workflowDir/class_tutorial.toml" "$workflowWww/class_tutorial.toml"
+mkdir -p "$workflowDir"
+wget $wgetopts -O "$workflowDir/spr_tutorial.toml" "$workflowWww/spr_tutorial.toml"
+wget $wgetopts -O "$workflowDir/tomo_tutorial.toml" "$workflowWww/tomo_tutorial.toml"
+wget $wgetopts -O "$workflowDir/class_tutorial.toml" "$workflowWww/class_tutorial.toml"
+chmod -R ugo+r "$workflowDir"/*
 
 # create initial directories
 localDir="$here/local"
-$usdo mkdir -p "$localDir"
-$usdo chown "$username:$usergroup" "$localDir"
+mkdir -p "$localDir"
+chown "$username:$usergroup" "$localDir"
 echo "Created local directory: $localDir"
 
 sharedDir="$here/shared"
-$usdo mkdir -p "$sharedDir"
-$usdo chown "$username:$usergroup" "$sharedDir"
+mkdir -p "$sharedDir"
+chown "$username:$usergroup" "$sharedDir"
 echo "Created shared directory: $sharedDir"
 
 # create the home configuration folder, if needed (needed by apptainer)
