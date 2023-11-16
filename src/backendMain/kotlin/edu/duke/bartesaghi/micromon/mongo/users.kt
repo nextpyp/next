@@ -42,7 +42,8 @@ class Users {
 		collection.updateOne(
 			filter(userId),
 			Updates.combine(updates.toList()),
-			UpdateOptions().upsert(true)
+			// don't upsert here, since it would create users that otherwise shouldn't exist
+			UpdateOptions().upsert(false)
 		)
 	}
 
