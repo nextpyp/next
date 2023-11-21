@@ -98,10 +98,7 @@ class Reconstructions {
 		val classes: List<Int> get() =
 			byClass.keys.sorted()
 
-		/** returns all the reconstructions, in creation order */
-		val asList: List<ReconstructionData> get() =
-			list
-
+		/** returns all the reconstructions, in class number order */
 		fun all(): List<ReconstructionData> =
 			classes.map { byClass[it]!! }
 

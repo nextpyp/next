@@ -204,7 +204,7 @@ class ClassesTab(
 
 		val reconstructions = state.reconstructions
 			.withIteration(iteration)
-			?.asList
+			?.all()
 			?: run {
 				thumbsElem.emptyMessage("No reconstructions to show")
 				return
