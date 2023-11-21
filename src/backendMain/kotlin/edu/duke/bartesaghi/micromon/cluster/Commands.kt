@@ -11,6 +11,7 @@ sealed interface Commands {
 	val id: String
 
 	val arraySize: Int?
+	val bundleSize: Int?
 
 	val isArray: Boolean get() =
 		arraySize != null
@@ -96,7 +97,8 @@ private fun batchHeader(job: ClusterJob): String =
 class CommandsScript(
 	val commands: List<String>,
 	/** if true, runs the script as a SLURM array job */
-	override val arraySize: Int? = null
+	override val arraySize: Int? = null,
+	override val bundleSize: Int? = null
 ) : Commands {
 
 	companion object {
@@ -161,7 +163,8 @@ class CommandsScript(
 
 
 class CommandsGrid(
-	val commands: List<List<String>>
+	val commands: List<List<String>>,
+	override val bundleSize: Int? = null
 ) : Commands {
 
 	companion object {

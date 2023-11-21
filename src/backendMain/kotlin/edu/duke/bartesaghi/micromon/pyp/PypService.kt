@@ -111,7 +111,8 @@ object PypService {
 
 					"script" -> CommandsScript(
 						commands.getStringsOrThrow("commands"),
-						commands.getInt("array_size")
+						commands.getInt("array_size"),
+						commands.getInt("bundle_size")
 					)
 
 					"grid" -> CommandsGrid(
@@ -119,7 +120,8 @@ object PypService {
 							array.indices().map { i ->
 								array.getStringsOrThrow(i, "grid commands")
 							}
-						}
+						},
+						commands.getInt("bundle_size")
 					)
 
 					else -> throw BadRequestException("invalid commands type: $type")

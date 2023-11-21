@@ -120,7 +120,10 @@ class SBatch(val config: Config.Slurm) : Cluster {
 
 		// render the array arguments
 		clusterJob.commands.arraySize?.let { arraySize ->
-			cmd.add("--array=1-$arraySize")
+			val bundleInfo = clusterJob.commands.bundleSize
+				?.let { "%$it" }
+				?: ""
+			cmd.add("--array=1-$arraySize$bundleInfo")
 		}
 
 		// set the job name
