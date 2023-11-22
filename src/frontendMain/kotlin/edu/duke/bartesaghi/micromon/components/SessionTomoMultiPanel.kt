@@ -128,9 +128,6 @@ class SessionTomoMultiPanel(
 			// Alignment tab
 			alignedTiltSeriesImage.load(metadata.tilts.size, metadata.tilts.size / 2 - 1)
 
-			// Reconstruction tab
-			particlesImage.load()
-
 			// CTF tab
 			ctfMultiTiltPlot.myOnClick = { index ->
 				currentTiltCTFTab = metadata.tilts[index]
