@@ -22,7 +22,8 @@ object Migrations {
 	 * That is, running it multiple times should always result in the same final state.
 	 */
 	private val migrations: List<Pair<String,MigrationRunner>> = listOf(
-		"particles" to ::migrationParticles
+		"particles" to ::migrationParticles,
+		"tkhashes" to ::migrationTokenHashes
 	)
 
 	init {

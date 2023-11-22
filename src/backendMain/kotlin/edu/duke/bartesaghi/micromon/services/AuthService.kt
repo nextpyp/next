@@ -203,7 +203,7 @@ object AuthService {
 				if (verifyLoginToken(userId, token)) {
 
 					// consume this token (it's only one-time use)
-					Database.users.removeTokenHash(userId)
+					revokeLoginToken(userId, token)
 
 					// login the user
 					val user = Database.users.getUser(userId)

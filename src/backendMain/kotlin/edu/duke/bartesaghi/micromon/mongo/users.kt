@@ -108,19 +108,40 @@ class Users {
 		)
 	}
 
-	fun getTokenHash(userId: String): String? =
-		get(userId)?.getString("tkhash")
+	fun getTokenHashes(userId: String): List<String> =
+		get(userId)?.getListOfStrings("tkhashes")
+			?: emptyList()
 
-	fun setTokenHash(userId: String, tkhash: String) {
+	fun addTokenHash(userId: String, tkhash: String) {
 		update(userId,
-			Updates.set("tkhash", tkhash)
+			Updates.push("tkhashes", tkhash)
 		)
 	}
 
-	fun removeTokenHash(userId: String) {
-		update(userId,
-			Updates.unset("tkhash")
-		)
+	/**
+	 * Argon2 hashes are randomized, so we can't just match the hash and remove it.
+	 * We need to call the Argon2 verify function, so punt that to the caller.
+	 */
+	fun removeTokenHashes(userId: String, filter: (tkhash: String) -> Boolean) {
+
+		// need to do this in a transaction
+		Database.client.startSession().use { session ->
+			session.startTransaction()
+			try {
+
+				// get all the hashes, filter out the ones we're removing, then write back the remaining ones
+				val tkhashes = getTokenHashes(userId)
+					.filterNot(filter)
+				update(userId,
+					Updates.set("tkhashes", tkhashes)
+				)
+
+				session.commitTransaction()
+			} catch (t: Throwable) {
+				session.abortTransaction()
+				throw t
+			}
+		}
 	}
 }
 

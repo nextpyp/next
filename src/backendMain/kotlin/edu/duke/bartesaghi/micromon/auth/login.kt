@@ -26,28 +26,35 @@ private val argonForTokens =
 	)
 
 
-fun generateLoginToken(userId: String): ByteArray {
-
-	// generate the login token
-	// since these tokens are not real passwords and can never protect other resources (like a users bank account),
-	// we don't need to take any in-memory precautions to protect these tokens from server administrators
-	val token = ByteArray(64)
-	SecureRandom().nextBytes(token)
-
-	// hash it
+/**
+ * Hash a login token using weak Argon2 params.
+ * This should *NOT* be used to hash passwords!
+ */
+private fun hashToken(token: ByteArray): String =
 	// login tokens are chosen by the server and therefore make very strong passwords
 	// therefore, even "weak" hashes are sufficient to protect them
 	// we don't even need to add any extra salt
 	// https://security.stackexchange.com/questions/63435/why-use-an-authentication-token-instead-of-the-username-password-per-request/63438#63438
-	val tkhash = argonForTokens.hash(
+	// basically, any hash function with preimage resistance will work fine here
+	argonForTokens.hash(
 		1, // iterations
 		128, // memory, in KiB
 		1, // threads
 		token
 	)
 
-	// save the login token in the database
-	Database.users.setTokenHash(userId, tkhash)
+
+fun generateLoginToken(userId: String): ByteArray {
+
+	// generate the login token
+	// since these tokens are not real passwords and can never protect other resources (like a users bank account),
+	// we don't need to take any in-memory precautions to protect these tokens from server administrators
+	val token = ByteArray(64)
+	// NOTE: lol, 64 bytes (512 bits) is probably a lot more entropy than we actually need here, but it's cheap, so who cares?
+	SecureRandom().nextBytes(token)
+
+	// save the hash
+	Database.users.addTokenHash(userId, hashToken(token))
 
 	return token
 }
@@ -56,10 +63,28 @@ fun verifyLoginToken(userId: String, token: ByteArray?): Boolean {
 
 	token ?: return false
 
-	val tkhash = Database.users.getTokenHash(userId)
-		?: return false
+	val tkhashes = Database.users.getTokenHashes(userId)
+		// randomize the order of the hashes to hopefully keep the
+		// JVM JIT from profiling and optimizing away any comparisions
+		.shuffled()
 
-	return argonForTokens.verify(tkhash, token)
+	// attempt to verify all of the hashes in constant time
+	var numVerified = 0
+	for (tkhash in tkhashes) {
+		if (argonForTokens.verify(tkhash, token)) {
+			numVerified += 1
+		}
+	}
+	// NOTE: the token hash params are cheap, so this loop should
+	// hopefully go fast even for a user with a handful of hashes
+
+	return numVerified >= 1
+}
+
+fun revokeLoginToken(userId: String, token: ByteArray) {
+	Database.users.removeTokenHashes(userId) { tkhash ->
+		argonForTokens.verify(tkhash, token)
+	}
 }
 
 
@@ -80,13 +105,13 @@ fun ApplicationCall.login(user: User) {
  */
 fun ApplicationCall.logout() {
 
-	val session = sessions.get<User.Session>() ?: return
+	// remove the login token from the database
+	val session = sessions.get<User.Session>()
+		?: return
+	session.token?.let { revokeLoginToken(session.id, it.base62Decode()) }
 
 	// remove the server session
 	sessions.clear<User.Session>()
-
-	// remove the login token from the database
-	Database.users.removeTokenHash(session.id)
 }
 
 
@@ -143,8 +168,8 @@ fun ApplicationCall.auth(): User? {
 				} else {
 
 					// remove any invalid sessions and tokens
+					token?.let { revokeLoginToken(id, it) }
 					sessions.clear<User.Session>()
-					Database.users.removeTokenHash(id)
 
 					null
 				}
