@@ -5,6 +5,7 @@ import org.w3c.dom.HTMLElement
 import io.kvision.core.Component
 import io.kvision.core.Widget
 import kotlinext.js.getOwnPropertyNames
+import kotlinext.js.jsObject
 import kotlinx.browser.document
 import kotlinx.html.InputType
 import kotlinx.html.div
@@ -166,18 +167,39 @@ open class UnshadowedCheck(
 
 
 /** an interface to JS objects that behave more like maps */
-interface MapObject<T>
+interface MapObject<T> {
 
-operator fun <T> MapObject<T>.get(key: String): T =
-	asDynamic()[key] as T
+	companion object {
+		fun <T> new(): MapObject<T> =
+			jsObject()
+	}
+}
+
+operator fun <T> MapObject<T>.get(key: String): T? =
+	asDynamic()[key] as T?
 
 operator fun <T> MapObject<T>.set(key: String, value: T) {
 	asDynamic()[key] = value
 }
 
+@Suppress("UNUSED_PARAMETER", "UNUSED_VARIABLE")
+fun <T> MapObject<T>.remove(key: String) {
+	val self = this
+	js("delete self[key]")
+}
+
+fun <T> MapObject<T>.clear() {
+	for (key in keys) {
+		remove(key)
+	}
+}
+
 val <T> MapObject<T>.keys: Array<String> get() = getOwnPropertyNames()
 
-val <T> MapObject<T>.values: List<T> get() = keys.map { get(it) }
+val <T> MapObject<T>.values: List<T> get() = keys.map { get(it)!! }
+
+fun <T> MapObject<T>.asObject(): dynamic =
+	this
 
 
 // I have no idea how Kotlin/js normally handles raw js iterators,

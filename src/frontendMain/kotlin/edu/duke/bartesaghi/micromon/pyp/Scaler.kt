@@ -47,3 +47,12 @@ fun Double.normalizedToPercent() = (this*100).perc
 
 fun Double.unbinnedToA(scaler: Scaler): Double = this.unbinnedToA(scaler.scale)
 fun Double.aToUnbinned(scaler: Scaler): Double = this.aToUnbinned(scaler.scale)
+
+
+// combinations
+
+fun Double.aToNormalizedX(scaler: Scaler): Double = this.aToUnbinned(scaler).unbinnedToNormalizedX(scaler)
+fun Double.aToNormalizedY(scaler: Scaler): Double = this.aToUnbinned(scaler).unbinnedToNormalizedY(scaler)
+
+fun Double.normalizedToAX(scaler: Scaler): Double = this.normalizedToUnbinnedX(scaler).unbinnedToA(scaler)
+fun Double.normalizedToAY(scaler: Scaler): Double = this.normalizedToUnbinnedY(scaler).unbinnedToA(scaler)

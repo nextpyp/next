@@ -35,6 +35,7 @@ open class ParticlesImage(
 ) : SizedPanel(title, sizeStorage.get()) {
 
 	val scaler = Scaler.of(imagesScale, sourceDims)
+	val scaleBar = ScaleBar(scaler)
 
 	var onParticlesChange: (() -> Unit)? = null
 
@@ -49,7 +50,7 @@ open class ParticlesImage(
 
 		// show the image and the scale bar
 		add(pi.imageElem)
-		add(ScaleBar(pi.scaler))
+		add(pi.scaleBar)
 	}
 
 	private var particles: MutableMap<Int,Particle2D>? = null
@@ -104,6 +105,11 @@ open class ParticlesImage(
 
 			// update the image
 			imageElem.src = imageUrl(newSize)
+		}
+
+		// add the measure tool
+		scaler?.let {
+			rightDiv.add(0, MeasureTool.button(imageContainerElem, it, MeasureTool.showIn(scaleBar)))
 		}
 	}
 

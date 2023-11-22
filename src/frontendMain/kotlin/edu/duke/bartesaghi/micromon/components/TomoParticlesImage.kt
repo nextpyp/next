@@ -198,7 +198,20 @@ class TomoParticlesImage(
 		playableSprite.load(numSlices, numSlices/2 - 1) { sprite ->
 
 			// show the scale bar
-			sprite.add(ScaleBar(scaler))
+			val scaleBar = ScaleBar(scaler)
+			sprite.add(scaleBar)
+
+			// add the measure tool
+			scaler?.let {
+				playableSprite.rightDiv.apply {
+					// cleanup any previous measure buttons
+					getChildren()
+						.filter { MeasureTool.isButton(it) }
+						.forEach { remove(it) }
+					// add the new one
+					add(0, MeasureTool.button(sprite, it, MeasureTool.showIn(scaleBar)))
+				}
+			}
 
 			// attach the click handler to the sprite image
 			sprite.onClick { event ->
