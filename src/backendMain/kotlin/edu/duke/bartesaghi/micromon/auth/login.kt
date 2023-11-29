@@ -5,6 +5,7 @@ import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.services.AuthType
 import io.ktor.application.ApplicationCall
+import io.ktor.features.*
 import io.ktor.request.header
 import io.ktor.sessions.clear
 import io.ktor.sessions.get

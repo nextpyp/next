@@ -3,7 +3,6 @@ package edu.duke.bartesaghi.micromon.services
 
 import com.google.inject.Inject
 import edu.duke.bartesaghi.micromon.*
-import edu.duke.bartesaghi.micromon.BadRequestException
 import edu.duke.bartesaghi.micromon.jobs.*
 import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.pyp.*

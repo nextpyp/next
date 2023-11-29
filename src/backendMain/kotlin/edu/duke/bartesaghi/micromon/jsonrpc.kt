@@ -98,7 +98,7 @@ object JsonRpc {
 			// try to get the id first, since we need that to send any kind of response
 			val id = try {
 				json.asObject().getIntOrThrow("id")
-			} catch (ex: BadRequestException) {
+			} catch (ex: BadJsonRpcRequestException) {
 				call.respond(
 					0, // no id, just use zero and hope nothing bad happens
 					JsonRpcFailure("no request id")
@@ -126,12 +126,12 @@ object JsonRpc {
 				val method = request.getStringOrThrow("method")
 				val response = methods[method]
 					?.invoke(params)
-					?: throw BadRequestException("no method: $method")
+					?: throw BadJsonRpcRequestException("no method: $method")
 
 				// send back the response to the client
 				call.respond(id, response)
 
-			} catch (ex: BadRequestException) {
+			} catch (ex: BadJsonRpcRequestException) {
 
 				// the client did something wrong, try to let them know
 				call.respond(id, JsonRpcFailure(ex.message ?: "Bad Request"))
@@ -178,7 +178,7 @@ object JsonRpc {
 }
 
 
-class BadRequestException(msg: String, context: String? = null) : IllegalArgumentException(
+class BadJsonRpcRequestException(msg: String, context: String? = null) : IllegalArgumentException(
 	if (context != null) {
 		"$msg\n\tcontext: $context"
 	} else {
@@ -190,156 +190,156 @@ class BadRequestException(msg: String, context: String? = null) : IllegalArgumen
 fun JsonNode.asObject(): ObjectNode =
 	takeIf { it.isObject }
 		?.let { it as ObjectNode }
-		?: throw BadRequestException("json node is not an object")
+		?: throw BadJsonRpcRequestException("json node is not an object")
 
 fun JsonNode.asArray(): ArrayNode =
 	takeIf { it.isArray }
 		?.let { it as ArrayNode }
-		?: throw BadRequestException("json node is not an array")
+		?: throw BadJsonRpcRequestException("json node is not an array")
 
 fun ObjectNode.getObject(key: String): ObjectNode? {
 	val value = get(key)
 		?.takeIf { !it.isNull }
 		?: return null
 	if (!value.isObject) {
-		throw BadRequestException("$key is not an object")
+		throw BadJsonRpcRequestException("$key is not an object")
 	}
 	return value as ObjectNode
 }
 fun ObjectNode.getObjectOrThrow(key: String): ObjectNode =
-	getObject(key) ?: throw BadRequestException("missing object: $key")
+	getObject(key) ?: throw BadJsonRpcRequestException("missing object: $key")
 
 fun ObjectNode.getArray(key: String): ArrayNode? {
 	val value = get(key)
 		?.takeIf { !it.isNull }
 		?: return null
 	if (!value.isArray) {
-		throw BadRequestException("$key is not an array")
+		throw BadJsonRpcRequestException("$key is not an array")
 	}
 	return value as ArrayNode
 }
 fun ObjectNode.getArrayOrThrow(key: String): ArrayNode =
-	getArray(key) ?: throw BadRequestException("missing array: $key")
+	getArray(key) ?: throw BadJsonRpcRequestException("missing array: $key")
 
 fun ObjectNode.getBool(key: String): Boolean? {
 	val value = get(key)
 		?.takeIf { !it.isNull }
 		?: return null
 	if (!value.isBoolean) {
-		throw BadRequestException("$key is not a bool")
+		throw BadJsonRpcRequestException("$key is not a bool")
 	}
 	return value.booleanValue()
 }
 fun ObjectNode.getBoolOrThrow(key: String): Boolean =
-	getBool(key) ?: throw BadRequestException("missing bool: $key")
+	getBool(key) ?: throw BadJsonRpcRequestException("missing bool: $key")
 
 fun ObjectNode.getInt(key: String): Int? {
 	val value = get(key)
 		?.takeIf { !it.isNull }
 		?: return null
 	if (!value.isIntegralNumber) {
-		throw BadRequestException("$key is not an integer")
+		throw BadJsonRpcRequestException("$key is not an integer")
 	}
 	return value.intValue()
 }
 fun ObjectNode.getIntOrThrow(key: String): Int =
-	getInt(key) ?: throw BadRequestException("missing int: $key")
+	getInt(key) ?: throw BadJsonRpcRequestException("missing int: $key")
 
 fun ObjectNode.getLong(key: String): Long? {
 	val value = get(key)
 		?.takeIf { !it.isNull }
 		?: return null
 	if (!value.isIntegralNumber) {
-		throw BadRequestException("$key is not a long")
+		throw BadJsonRpcRequestException("$key is not a long")
 	}
 	return value.longValue()
 }
 fun ObjectNode.getLongOrThrow(key: String): Long =
-	getLong(key) ?: throw BadRequestException("missing long: $key")
+	getLong(key) ?: throw BadJsonRpcRequestException("missing long: $key")
 
 fun ObjectNode.getDouble(key: String): Double? {
 	val value = get(key)
 		?.takeIf { !it.isNull }
 		?: return null
 	if (!value.isNumber) {
-		throw BadRequestException("$key is not an integer")
+		throw BadJsonRpcRequestException("$key is not an integer")
 	}
 	return value.doubleValue()
 }
 fun ObjectNode.getDoubleOrThrow(key: String): Double =
-	getDouble(key) ?: throw BadRequestException("missing double: $key")
+	getDouble(key) ?: throw BadJsonRpcRequestException("missing double: $key")
 
 fun ObjectNode.getString(key: String): String? {
 	val value = get(key)
 		?.takeIf { !it.isNull }
 		?: return null
 	if (!value.isTextual) {
-		throw BadRequestException("$key is not a string")
+		throw BadJsonRpcRequestException("$key is not a string")
 	}
 	return value.textValue()
 }
 fun ObjectNode.getStringOrThrow(key: String): String =
-	getString(key) ?: throw BadRequestException("missing string: $key")
+	getString(key) ?: throw BadJsonRpcRequestException("missing string: $key")
 
 fun ObjectNode.getStrings(key: String): List<String>? {
 	val value = get(key)
 		?.takeIf { !it.isNull }
 		?: return null
 	if (!value.isArray) {
-		throw BadRequestException("$key is not an array")
+		throw BadJsonRpcRequestException("$key is not an array")
 	}
 	return value.mapIndexed { i, entry ->
 		if (!entry.isTextual) {
-			throw BadRequestException("[$i] is not a string", key)
+			throw BadJsonRpcRequestException("[$i] is not a string", key)
 		}
 		entry.textValue()
 	}
 }
 fun ObjectNode.getStringsOrThrow(key: String) =
-	getStrings(key) ?: throw BadRequestException("missing strings: $key")
+	getStrings(key) ?: throw BadJsonRpcRequestException("missing strings: $key")
 
 
 fun ArrayNode.indices(): IntRange =
 	(0 until size())
 
 fun ArrayNode.getOrThrow(index: Int, context: String? = null): JsonNode =
-	get(index) ?: throw BadRequestException("$index out of array range [0,${size()})", context)
+	get(index) ?: throw BadJsonRpcRequestException("$index out of array range [0,${size()})", context)
 
 fun ArrayNode.getObjectOrThrow(index: Int, context: String? = null): ObjectNode =
 	getOrThrow(index)
 		.takeIf { it.isObject }
 		?.asObject()
-		?: throw BadRequestException("[$index] is not an object", context)
+		?: throw BadJsonRpcRequestException("[$index] is not an object", context)
 
 fun ArrayNode.getArrayOrThrow(index: Int, context: String? = null): ArrayNode =
 	getOrThrow(index)
 		.takeIf { it.isArray }
 		?.asArray()
-		?: throw BadRequestException("[$index] is not an array", context)
+		?: throw BadJsonRpcRequestException("[$index] is not an array", context)
 
 fun ArrayNode.getIntOrThrow(index: Int, context: String? = null): Int =
 	getOrThrow(index)
 		.takeIf { it.isIntegralNumber }
 		?.intValue()
-		?: throw BadRequestException("[$index] is not an int", context)
+		?: throw BadJsonRpcRequestException("[$index] is not an int", context)
 
 fun ArrayNode.getDoubleOrThrow(index: Int, context: String? = null): Double =
 	getOrThrow(index)
 		.takeIf { it.isNumber }
 		?.doubleValue()
-		?: throw BadRequestException("[$index] is not a double", context)
+		?: throw BadJsonRpcRequestException("[$index] is not a double", context)
 
 fun ArrayNode.getStringOrThrow(index: Int, context: String? = null): String =
 	getOrThrow(index)
 		.takeIf { it.isTextual }
 		?.textValue()
-		?: throw BadRequestException("[$index] is not a string", context)
+		?: throw BadJsonRpcRequestException("[$index] is not a string", context)
 
 fun ArrayNode.getStringsOrThrow(index: Int, context: String? = null): List<String> =
 	getArrayOrThrow(index, context)
 		.mapIndexed { i, entry ->
 			if (!entry.isTextual) {
-				throw BadRequestException("[$index][$i] is not a string", context)
+				throw BadJsonRpcRequestException("[$index][$i] is not a string", context)
 			}
 			entry.textValue()
 		}

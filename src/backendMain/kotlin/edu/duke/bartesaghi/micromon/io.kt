@@ -600,7 +600,7 @@ suspend inline fun ApplicationCall.respondExceptions(block: () -> Unit) =
 		when (t) {
 
 			is BadRequestException,
-			is MissingRequestParameterException,
+			is BadJsonRpcRequestException,
 			is AuthenticationException,
 			is ServiceException -> {
 				// remap to an HTTP 400
