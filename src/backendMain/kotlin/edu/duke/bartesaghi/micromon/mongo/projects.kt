@@ -161,7 +161,7 @@ fun User.authProjectOrThrow(permission: ProjectPermission, userId: String, proje
 	return if (permission in permissions(project)) {
 		project
 	} else {
-		throw AuthenticationException("access to project denied")
+		throw AuthException("access to project denied")
 			.withInternal("$permission requested by user $id to project $userId/$projectId")
 	}
 }
@@ -285,7 +285,7 @@ fun User.authClusterJobOrThrow(permission: ProjectPermission, clusterJobId: Stri
 		?: throw ServiceException("cluster job not found")
 
 	val jobOwner = JobOwner.fromString(clusterJob.ownerId)
-		?: throw AuthenticationException("access to cluster job denied")
+		?: throw AuthException("access to cluster job denied")
 			.withInternal("$permission requested by user $id to cluster job $clusterJobId")
 
 	authJobOrThrow(permission, jobOwner.jobId)

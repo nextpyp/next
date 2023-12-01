@@ -157,6 +157,7 @@ fun Application.main() {
 		applyRoutes(SingleParticleSessionServiceManager)
 		applyRoutes(TomographySessionServiceManager)
 		applyRoutes(ParticlesServiceManager)
+		applyRoutes(AppsServiceManager)
 
 		// other web services
 		AuthService.init(this)

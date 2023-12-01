@@ -178,7 +178,7 @@ actual class FormService : IFormService, Service {
 	private fun Path.allowedOrThrow(user: User) {
 
 		fun bail(): Nothing =
-			throw AuthenticationExceptionWithInternal("folder not allowed", "for user $user to path $this")
+			throw AuthExceptionWithInternal("folder not allowed", "for user $user to path $this")
 
 		// don't allow any relative paths like ../../../ etc
 		if (contains(Paths.get(".."))) {

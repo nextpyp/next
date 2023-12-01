@@ -132,7 +132,7 @@ object AuthService {
 
 					// lookup the user's hash
 					val hash = Database.users.getPasswordHash(userId)
-						?: throw AuthenticationException("authentication failed")
+						?: throw AuthException("authentication failed")
 
 					// read the password and authenticate it
 					// try to keep it in memory for as little as possible
@@ -142,7 +142,7 @@ object AuthService {
 						password.verify(hash)
 					}
 					if (!verified) {
-						throw AuthenticationException("authentication failed")
+						throw AuthException("authentication failed")
 					}
 
 					// all is well, log in the user
@@ -155,7 +155,7 @@ object AuthService {
 						contentType = ContentType.Text.Plain
 					)
 
-				} catch (ex: AuthenticationException) {
+				} catch (ex: AuthException) {
 
 					// respond with HTTP 4o1 unauthorized
 					call.respondText("fail",
@@ -248,7 +248,7 @@ object AuthService {
 
 					// don't allow Demo users to change their password
 					if (user.isDemo) {
-						throw AuthenticationException("denied")
+						throw AuthException("denied")
 					}
 
 					// lookup the user's hash, if any
@@ -268,7 +268,7 @@ object AuthService {
 							password.verify(hash)
 						}
 						if (!verified) {
-							throw AuthenticationException("authentication failed")
+							throw AuthException("authentication failed")
 						}
 					}
 
@@ -285,7 +285,7 @@ object AuthService {
 						contentType = ContentType.Text.Plain
 					)
 
-				} catch (ex: AuthenticationException) {
+				} catch (ex: AuthException) {
 
 					Backend.log.info("Unsuccessful password change attempt for user ${user?.id}, reason: ${ex.msg}")
 

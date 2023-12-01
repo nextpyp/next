@@ -123,24 +123,14 @@ class Users {
 	 * We need to call the Argon2 verify function, so punt that to the caller.
 	 */
 	fun removeTokenHashes(userId: String, filter: (tkhash: String) -> Boolean) {
+		Database.transaction {
 
-		// need to do this in a transaction
-		Database.client.startSession().use { session ->
-			session.startTransaction()
-			try {
-
-				// get all the hashes, filter out the ones we're removing, then write back the remaining ones
-				val tkhashes = getTokenHashes(userId)
-					.filterNot(filter)
-				update(userId,
-					Updates.set("tkhashes", tkhashes)
-				)
-
-				session.commitTransaction()
-			} catch (t: Throwable) {
-				session.abortTransaction()
-				throw t
-			}
+			// get all the hashes, filter out the ones we're removing, then write back the remaining ones
+			val tkhashes = getTokenHashes(userId)
+				.filterNot(filter)
+			update(userId,
+				Updates.set("tkhashes", tkhashes)
+			)
 		}
 	}
 }

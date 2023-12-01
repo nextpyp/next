@@ -2,6 +2,7 @@ package edu.duke.bartesaghi.micromon.auth
 
 import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.mongo.Database
+import io.kvision.remote.ServiceException
 import kotlin.io.path.div
 
 
@@ -19,3 +20,22 @@ fun User.Companion.dir(userId: String) =
 
 fun User.dir() =
 	User.dir(id)
+
+
+fun User.authUserOrThrow(userId: String): User {
+
+	// users are authorized for themselves
+	if (id == userId) {
+		return this
+	}
+
+	// and admins are too
+	if (isAdmin) {
+		return Database.users.getUser(userId)
+			?: throw ServiceException("user not found")
+	}
+
+	// but no one else
+	throw AuthException("access to other user denied")
+		.withInternal("access to $userId requested by user $id")
+}

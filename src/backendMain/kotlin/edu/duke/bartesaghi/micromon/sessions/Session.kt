@@ -381,7 +381,7 @@ fun SessionArgs.pypNamesOrThrow(): Session.PypNames =
 fun User.authSessionForWriteOrThrow(sessionId: String): Session {
 	authPermissionOrThrow(User.Permission.EditSession)
 	val doc = Database.sessions.get(sessionId)
-		?: throw AuthenticationException("no session with that id").withInternal("sessionId = $sessionId")
+		?: throw AuthException("no session with that id").withInternal("sessionId = $sessionId")
 	return Session.fromDoc(doc)
 }
 
@@ -389,12 +389,12 @@ fun User.authSessionForReadOrThrow(sessionId: String): Session {
 
 	// get the session
 	val doc = Database.sessions.get(sessionId)
-		?: throw AuthenticationException("no session with that id").withInternal("sessionId = $sessionId")
+		?: throw AuthException("no session with that id").withInternal("sessionId = $sessionId")
 	val session = Session.fromDoc(doc)
 
 	// make sure the user has access to the group
 	if (!session.isReadableBy(this)) {
-		throw AuthenticationException("access denied for group")
+		throw AuthException("access denied for group")
 			.withInternal("user = $id, groups = $groups, session group = ${session.newestArgs().groupId}")
 	}
 	return session
@@ -446,7 +446,7 @@ class WrongSessionTypeException(val session: Session, val expectedType: KClass<*
 fun User.authClusterJobOrThrow(session: Session, clusterJobId: String): ClusterJob {
 
 	fun deny(msg: String): Nothing {
-		throw AuthenticationException("cluster job not authorized")
+		throw AuthException("cluster job not authorized")
 			.withInternal("userId = $id, sessionId = ${session.id}, clusterJobId = $clusterJobId, $msg")
 	}
 

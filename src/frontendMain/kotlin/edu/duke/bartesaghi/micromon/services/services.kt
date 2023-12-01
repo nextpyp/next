@@ -22,6 +22,7 @@ object Services {
 	val tomographySessions = TomographySessionService()
 	val jobs = JobsService()
 	val particles = ParticlesService()
+	val apps = AppsService()
 
 	// nodes
 	val singleParticleRawData = SingleParticleRawDataService()

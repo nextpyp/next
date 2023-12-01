@@ -6,7 +6,7 @@ import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.services.AuthType
 import io.ktor.application.ApplicationCall
 import io.ktor.features.*
-import io.ktor.request.header
+import io.ktor.request.*
 import io.ktor.sessions.clear
 import io.ktor.sessions.get
 import io.ktor.sessions.sessions
@@ -116,10 +116,45 @@ fun ApplicationCall.logout() {
 }
 
 
+private const val HEADER_NEXTPYP_USERID = "nextpyp-userid"
+private const val HEADER_NEXTPYP_TOKEN = "nextpyp-token"
+
 /**
  * Find the authenticated user for this request, if any
  */
 fun ApplicationCall.auth(): User? {
+
+	// open endpoints don't require a authentication
+	val path = request.path()
+	if (AppPermission.OPEN_ENDPOINTS.any { pathMatchesEndpoint(path, it) }) {
+		return null
+	}
+
+	// if either app header is present, try to authenticate as an app
+	val userId = request.header(HEADER_NEXTPYP_USERID)
+	val token = request.header(HEADER_NEXTPYP_TOKEN)
+	return if (userId != null || token != null) {
+
+		// need both though
+		userId ?: throw BadRequestException("missing $HEADER_NEXTPYP_USERID header")
+		token ?: throw BadRequestException("missing $HEADER_NEXTPYP_TOKEN header")
+
+		authApp(userId, token)
+
+	} else {
+		// otherwise, authenticate using person rules
+		authPerson()
+	}
+}
+
+fun ApplicationCall.authOrThrow() =
+	auth() ?: throw AuthException("Not authenticated, access denied")
+
+
+/**
+ * Authenticate the user using the auth type rules for people (ie using web browser clients)
+ */
+fun ApplicationCall.authPerson(): User? {
 
 	// how to do auth?
 	when (Backend.config.web.auth) {
@@ -239,5 +274,85 @@ fun ApplicationCall.auth(): User? {
 	}
 }
 
-fun ApplicationCall.authOrThrow() =
-	auth() ?: throw AuthenticationException("Not authenticated, access denied")
+
+/**
+ * Authenticate the user using rules for apps
+ */
+fun ApplicationCall.authApp(userId: String, token: String): User? {
+
+	// validate the user and token
+	val user = Database.users.getUser(userId)
+		?: return null
+	val tokenInfo = AppTokenInfo.find(userId, token)
+		?: return null
+
+	val path = request.path()
+	fun deny() =
+		AuthException("access to endpoint denied")
+			.withInternal("user $userId with valid app token for permissions ${tokenInfo.appPermissionIds} accessing endpoint $path")
+
+	// check the endpoint permissions
+	val tokenEndpoints = tokenInfo.appPermissionIds
+		.map { AppPermission[it] ?: throw deny() }
+		.flatMap { it.endpoints }
+	val authorizedEndpoints = AppPermission.OPEN_ENDPOINTS + tokenEndpoints
+	if (authorizedEndpoints.none { pathMatchesEndpoint(path, it) }) {
+		throw deny()
+	}
+
+	// authenticated and authorized!
+	return user
+}
+
+
+private fun pathMatchesEndpoint(path: String, endpoint: String): Boolean {
+
+	// endpoints will look like, eg:
+	//   /kv/service
+	//   /kv/service/func
+	//   /service
+	//   /service/func
+
+	// paths will look the same, but path-component prefix matches are allowed
+	// so path=/service/func should match both endpoint=/service and endpoint=/service/func
+	// but raw string prefix matches are not
+	// so path=/service/func should NOT match endpoint=/service/fun
+
+	return path.toPath().startsWith(endpoint.toPath())
+}
+
+
+// unit tests for the path/endpoint matching logic
+fun main() {
+
+	assertEq(pathMatchesEndpoint("", "/"), false)
+	assertEq(pathMatchesEndpoint("", "/service"), false)
+
+	assertEq(pathMatchesEndpoint("service", "/service"), false)
+
+	assertEq(pathMatchesEndpoint("/", "/"), true)
+
+	assertEq(pathMatchesEndpoint("/service", "/"), true)
+	assertEq(pathMatchesEndpoint("/service", "/service"), true)
+	assertEq(pathMatchesEndpoint("/service", "/srv"), false)
+
+	assertEq(pathMatchesEndpoint("/service/", "/"), true)
+	assertEq(pathMatchesEndpoint("/service/", "/service"), true)
+	assertEq(pathMatchesEndpoint("/service/", "/srv"), false)
+
+	assertEq(pathMatchesEndpoint("/service/func", "/"), true)
+	assertEq(pathMatchesEndpoint("/service/func", "/srv"), false)
+	assertEq(pathMatchesEndpoint("/service/func", "/service/ep"), false)
+	assertEq(pathMatchesEndpoint("/service/func", "/service/func"), true)
+	assertEq(pathMatchesEndpoint("/service/func", "/service/fun"), false)
+	assertEq(pathMatchesEndpoint("/service/func", "/service/function"), false)
+	assertEq(pathMatchesEndpoint("/service/func", "/service"), true)
+
+	assertEq(pathMatchesEndpoint("/service/func/", "/"), true)
+	assertEq(pathMatchesEndpoint("/service/func/", "/srv"), false)
+	assertEq(pathMatchesEndpoint("/service/func/", "/service/ep"), false)
+	assertEq(pathMatchesEndpoint("/service/func/", "/service/func"), true)
+	assertEq(pathMatchesEndpoint("/service/func/", "/service/fun"), false)
+	assertEq(pathMatchesEndpoint("/service/func/", "/service/function"), false)
+	assertEq(pathMatchesEndpoint("/service/func/", "/service"), true)
+}

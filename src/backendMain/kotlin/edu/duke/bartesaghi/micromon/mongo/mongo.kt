@@ -6,11 +6,14 @@ import com.mongodb.MongoClientSettings
 import com.mongodb.MongoWriteException
 import com.mongodb.client.MongoClient
 import com.mongodb.client.MongoClients
-import com.mongodb.client.model.Filters.*
+import com.mongodb.client.MongoCollection
+import com.mongodb.client.model.Filters
 import com.mongodb.client.model.ReplaceOptions
 import edu.duke.bartesaghi.micromon.base62Decode
 import edu.duke.bartesaghi.micromon.base62Encode
 import edu.duke.bartesaghi.micromon.mongo.migrations.Migrations
+import edu.duke.bartesaghi.micromon.toObjectId
+import edu.duke.bartesaghi.micromon.toStringId
 import org.bson.Document
 import java.util.concurrent.TimeUnit
 
@@ -36,6 +39,19 @@ object Database : AutoCloseable {
 				.build()
 		)
 
+	fun <R> transaction(block: () -> R): R =
+		client.startSession().use { session ->
+			session.startTransaction()
+			try {
+				val result = block()
+				session.commitTransaction()
+				result
+			} catch (t: Throwable) {
+				session.abortTransaction()
+				throw t
+			}
+		}
+
 	/** returns true iff this is the first time we're accessing the database and it needs to be intialized */
 	val isNew = NAME !in client.listDatabaseNames()
 	val db = client.getDatabase(NAME)
@@ -54,7 +70,7 @@ object Database : AutoCloseable {
 		private val collection = db.getCollection("settings")
 
 		fun filter(id: String) =
-			eq("_id", id)
+			Filters.eq("_id", id)
 
 		fun get(id: String): Document? =
 			collection.find(filter(id)).useCursor { cursor ->
@@ -82,7 +98,7 @@ object Database : AutoCloseable {
 		private val collection = db.getCollection("alerts")
 
 		fun filter(typeId: String, alertId: String) =
-			eq("_id", "$typeId/$alertId")
+			Filters.eq("_id", "$typeId/$alertId")
 
 		fun get(typeId: String, alertId: String): Alert =
 			Alert(
@@ -128,9 +144,10 @@ object Database : AutoCloseable {
 	val sessions = Sessions()
 	val particles = Particles()
 	val particleLists = ParticleLists()
-
 	val tiltExclusions = TiltExclusions()
 	val sessionExports = SessionExports()
+	val appTokens = AppTokens()
+	val appTokenRequests = AppTokenRequests()
 
 	init {
 		// after all database collections are up and running,
@@ -138,6 +155,9 @@ object Database : AutoCloseable {
 		Migrations.update(this)
 	}
 }
+
+fun Document.getStringId(key: String): String =
+	getObjectId(key).toStringId()
 
 fun Document.getDocument(key: String) =
 	get(key, Document::class.java)
@@ -308,4 +328,23 @@ inline fun trapDuplicateKeyException(thing: () -> Unit): Boolean =
 			// don't trap the exception
 			throw ex
 		}
+	}
+
+
+fun MongoCollection<Document>.createId(): String =
+	insertOne(Document())
+		.insertedId
+		?.asObjectId()
+		?.toStringId()
+		?: throw NoSuchElementException("inserted document has no id")
+
+fun <T> MongoCollection<Document>.create(creator: (String) -> Pair<T,Document>): T =
+	Database.transaction {
+		val id = createId()
+		val (thing, doc) = creator(id)
+		replaceOne(
+			Filters.eq("_id", id.toObjectId()),
+			doc
+		)
+		thing
 	}

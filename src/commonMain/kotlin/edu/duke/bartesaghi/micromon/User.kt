@@ -79,7 +79,7 @@ data class User(
 	 */
 	fun adminOrThrow() {
 		if (!isAdmin) {
-			throw AuthenticationException("access is restricted to administrators")
+			throw AuthException("access is restricted to administrators")
 		}
 	}
 
@@ -87,7 +87,7 @@ data class User(
 
 	fun notDemoOrThrow() {
 		if (isDemo) {
-			throw AuthenticationException("not allowed for demo users")
+			throw AuthException("not allowed for demo users")
 		}
 	}
 
@@ -111,7 +111,7 @@ data class User(
 			return
 		}
 		
-		throw AuthenticationException("$perm permission denied").withInternal("user = $id")
+		throw AuthException("$perm permission denied").withInternal("user = $id")
 	}
 
 	fun hasGroup(group: Group) =
@@ -133,13 +133,17 @@ data class User(
 	}
 }
 
-class AuthenticationException(val msg: String) : RuntimeException(msg) {
+
+/**
+ * Authentication or authorization
+ */
+class AuthException(val msg: String) : RuntimeException(msg) {
 	fun withInternal(internalMsg: String) =
-		AuthenticationExceptionWithInternal(msg, internalMsg)
+		AuthExceptionWithInternal(msg, internalMsg)
 }
 
-class AuthenticationExceptionWithInternal(val msg: String, internalMsg: String)
+class AuthExceptionWithInternal(val msg: String, internalMsg: String)
 	: RuntimeException("$msg\nwith internal information: $internalMsg")
 {
-	fun external() = AuthenticationException(msg)
+	fun external() = AuthException(msg)
 }

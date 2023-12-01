@@ -1,7 +1,7 @@
 package edu.duke.bartesaghi.micromon.services
 
 import com.google.inject.Inject
-import edu.duke.bartesaghi.micromon.AuthenticationException
+import edu.duke.bartesaghi.micromon.AuthException
 import edu.duke.bartesaghi.micromon.Backend
 import edu.duke.bartesaghi.micromon.LinkTree
 import edu.duke.bartesaghi.micromon.projects.Project
@@ -34,7 +34,7 @@ actual class ProjectsService : IProjectsService {
 
 		// users can list their own projects, or admins can list others' projects
 		if (user.id != userId && !user.isAdmin) {
-			throw AuthenticationException("access denied")
+			throw AuthException("access denied")
 				.withInternal("for user ${user.id} to access $userId")
 		}
 

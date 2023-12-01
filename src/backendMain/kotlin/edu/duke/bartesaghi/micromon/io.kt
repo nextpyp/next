@@ -423,7 +423,7 @@ inline fun <T> sanitizeExceptions(block: () -> T): T {
 			is ServiceException -> throw t.cleanupStackTrace()
 
 			// if authentication exceptions have internal info, log it, and then remove it before passing to client
-			is AuthenticationExceptionWithInternal -> {
+			is AuthExceptionWithInternal -> {
 
 				LoggerFactory.getLogger("Service").error("Authentication error", t.cleanupStackTrace())
 
@@ -431,7 +431,7 @@ inline fun <T> sanitizeExceptions(block: () -> T): T {
 			}
 
 			// let plain authentication exceptions though
-			is AuthenticationException -> throw t.cleanupStackTrace()
+			is AuthException -> throw t.cleanupStackTrace()
 
 			// but sanitize everything else
 			else -> {
@@ -601,7 +601,7 @@ suspend inline fun ApplicationCall.respondExceptions(block: () -> Unit) =
 
 			is BadRequestException,
 			is BadJsonRpcRequestException,
-			is AuthenticationException,
+			is AuthException,
 			is ServiceException -> {
 				// remap to an HTTP 400
 				respond(HttpStatusCode.BadRequest, t.message ?: "")
