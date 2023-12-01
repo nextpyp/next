@@ -270,6 +270,8 @@ class TomographyPreprocessingJob(
 									}
 								}
 
+								// TODO - COORDINATES PRODUVED BY THE WEBSITE IN Z WOULD NOT NEED TO BE BINNED BY 2
+
 								// Send a virion threshold for each particle, even for virions with no threshold.
 								// If there's no threshold for a particle, send a sentinal value of 9 instead.
 								// And if there are no thresholds in the whole job, just write an empty file.
