@@ -142,6 +142,15 @@ data class AppPermission(
 			return this
 		}
 
+		val ADMIN = AppPermission(
+			"admin",
+			"""
+				|Use your administrator access, if you have it.
+				|This permission would allow the app to, for example, take actions
+				|on behalf of others users using the administrator permission on your account. 
+			""".trimMargin(),
+			emptyList()
+		).add()
 
 		val PROJECT_LIST = AppPermission(
 			"project_list",

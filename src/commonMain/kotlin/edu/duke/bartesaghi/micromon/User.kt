@@ -114,6 +114,9 @@ data class User(
 		throw AuthException("$perm permission denied").withInternal("user = $id")
 	}
 
+	fun withoutPermission(perm: Permission): User =
+		copy(permissions = permissions.without(perm))
+
 	fun hasGroup(group: Group) =
 		hasGroup(group.idOrThrow)
 

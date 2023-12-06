@@ -5,7 +5,6 @@ import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.services.AuthType
 import io.ktor.application.ApplicationCall
-import io.ktor.features.*
 import io.ktor.request.*
 import io.ktor.sessions.clear
 import io.ktor.sessions.get
@@ -136,8 +135,8 @@ fun ApplicationCall.auth(): User? {
 	return if (userId != null || token != null) {
 
 		// need both though
-		userId ?: throw BadRequestException("missing $HEADER_NEXTPYP_USERID header")
-		token ?: throw BadRequestException("missing $HEADER_NEXTPYP_TOKEN header")
+		userId ?: throw AuthException("missing $HEADER_NEXTPYP_USERID header")
+		token ?: throw AuthException("missing $HEADER_NEXTPYP_TOKEN header")
 
 		authApp(userId, token)
 
@@ -281,10 +280,15 @@ fun ApplicationCall.authPerson(): User? {
 fun ApplicationCall.authApp(userId: String, token: String): User? {
 
 	// validate the user and token
-	val user = Database.users.getUser(userId)
+	var user = Database.users.getUser(userId)
 		?: return null
 	val tokenInfo = AppTokenInfo.find(userId, token)
 		?: return null
+
+	// remove administrator access, unless explicitly granted by the token permissions
+	if (AppPermission.ADMIN.appPermissionId !in tokenInfo.appPermissionIds) {
+		user = user.withoutPermission(User.Permission.Admin)
+	}
 
 	val path = request.path()
 	fun deny() =

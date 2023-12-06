@@ -43,3 +43,13 @@ fun <T> MutableList<T>.setAll(other: List<T>) {
 	clear()
 	addAll(other)
 }
+
+
+/**
+ * Copies the set, removes the element from it, and returns the new set.
+ * Converts the set to a HashSet, regardless of the original set implementation.
+ */
+fun <T> Set<T>.without(value: T): Set<T> =
+	HashSet(this).apply {
+		remove(value)
+	}
