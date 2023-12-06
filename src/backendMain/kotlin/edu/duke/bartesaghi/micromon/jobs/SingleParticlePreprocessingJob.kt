@@ -154,10 +154,10 @@ class SingleParticlePreprocessingJob(
 			particlesNamePath.writeString(particles_name)
 
 			// write out the micrographs and coordinates
-			val micrographsPath = dir / "train" / "${particles_name}_images.txt"
+			val micrographsPath = dir / "train" / "${particles_name}_images.txt"		
 			micrographsPath.parent.createDirsIfNeeded()
 			micrographsPath.bufferedWriter().use { writerMicrographs ->
-				writerMicrographs.write("image_name\tpath\n")
+				writerMicrographs.write("image_name\trec_path\n")
 
 				val coordinatesPath = dir / "train" / "${particles_name}_coordinates.txt"
 				coordinatesPath.parent.createDirsIfNeeded()

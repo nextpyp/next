@@ -227,7 +227,7 @@ class TomographyPreprocessingJob(
 		val pathFile = dir / "train" / "${particlesName}_images.txt"
 		pathFile.parent.createDirsIfNeeded()
 		pathFile.bufferedWriter().use { writerPaths ->
-			writerPaths.write("image_name\tpath\n")
+			writerPaths.write("image_name\trec_path\n")
 
 			val coordinatesFile = dir / "train" / "${particlesName}_coordinates.txt"
 			coordinatesFile.parent.createDirsIfNeeded()
