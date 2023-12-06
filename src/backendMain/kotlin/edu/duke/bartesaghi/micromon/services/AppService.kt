@@ -64,12 +64,12 @@ actual class AppsService : IAppsService, Service {
 			.map { it.toData() }
 	}
 
-	override suspend fun acceptTokenRequest(requestId: String): String = sanitizeExceptions {
+	override suspend fun acceptTokenRequest(requestId: String): AppTokenRequestAcceptance = sanitizeExceptions {
 
 		val request = call.authOrThrow().authTokenRequestOrThrow(requestId)
 
-		val (token, _) = request.accept()
-		token
+		val (token, info) = request.accept()
+		AppTokenRequestAcceptance(token, info.toData())
 	}
 
 	override suspend fun rejectTokenRequest(requestId: String) = sanitizeExceptions {

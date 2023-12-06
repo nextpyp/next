@@ -75,6 +75,8 @@ class YourAccountView : View {
 					}
 				}
 
+				link("Apps").onGoToApps()
+
 				// show a link to the admin page, if the user is an admin
 				if (info?.adminLoggedIn == true) {
 					link("Administration").onGoToAdmin()

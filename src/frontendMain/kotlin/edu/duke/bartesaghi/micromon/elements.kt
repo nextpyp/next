@@ -23,6 +23,7 @@ import org.w3c.dom.url.URL
 import org.w3c.fetch.RELOAD
 import org.w3c.fetch.RequestCache
 import org.w3c.fetch.Response
+import kotlin.reflect.KProperty
 
 
 // See FontAwesome icons:
@@ -542,3 +543,22 @@ fun Image.ifNonExistentUsePlaceholder(imageSize: ImageSize) {
 		}
 	}
 }
+
+
+class HtmlIntAttribute(val name: String) {
+
+	operator fun getValue(self: Component, property: KProperty<*>): Int? =
+		self.getAttribute(name)?.toInt()
+
+	operator fun setValue(self: Component, property: KProperty<*>, value: Int?) {
+		if (value != null) {
+			self.setAttribute(name, value.toString())
+		} else {
+			self.removeAttribute(name)
+		}
+	}
+}
+
+// weird, no KVision accessors for basic table attributes?
+var Td.colspan by HtmlIntAttribute("colspan")
+var Td.rowspan by HtmlIntAttribute("rowspan")

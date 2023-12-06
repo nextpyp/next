@@ -2,7 +2,7 @@ package edu.duke.bartesaghi.micromon
 
 import edu.duke.bartesaghi.micromon.views.*
 import io.kvision.Application
-import io.kvision.core.Widget
+import io.kvision.core.Component
 import io.kvision.panel.ContainerType
 import io.kvision.panel.Root
 import io.kvision.require
@@ -54,7 +54,8 @@ class App : Application() {
 			IntegratedRefinementView.Companion,
 			SessionsView.Companion,
 			SingleParticleSessionView.Companion,
-			TomographySessionView.Companion
+			TomographySessionView.Companion,
+			AppsView.Companion
 		)
 		routing.register(views, viewport)
     }
@@ -98,5 +99,5 @@ fun main() {
  * Efficiently make multiple updates to the DOM at once.
  * KVision's use of Snabbdom is pretty inefficient, so we need to give it some hints to work fast.
  */
-fun Widget.batch(block: () -> Unit) =
+fun Component.batch(block: () -> Unit) =
 	singleRender(block)

@@ -37,3 +37,9 @@ fun <KI,VI,KO,VO> Map<KI,VI>.mapKV(transform: (Map.Entry<KI,VI>) -> Pair<KO,VO>)
 
 fun String.quote() = "\"$this\""
 fun String.unquote() = this.trim { it == '"' }
+
+
+fun <T> MutableList<T>.setAll(other: List<T>) {
+	clear()
+	addAll(other)
+}

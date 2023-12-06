@@ -18,7 +18,7 @@ interface IAppsService {
 	suspend fun tokenRequests(userId: String): List<AppTokenRequestData>
 
 	@KVBindingRoute("apps/acceptTokenRequest")
-	suspend fun acceptTokenRequest(requestId: String): String
+	suspend fun acceptTokenRequest(requestId: String): AppTokenRequestAcceptance
 
 	@KVBindingRoute("apps/rejectTokenRequest")
 	suspend fun rejectTokenRequest(requestId: String)
@@ -51,4 +51,11 @@ data class AppTokenData(
 data class AppPermissionData(
 	val appPermissionId: String,
 	val description: String?
+)
+
+
+@Serializable
+data class AppTokenRequestAcceptance(
+	val token: String,
+	val tokenInfo: AppTokenData
 )

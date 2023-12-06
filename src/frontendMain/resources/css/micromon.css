@@ -207,6 +207,10 @@ div.views h1 {
 	font-size: 140%;
 }
 
+div.views h2 {
+	font-size: 130%;
+}
+
 div.views .highlighted {
 	background-color: #a3e9ff;
 }
@@ -3398,4 +3402,88 @@ div.file-browser .file-browser-bottom .file-browser-controls .file-browser-glob 
 	stroke: #ff0000;
 	stroke-width: 2px;
 	vector-effect: non-scaling-stroke;
+}
+
+
+/* APPS VIEW */
+
+.apps-view .requests,
+.apps-view .apps {
+	margin-left: 20px;
+	margin-bottom: 40px;
+	border-collapse: collapse;
+	border: 0;
+}
+
+/* put some spacing between the cells, but not along the outside of the table */
+.apps-view .requests > tr:not(:first-child) > td,
+.apps-view .apps > tr:not(:first-child) > td {
+	padding-top: 40px;
+}
+.apps-view .requests > tr > td:not(:first-child),
+.apps-view .apps > tr > td:not(:first-child) {
+	padding-left: 50px;
+}
+
+.apps-view .requests > tr > td,
+.apps-view .apps td {
+	vertical-align: top;
+}
+
+.apps-view .request .name,
+.apps-view .app .name {
+	font-size: 120%;
+	font-weight: bold;
+}
+
+.apps-view .permissions {
+	margin-top: 8px;
+}
+
+/* put some spacing between the cells, but not along the outside of the table */
+.apps-view .permissions > tr:not(:first-child) > td {
+	padding-top: 10px;
+}
+.apps-view .permissions > tr > td:not(:first-child) {
+	padding-left: 20px;
+}
+
+.apps-view .permissions > tr > td {
+	vertical-align: top;
+}
+
+.apps-view .permissions .title {
+	font-weight: bold;
+}
+
+.apps-view .permissions .description {
+	max-width: 500px;
+}
+
+.apps-view .requests .buttons,
+.apps-view .apps .buttons {
+	display: flex;
+	flex-direction: row;
+	gap: 20px;
+}
+
+.apps-view .request .token-instructions {
+	max-width: 500px;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+
+/* COPY TEXT */
+
+.copy-text {
+	display: flex;
+	flex-direction: row;
+	gap: 4px;
+	align-items: flex-start;
+}
+
+.copy-text .form-group {
+	flex-grow: 1;
 }
