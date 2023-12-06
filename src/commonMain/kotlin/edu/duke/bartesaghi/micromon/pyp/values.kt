@@ -236,6 +236,8 @@ enum class TomoSpkMethod(val id: String, val usesAutoList: Boolean) {
 	Auto("auto", true),
 	Import("import", true),
 	Manual("manual", false),
+	MiloTrain("milo-train", false),
+	MiloEval("milo-eval", true),
 	NNTrain("nn-train", false),
 	NNEval("nn-eval", true);
 
