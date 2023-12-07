@@ -1,5 +1,7 @@
 package edu.duke.bartesaghi.micromon.services
 
+import ExportService
+import ExportServiceFunction
 import edu.duke.bartesaghi.micromon.nodes.NodeConfig
 import edu.duke.bartesaghi.micromon.nodes.Workflow
 import io.kvision.annotations.KVBindingRoute
@@ -17,8 +19,10 @@ import kotlinx.serialization.modules.subclass
  * Service for interacting with user projects
  */
 @KVService
+@ExportService("Projects")
 interface IProjectsService {
 
+	@ExportServiceFunction
 	@KVBindingRoute("projects/list")
 	suspend fun list(userId: String): List<ProjectData>
 

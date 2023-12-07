@@ -1,3 +1,4 @@
+import org.jetbrains.dokka.gradle.DokkaTask
 import org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsRootPlugin
 import org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpack
 import org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpackConfig
@@ -16,6 +17,7 @@ plugins {
 	val kotlinVersion: String by System.getProperties()
 	kotlin("plugin.serialization") version kotlinVersion
 	kotlin("multiplatform") version kotlinVersion
+	id("org.jetbrains.dokka") version kotlinVersion
 	val kvisionVersion: String by System.getProperties()
 	id("kvision") version kvisionVersion
 }
@@ -1133,6 +1135,41 @@ afterEvaluate {
 					|}
 					|
 				""".trimMargin())
+			}
+		}
+
+		val dokkaPluginSubproject = project(":dokka-python-api")
+
+		// https://kotlin.github.io/dokka/1.6.0/user_guide/gradle/usage/
+		create("genPythonApi", DokkaTask::class) {
+			group = "build"
+			description = "generate sources for the Python API"
+			dependsOn(":${dokkaPluginSubproject.name}:jar")
+
+			// only look at the common source set
+			dokkaSourceSets {
+				configureEach {
+					// by default, dokka wants to analyze the java code too
+					// so just set the kotlin source folder
+					sourceRoots.setFrom(kotlin.sourceSets.getByName("commonMain").kotlin.srcDirs.first().absolutePath)
+				}
+			}
+
+			// set the output directory
+			val dir = buildDir.toPath().resolve("python-api")
+			outputDirectory.set(dir.toFile())
+
+			// add our plugin
+			dependencies {
+
+				// declare the dokka plugin dependency
+				// tragically, we can't just do the simple thing:
+				// plugins(project(":dokka-python-api"))
+				// because the plugin's dependencies include dokka-core
+				// and dokka won't allow dokka-core on its own classpath =(
+
+				// so we need to just hard-code the built jar path
+				plugins(files("${dokkaPluginSubproject.buildDir}/libs/${dokkaPluginSubproject.name}.jar"))
 			}
 		}
 	}

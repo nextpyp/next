@@ -12,3 +12,4 @@
 *.pyc
 **/*.project
 **/*.classpath
+/dokka-python-api/build

@@ -12,3 +12,5 @@ pluginManagement {
     }
 }
 rootProject.name = "micromon"
+
+include("dokka-python-api")
