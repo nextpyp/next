@@ -53,7 +53,34 @@ class ModelCollector : DocumentableToPageTranslator {
 			.map { (iface, export) -> collectService(iface, export) }
 			.forEach { model.services.add(it) }
 
-		// TODO: look for type definitions
+		// TODO: NEXTTIME: need a loop here, to get type refs in type properties!
+
+		// look for the types used by the services
+		val serviceTypeRefIds = model.typeRefs()
+			.values
+			.filter { it.packageName == PACKAGE_SERVICES }
+			.map { it.id }
+			.toSet()
+		println("typeRefIds:\n\t${serviceTypeRefIds.joinToString("\n\t")}") // TEMP
+		pack.classlikes
+			.asSequence()
+			.filterIsInstance<DClass>()
+			// add the type id
+			.map { c -> c to "${c.dri.packageName}/${c.dri.classNames}" }
+			// should be one of the service type refs
+			.filter { (_, id) -> id in serviceTypeRefIds }
+			// the tree has tons of duplicates in it for some reason, so filter them out
+			.filter { (_, id) -> model.types.none { it.id == id } }
+			.map { (c, _) -> collectType(c) }
+			.forEach { model.types.add(it) }
+
+		// make sure we found all the type refs
+		val typesLookup = model.typesLookup()
+		val missingTypeRefIds = serviceTypeRefIds
+			.filter { it !in typesLookup }
+		if (missingTypeRefIds.isNotEmpty()) {
+			throw Error("Types referenced in services but not collected:\n\t${missingTypeRefIds.joinToString("\n\t")}")
+		}
 	}
 
 	private fun collectService(iface: DInterface, export: ExportServiceAnnotation): Model.Service {
@@ -76,7 +103,7 @@ class ModelCollector : DocumentableToPageTranslator {
 
 		return Model.Service(
 			dri = iface.dri,
-			name = iface.name,
+			name = export.name,
 			functions = functions
 		)
 	}
@@ -108,24 +135,58 @@ class ModelCollector : DocumentableToPageTranslator {
 		return Model.Service.Function(
 			dri = func.dri,
 			mode = Model.Service.Function.Mode.KVision(),
+			name = func.name,
 			path = Paths.get("/kv").resolve(annotation.path).toString(),
 			arguments = arguments,
 			returns = returns
 		)
 	}
 
-	private fun collectTypeRef(type: Bound): Model.TypeRef =
+	private fun collectTypeRef(type: Projection): Model.TypeRef =
 		when (type) {
 
 			is GenericTypeConstructor ->
 				Model.TypeRef(
 					packageName = type.dri.packageName ?: "",
 					name = type.dri.classNames ?: "",
-					params = emptyList() // TODO: need generic params?
+					params = type.projections
+						.map { collectTypeRef(it) }
 				)
+
+			is Nullable -> collectTypeRef(type.inner)
+				.apply {
+					nullable = true
+				}
+			is Variance<*> -> collectTypeRef(type.inner)
 
 			// TODO: handle more types?
 
 			else -> throw Error("don't know how to reference type ${type::class.simpleName}")
 		}
+
+	private fun collectType(c: DClass): Model.Type {
+
+		println("TYPE: ${c.dri.classNames}")
+
+		return Model.Type(
+			packageName = c.dri.packageName
+				?: throw NoSuchElementException("class ${c.dri.classNames} has no package name"),
+			name = c.name,
+			props = c.properties
+				.map { collectProperty(it) },
+
+			// recurse
+			inners = c.classlikes
+				.filterIsInstance<DClass>()
+				.map { collectType(it) }
+		).apply {
+			inners.forEach { it.outer = this }
+		}
+	}
+
+	private fun collectProperty(prop: DProperty): Model.Type.Property =
+		Model.Type.Property(
+			name = prop.name,
+			type = collectTypeRef(prop.type)
+		)
 }
