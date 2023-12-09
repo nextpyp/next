@@ -187,6 +187,7 @@ fun TomlTable.getInput(key: String): ArgInput? {
 		ArgInput.TxtFile.id -> ArgInput.TxtFile()
 		ArgInput.InitialModel.id -> ArgInput.InitialModel()
 		ArgInput.HalfMap.id -> ArgInput.HalfMap()
+		ArgInput.TopazTrainedModel.id -> ArgInput.TopazTrainedModel()
 		ArgInput.TrainedModel2D.id -> ArgInput.TrainedModel2D()
 		ArgInput.TrainedModel3D.id -> ArgInput.TrainedModel3D()
 
