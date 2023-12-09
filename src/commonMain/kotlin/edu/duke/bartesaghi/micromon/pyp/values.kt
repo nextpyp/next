@@ -193,8 +193,10 @@ enum class TomoVirMethod(val id: String, val isVirusMode: Boolean, val usesAutoL
 	None("none", false, false),
 	Auto("auto", true, true),
 	Manual("manual", true, false),
-	NNTrain("nn-train", true, false),
-	NNEval("nn-eval", true, true);
+	PYPTrain("pyp-train", true, false),
+	PYPEval("pyp-eval", true, true),
+	TopazTrain("topaz-train", true, false),
+	TopazEval("topaz-eval", true, true);
 
 	companion object {
 		operator fun get(id: String?): TomoVirMethod? =
@@ -238,8 +240,8 @@ enum class TomoSpkMethod(val id: String, val usesAutoList: Boolean) {
 	Manual("manual", false),
 	MiloTrain("milo-train", false),
 	MiloEval("milo-eval", true),
-	NNTrain("nn-train", false),
-	NNEval("nn-eval", true);
+	PYPTrain("pyp-train", false),
+	PYPEval("pyp-eval", true);
 
 	companion object {
 		operator fun get(id: String?): TomoSpkMethod? =
