@@ -486,33 +486,42 @@ afterEvaluate {
 			dependsOn("copyLocalModules")
 		}
 
+		/** get all the backend java runtime dependencies (ie jars) */
+		fun collectClasspath(): FileCollection =
+			project.tasks["jar"].outputs.files
+				.plus(configurations["backendRuntimeClasspath"])
+				.filter { it.name.endsWith(".jar") }
+
+		val classpathFileTask = create("classpathFile") {
+			group = "build"
+			description = "creates the classpath file needed by the website container"
+			doLast {
+
+				// resolve all the jar files against the libs folder
+				buildDir.resolve("classpath.txt")
+					.writeText("""
+						|-cp "\
+						|${collectClasspath().joinToString(":\\\n") { "libs/${it.name}" }}
+						|"
+					""".trimMargin())
+			}
+		}
+
 		create("image", Copy::class) {
-			dependsOn("jar")
+			dependsOn("jar", classpathFileTask)
 			group = "package"
 			description = "makes the server runtime image"
 
 			destinationDir = file("$buildDir/image")
-			
-			// include the runtime dependencies in the /libs folder
-			val classpath = project.tasks["jar"].outputs.files
-				.plus(configurations["backendRuntimeClasspath"])
-				.filter { it.name.endsWith(".jar") }
-				
-			from(classpath) {
+
+			// copy all the dependency jars
+			from(collectClasspath()) {
 				into("libs")
 			}
 			
-			// write the classpath file
-			val cpPath = buildDir.resolve("classpath.txt")
-			from(cpPath) {
+			// copy the classpath file
+			from(buildDir.resolve("classpath.txt")) {
 				into("bin")
-			}
-			doFirst {
-				cpPath.writeText("""
-					|-cp "\
-					|${classpath.joinToString(":\\\n") { "libs/${it.name}" }}
-					|"
-				""".trimMargin())
 			}
 
 			// copy the executable scripts
@@ -575,7 +584,7 @@ afterEvaluate {
 
 		create("containerRun") {
 			group = "run"
-			dependsOn("jar")
+			dependsOn("jar", classpathFileTask)
 			mustRunAfter("containerStop")
 			doLast {
 
@@ -1065,7 +1074,7 @@ afterEvaluate {
 		create("vmContainerRun") {
 			group = "run"
 			description = "Starts the micromon container inside the running VM"
-			dependsOn("jar", "vmGenerateConfig")
+			dependsOn("jar", "vmGenerateConfig", classpathFileTask)
 			mustRunAfter("vmContainerStop")
 			doLast {
 
