@@ -40,7 +40,8 @@ class Config(toml: String) {
 		val container: Path,
 		val sources: Path?,
 		val scratch: Path,
-		val binds: List<Path>
+		val binds: List<Path>,
+		val cudaLibs: List<Path>
 	) {
 		
 		companion object {
@@ -179,6 +180,11 @@ class Config(toml: String) {
 					indices.map { i ->
 						getString(i).toPath()
 					}
+				} ?: emptyList(),
+				cudaLibs = getArray("cudaLibs")?.run {
+					indices.map { i ->
+						getString(i).toPath()
+					}
 				} ?: emptyList()
 			)
 		}
@@ -266,6 +272,7 @@ class Config(toml: String) {
 			|          sources:  ${pyp.sources}
 			|          scratch:  ${pyp.scratch}
 			|            binds:  ${pyp.binds.joinToString("\n$indent")}
+			|         cudaLibs:  ${pyp.cudaLibs.joinToString("\n$indent")}
 			|
 		""".trimMargin())
 		if (slurm != null) {

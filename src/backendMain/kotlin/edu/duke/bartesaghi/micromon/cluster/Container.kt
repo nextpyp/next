@@ -88,6 +88,14 @@ sealed interface Container {
 
 			// forward environment variables to PYP
 			add("export PYP_CONFIG=\"$canonicalConfigPath\"")
+
+			// add library lookup paths if needed
+			Backend.config.pyp.cudaLibs
+				.takeIf { it.isNotEmpty() }
+				?.let { paths ->
+					val pathsList = paths.joinToString(":") { "\\\"$it\\\"" }
+					add("export LD_LIBRARY_PATH=\"\$LD_LIBRARY_PATH:$pathsList\"")
+				}
 		}
 	}
 }
