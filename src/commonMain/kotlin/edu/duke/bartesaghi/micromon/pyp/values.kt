@@ -272,7 +272,7 @@ object MicromonArgs {
 		description = "Amount of memory used during launching (0=all memory in node, GB)",
 		type = ArgType.TInt(),
 		required = false,
-		default = ArgValue.VInt(0),
+		default = ArgValue.VInt(2),
 		target = ArgTarget.Micromon
 	)
 
