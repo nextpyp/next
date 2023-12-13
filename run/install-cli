@@ -117,7 +117,7 @@ EOF
 fi
 
 # generate SSH key
-sshdir="/home/$(whoami)/.ssh"
+sshdir="$HOME/.ssh"
 keyfile="$sshdir/id_rsa"
 if [ ! -d "$sshdir" ]; then
   mkdir -p "$sshdir"
