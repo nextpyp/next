@@ -50,7 +50,7 @@ class SingleParticleRawDataJob(
 		fun args() =
 			Backend.pypArgs
 				.filter(config.configId, includeHiddenArgs = false, includeHiddenGroups = true)
-				// no slurm tab here apparently, so don't need micromon slurm args
+				.appendAll(MicromonArgs.slurmLaunch)
 	}
 
 	override fun createDoc(doc: Document) {
