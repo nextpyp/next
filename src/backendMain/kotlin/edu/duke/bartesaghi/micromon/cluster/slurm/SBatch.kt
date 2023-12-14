@@ -112,10 +112,18 @@ class SBatch(val config: Config.Slurm) : Cluster {
 			cmd.add("--dependency=afterany:${depIds.joinToString(",")}")
 		}
 
-		// use the default cpu queue, if none was specified in the args, and if any default queue exists
-		if (clusterJob.args.none { it.startsWith("--partition=") }) {
+		// use the default cpu queue, if none was specified in the args
+		val partition = clusterJob.args
+			.find { it.startsWith("--partition=") }
+			?.split("=")
+			?.lastOrNull()
+		if (partition == null) {
+			// that is, if any default queue exists
 			config.queues.firstOrNull()
 				?.let { cmd.add("--partition=\"${it.unquote()}\"") }
+		} else if (partition.unquote() in config.gpuQueues) {
+			// alternatively, if a GPU queue was specified, add a GPU resource request
+			cmd.add("--gpu=1")
 		}
 
 		// render the array arguments
