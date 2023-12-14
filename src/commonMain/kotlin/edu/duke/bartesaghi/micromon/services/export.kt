@@ -10,3 +10,9 @@ annotation class ExportService(
 annotation class ExportServiceFunction
 // TODO: add params here?
 //   maybe need to explictly specify a python function name?
+
+
+@Target(AnnotationTarget.PROPERTY)
+annotation class ExportServiceProperty(
+	val skip: Boolean = false
+)

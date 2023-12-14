@@ -59,7 +59,7 @@ class Model {
 		val packageName: String,
 		val name: String,
 		val props: List<Property>,
-		// TODO: params?
+		val enumValues: List<String>?,
 		val inners: List<Type>
 	) {
 
@@ -101,10 +101,18 @@ class Model {
 			typeRef.params.forEach { add(it) }
 		}
 
+		// get all the type refs in service functions
 		for (service in services) {
 			for (func in service.functions) {
 				func.arguments.forEach { add(it.type) }
 				func.returns?.let { add(it) }
+			}
+		}
+
+		// and the properties of types too
+		for (type in types) {
+			for (prop in type.props) {
+				add(prop.type)
 			}
 		}
 

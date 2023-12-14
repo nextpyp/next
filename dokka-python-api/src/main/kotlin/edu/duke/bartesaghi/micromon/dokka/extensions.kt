@@ -62,6 +62,19 @@ fun DFunction.exportServiceFunctionAnnotation(): ExportServiceFunctionAnnotation
 
 class BindingRouteAnnotation(val path: String)
 
+
+class ExportServicePropertyAnnotation(val skip: Boolean)
+
+fun DProperty.exportServicePropertyAnnotation(): ExportServicePropertyAnnotation? =
+	annotations()
+		.find { it.dri.packageName == PACKAGE_SERVICES && it.dri.classNames == "ExportServiceProperty" }
+		?.let {
+			ExportServicePropertyAnnotation(
+				skip = it.params.booleanOrThrow("skip")
+			)
+		}
+
+
 fun DFunction.bindingRouteAnnotation(): BindingRouteAnnotation? =
 	annotations()
 		.find { it.dri.packageName == "io.kvision.annotations" && it.dri.classNames == "KVBindingRoute" }
@@ -72,13 +85,26 @@ fun DFunction.bindingRouteAnnotation(): BindingRouteAnnotation? =
 		}
 
 
-fun Map<String,AnnotationParameterValue>.string(name: String): String? =
+inline fun <reified T> Map<String,AnnotationParameterValue>.param(name: String): T? =
 	when (val param = this[name]) {
 		null -> null
-		is StringValue -> param.text()
-		else -> throw IllegalStateException("annotation parameter $name is not a string, it's a ${param::class.simpleName}")
+		is T -> param
+		else -> throw IllegalStateException("annotation parameter $name is not a ${T::class.simpleName}, it's a ${param::class.simpleName}")
 	}
+
+fun Map<String,AnnotationParameterValue>.string(name: String): String? =
+	param<StringValue>(name)
+		?.value
 
 fun Map<String,AnnotationParameterValue>.stringOrThrow(name: String): String =
 	string(name)
+		?: throw NoSuchElementException("anotation has no parameter named $name")
+
+
+fun Map<String,AnnotationParameterValue>.boolean(name: String): Boolean? =
+	param<BooleanValue>(name)
+		?.value
+
+fun Map<String,AnnotationParameterValue>.booleanOrThrow(name: String): Boolean =
+	boolean(name)
 		?: throw NoSuchElementException("anotation has no parameter named $name")

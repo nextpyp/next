@@ -38,19 +38,35 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 		}
 	}
 
-	private fun Writer.writeln(line: String? = null) {
-		line?.let { write(it) }
-		write("\n")
-	}
-
 	private fun Writer.write(model: Model) {
 
 		writeln()
 
 		// write imports
-		writeln("from typing import Optional, List")
+		writeln("from __future__ import annotations")
 		writeln()
-		writeln("from nextpyp.client import Client")
+		writeln("from typing import Optional, List, Dict, Set, Any, Iterator, TYPE_CHECKING")
+		writeln()
+		writeln("if TYPE_CHECKING:")
+		indent {
+			writeln("from nextpyp.client import Client")
+		}
+
+		// write the services menu
+		writeln()
+		writeln()
+		writeln("class Services:")
+		writeln()
+		indent {
+			writeln("def __init__(self, client: Client) -> None:")
+			indent {
+				for (service in model.services) {
+					val name = service.name.caseCamelToSnake()
+					val type = "${service.name}Service"
+					writeln("self.$name = $type(client)")
+				}
+			}
+		}
 
 		// write the services
 		for (service in model.services) {
@@ -71,8 +87,12 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 
 		writeln("class ${service.name}Service:")
 		writeln()
-		writeln("${ind}def __init__(self, client: Client) -> None:")
-		writeln("${ind}${ind}self.client = client")
+		indent {
+			writeln("def __init__(self, client: Client) -> None:")
+			indent {
+				writeln("self.client = client")
+			}
+		}
 
 		for (func in service.functions) {
 			writeln()
@@ -91,55 +111,43 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 		val returns = func.returns?.render()
 			?: "None"
 
-		writeln("${ind}def ${func.name.caseCamelToSnake()}(self$args) -> $returns:")
-		writeln("${ind}${ind}pass # TODO")
+		// TODO: document what permission is needed?
+
+		indent {
+			writeln("def ${func.name.caseCamelToSnake()}(self$args) -> $returns:")
+			indent {
+				writeln("path = '${func.path}'")
+				val argNames = func.arguments
+					.joinToString(", ") { it.name.caseCamelToSnake() }
+				val call = "self.client._call(path, [$argNames])"
+				when (val r = func.returns) {
+
+					// no return value, just call the web service
+					null -> writeln(call)
+
+					// call the web service and then handle the response
+					else -> {
+						writeln("response = $call")
+						writeln("if response is None:")
+						indent {
+							writeln("raise Exception(f'response expected from {path}, but none received')")
+						}
+						writeln("return ${r.renderReader("response")}")
+					}
+				}
+			}
+		}
 	}
 
-	private fun Model.TypeRef.render(): String =
-		when (packageName) {
-
-			// convert basic types
-			"kotlin" -> {
-				when (name) {
-					"String" -> "str"
-					"Int", "Long" -> "int"
-					else -> throw Error("Don't know how to handle kotlin type: $name")
-				}
-			}
-
-			// convert collection types
-			"kotlin.collections" -> {
-
-				fun inner(i: Int): String =
-					params.getOrNull(i)
-						?.render()
-						?: throw NoSuchElementException("$name type has no parameter at $i")
-
-				when (name) {
-					"List" -> "List[${inner(0)}]"
-					"Set" -> "Set[${inner(0)}]"
-					"Map" -> "Map[${inner(0)}, ${inner(1)}]"
-					else -> throw Error("Don't know how to handle kotlin collection type: $name")
-				}
-			}
-
-			// handle our types
-			PACKAGE_SERVICES -> name
-
-			else -> throw Error("Don't know how to handle type ref: $this")
+	private fun Writer.write(type: Model.Type) {
+		if (type.enumValues != null) {
+			writeEnum(type, type.enumValues)
+		} else {
+			writeClass(type)
 		}
-		// apply nullability
-		.let {
-			if (nullable) {
-				"Optional[$it]"
-			} else {
-				it
-			}
-		}
+	}
 
-	private fun Writer.write(type: Model.Type, indent: Int = 0) {
-
-		val fstind = ind(indent)
+	private fun Writer.writeClass(type: Model.Type) {
 
 		val args = type.props
 			.joinToString("") {
@@ -147,18 +155,390 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 				val argType = it.type.render()
 				", $name: $argType"
 			}
-0
-		writeln("${fstind}class ${type.name}:")
-		writeln()
-		writeln("${fstind}${ind}def __init__(self$args) -> None:")
-		if (type.props.isEmpty()) {
-			throw Error("type ${type.id} has no properties")
+
+		// define the class
+		writeln("class ${type.name}:")
+		indent {
+
+			writeln()
+
+			// write the constructor
+			writeln("def __init__(self$args) -> None:")
+			if (type.props.isEmpty()) {
+				throw Error("type ${type.id} has no properties")
+			}
+			indent {
+				for (prop in type.props) {
+					val name = prop.name.caseCamelToSnake()
+					writeln("self.$name = $name")
+				}
+			}
+
+			writeln()
+
+			// write the serializer
+			writeln("def to_json(self) -> Dict[str,Any]:")
+			indent {
+				writeln("return {")
+				indent {
+					for (prop in type.props) {
+						val name = prop.name.caseCamelToSnake()
+						val value = prop.type.renderWriter("self.$name")
+						writeln("'${prop.name}': $value,")
+					}
+				}
+				writeln("}")
+			}
+
+			writeln()
+
+			// write the deserializer
+			writeln("@classmethod")
+			writeln("def from_json(cls, json: Dict[str,Any]) -> ${type.name}:")
+			indent {
+				writeln("return cls(")
+				indent {
+					for (prop in type.props) {
+						val json = "json['${prop.name}']"
+						val name = prop.name.caseCamelToSnake()
+						val value = prop.type.renderReader(json)
+							.appendIf(prop.type.nullable) {
+								" if '${prop.name}' in json and $json is not None else None"
+							}
+						writeln("$name=$value,")
+					}
+				}
+				writeln(")")
+			}
+
+			writeln()
+
+			// write __str__
+			writeln("def __str__(self) -> str:")
+			indent {
+				writeln("props = ', '.join([")
+				indent {
+					for (prop in type.props) {
+						val name = prop.name.caseCamelToSnake()
+						writeln("f'$name={self.$name}',")
+					}
+				}
+				writeln("])")
+				writeln("return f'${type.name}[{props}]'")
+			}
+
+			writeln()
+
+			// write __repr__
+			writeln("def __repr__(self) -> str:")
+			indent {
+				writeln("return self.__str__()")
+			}
+
+			writeln()
+
+			// impl __eq__
+			writeln("def __eq__(self, other: object) -> bool:")
+			indent {
+				writeln("if not isinstance(other, ${type.name}):")
+				indent {
+					writeln("return NotImplemented")
+				}
+				for ((i, prop) in type.props.withIndex()) {
+					val name = prop.name.caseCamelToSnake()
+					val comparison = "self.$name == other.$name"
+					if (i == 0) {
+						writeln("return $comparison \\")
+					} else {
+						indent {
+							if (i == type.props.size - 1) {
+								writeln("and $comparison")
+							} else {
+								writeln("and $comparison \\")
+							}
+						}
+					}
+				}
+			}
+
+			// recurse
+			for (inner in type.inners) {
+				writeln()
+				writeln()
+				write(inner)
+			}
 		}
-		for (prop in type.props) {
-			val name = prop.name.caseCamelToSnake()
-			writeln("${fstind}${ind}${ind}self.$name = $name")
+	}
+
+	private fun Writer.writeEnum(type: Model.Type, values: List<String>) {
+
+		// define the class
+		// NOTE: string-valued enums are only allowed in Python 3.11+
+		//       so we can't use them here
+		writeln("class ${type.name}:")
+		indent {
+
+			writeln()
+
+			// write the enum values
+			// NOTE: we'll assign them later to avoid circularity issues
+			for (value in values) {
+				writeln("${value}: ${type.name}")
+			}
+
+			writeln()
+
+			// write the constructor
+			writeln("def __init__(self, name: str) -> None:")
+			indent {
+				writeln("self.name = name")
+			}
+
+			writeln()
+
+			// write the serializer
+			writeln("def to_json(self) -> str:")
+			indent {
+				writeln("return self.name")
+			}
+
+			writeln()
+
+			// write the deserializer
+			writeln("@classmethod")
+			writeln("def from_json(cls, name: str) -> ${type.name}:")
+			indent {
+				for ((i, value) in values.withIndex()) {
+					if (i == 0) {
+						writeln("if name == '$value':")
+					} else {
+						writeln("elif name == '$value':")
+					}
+					indent {
+						writeln("return ${type.name}.$value")
+					}
+				}
+				writeln("else:")
+				indent {
+					writeln("return cls(name)")
+				}
+			}
+
+			writeln()
+
+			// write __str__
+			writeln("def __str__(self) -> str:")
+			indent {
+				writeln("return self.name")
+			}
+
+			writeln()
+
+			// write __repr__
+			writeln("def __repr__(self) -> str:")
+			indent {
+				writeln("return self.__str__()")
+			}
+
+			writeln()
+
+			// write the enum values functions
+			writeln("def __len__(self) -> int:")
+			indent {
+				writeln("return ${values.size}")
+			}
+
+			writeln()
+
+			writeln("def __iter__(self) -> Iterator[${type.name}]:")
+			indent {
+				val refs = values.joinToString(", ") {
+					"${type.name}.$it"
+				}
+				writeln("return [$refs].__iter__()")
+			}
+
+			writeln()
+
+			// impl __eq__
+			writeln("def __eq__(self, other: object) -> bool:")
+			indent {
+				writeln("if not isinstance(other, ${type.name}):")
+				indent {
+					writeln("return NotImplemented")
+				}
+				writeln("return self.name == other.name")
+			}
+
+			writeln()
+
+			// impl __hash__
+			writeln("def __hash__(self) -> int:")
+			indent {
+				writeln("return hash(self.name)")
+			}
 		}
 
-		// TODO: recurse
+		writeln()
+
+		// assign the enum values
+		for (value in values) {
+			writeln("${type.name}.$value = ${type.name}('$value')")
+		}
 	}
 }
+
+
+private fun Writer.writeln(line: String? = null) {
+	line?.let { write(it) }
+	write("\n")
+}
+
+
+private class Indented(val writer: Writer, val numIndents: Int) {
+
+	companion object {
+
+		/** ewwww spaces, gross! */
+		const val indent = "    "
+	}
+
+	fun Writer.writeIndents() {
+		for (i in 0 until numIndents) {
+			write(indent)
+		}
+	}
+
+	fun writeln(line: String? = null) {
+		writer.writeIndents()
+		writer.writeln(line)
+	}
+
+	fun <R> indent(block: Indented.() -> R): R =
+		Indented(writer, numIndents + 1).block()
+}
+
+
+private fun <R> Writer.indent(block: Indented.() -> R): R =
+	Indented(this, 1).block()
+
+
+private fun String.appendIf(cond: Boolean, getter: () -> String): String =
+	if (cond) {
+		this + getter()
+	} else {
+		this
+	}
+
+
+
+private fun Model.TypeRef.render(): String =
+	when (packageName) {
+
+		// convert basic types
+		"kotlin" -> {
+			when (name) {
+				"String" -> "str"
+				"Int", "Long" -> "int"
+				else -> throw Error("Don't know how to handle kotlin type: $name")
+			}
+		}
+
+		// convert collection types
+		"kotlin.collections" -> {
+
+			fun inner(i: Int): String =
+				params.getOrNull(i)
+					?.render()
+					?: throw NoSuchElementException("$name type has no parameter at $i")
+
+			when (name) {
+				"List" -> "List[${inner(0)}]"
+				"Set" -> "Set[${inner(0)}]"
+				"Map" -> "Dict[${inner(0)}, ${inner(1)}]"
+				else -> throw Error("Don't know how to handle kotlin collection type: $name")
+			}
+		}
+
+		// handle our types
+		PACKAGE_SERVICES -> name
+
+		else -> throw Error("Don't know how to handle type ref: $this")
+	}
+	// apply nullability
+	.let {
+		if (nullable) {
+			"Optional[$it]"
+		} else {
+			it
+		}
+	}
+
+private fun Model.TypeRef.renderReader(expr: String): String =
+	when (packageName) {
+
+		// read basic types
+		"kotlin" -> {
+			when (name) {
+				// no translation needed
+				"String", "Int", "Long" -> expr
+				else -> throw Error("Don't know how to read kotlin type: $name")
+			}
+		}
+
+		// convert collection types
+		"kotlin.collections" -> {
+
+			fun inner(i: Int): Model.TypeRef =
+				params.getOrNull(i)
+					?: throw NoSuchElementException("$name type has no parameter at $i")
+
+			when (name) {
+				"List" -> "[${inner(0).renderReader("x")} for x in $expr]"
+				"Set" -> "{${inner(0).renderReader("x")} for x in $expr}"
+				"Map" -> "{${inner(0).renderReader("k")}:${inner(1).renderReader("v")} for k,v in $expr}"
+				else -> throw Error("Don't know how to read kotlin collection type: $name")
+			}
+		}
+
+		// handle our types
+		PACKAGE_SERVICES -> "$name.from_json($expr)"
+
+		else -> throw Error("Don't know how to read type: $this")
+	}
+
+private fun Model.TypeRef.renderWriter(varname: String): String =
+	when (packageName) {
+
+		// read basic types
+		"kotlin" -> {
+			when (name) {
+				// no translation needed
+				"String", "Int", "Long" -> varname
+				else -> throw Error("Don't know how to read kotlin type: $name")
+			}
+		}
+
+		// convert collection types
+		"kotlin.collections" -> {
+
+			fun inner(i: Int): Model.TypeRef =
+				params.getOrNull(i)
+					?: throw NoSuchElementException("$name type has no parameter at $i")
+
+			when (name) {
+				"List", "Set" -> "[${inner(0).renderWriter("x")} for x in $varname]"
+				"Map" -> "[[${inner(0).renderWriter("k")},${inner(1).renderWriter("v")}] for k,v in $varname]"
+				else -> throw Error("Don't know how to read kotlin collection type: $name")
+			}
+		}
+
+		// handle our types
+		PACKAGE_SERVICES -> "$varname.to_json()"
+
+		else -> throw Error("Don't know how to write type: $this")
+	}
+	// apply nullability
+	.appendIf(nullable) {
+		" if $varname is not None else None"
+	}

@@ -1165,7 +1165,9 @@ afterEvaluate {
 			}
 
 			// set the output directory
-			val dir = buildDir.toPath().resolve("python-api")
+			val dir = buildDir.toPath()
+				.resolve("generated-src")
+				.resolve("python-api")
 			outputDirectory.set(dir.toFile())
 
 			// add our plugin

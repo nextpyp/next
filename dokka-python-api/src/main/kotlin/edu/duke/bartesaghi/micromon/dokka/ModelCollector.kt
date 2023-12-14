@@ -53,26 +53,43 @@ class ModelCollector : DocumentableToPageTranslator {
 			.map { (iface, export) -> collectService(iface, export) }
 			.forEach { model.services.add(it) }
 
-		// TODO: NEXTTIME: need a loop here, to get type refs in type properties!
+		fun gatherTypes(): Set<String> {
 
-		// look for the types used by the services
-		val serviceTypeRefIds = model.typeRefs()
-			.values
-			.filter { it.packageName == PACKAGE_SERVICES }
-			.map { it.id }
-			.toSet()
-		println("typeRefIds:\n\t${serviceTypeRefIds.joinToString("\n\t")}") // TEMP
-		pack.classlikes
-			.asSequence()
-			.filterIsInstance<DClass>()
-			// add the type id
-			.map { c -> c to "${c.dri.packageName}/${c.dri.classNames}" }
-			// should be one of the service type refs
-			.filter { (_, id) -> id in serviceTypeRefIds }
-			// the tree has tons of duplicates in it for some reason, so filter them out
-			.filter { (_, id) -> model.types.none { it.id == id } }
-			.map { (c, _) -> collectType(c) }
-			.forEach { model.types.add(it) }
+			// limit the loop iteration count, so a bug can't cause infinite iterations
+			val maxIterations = 100
+			for (i in 0 until maxIterations) {
+
+				// look for the types used by the services
+				val serviceTypeRefIds = model.typeRefs()
+					.values
+					.filter { it.packageName == PACKAGE_SERVICES }
+					.map { it.id }
+					.toSet()
+				val numAdded = pack.classlikes
+					.asSequence()
+					// add the type id
+					.map { c -> c to "${c.dri.packageName}/${c.dri.classNames}" }
+					// should be one of the service type refs
+					.filter { (_, id) -> id in serviceTypeRefIds }
+					// the tree has tons of duplicates in it for some reason, so filter them out
+					// also we need to ignore the types we've already seen on later discovery passes
+					.filter { (_, id) -> model.types.none { it.id == id } }
+					.map { (c, _) -> collectType(c) }
+					.count {
+						model.types.add(it)
+						true
+					}
+				println("added $numAdded new types in loop iteration $i")
+
+				if (numAdded > 0) {
+					continue
+				} else {
+					return serviceTypeRefIds
+				}
+			}
+			throw Error("gatherTypes() took more than $maxIterations iterations, this is probably a bug?")
+		}
+		val serviceTypeRefIds = gatherTypes()
 
 		// make sure we found all the type refs
 		val typesLookup = model.typesLookup()
@@ -159,25 +176,32 @@ class ModelCollector : DocumentableToPageTranslator {
 				}
 			is Variance<*> -> collectTypeRef(type.inner)
 
-			// TODO: handle more types?
+			// do we need to handle more types here?
 
 			else -> throw Error("don't know how to reference type ${type::class.simpleName}")
 		}
 
-	private fun collectType(c: DClass): Model.Type {
+	private fun collectType(c: DClasslike): Model.Type {
 
 		println("TYPE: ${c.dri.classNames}")
 
 		return Model.Type(
 			packageName = c.dri.packageName
-				?: throw NoSuchElementException("class ${c.dri.classNames} has no package name"),
-			name = c.name,
+				?: throw NoSuchElementException("${c::class.simpleName} ${c.dri.classNames} has no package name"),
+			name = c.name
+				?: throw NoSuchElementException("${c::class.simpleName} ${c.dri.classNames} has no name"),
 			props = c.properties
+				// filter out explicitly skipped properties
+				.filterNot { it.exportServicePropertyAnnotation()?.skip == true }
+				//.filter { it.getter == null && it.setter == null }
 				.map { collectProperty(it) },
+			enumValues = (c as? DEnum)
+				?.let { e ->
+					e.entries.map { it.name }
+				},
 
 			// recurse
 			inners = c.classlikes
-				.filterIsInstance<DClass>()
 				.map { collectType(it) }
 		).apply {
 			inners.forEach { it.outer = this }
