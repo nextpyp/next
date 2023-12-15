@@ -123,7 +123,7 @@ class SBatch(val config: Config.Slurm) : Cluster {
 				?.let { cmd.add("--partition=\"${it.unquote()}\"") }
 		} else if (partition.unquote() in config.gpuQueues) {
 			// alternatively, if a GPU queue was specified, add a GPU resource request
-			cmd.add("--gpu=1")
+			cmd.add("--gpus=1")
 		}
 
 		// render the array arguments
