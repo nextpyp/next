@@ -7,6 +7,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlin.reflect.KProperty
 
 
 /**
@@ -16,18 +17,37 @@ import kotlinx.serialization.json.Json
  */
 object RealTimeServices {
 
-	private fun path(name: String): String =
-		"/ws/$name"
+	class RealTimeService {
 
-	val project = path("project")
-	val singleParticlePreprocessing = path("singleParticlePreprocessing")
-	val tomographyPreprocessing = path("tomographyPreprocessing")
-	val reconstruction = path("reconstruction")
-	val postprocessing = path("postprocessing")
-	val masking = path("masking")
-	val streamLog = path("streamLog")
-	val singleParticleSession = path("singleParticleSession")
-	val tomographySession = path("tomographySession")
+		operator fun getValue(receiver: Any, property: KProperty<*>): String =
+			"/ws/${property.name}"
+	}
+
+	@ExportRealtimeService("Project",
+		messagesC2S = arrayOf(RealTimeC2S.ListenToProject::class),
+		messagesS2C = arrayOf(
+			RealTimeS2C.ProjectStatus::class,
+			RealTimeS2C.ProjectRunInit::class,
+			RealTimeS2C.ProjectRunStart::class,
+			RealTimeS2C.JobStart::class,
+			RealTimeS2C.JobUpdate::class,
+			RealTimeS2C.JobFinish::class,
+			RealTimeS2C.ProjectRunFinish::class,
+			RealTimeS2C.ClusterJobSubmit::class,
+			RealTimeS2C.ClusterJobStart::class,
+			RealTimeS2C.ClusterJobArrayStart::class,
+			RealTimeS2C.ClusterJobArrayEnd::class,
+			RealTimeS2C.ClusterJobEnd::class
+		)
+	)
+	val project by RealTimeService()
+
+	val singleParticlePreprocessing by RealTimeService()
+	val tomographyPreprocessing by RealTimeService()
+	val reconstruction by RealTimeService()
+	val streamLog by RealTimeService()
+	val singleParticleSession by RealTimeService()
+	val tomographySession by RealTimeService()
 }
 
 

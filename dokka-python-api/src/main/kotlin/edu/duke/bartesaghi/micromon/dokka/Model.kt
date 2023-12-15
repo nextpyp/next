@@ -3,12 +3,22 @@ package edu.duke.bartesaghi.micromon.dokka
 import org.jetbrains.dokka.links.DRI
 
 
+private const val PP = "edu.duke.bartesaghi.micromon"
+const val PACKAGE_SERVICES = "$PP.services"
+const val PACKAGE_PYP = "$PP.pyp"
+
+val PACKAGES = setOf(PACKAGE_SERVICES, PACKAGE_PYP)
+
+
 class Model {
 
 	companion object {
 
 		fun typeId(packageName: String, classNames: String): String =
 			"$packageName/$classNames"
+
+		fun typeId(dri: DRI): String =
+			typeId(dri.packageName ?: "", dri.classNames ?: "")
 	}
 
 	class Service(
@@ -43,6 +53,15 @@ class Model {
 	}
 	val services = ArrayList<Service>()
 
+	class RealtimeService(
+		val dri: DRI,
+		val name: String,
+		val path: String,
+		val messagesC2S: List<TypeRef>,
+		val messagesS2C: List<TypeRef>
+	)
+	val realtimeServices = ArrayList<RealtimeService>()
+
 	data class TypeRef(
 		val packageName: String,
 		val name: String,
@@ -60,7 +79,7 @@ class Model {
 		val name: String,
 		val props: List<Property>,
 		val enumValues: List<String>?,
-		val inners: List<Type>
+		val inners: MutableList<Type>
 	) {
 
 		data class Property(
@@ -80,8 +99,19 @@ class Model {
 
 		var outer: Type? = null
 
+		val names: String get() =
+			ancestry.reversed().joinToString(".") { it.name }
+
 		val id: String get() =
-			typeId(packageName, ancestry.reversed().joinToString(".") { it.name })
+			typeId(packageName, names)
+
+		fun descendents(out: ArrayList<Type> = ArrayList()): ArrayList<Type> {
+			for (inner in inners) {
+				out.add(inner)
+				inner.descendents(out)
+			}
+			return out
+		}
 	}
 	val types = ArrayList<Type>()
 
@@ -91,11 +121,9 @@ class Model {
 
 		fun add(typeRef: TypeRef) {
 
-			if (typeRef.id in out) {
-				return
+			if (typeRef.id !in out) {
+				out[typeRef.id] = typeRef
 			}
-
-			out[typeRef.id] = typeRef
 
 			// recurse
 			typeRef.params.forEach { add(it) }
@@ -109,11 +137,28 @@ class Model {
 			}
 		}
 
-		// and the properties of types too
-		for (type in types) {
+		// get all the type refs in realtime services
+		for (realtimeService in realtimeServices) {
+			realtimeService.messagesC2S.forEach { add(it) }
+			realtimeService.messagesS2C.forEach { add(it) }
+		}
+
+		fun addAllIn(type: Type) {
+
+			// add type properties
 			for (prop in type.props) {
 				add(prop.type)
 			}
+
+			// recurse
+			for (inner in type.inners) {
+				addAllIn(inner)
+			}
+		}
+
+		// and the properties of types too
+		for (type in types) {
+			addAllIn(type)
 		}
 
 		return out

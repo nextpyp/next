@@ -34,11 +34,11 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 
 		val file = ctx.configuration.outputDir.resolve("gen.py").toPath()
 		file.bufferedWriter().use { writer ->
-			writer.write(model)
+			Indented(writer, 0).write(model)
 		}
 	}
 
-	private fun Writer.write(model: Model) {
+	private fun Indented.write(model: Model) {
 
 		writeln()
 
@@ -46,6 +46,8 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 		writeln("from __future__ import annotations")
 		writeln()
 		writeln("from typing import Optional, List, Dict, Set, Any, Iterator, TYPE_CHECKING")
+		writeln()
+		writeln("from nextpyp.client.realtime import RealtimeService")
 		writeln()
 		writeln("if TYPE_CHECKING:")
 		indent {
@@ -75,6 +77,23 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 			write(service)
 		}
 
+		// write the realtime services
+		writeln()
+		writeln()
+		writeln("class RealtimeServices:")
+		writeln()
+		indent {
+			writeln("def __init__(self, client: Client) -> None:")
+			indent {
+				for (realtimeService in model.realtimeServices) {
+					val name = realtimeService.name.caseCamelToSnake()
+					val path = "'${realtimeService.path}'"
+					writeln("self.$name = RealtimeService(client, $path)")
+					// TODO: document messages allowed for each service?
+				}
+			}
+		}
+
 		// write the types
 		for (type in model.types) {
 			writeln()
@@ -83,7 +102,7 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 		}
 	}
 
-	private fun Writer.write(service: Model.Service) {
+	private fun Indented.write(service: Model.Service) {
 
 		writeln("class ${service.name}Service:")
 		writeln()
@@ -100,7 +119,7 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 		}
 	}
 
-	private fun Writer.write(func: Model.Service.Function) {
+	private fun Indented.write(func: Model.Service.Function) {
 
 		val args = func.arguments
 			.joinToString("") { arg ->
@@ -139,7 +158,7 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 		}
 	}
 
-	private fun Writer.write(type: Model.Type) {
+	private fun Indented.write(type: Model.Type) {
 		if (type.enumValues != null) {
 			writeEnum(type, type.enumValues)
 		} else {
@@ -147,7 +166,7 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 		}
 	}
 
-	private fun Writer.writeClass(type: Model.Type) {
+	private fun Indented.writeClass(type: Model.Type) {
 
 		val args = type.props
 			.joinToString("") {
@@ -163,14 +182,13 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 			writeln()
 
 			// write the constructor
-			writeln("def __init__(self$args) -> None:")
-			if (type.props.isEmpty()) {
-				throw Error("type ${type.id} has no properties")
-			}
-			indent {
-				for (prop in type.props) {
-					val name = prop.name.caseCamelToSnake()
-					writeln("self.$name = $name")
+			if (type.props.isNotEmpty()) {
+				writeln("def __init__(self$args) -> None:")
+				indent {
+					for (prop in type.props) {
+						val name = prop.name.caseCamelToSnake()
+						writeln("self.$name = $name")
+					}
 				}
 			}
 
@@ -194,7 +212,7 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 
 			// write the deserializer
 			writeln("@classmethod")
-			writeln("def from_json(cls, json: Dict[str,Any]) -> ${type.name}:")
+			writeln("def from_json(cls, json: Dict[str,Any]) -> ${type.names}:")
 			indent {
 				writeln("return cls(")
 				indent {
@@ -238,26 +256,35 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 			writeln()
 
 			// impl __eq__
-			writeln("def __eq__(self, other: object) -> bool:")
+			// NOTE: __eq__ returns Any, not bool
+			writeln("def __eq__(self, other: object) -> Any:")
 			indent {
-				writeln("if not isinstance(other, ${type.name}):")
+				writeln("if not isinstance(other, ${type.names}):")
 				indent {
 					writeln("return NotImplemented")
 				}
-				for ((i, prop) in type.props.withIndex()) {
-					val name = prop.name.caseCamelToSnake()
-					val comparison = "self.$name == other.$name"
-					if (i == 0) {
-						writeln("return $comparison \\")
-					} else {
-						indent {
-							if (i == type.props.size - 1) {
-								writeln("and $comparison")
+				if (type.props.isNotEmpty()) {
+					for ((i, prop) in type.props.withIndex()) {
+						val name = prop.name.caseCamelToSnake()
+						val comparison = "self.$name == other.$name"
+						if (i == 0) {
+							if (type.props.size == 1) {
+								writeln("return $comparison")
 							} else {
-								writeln("and $comparison \\")
+								writeln("return $comparison \\")
+							}
+						} else {
+							indent {
+								if (i == type.props.size - 1) {
+									writeln("and $comparison")
+								} else {
+									writeln("and $comparison \\")
+								}
 							}
 						}
 					}
+				} else {
+					writeln("return True  # we are all the same! =D")
 				}
 			}
 
@@ -270,7 +297,12 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 		}
 	}
 
-	private fun Writer.writeEnum(type: Model.Type, values: List<String>) {
+	private fun Indented.writeEnum(type: Model.Type, values: List<String>) {
+
+		// python won't allow things named None
+		fun String.pysafe(): String =
+			takeIf { it != "None" }
+				?: "NoneVal"
 
 		// define the class
 		// NOTE: string-valued enums are only allowed in Python 3.11+
@@ -283,7 +315,7 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 			// write the enum values
 			// NOTE: we'll assign them later to avoid circularity issues
 			for (value in values) {
-				writeln("${value}: ${type.name}")
+				writeln("${value.pysafe()}: ${type.name}")
 			}
 
 			writeln()
@@ -315,7 +347,7 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 						writeln("elif name == '$value':")
 					}
 					indent {
-						writeln("return ${type.name}.$value")
+						writeln("return ${type.name}.${value.pysafe()}")
 					}
 				}
 				writeln("else:")
@@ -353,7 +385,7 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 			writeln("def __iter__(self) -> Iterator[${type.name}]:")
 			indent {
 				val refs = values.joinToString(", ") {
-					"${type.name}.$it"
+					"${type.name}.${it.pysafe()}"
 				}
 				writeln("return [$refs].__iter__()")
 			}
@@ -361,7 +393,8 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 			writeln()
 
 			// impl __eq__
-			writeln("def __eq__(self, other: object) -> bool:")
+			// NOTE: __eq__ returns Any, not bool
+			writeln("def __eq__(self, other: object) -> Any:")
 			indent {
 				writeln("if not isinstance(other, ${type.name}):")
 				indent {
@@ -383,7 +416,7 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 
 		// assign the enum values
 		for (value in values) {
-			writeln("${type.name}.$value = ${type.name}('$value')")
+			writeln("${type.name}.${value.pysafe()} = ${type.name}('$value')")
 		}
 	}
 }
@@ -440,6 +473,8 @@ private fun Model.TypeRef.render(): String =
 			when (name) {
 				"String" -> "str"
 				"Int", "Long" -> "int"
+				"Boolean" -> "bool"
+				"Float", "Double" -> "float"
 				else -> throw Error("Don't know how to handle kotlin type: $name")
 			}
 		}
@@ -461,8 +496,11 @@ private fun Model.TypeRef.render(): String =
 		}
 
 		// handle our types
-		PACKAGE_SERVICES -> name
+		in PACKAGES -> name
 
+		// TODO: NEXTTIME:
+		//  Don't know how to handle type ref: TypeRef(packageName=edu.duke.bartesaghi.micromon.pyp, name=Block, params=[])
+		//  how to handle pyp things?
 		else -> throw Error("Don't know how to handle type ref: $this")
 	}
 	// apply nullability
@@ -481,7 +519,7 @@ private fun Model.TypeRef.renderReader(expr: String): String =
 		"kotlin" -> {
 			when (name) {
 				// no translation needed
-				"String", "Int", "Long" -> expr
+				"String", "Int", "Long", "Boolean", "Float", "Double" -> expr
 				else -> throw Error("Don't know how to read kotlin type: $name")
 			}
 		}
@@ -502,7 +540,7 @@ private fun Model.TypeRef.renderReader(expr: String): String =
 		}
 
 		// handle our types
-		PACKAGE_SERVICES -> "$name.from_json($expr)"
+		in PACKAGES -> "$name.from_json($expr)"
 
 		else -> throw Error("Don't know how to read type: $this")
 	}
@@ -514,7 +552,7 @@ private fun Model.TypeRef.renderWriter(varname: String): String =
 		"kotlin" -> {
 			when (name) {
 				// no translation needed
-				"String", "Int", "Long" -> varname
+				"String", "Int", "Long", "Boolean", "Float", "Double" -> varname
 				else -> throw Error("Don't know how to read kotlin type: $name")
 			}
 		}
@@ -534,7 +572,7 @@ private fun Model.TypeRef.renderWriter(varname: String): String =
 		}
 
 		// handle our types
-		PACKAGE_SERVICES -> "$varname.to_json()"
+		in PACKAGES -> "$varname.to_json()"
 
 		else -> throw Error("Don't know how to write type: $this")
 	}

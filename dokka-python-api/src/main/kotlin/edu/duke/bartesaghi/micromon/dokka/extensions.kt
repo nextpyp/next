@@ -1,5 +1,6 @@
 package edu.duke.bartesaghi.micromon.dokka
 
+import org.jetbrains.dokka.links.DRI
 import org.jetbrains.dokka.model.*
 import org.jetbrains.dokka.model.AnnotationTarget
 import org.jetbrains.dokka.base.signatures.KotlinSignatureUtils.annotations as rawAnnotations
@@ -11,33 +12,10 @@ import org.jetbrains.dokka.model.properties.WithExtraProperties
  * but there's only ever one source set,
  * so just get the annotations from the first source set.
  */
-fun <D,T> D.annotations(): List<Annotations.Annotation>
-	where
-		D: Documentable,
-		D: WithExtraProperties<T>,
-		T: AnnotationTarget
-	// sheesh ... what is this, Rust?
-{
-	return rawAnnotations()
+fun <T:AnnotationTarget> WithExtraProperties<T>.annotations(): List<Annotations.Annotation> =
+	rawAnnotations()
 		.values.firstOrNull()
-		?.map { it.ensurePackage(this) }
 		?: emptyList()
-}
-
-fun Annotations.Annotation.ensurePackage(doc: Documentable): Annotations.Annotation {
-
-	// already have a package name? we're good then
-	if (dri.packageName?.isNotEmpty() == true) {
-		return this
-	}
-
-	// but if not, that means the annotation has the same package as the documentable,
-	// so put that package in there
-	return copy(dri = dri.copy(packageName = doc.dri.packageName))
-}
-
-
-const val PACKAGE_SERVICES = "edu.duke.bartesaghi.micromon.services"
 
 
 class ExportServiceAnnotation(val name: String)
@@ -75,6 +53,24 @@ fun DProperty.exportServicePropertyAnnotation(): ExportServicePropertyAnnotation
 		}
 
 
+class ExportRealtimeServiceAnnotation(
+	val name: String,
+	val messagesC2S: List<DRI>,
+	val messagesS2C: List<DRI>
+)
+
+fun DProperty.exportRealtimeServiceAnnotation(): ExportRealtimeServiceAnnotation? =
+	annotations()
+		.find { it.dri.packageName == PACKAGE_SERVICES && it.dri.classNames == "ExportRealtimeService" }
+		?.let {
+			ExportRealtimeServiceAnnotation(
+				name = it.params.stringOrThrow("name"),
+				messagesC2S = it.params.classListOrThrow("messagesC2S"),
+				messagesS2C = it.params.classListOrThrow("messagesS2C")
+			)
+		}
+
+
 fun DFunction.bindingRouteAnnotation(): BindingRouteAnnotation? =
 	annotations()
 		.find { it.dri.packageName == "io.kvision.annotations" && it.dri.classNames == "KVBindingRoute" }
@@ -107,4 +103,15 @@ fun Map<String,AnnotationParameterValue>.boolean(name: String): Boolean? =
 
 fun Map<String,AnnotationParameterValue>.booleanOrThrow(name: String): Boolean =
 	boolean(name)
+		?: throw NoSuchElementException("anotation has no parameter named $name")
+
+
+fun Map<String,AnnotationParameterValue>.classList(name: String): List<DRI>? =
+	param<ArrayValue>(name)
+		?.value
+		?.filterIsInstance<ClassValue>()
+		?.map { it.classDRI }
+
+fun Map<String,AnnotationParameterValue>.classListOrThrow(name: String): List<DRI> =
+	classList(name)
 		?: throw NoSuchElementException("anotation has no parameter named $name")

@@ -1,5 +1,6 @@
 package edu.duke.bartesaghi.micromon.dokka
 
+import org.jetbrains.dokka.links.DRI
 import org.jetbrains.dokka.model.*
 import org.jetbrains.dokka.model.Void
 import org.jetbrains.dokka.pages.PageNode
@@ -26,32 +27,15 @@ class ModelCollector : DocumentableToPageTranslator {
 
 		// collect all the info we need from the source code
 		val model = Model()
-		module.children
+
+		val packages = module.children
 			.filterIsInstance<DPackage>()
-			.forEach { collectPackage(it, model) }
+			.filter { it.packageName in PACKAGES }
 
-		return Page("the page", model)
-	}
-
-	private fun collectPackage(pack: DPackage, model: Model) {
-
-		println("PACKAGE: ${pack.name}")
-
-		// focus only on the services package
-		if (pack.name != PACKAGE_SERVICES) {
-			return
+		// collect service info from the targeted packages
+		for (pack in packages) {
+			collectPackage(pack, model)
 		}
-
-		// look for services
-		pack.classlikes
-			.asSequence()
-			.filterIsInstance<DInterface>()
-			// the tree has tons of duplicates in it for some reason, so filter them out
-			.filter { iface -> model.services.none { it.dri == iface.dri } }
-			// collect ony services explicitly annotated for export
-			.mapNotNull { iface -> iface.exportServiceAnnotation()?.let { iface to it } }
-			.map { (iface, export) -> collectService(iface, export) }
-			.forEach { model.services.add(it) }
 
 		fun gatherTypes(): Set<String> {
 
@@ -62,13 +46,19 @@ class ModelCollector : DocumentableToPageTranslator {
 				// look for the types used by the services
 				val serviceTypeRefIds = model.typeRefs()
 					.values
-					.filter { it.packageName == PACKAGE_SERVICES }
+					.filter { it.packageName in PACKAGES }
 					.map { it.id }
-					.toSet()
-				val numAdded = pack.classlikes
+					.toMutableSet()
+					.apply {
+						// add the realtime message base classes, since they aren't refernced by services directly
+						add(Model.typeId(PACKAGE_SERVICES, "RealTimeC2S"))
+						add(Model.typeId(PACKAGE_SERVICES, "RealTimeS2C"))
+					}
+				val numAdded = packages
 					.asSequence()
+					.flatMap { it.classlikes }
 					// add the type id
-					.map { c -> c to "${c.dri.packageName}/${c.dri.classNames}" }
+					.map { c -> c to Model.typeId(c.dri) }
 					// should be one of the service type refs
 					.filter { (_, id) -> id in serviceTypeRefIds }
 					// the tree has tons of duplicates in it for some reason, so filter them out
@@ -91,6 +81,22 @@ class ModelCollector : DocumentableToPageTranslator {
 		}
 		val serviceTypeRefIds = gatherTypes()
 
+		// prune out any extra inner classes we found
+		fun purge(type: Model.Type) {
+			type.inners.removeIf { inner ->
+				(listOf(inner) + inner.descendents())
+					.map { it.id }
+					.none { it in serviceTypeRefIds }
+					.also { if (it) println("removing uneeded type: ${inner.id}") }
+			}
+			for (inner in type.inners) {
+				purge(inner)
+			}
+		}
+		for (type in model.types) {
+			purge(type)
+		}
+
 		// make sure we found all the type refs
 		val typesLookup = model.typesLookup()
 		val missingTypeRefIds = serviceTypeRefIds
@@ -98,6 +104,38 @@ class ModelCollector : DocumentableToPageTranslator {
 		if (missingTypeRefIds.isNotEmpty()) {
 			throw Error("Types referenced in services but not collected:\n\t${missingTypeRefIds.joinToString("\n\t")}")
 		}
+
+		return Page("the page", model)
+	}
+
+	private fun collectPackage(pack: DPackage, model: Model) {
+
+		println("PACKAGE: ${pack.name}")
+
+		// look for services
+		pack.classlikes
+			.asSequence()
+			.filterIsInstance<DInterface>()
+			// collect ony services explicitly annotated for export
+			.mapNotNull { iface -> iface.exportServiceAnnotation()?.let { iface to it } }
+			// the tree has tons of duplicates in it for some reason, so filter them out
+			.filter { (iface, _) -> model.services.none { it.dri == iface.dri } }
+			.map { (iface, export) -> collectService(iface, export) }
+			.forEach { model.services.add(it) }
+
+		// look for realtime services
+		pack.classlikes
+			.asSequence()
+			.filterIsInstance<DObject>()
+			// look for the one realtime services object
+			.filter { it.dri.packageName == PACKAGE_SERVICES && it.dri.classNames == "RealTimeServices" }
+			.flatMap { it.properties }
+			// collect ony services explicitly annotated for export
+			.mapNotNull { prop -> prop.exportRealtimeServiceAnnotation()?.let { prop to it } }
+			// the tree has tons of duplicates in it for some reason, so filter them out
+			.filter { (prop, _) -> model.realtimeServices.none { it.dri == prop.dri } }
+			.map { (prop, export) -> collectRealtimeService(prop, export) }
+			.forEach { model.realtimeServices.add(it) }
 	}
 
 	private fun collectService(iface: DInterface, export: ExportServiceAnnotation): Model.Service {
@@ -183,7 +221,7 @@ class ModelCollector : DocumentableToPageTranslator {
 
 	private fun collectType(c: DClasslike): Model.Type {
 
-		println("TYPE: ${c.dri.classNames}")
+		println("\tTYPE: ${c.dri.classNames}")
 
 		return Model.Type(
 			packageName = c.dri.packageName
@@ -202,7 +240,10 @@ class ModelCollector : DocumentableToPageTranslator {
 
 			// recurse
 			inners = c.classlikes
+				// filter out objects
+				.filterIsInstance<DClass>()
 				.map { collectType(it) }
+				.toMutableList()
 		).apply {
 			inners.forEach { it.outer = this }
 		}
@@ -213,4 +254,27 @@ class ModelCollector : DocumentableToPageTranslator {
 			name = prop.name,
 			type = collectTypeRef(prop.type)
 		)
+
+	private fun collectRealtimeService(prop: DProperty, export: ExportRealtimeServiceAnnotation): Model.RealtimeService {
+
+		println("\tREALTIME SERVICE: ${export.name}")
+
+		fun DRI.toTypeRef() = Model.TypeRef(
+			packageName = packageName
+				?: throw Error("Realtime service message has no package name: $this"),
+			name = classNames
+				?: throw Error("Realtime service message has no class names: $this"),
+			params = emptyList()
+		)
+
+		return Model.RealtimeService(
+			dri = prop.dri,
+			name = export.name,
+			path = "/ws/${prop.name}",
+			messagesC2S = export.messagesC2S
+				.map { it.toTypeRef() },
+			messagesS2C = export.messagesS2C
+				.map { it.toTypeRef() }
+		)
+	}
 }
