@@ -6,11 +6,14 @@ import kotlinx.serialization.Serializable
 
 
 @KVService
+@ExportService("Apps")
 interface IAppsService {
 
+	@ExportServiceFunction
 	@KVBindingRoute("apps/version")
 	suspend fun version(): String
 
+	@ExportServiceFunction
 	@KVBindingRoute("apps/requestToken")
 	suspend fun requestToken(userId: String, appName: String, appPermissionIds: List<String>): AppTokenRequestData
 

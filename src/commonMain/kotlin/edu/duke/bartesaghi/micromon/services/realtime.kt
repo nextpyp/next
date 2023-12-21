@@ -142,6 +142,12 @@ sealed class RealTimeS2C {
 	@Serializable
 	class Pong : RealTimeS2C()
 
+	@Serializable
+	data class Error(
+		val name: String?,
+		val msg: String?
+	) : RealTimeS2C()
+
 
 	// project messages
 

@@ -15,7 +15,9 @@ import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.sessions.*
 import io.ktor.http.cio.websocket.*
 import io.ktor.routing.*
+import io.ktor.util.cio.*
 import io.ktor.websocket.*
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.ClosedReceiveChannelException
 import kotlinx.coroutines.channels.ClosedSendChannelException
 import kotlinx.coroutines.channels.ReceiveChannel
@@ -555,6 +557,53 @@ object RealTimeService {
 		}
 	}
 }
+
+
+ fun Route.webSocket(
+	path: String,
+	handler: suspend DefaultWebSocketServerSession.() -> Unit
+) {
+	webSocket(path, null) {
+		try {
+			handler()
+		} catch (t: Throwable) {
+			when (t) {
+
+				// don't handle low-level IO exceptions, let ktor deal with them
+				is CancellationException,
+				is ChannelIOException -> throw t
+
+				// translate exceptions we want the client to see into error messages and send them back
+				is AuthException ->
+					outgoing.trySendMessage(RealTimeS2C.Error(
+						name = t::class.simpleName,
+						msg = t.message
+					))
+
+				// send back external info only on these exceptions
+				is AuthExceptionWithInternal -> {
+					val e = t.external()
+					outgoing.trySendMessage(RealTimeS2C.Error(
+						name = e::class.simpleName,
+						msg = e.message
+					))
+				}
+
+				// hide everything else from the caller, these error details should stay internal
+				else -> {
+					outgoing.trySendMessage(RealTimeS2C.Error(
+						name = "InternalError",
+						msg = "See the server error log for more details"
+					))
+
+					// rethrow the error so it actually makes it into the server log
+					throw t
+				}
+			}
+		}
+	}
+}
+
 
 fun Frame.toMessage(): RealTimeC2S {
 

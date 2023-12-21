@@ -162,6 +162,16 @@ data class AppPermission(
 			)
 		).add()
 
+		val PROJECT_REALTIME = AppPermission(
+			"project_listen",
+			"""
+				|Listen to your project and its running jobs in real-time.
+			""".trimMargin(),
+			listOf(
+				"/ws/project"
+			)
+		).add()
+
 		// TODO: expose interesting parts of the API
 
 		/** endpoints everyone can access even without a valid token */

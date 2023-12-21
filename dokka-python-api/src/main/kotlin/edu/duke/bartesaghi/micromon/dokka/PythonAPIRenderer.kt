@@ -45,18 +45,21 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 		// write imports
 		writeln("from __future__ import annotations")
 		writeln()
-		writeln("from typing import Optional, List, Dict, Set, Any, Iterator, TYPE_CHECKING")
+		writeln("from typing import Optional, List, Dict, Set, Any, Iterator, TYPE_CHECKING, Union, cast")
 		writeln()
-		writeln("from nextpyp.client.realtime import RealtimeService")
+		writeln("import json")
+		writeln("from websockets.legacy.client import WebSocketClientProtocol")
 		writeln()
+		writeln("from nextpyp.client.realtime import RealtimeService, RealtimeServiceConnection, RealtimeServiceUnexpectedMessage")
 		writeln("if TYPE_CHECKING:")
 		indent {
 			writeln("from nextpyp.client import Client")
 		}
 
+		writeln()
+		writeln()
+
 		// write the services menu
-		writeln()
-		writeln()
 		writeln("class Services:")
 		writeln()
 		indent {
@@ -70,6 +73,9 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 			}
 		}
 
+		writeln()
+		writeln()
+
 		// write the services
 		for (service in model.services) {
 			writeln()
@@ -77,9 +83,10 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 			write(service)
 		}
 
+		writeln()
+		writeln()
+
 		// write the realtime services
-		writeln()
-		writeln()
 		writeln("class RealtimeServices:")
 		writeln()
 		indent {
@@ -88,10 +95,15 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 				for (realtimeService in model.realtimeServices) {
 					val name = realtimeService.name.caseCamelToSnake()
 					val path = "'${realtimeService.path}'"
-					writeln("self.$name = RealtimeService(client, $path)")
-					// TODO: document messages allowed for each service?
+					writeln("self.$name = RealtimeService(client, $path, ${realtimeService.name}RealtimeServiceConnection)")
 				}
 			}
+		}
+
+		for (realtimeService in model.realtimeServices) {
+			writeln()
+			writeln()
+			write(realtimeService)
 		}
 
 		// write the types
@@ -419,6 +431,59 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 			writeln("${type.name}.${value.pysafe()} = ${type.name}('$value')")
 		}
 	}
+
+	private fun Indented.write(realtimeService: Model.RealtimeService) {
+
+		writeln("class ${realtimeService.name}RealtimeServiceConnection(RealtimeServiceConnection):")
+		indent {
+
+			writeln()
+
+			writeln("def __init__(self, websocket: WebSocketClientProtocol) -> None:")
+			indent {
+				writeln("super(${realtimeService.name}RealtimeServiceConnection, self).__init__(websocket)")
+			}
+
+			// send functions
+			for (msg in realtimeService.messagesC2S) {
+
+				writeln()
+
+				val name = msg.innerName.caseCamelToSnake()
+				writeln("async def send_$name(self, msg: ${msg.name}) -> None:")
+				indent {
+					writeln("j = msg.to_json()")
+					writeln("j['type'] = '${msg.packageName}.${msg.name}'")
+					writeln("json_str = json.dumps(j)")
+					writeln("await self._send(json_str)")
+				}
+			}
+
+			writeln()
+
+			val names = realtimeService.messagesS2C
+				.joinToString(", ") { it.name }
+			writeln("async def recv(self) -> Union[$names]:")
+			indent {
+				writeln("json_str = await self._recv()")
+				writeln("j = json.loads(json_str)")
+				writeln("type = j['type']")
+				writeln("match type:")
+				indent {
+					for (msg in realtimeService.messagesS2C) {
+						writeln("case '${msg.packageName}.${msg.name}':")
+						indent {
+							writeln("return ${msg.name}.from_json(j)")
+						}
+					}
+					writeln("case _:")
+					indent {
+						writeln("raise RealtimeServiceUnexpectedMessage(type)")
+					}
+				}
+			}
+		}
+	}
 }
 
 
@@ -518,8 +583,11 @@ private fun Model.TypeRef.renderReader(expr: String): String =
 		// read basic types
 		"kotlin" -> {
 			when (name) {
-				// no translation needed
-				"String", "Int", "Long", "Boolean", "Float", "Double" -> expr
+				// no translation needed, just cast the type
+				"String" -> "cast(str, $expr)"
+				"Int", "Long" -> "cast(int, $expr)"
+				"Boolean" -> "cast(bool, $expr)"
+				"Float", "Double" -> "cast(float, $expr)"
 				else -> throw Error("Don't know how to read kotlin type: $name")
 			}
 		}

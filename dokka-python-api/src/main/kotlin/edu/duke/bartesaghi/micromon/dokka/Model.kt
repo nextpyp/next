@@ -72,6 +72,9 @@ class Model {
 			typeId(packageName, name)
 
 		var nullable: Boolean = false
+
+		val innerName: String get() =
+			name.split('.').last()
 	}
 
 	data class Type(
