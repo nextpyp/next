@@ -11,6 +11,7 @@ import edu.duke.bartesaghi.micromon.services.ClusterQueues
 import edu.duke.bartesaghi.micromon.services.StandaloneData
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import java.io.IOException
 import java.nio.file.Path
 import java.time.Instant
 import java.util.*
@@ -456,7 +457,12 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 
 		// just use the local filesystem
 		for (file in files) {
-			file.delete()
+			try {
+				file.delete()
+			} catch (ex: IOException) {
+				// easily recoverable error, just log it and move on to the next file
+				Backend.log.warn("failed to delete file: $file", ex)
+			}
 		}
 	}
 
