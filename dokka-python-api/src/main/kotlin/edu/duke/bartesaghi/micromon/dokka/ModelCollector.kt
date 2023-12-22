@@ -53,6 +53,7 @@ class ModelCollector : DocumentableToPageTranslator {
 						// add the realtime message base classes, since they aren't refernced by services directly
 						add(Model.typeId(PACKAGE_SERVICES, "RealTimeC2S"))
 						add(Model.typeId(PACKAGE_SERVICES, "RealTimeS2C"))
+						add(Model.typeId(PACKAGE_SERVICES, "RealTimeS2C.Error"))
 					}
 				val numAdded = packages
 					.asSequence()

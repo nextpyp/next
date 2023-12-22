@@ -193,6 +193,10 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 
 			writeln()
 
+			writeln("TYPE_ID: str = '${type.packageName}.${type.names}'")
+
+			writeln()
+
 			// write the constructor
 			if (type.props.isNotEmpty()) {
 				writeln("def __init__(self$args) -> None:")
@@ -453,9 +457,8 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 				writeln("async def send_$name(self, msg: ${msg.name}) -> None:")
 				indent {
 					writeln("j = msg.to_json()")
-					writeln("j['type'] = '${msg.packageName}.${msg.name}'")
-					writeln("json_str = json.dumps(j)")
-					writeln("await self._send(json_str)")
+					writeln("j['type'] = ${msg.name}.TYPE_ID")
+					writeln("await self._send(j)")
 				}
 			}
 
@@ -465,15 +468,14 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 				.joinToString(", ") { it.name }
 			writeln("async def recv(self) -> Union[$names]:")
 			indent {
-				writeln("json_str = await self._recv()")
-				writeln("j = json.loads(json_str)")
-				writeln("type = j['type']")
+				writeln("msg = await self._recv()")
+				writeln("type = msg.get('type')")
 				writeln("match type:")
 				indent {
 					for (msg in realtimeService.messagesS2C) {
-						writeln("case '${msg.packageName}.${msg.name}':")
+						writeln("case ${msg.name}.TYPE_ID:")
 						indent {
-							writeln("return ${msg.name}.from_json(j)")
+							writeln("return ${msg.name}.from_json(msg)")
 						}
 					}
 					writeln("case _:")
