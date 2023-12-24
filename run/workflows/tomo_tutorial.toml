@@ -46,7 +46,7 @@ name = "Reference-based refinement"
 parent = "preprocessing"
 
 [blocks.reference_refinement.args]
-refine_parfile = "auto"
+refine_parfile_tomo = "auto"
 refine_model = { ask = true }
 particle_mw = 300
 particle_rad = 150

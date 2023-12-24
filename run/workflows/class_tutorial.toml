@@ -51,7 +51,7 @@ name = "Reference-based refinement"
 parent = "preprocessing"
 
 [blocks.reference_refinement.args]
-refine_parfile = "auto"
+refine_parfile_tomo = "auto"
 particle_mw = 2000
 particle_rad = 150
 extract_box = 64
