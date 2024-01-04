@@ -74,6 +74,7 @@ val localProps = Properties().apply {
 }
 val pypDir = projectDir.resolve(localProps["pypDir"] as String)
 val rawDataDir = projectDir.resolve(localProps["rawDataDir"] as? String ?: "../data")
+val clientDir = (localProps["clientDir"] as? String)?.let { projectDir.resolve(it) }
 
 val webDir = file("src/frontendMain/web")
 val runDir = projectDir.resolve("run")
@@ -1181,6 +1182,16 @@ afterEvaluate {
 
 				// so we need to just hard-code the built jar path
 				plugins(files("${dokkaPluginSubproject.buildDir}/libs/${dokkaPluginSubproject.name}.jar"))
+			}
+
+			doLast {
+				// copy the generated sources to the client project, if available
+				if (clientDir?.exists() == true) {
+					copy {
+						from(dir.resolve("gen.py"))
+						into(clientDir.resolve("src/nextpyp/client/"))
+					}
+				}
 			}
 		}
 	}
