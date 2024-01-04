@@ -3,6 +3,9 @@ package edu.duke.bartesaghi.micromon.dokka
 import org.jetbrains.dokka.links.DRI
 import org.jetbrains.dokka.model.*
 import org.jetbrains.dokka.model.Void
+import org.jetbrains.dokka.model.doc.DocTag
+import org.jetbrains.dokka.model.doc.DocumentationNode
+import org.jetbrains.dokka.model.doc.Text
 import org.jetbrains.dokka.pages.PageNode
 import org.jetbrains.dokka.pages.RootPageNode
 import org.jetbrains.dokka.transformers.documentation.DocumentableToPageTranslator
@@ -160,6 +163,7 @@ class ModelCollector : DocumentableToPageTranslator {
 		return Model.Service(
 			dri = iface.dri,
 			name = export.name,
+			doc = iface.documentation.readKdoc(),
 			functions = functions
 		)
 	}
@@ -194,7 +198,8 @@ class ModelCollector : DocumentableToPageTranslator {
 			name = func.name,
 			path = Paths.get("/kv").resolve(annotation.path).toString(),
 			arguments = arguments,
-			returns = returns
+			returns = returns,
+			doc = func.documentation.readKdoc(),
 		)
 	}
 
@@ -238,6 +243,7 @@ class ModelCollector : DocumentableToPageTranslator {
 				?.let { e ->
 					e.entries.map { it.name }
 				},
+			doc = c.documentation.readKdoc(),
 
 			// recurse
 			inners = c.classlikes
@@ -253,7 +259,8 @@ class ModelCollector : DocumentableToPageTranslator {
 	private fun collectProperty(prop: DProperty): Model.Type.Property =
 		Model.Type.Property(
 			name = prop.name,
-			type = collectTypeRef(prop.type)
+			type = collectTypeRef(prop.type),
+			doc = prop.documentation.readKdoc()
 		)
 
 	private fun collectRealtimeService(prop: DProperty, export: ExportRealtimeServiceAnnotation): Model.RealtimeService {
@@ -275,7 +282,29 @@ class ModelCollector : DocumentableToPageTranslator {
 			messagesC2S = export.messagesC2S
 				.map { it.toTypeRef() },
 			messagesS2C = export.messagesS2C
-				.map { it.toTypeRef() }
+				.map { it.toTypeRef() },
+			doc = prop.documentation.readKdoc()
 		)
+	}
+
+	private fun SourceSetDependent<DocumentationNode>.readKdoc(): Model.Doc? {
+
+		fun DocTag.collectText(): List<String> =
+			when (this) {
+
+				// only get the text nodes for now
+				is Text -> listOf(body)
+
+				// just recurse through everything else looking for Text nodes
+				else -> children.flatMap { it.collectText() }
+			}
+
+		return values
+			.flatMap { node ->
+				node.children
+					.flatMap { it.root.collectText() }
+			}
+			.takeIf { it.isNotEmpty() }
+			?.let { Model.Doc(it.joinToString("\n")) }
 	}
 }

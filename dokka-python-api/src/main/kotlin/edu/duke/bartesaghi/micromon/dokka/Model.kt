@@ -1,6 +1,7 @@
 package edu.duke.bartesaghi.micromon.dokka
 
 import org.jetbrains.dokka.links.DRI
+import org.jetbrains.dokka.model.doc.DocumentationNode
 
 
 private const val PP = "edu.duke.bartesaghi.micromon"
@@ -24,6 +25,7 @@ class Model {
 	class Service(
 		val dri: DRI,
 		val name: String,
+		val doc: Doc?,
 		val functions: List<Function>
 	) {
 
@@ -33,7 +35,8 @@ class Model {
 			val name: String,
 			val path: String,
 			val arguments: List<Argument>,
-			val returns: TypeRef?
+			val returns: TypeRef?,
+			val doc: Doc?
 		) {
 
 			sealed interface Mode {
@@ -58,7 +61,8 @@ class Model {
 		val name: String,
 		val path: String,
 		val messagesC2S: List<TypeRef>,
-		val messagesS2C: List<TypeRef>
+		val messagesS2C: List<TypeRef>,
+		val doc: Doc?
 	)
 	val realtimeServices = ArrayList<RealtimeService>()
 
@@ -82,12 +86,14 @@ class Model {
 		val name: String,
 		val props: List<Property>,
 		val enumValues: List<String>?,
+		val doc: Doc?,
 		val inners: MutableList<Type>
 	) {
 
 		data class Property(
 			val name: String,
-			val type: TypeRef
+			val type: TypeRef,
+			val doc: Doc?
 		)
 
 		val ancestry: List<Type> get() {
@@ -189,4 +195,8 @@ class Model {
 
 		return out
 	}
+
+	data class Doc(
+		val text: String
+	)
 }

@@ -61,14 +61,35 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 
 		// write the services menu
 		writeln("class Services:")
-		writeln()
 		indent {
+
+			docstring("""
+				|All of the different services that can be accessed by the NextPYP client
+				|
+				|Regular services work just like function calls. Calling a service function
+				|will cause the Python app to wait until the NextPYP website responds with the result.
+				|
+				|Examples
+				|--------
+				|
+				|Call a simple service::
+				|
+				|	projects = client.services.projects.list('user_id')
+			""")
+
+			writeln()
+
 			writeln("def __init__(self, client: Client) -> None:")
 			indent {
 				for (service in model.services) {
 					val name = service.name.caseCamelToSnake()
 					val type = "${service.name}Service"
-					writeln("self.$name = $type(client)")
+					writeln("self.$name: $type = $type(client)")
+					writeln("\"\"\"")
+					writeln("The ${service.name} service.")
+					writeln("See: :py:class:`.$type`")
+					writeln("\"\"\"")
+					writeln()
 				}
 			}
 		}
@@ -88,14 +109,74 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 
 		// write the realtime services
 		writeln("class RealtimeServices:")
-		writeln()
 		indent {
+
+			docstring("""
+				|All of the different realtime services that can be accessed by the NextPYP client
+				|
+				|Realtime services exchange messages with the NextPYP website, rather than perform function calls,
+				|like regular services. The message exchange format lets the client send a message to the website
+				|and then wait for any number of different responses which can all arrive different times.
+				|In effect, this kind of connection lets the client stream data back from the website as soon as it's ready.
+				|
+				|Realtime services use Python's asyncio system over a HTTP WebSocket connection to send and receive
+				|messages to/from the website. This technique results in a lower event latency
+				|than more traditional connection polling techniques, and can be more efficient with network resources as well.
+				|
+				|Examples
+				|--------
+				|
+				|Call a realtime service::
+				|
+				|	async with client.realtime_services.project as project:
+				|	
+				|		await project.send_listen_to_project(RealTimeC2S.ListenToProject(
+				|			user_id='user_id',
+				|			project_id='project_id'
+				|		))
+				|		
+				|		msg = await project.recv()
+				|		match type(msg):
+				|			case RealTimeS2C.ProjectStatus:
+				|				print(f'project status: {msg}')
+				|			case _:
+				|				print(f'received other msg: {msg}')
+				|
+			""")
+
+			writeln()
+
 			writeln("def __init__(self, client: Client) -> None:")
 			indent {
 				for (realtimeService in model.realtimeServices) {
+
 					val name = realtimeService.name.caseCamelToSnake()
 					val path = "'${realtimeService.path}'"
+
 					writeln("self.$name = RealtimeService(client, $path, ${realtimeService.name}RealtimeServiceConnection)")
+
+					docstring(run {
+
+						val header = realtimeService.doc?.text ?: "(not documented yet)"
+
+						// write the message types into the docstring as well
+						val c2s = realtimeService.messagesC2S
+							.map { "* :py:class:`.${it.name}`" }
+						val s2c = realtimeService.messagesS2C
+							.map { "* :py:class:`.${it.name}`" }
+
+						"""
+						|$header
+						|
+						|.. rubric:: Client to Server messages
+						|
+						|${c2s.joinToString("\n|")}
+						|
+						|.. rubric:: Server to Client messages
+						|
+						|${s2c.joinToString("\n|")}
+						"""
+					})
 				}
 			}
 		}
@@ -117,8 +198,16 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 	private fun Indented.write(service: Model.Service) {
 
 		writeln("class ${service.name}Service:")
-		writeln()
 		indent {
+
+			// copy the interface kdocs, if any, into the Python docstring
+			// NOTE: Sphinx seems to do fine here without any docstrings, so we don't need default content here
+			if (service.doc != null) {
+				docstring(service.doc.text)
+			}
+
+			writeln()
+
 			writeln("def __init__(self, client: Client) -> None:")
 			indent {
 				writeln("self.client = client")
@@ -147,6 +236,11 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 		indent {
 			writeln("def ${func.name.caseCamelToSnake()}(self$args) -> $returns:")
 			indent {
+
+				// copy the function kdocs, if any, into the Python docstring
+				// but make sure something gets written, or Sphinx will do weird stuff
+				docstring(func.doc?.text ?: "(no documentation yet)")
+
 				writeln("path = '${func.path}'")
 				val argNames = func.arguments
 					.joinToString(", ") { it.name.caseCamelToSnake() }
@@ -191,6 +285,9 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 		writeln("class ${type.name}:")
 		indent {
 
+			// copy the class kdocs, if any, into the Python docstring
+			type.doc?.let { docstring(it.text) }
+
 			writeln()
 
 			writeln("TYPE_ID: str = '${type.packageName}.${type.names}'")
@@ -201,6 +298,9 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 			if (type.props.isNotEmpty()) {
 				writeln("def __init__(self$args) -> None:")
 				indent {
+
+					docstring(type.doc?.text ?: "")
+
 					for (prop in type.props) {
 						val name = prop.name.caseCamelToSnake()
 						writeln("self.$name = $name")
@@ -213,6 +313,11 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 			// write the serializer
 			writeln("def to_json(self) -> Dict[str,Any]:")
 			indent {
+
+				docstring("Converts this class instance into JSON")
+
+				writeln()
+
 				writeln("return {")
 				indent {
 					for (prop in type.props) {
@@ -230,6 +335,11 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 			writeln("@classmethod")
 			writeln("def from_json(cls, json: Dict[str,Any]) -> ${type.names}:")
 			indent {
+
+				docstring("Creates a new class instance from JSON")
+
+				writeln()
+
 				writeln("return cls(")
 				indent {
 					for (prop in type.props) {
@@ -271,7 +381,7 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 
 			writeln()
 
-			// impl __eq__
+			// implement equality comparisons
 			// NOTE: __eq__ returns Any, not bool
 			writeln("def __eq__(self, other: object) -> Any:")
 			indent {
@@ -326,6 +436,9 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 		writeln("class ${type.name}:")
 		indent {
 
+			// copy the enum kdocs, if any, into the Python docstring
+			type.doc?.let { docstring(it.text) }
+
 			writeln()
 
 			// write the enum values
@@ -347,6 +460,11 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 			// write the serializer
 			writeln("def to_json(self) -> str:")
 			indent {
+
+				docstring("Converts this enum value into JSON")
+
+				writeln()
+
 				writeln("return self.name")
 			}
 
@@ -356,6 +474,11 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 			writeln("@classmethod")
 			writeln("def from_json(cls, name: str) -> ${type.name}:")
 			indent {
+
+				docstring("Reads this enum value from JSON")
+
+				writeln()
+
 				for ((i, value) in values.withIndex()) {
 					if (i == 0) {
 						writeln("if name == '$value':")
@@ -408,7 +531,7 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 
 			writeln()
 
-			// impl __eq__
+			// implement equality comparisons
 			// NOTE: __eq__ returns Any, not bool
 			writeln("def __eq__(self, other: object) -> Any:")
 			indent {
@@ -421,7 +544,7 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 
 			writeln()
 
-			// impl __hash__
+			// implement hashing
 			writeln("def __hash__(self) -> int:")
 			indent {
 				writeln("return hash(self.name)")
@@ -440,6 +563,9 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 
 		writeln("class ${realtimeService.name}RealtimeServiceConnection(RealtimeServiceConnection):")
 		indent {
+
+			// copy the class kdocs, if any, into the Python docstring
+			realtimeService.doc?.let { docstring(it.text) }
 
 			writeln()
 
@@ -512,6 +638,21 @@ private class Indented(val writer: Writer, val numIndents: Int) {
 	fun writeln(line: String? = null) {
 		writer.writeIndents()
 		writer.writeln(line)
+	}
+
+	fun writeMultiline(text: String) {
+		text.trimMargin()
+			.lineSequence()
+			.forEach { writeln(it) }
+	}
+
+	fun docstring(text: String) {
+		writeln("\"\"\"")
+		// NOTE: replace tabs with four spaces,
+		// because otherwise the RST processor will expand tabs to eight spaces,
+		// which just looks dumb
+		writeMultiline(text.replace("\t", "    "))
+		writeln("\"\"\"")
 	}
 
 	fun <R> indent(block: Indented.() -> R): R =

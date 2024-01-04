@@ -7,14 +7,27 @@ import kotlinx.serialization.Serializable
 
 @KVService
 @ExportService("Apps")
+/**
+ * Service providing functions specific to apps,
+ * mainly requesting and managing app tokens
+ */
 interface IAppsService {
 
 	@ExportServiceFunction
 	@KVBindingRoute("apps/version")
+	/**
+	 * Returns the version number of NextPYP
+	 */
 	suspend fun version(): String
 
 	@ExportServiceFunction
 	@KVBindingRoute("apps/requestToken")
+	/**
+	 * Request an app token for your app on behalf of a specific user.
+	 *
+	 * Once requested, the user will need to approve the token request on the website.
+	 * After approval, the user can copy the app token (it's a string) into your app.
+	 */
 	suspend fun requestToken(userId: String, appName: String, appPermissionIds: List<String>): AppTokenRequestData
 
 	@KVBindingRoute("apps/tokenRequests")
