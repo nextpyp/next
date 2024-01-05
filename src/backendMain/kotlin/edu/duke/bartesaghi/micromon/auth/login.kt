@@ -3,6 +3,7 @@ package edu.duke.bartesaghi.micromon.auth
 import de.mkammerer.argon2.Argon2Factory
 import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.mongo.Database
+import edu.duke.bartesaghi.micromon.services.AppPermission
 import edu.duke.bartesaghi.micromon.services.AuthType
 import io.ktor.application.ApplicationCall
 import io.ktor.request.*
@@ -125,7 +126,7 @@ fun ApplicationCall.auth(): User? {
 
 	// open endpoints don't require a authentication
 	val path = request.path()
-	if (AppPermission.OPEN_ENDPOINTS.any { pathMatchesEndpoint(path, it) }) {
+	if (AppPermission.Open.endpoints().any { pathMatchesEndpoint(path, it) }) {
 		return null
 	}
 
@@ -286,7 +287,7 @@ fun ApplicationCall.authApp(userId: String, token: String): User? {
 		?: return null
 
 	// remove administrator access, unless explicitly granted by the token permissions
-	if (AppPermission.ADMIN.appPermissionId !in tokenInfo.appPermissionIds) {
+	if (AppPermission.Admin.appPermissionId !in tokenInfo.appPermissionIds) {
 		user = user.withoutPermission(User.Permission.Admin)
 	}
 
@@ -298,8 +299,8 @@ fun ApplicationCall.authApp(userId: String, token: String): User? {
 	// check the endpoint permissions
 	val tokenEndpoints = tokenInfo.appPermissionIds
 		.map { AppPermission[it] ?: throw deny() }
-		.flatMap { it.endpoints }
-	val authorizedEndpoints = AppPermission.OPEN_ENDPOINTS + tokenEndpoints
+		.flatMap { it.endpoints() }
+	val authorizedEndpoints = AppPermission.Open.endpoints() + tokenEndpoints
 	if (authorizedEndpoints.none { pathMatchesEndpoint(path, it) }) {
 		throw deny()
 	}

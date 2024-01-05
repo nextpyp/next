@@ -1,5 +1,6 @@
 package edu.duke.bartesaghi.micromon
 
+import edu.duke.bartesaghi.micromon.auth.AppEndpoints
 import edu.duke.bartesaghi.micromon.auth.auth
 import edu.duke.bartesaghi.micromon.jobs.JobRunner
 import edu.duke.bartesaghi.micromon.mongo.Database
@@ -189,6 +190,7 @@ fun Application.main() {
 	Session.init()
 	Workflows.init()
 	SessionExport.init()
+	AppEndpoints.init()
 
 	// install request metrics last, so it gets events after routing does
 	install(RequestMetrics)

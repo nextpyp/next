@@ -14,6 +14,8 @@ object Resources {
 	private var loader: Class<*>? = null
 	private val loaderOrThrow get() = loader ?: throw NoSuchElementException("no classloader set yet")
 
+	val packageName: String = this::class.java.packageName
+
 	fun init(loader: Class<*>) {
 		this.loader = loader
 	}

@@ -24,8 +24,9 @@ object RealTimeServices {
 	}
 
 	@ExportRealtimeService("Project",
-		messagesC2S = arrayOf(RealTimeC2S.ListenToProject::class),
-		messagesS2C = arrayOf(
+		AppPermission.ProjectListen,
+		messagesC2S = [RealTimeC2S.ListenToProject::class],
+		messagesS2C = [
 			RealTimeS2C.ProjectStatus::class,
 			RealTimeS2C.ProjectRunInit::class,
 			RealTimeS2C.ProjectRunStart::class,
@@ -38,7 +39,7 @@ object RealTimeServices {
 			RealTimeS2C.ClusterJobArrayStart::class,
 			RealTimeS2C.ClusterJobArrayEnd::class,
 			RealTimeS2C.ClusterJobEnd::class
-		)
+		]
 	)
 	val project by RealTimeService()
 

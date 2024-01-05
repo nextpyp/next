@@ -20,7 +20,7 @@ import kotlinx.serialization.modules.subclass
 @ExportService("Projects")
 interface IProjectsService {
 
-	@ExportServiceFunction
+	@ExportServiceFunction(AppPermission.ProjectList)
 	@KVBindingRoute("projects/list")
 	suspend fun list(userId: String): List<ProjectData>
 

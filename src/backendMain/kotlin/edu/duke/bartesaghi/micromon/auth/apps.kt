@@ -1,16 +1,21 @@
 package edu.duke.bartesaghi.micromon.auth
 
 import de.mkammerer.argon2.Argon2Factory
+import edu.duke.bartesaghi.micromon.Resources
 import edu.duke.bartesaghi.micromon.base62Decode
 import edu.duke.bartesaghi.micromon.base62Encode
 import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.mongo.getListOfStrings
 import edu.duke.bartesaghi.micromon.mongo.getStringId
-import edu.duke.bartesaghi.micromon.services.AppPermissionData
-import edu.duke.bartesaghi.micromon.services.AppTokenData
-import edu.duke.bartesaghi.micromon.services.AppTokenRequestData
+import edu.duke.bartesaghi.micromon.services.*
+import io.kvision.annotations.KVBindingRoute
 import org.bson.Document
+import org.reflections.Reflections
+import org.reflections.scanners.Scanners
 import java.security.SecureRandom
+import kotlin.reflect.full.findAnnotation
+import kotlin.reflect.full.functions
+import kotlin.reflect.full.memberProperties
 
 
 /**
@@ -123,89 +128,6 @@ class AppTokenInfo(
 }
 
 
-data class AppPermission(
-	val appPermissionId: String,
-	/** intended for users to understand */
-	val description: String,
-	val endpoints: List<String>
-) {
-
-	companion object {
-
-		private val permissions = HashMap<String,AppPermission>()
-
-		private fun AppPermission.add(): AppPermission {
-			if (permissions.containsKey(appPermissionId)) {
-				throw IllegalStateException("app permissions with id=$appPermissionId already defined")
-			}
-			permissions[appPermissionId] = this
-			return this
-		}
-
-		val ADMIN = AppPermission(
-			"admin",
-			"""
-				|Use your administrator access, if you have it.
-				|This permission would allow the app to, for example, take actions
-				|on behalf of others users using the administrator permission on your account. 
-			""".trimMargin(),
-			emptyList()
-		).add()
-
-		val PROJECT_LIST = AppPermission(
-			"project_list",
-			"""
-				|See a list of all of your projects.
-			""".trimMargin(),
-			listOf(
-				"/kv/projects/list"
-			)
-		).add()
-
-		val PROJECT_REALTIME = AppPermission(
-			"project_listen",
-			"""
-				|Listen to your project and its running jobs in real-time.
-			""".trimMargin(),
-			listOf(
-				"/ws/project"
-			)
-		).add()
-
-		// TODO: expose interesting parts of the API
-
-		/** endpoints everyone can access even without a valid token */
-		val OPEN_ENDPOINTS = listOf(
-			"/kv/apps/version",
-			"/kv/apps/requestToken"
-		)
-
-
-		operator fun get(appPermissionId: String): AppPermission? =
-			permissions[appPermissionId]
-
-		fun getOrThrow(appPermissionId: String): AppPermission =
-			get(appPermissionId)
-				?: throw NoSuchElementException("no app permission $appPermissionId")
-
-		fun toDataUnknown(appPermissionId: String) =
-			AppPermissionData(
-				appPermissionId,
-				null
-			)
-	}
-
-	fun toData() = AppPermissionData(
-		appPermissionId,
-		description
-	)
-}
-
-fun AppPermission?.toData(appPermissionId: String) =
-	this?.toData()
-		?: AppPermission.toDataUnknown(appPermissionId)
-
-
 class AppTokenRequest(
 	val requestId: String,
 	val userId: String,
@@ -262,3 +184,55 @@ class AppTokenRequest(
 		return token to info
 	}
 }
+
+
+object AppEndpoints {
+
+	private val endpoints = HashMap<String,ArrayList<String>>()
+
+	init {
+
+		// look for regular services
+		val services = Reflections(Resources.packageName)
+			.get(
+				Scanners.TypesAnnotated.with(ExportService::class.java)
+					.asClass<Class<*>>()
+			)
+			.map { it.kotlin }
+		for (service in services) {
+
+			for (func in service.functions) {
+				val export = func.findAnnotation<ExportServiceFunction>()
+					?: continue
+				val route = func.findAnnotation<KVBindingRoute>()
+					?: throw NoSuchElementException("Exported service function has no KVBindingRoute annotation")
+				val endpoint = "/kv/${route.route}"
+				add(endpoint, export.permission)
+			}
+		}
+
+		// look for realtime services
+		for (prop in RealTimeServices::class.memberProperties) {
+			val export = prop.findAnnotation<ExportRealtimeService>()
+				?: continue
+			val endpoint = "/ws/${prop.name}"
+			add(endpoint, export.permission)
+		}
+	}
+
+	fun init() {
+		// stub function to make sure init block gets called at startup
+	}
+
+	private fun add(endpoint: String, permission: AppPermission) {
+		endpoints
+			.getOrPut(permission.appPermissionId) { ArrayList() }
+			.add(endpoint)
+	}
+
+	operator fun get(id: String): List<String> =
+		endpoints[id] ?: emptyList()
+}
+
+fun AppPermission.endpoints(): List<String> =
+	AppEndpoints[appPermissionId]

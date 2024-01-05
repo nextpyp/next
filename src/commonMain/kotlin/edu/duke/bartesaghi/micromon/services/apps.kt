@@ -13,14 +13,14 @@ import kotlinx.serialization.Serializable
  */
 interface IAppsService {
 
-	@ExportServiceFunction
+	@ExportServiceFunction(AppPermission.Open)
 	@KVBindingRoute("apps/version")
 	/**
 	 * Returns the version number of NextPYP
 	 */
 	suspend fun version(): String
 
-	@ExportServiceFunction
+	@ExportServiceFunction(AppPermission.Open)
 	@KVBindingRoute("apps/requestToken")
 	/**
 	 * Request an app token for your app on behalf of a specific user.

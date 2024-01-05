@@ -110,6 +110,12 @@ class Model {
 
 		var outer: Type? = null
 
+		val names: String get() =
+			ancestry.reversed().joinToString(".") { it.name }
+
+		val id: String get() =
+			typeId(packageName, names)
+
 		/**
 		 * Python itself technically supports nested classes, but apparently no one actually uses them,
 		 * so they're not supported by tooling like Sphinx.
@@ -117,9 +123,6 @@ class Model {
 		 */
 		val flatName: String get() =
 			ancestry.reversed().joinToString("") { it.name }
-
-		val id: String get() =
-			typeId(packageName, ancestry.reversed().joinToString(".") { it.name })
 
 		fun descendents(out: ArrayList<Type> = ArrayList()): ArrayList<Type> {
 			for (inner in inners) {
