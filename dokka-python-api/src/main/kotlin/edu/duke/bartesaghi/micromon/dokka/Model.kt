@@ -1,7 +1,6 @@
 package edu.duke.bartesaghi.micromon.dokka
 
 import org.jetbrains.dokka.links.DRI
-import org.jetbrains.dokka.model.doc.DocumentationNode
 
 
 private const val PP = "edu.duke.bartesaghi.micromon"
@@ -79,6 +78,9 @@ class Model {
 
 		val innerName: String get() =
 			name.split('.').last()
+
+		val flatName: String get() =
+			name.split('.').joinToString("")
 	}
 
 	data class Type(
@@ -108,11 +110,16 @@ class Model {
 
 		var outer: Type? = null
 
-		val names: String get() =
-			ancestry.reversed().joinToString(".") { it.name }
+		/**
+		 * Python itself technically supports nested classes, but apparently no one actually uses them,
+		 * so they're not supported by tooling like Sphinx.
+		 * So just flatten them into top-level classes.
+		 */
+		val flatName: String get() =
+			ancestry.reversed().joinToString("") { it.name }
 
 		val id: String get() =
-			typeId(packageName, names)
+			typeId(packageName, ancestry.reversed().joinToString(".") { it.name })
 
 		fun descendents(out: ArrayList<Type> = ArrayList()): ArrayList<Type> {
 			for (inner in inners) {
@@ -200,3 +207,11 @@ class Model {
 		val text: String
 	)
 }
+
+
+/**
+ * Sphinx shows very different results (and they look bad) when you don't have any text in the docstring,
+ * so make sure we always show something, even if it's totally meaningless text.
+ */
+val Model.Doc?.textOrUndocumented: String get() =
+	this?.text ?: "(no description yet)"

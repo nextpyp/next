@@ -12,22 +12,6 @@ import kotlin.io.path.bufferedWriter
  */
 class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 
-	companion object {
-
-		/** a python indentation */
-		const val ind = "    "
-
-		fun ind(times: Int): String =
-			when (times) {
-				0 -> ""
-				else -> StringBuilder(ind.length*times).apply {
-					for (i in 0 until times) {
-						append(ind)
-					}
-				}.toString()
-			}
-	}
-
 	override fun render(root: RootPageNode) {
 
 		val model = (root as ModelCollector.Page).model
@@ -64,15 +48,23 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 		indent {
 
 			docstring("""
-				|All of the different services that can be accessed by the NextPYP client
+				|This class houses all of the different regular services that can be accessed by the NextPYP client,
+				|with each service exposed as a class attribute.
 				|
-				|Regular services work just like function calls. Calling a service function
-				|will cause the Python app to wait until the NextPYP website responds with the result.
+				|Each regular service contains a group of functions that work in your app just like regular functions,
+				|except the function is executed on the NextPYP website instead of in your app.
+				|Calling a service function will cause your app to send a request to the NextPYP website
+				|and then wait until the response arrives.
+				|
+				|Regular services are different from realtime services. To learn more about realtime services,
+				|see :py:class:`.RealtimeServices`.
 				|
 				|Examples
 				|--------
 				|
-				|Call a simple service::
+				|Call the ``list`` functon of the ``projects`` service:
+				|
+				|.. code-block:: python
 				|
 				|	projects = client.services.projects.list('user_id')
 			""")
@@ -123,21 +115,26 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 				|messages to/from the website. This technique results in a lower event latency
 				|than more traditional connection polling techniques, and can be more efficient with network resources as well.
 				|
+				|Realtime services are different from regular services. To learn more about regular services,
+				|see :py:class:`.Services`.
+				|
 				|Examples
 				|--------
 				|
-				|Call a realtime service::
+				|Call a realtime service:
+				|
+				|.. code-block:: python
 				|
 				|	async with client.realtime_services.project as project:
 				|	
-				|		await project.send_listen_to_project(RealTimeC2S.ListenToProject(
+				|		await project.send_listen_to_project(RealTimeC2SListenToProject(
 				|			user_id='user_id',
 				|			project_id='project_id'
 				|		))
 				|		
 				|		msg = await project.recv()
 				|		match type(msg):
-				|			case RealTimeS2C.ProjectStatus:
+				|			case RealTimeS2CProjectStatus:
 				|				print(f'project status: {msg}')
 				|			case _:
 				|				print(f'received other msg: {msg}')
@@ -153,17 +150,17 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 					val name = realtimeService.name.caseCamelToSnake()
 					val path = "'${realtimeService.path}'"
 
-					writeln("self.$name = RealtimeService(client, $path, ${realtimeService.name}RealtimeServiceConnection)")
+					writeln("self.$name: RealtimeService[${realtimeService.name}RealtimeServiceConnection] = RealtimeService(client, $path, ${realtimeService.name}RealtimeServiceConnection)")
 
 					docstring(run {
 
-						val header = realtimeService.doc?.text ?: "(not documented yet)"
+						val header = realtimeService.doc.textOrUndocumented
 
 						// write the message types into the docstring as well
 						val c2s = realtimeService.messagesC2S
-							.map { "* :py:class:`.${it.name}`" }
+							.map { "* :py:class:`.${it.flatName}`" }
 						val s2c = realtimeService.messagesS2C
-							.map { "* :py:class:`.${it.name}`" }
+							.map { "* :py:class:`.${it.flatName}`" }
 
 						"""
 						|$header
@@ -239,7 +236,7 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 
 				// copy the function kdocs, if any, into the Python docstring
 				// but make sure something gets written, or Sphinx will do weird stuff
-				docstring(func.doc?.text ?: "(no documentation yet)")
+				docstring(func.doc.textOrUndocumented)
 
 				writeln("path = '${func.path}'")
 				val argNames = func.arguments
@@ -282,7 +279,7 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 			}
 
 		// define the class
-		writeln("class ${type.name}:")
+		writeln("class ${type.flatName}:")
 		indent {
 
 			// copy the class kdocs, if any, into the Python docstring
@@ -290,7 +287,7 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 
 			writeln()
 
-			writeln("TYPE_ID: str = '${type.packageName}.${type.names}'")
+			writeln("TYPE_ID: str = '${type.packageName}.${type.flatName}'")
 
 			writeln()
 
@@ -303,7 +300,8 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 
 					for (prop in type.props) {
 						val name = prop.name.caseCamelToSnake()
-						writeln("self.$name = $name")
+						writeln("self.$name: ${prop.type.render()} = $name")
+						docstring(prop.doc.textOrUndocumented)
 					}
 				}
 			}
@@ -333,7 +331,7 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 
 			// write the deserializer
 			writeln("@classmethod")
-			writeln("def from_json(cls, json: Dict[str,Any]) -> ${type.names}:")
+			writeln("def from_json(cls, json: Dict[str,Any]) -> ${type.flatName}:")
 			indent {
 
 				docstring("Creates a new class instance from JSON")
@@ -368,7 +366,7 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 					}
 				}
 				writeln("])")
-				writeln("return f'${type.name}[{props}]'")
+				writeln("return f'${type.flatName}[{props}]'")
 			}
 
 			writeln()
@@ -385,7 +383,7 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 			// NOTE: __eq__ returns Any, not bool
 			writeln("def __eq__(self, other: object) -> Any:")
 			indent {
-				writeln("if not isinstance(other, ${type.names}):")
+				writeln("if not isinstance(other, ${type.flatName}):")
 				indent {
 					writeln("return NotImplemented")
 				}
@@ -413,13 +411,15 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 					writeln("return True  # we are all the same! =D")
 				}
 			}
+		}
 
-			// recurse
-			for (inner in type.inners) {
-				writeln()
-				writeln()
-				write(inner)
-			}
+		// recurse, but write inner classes as top-level classes
+		// NOTE: while Python itself technically supports nested classes,
+		//       basically nothing else does (like freaking Sphinx!), so don't use them
+		for (inner in type.inners) {
+			writeln()
+			writeln()
+			write(inner)
 		}
 	}
 
@@ -433,7 +433,7 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 		// define the class
 		// NOTE: string-valued enums are only allowed in Python 3.11+
 		//       so we can't use them here
-		writeln("class ${type.name}:")
+		writeln("class ${type.flatName}:")
 		indent {
 
 			// copy the enum kdocs, if any, into the Python docstring
@@ -444,7 +444,7 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 			// write the enum values
 			// NOTE: we'll assign them later to avoid circularity issues
 			for (value in values) {
-				writeln("${value.pysafe()}: ${type.name}")
+				writeln("${value.pysafe()}: ${type.flatName}")
 			}
 
 			writeln()
@@ -472,7 +472,7 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 
 			// write the deserializer
 			writeln("@classmethod")
-			writeln("def from_json(cls, name: str) -> ${type.name}:")
+			writeln("def from_json(cls, name: str) -> ${type.flatName}:")
 			indent {
 
 				docstring("Reads this enum value from JSON")
@@ -486,7 +486,7 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 						writeln("elif name == '$value':")
 					}
 					indent {
-						writeln("return ${type.name}.${value.pysafe()}")
+						writeln("return ${type.flatName}.${value.pysafe()}")
 					}
 				}
 				writeln("else:")
@@ -521,10 +521,10 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 
 			writeln()
 
-			writeln("def __iter__(self) -> Iterator[${type.name}]:")
+			writeln("def __iter__(self) -> Iterator[${type.flatName}]:")
 			indent {
 				val refs = values.joinToString(", ") {
-					"${type.name}.${it.pysafe()}"
+					"${type.flatName}.${it.pysafe()}"
 				}
 				writeln("return [$refs].__iter__()")
 			}
@@ -535,7 +535,7 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 			// NOTE: __eq__ returns Any, not bool
 			writeln("def __eq__(self, other: object) -> Any:")
 			indent {
-				writeln("if not isinstance(other, ${type.name}):")
+				writeln("if not isinstance(other, ${type.flatName}):")
 				indent {
 					writeln("return NotImplemented")
 				}
@@ -555,7 +555,7 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 
 		// assign the enum values
 		for (value in values) {
-			writeln("${type.name}.${value.pysafe()} = ${type.name}('$value')")
+			writeln("${type.flatName}.${value.pysafe()} = ${type.flatName}('$value')")
 		}
 	}
 
@@ -580,10 +580,15 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 				writeln()
 
 				val name = msg.innerName.caseCamelToSnake()
-				writeln("async def send_$name(self, msg: ${msg.name}) -> None:")
+				writeln("async def send_$name(self, msg: ${msg.flatName}) -> None:")
 				indent {
+
+					docstring("Sends a ${msg.flatName} message")
+
+					writeln()
+
 					writeln("j = msg.to_json()")
-					writeln("j['type'] = ${msg.name}.TYPE_ID")
+					writeln("j['type'] = ${msg.flatName}.TYPE_ID")
 					writeln("await self._send(j)")
 				}
 			}
@@ -591,17 +596,47 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 			writeln()
 
 			val names = realtimeService.messagesS2C
-				.joinToString(", ") { it.name }
+				.joinToString(", ") { it.flatName }
 			writeln("async def recv(self) -> Union[$names]:")
 			indent {
+				docstring(run {
+
+					val cases = realtimeService.messagesS2C
+						.joinToString("\n|") { msg ->
+							"""
+								|		case ${msg.flatName}:
+								|			print(f'received message: {msg}')
+							""".trimMargin()
+						}
+
+					"""
+					|Receives a message from the website. Could be any one of several different messages.
+					|
+					|Examples
+					|--------
+					|
+					|Receive a message from this realtime service:
+					|
+					|.. code-block:: python
+					|
+					|	msg = await project.recv()
+					|	match type(msg):
+					|$cases
+					|		case _:
+					|			raise Exception(f'received unexpected msg: {msg}')
+					"""
+				})
+
+				writeln()
+
 				writeln("msg = await self._recv()")
 				writeln("type = msg.get('type')")
 				writeln("match type:")
 				indent {
 					for (msg in realtimeService.messagesS2C) {
-						writeln("case ${msg.name}.TYPE_ID:")
+						writeln("case ${msg.flatName}.TYPE_ID:")
 						indent {
-							writeln("return ${msg.name}.from_json(msg)")
+							writeln("return ${msg.flatName}.from_json(msg)")
 						}
 					}
 					writeln("case _:")
@@ -704,7 +739,7 @@ private fun Model.TypeRef.render(): String =
 		}
 
 		// handle our types
-		in PACKAGES -> name
+		in PACKAGES -> flatName
 
 		// TODO: NEXTTIME:
 		//  Don't know how to handle type ref: TypeRef(packageName=edu.duke.bartesaghi.micromon.pyp, name=Block, params=[])
@@ -751,7 +786,7 @@ private fun Model.TypeRef.renderReader(expr: String): String =
 		}
 
 		// handle our types
-		in PACKAGES -> "$name.from_json($expr)"
+		in PACKAGES -> "$flatName.from_json($expr)"
 
 		else -> throw Error("Don't know how to read type: $this")
 	}
