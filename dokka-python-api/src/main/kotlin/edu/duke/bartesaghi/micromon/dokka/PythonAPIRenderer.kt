@@ -133,11 +133,10 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 				|		))
 				|		
 				|		msg = await project.recv()
-				|		match type(msg):
-				|			case RealTimeS2CProjectStatus:
-				|				print(f'project status: {msg}')
-				|			case _:
-				|				print(f'received other msg: {msg}')
+				|		if type(msg) is RealTimeS2CProjectStatus:
+				|			print(f'project status: {msg}')
+				|		else:
+				|			print(f'received other msg: {msg}')
 				|
 			""")
 
@@ -287,7 +286,7 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 
 			writeln()
 
-			writeln("TYPE_ID: str = '${type.packageName}.${type.flatName}'")
+			writeln("TYPE_ID: str = '${type.packageName}.${type.names}'")
 
 			writeln()
 
@@ -602,10 +601,16 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 				docstring(run {
 
 					val cases = realtimeService.messagesS2C
-						.joinToString("\n|") { msg ->
+						.withIndex()
+						.joinToString("\n|") { (i, msg) ->
+							val cond = if (i == 0) {
+								"if"
+							} else {
+								"elif"
+							}
 							"""
-								|		case ${msg.flatName}:
-								|			print(f'received message: {msg}')
+								|	$cond type(msg) is ${msg.flatName}:
+								|		print(f'received message: {msg}')
 							""".trimMargin()
 						}
 
@@ -620,10 +625,9 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 					|.. code-block:: python
 					|
 					|	msg = await project.recv()
-					|	match type(msg):
 					|$cases
-					|		case _:
-					|			raise Exception(f'received unexpected msg: {msg}')
+					|	else:
+					|		raise Exception(f'received unexpected msg: {msg}')
 					"""
 				})
 
