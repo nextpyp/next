@@ -43,6 +43,15 @@ binds="--bind $configpath:/var/micromon/config.toml"
 if [ -n "$devpath" ] ; then
   echo "looking for development files at \"$devpath\" with version $devversion ..."
 
+  libspath=$devpath/build/image/libs
+  if [ -d "$libspath" ] ; then
+    echo "using libraries folder at: $libspath"
+    binds="$binds --bind $libspath:/opt/micromon/libs"
+  else
+    echo "Error: libs folder not found at \"$libspath\""
+    exit 1
+  fi
+
   jarpath=$devpath/build/libs/micromon.jar
   if [ "$devversion" != "unspecified" ] ; then
     jarpath=$devpath/build/libs/micromon-$devversion.jar
@@ -81,6 +90,15 @@ if [ -n "$devpath" ] ; then
       binds="$binds --bind $startpath:/opt/micromon/bin/micromon.sh"
     else
       echo "Error: JVM start script not found at \"$startpath\""
+      exit 1
+    fi
+
+  clipath=$devpath/config/cli.sh
+    if [ -f "$clipath" ] ; then
+      echo "using CLI script at: $clipath"
+      binds="$binds --bind $clipath:/opt/micromon/bin/cli.sh"
+    else
+      echo "Error: CLI script not found at \"$clipath\""
       exit 1
     fi
 fi

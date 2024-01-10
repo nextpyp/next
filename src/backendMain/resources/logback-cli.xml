@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration debug="false">
+
+    <!-- NOTE: can debug logback init issues with -Dlogback.statusListenerClass=ch.qos.logback.core.status.OnConsoleStatusListener -->
+
+    <!-- turn off all logging in CLI mode, since we need a clean stdout -->
+    <root level="OFF" />
+
+</configuration>

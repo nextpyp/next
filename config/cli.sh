@@ -1,3 +1,3 @@
 #! /bin/sh
 
-java @bin/classpath.txt edu.duke.bartesaghi.micromon.CliKt $@
+java @bin/classpath.txt -Dlogback.configurationFile=logback-cli.xml edu.duke.bartesaghi.micromon.CliKt $@
