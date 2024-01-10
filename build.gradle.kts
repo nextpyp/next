@@ -438,13 +438,11 @@ afterEvaluate {
 					)
 				)
 			}
-			val dependencies = configurations["backendRuntimeClasspath"].filter { it.name.endsWith(".jar") } +
-					project.tasks["backendJar"].outputs.files +
-					project.tasks["frontendArchive"].outputs.files
+			val dependencies = project.tasks["backendJar"].outputs.files +
+				project.tasks["frontendArchive"].outputs.files
 			dependencies.forEach {
 				if (it.isDirectory) from(it) else from(zipTree(it))
 			}
-			exclude("META-INF/*.RSA", "META-INF/*.SF", "META-INF/*.DSA")
 			inputs.files(dependencies)
 			outputs.file(archiveFile)
 			duplicatesStrategy = DuplicatesStrategy.EXCLUDE
