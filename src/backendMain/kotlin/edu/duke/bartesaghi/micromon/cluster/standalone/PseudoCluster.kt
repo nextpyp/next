@@ -242,9 +242,17 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 			}
 
 			suspend fun cancel() {
-				val pid = pid ?: return
-				HostProcessor.kill(pid)
-				// TODO: do we need to forcibly terminate? after a timeout?
+				val pid = pid
+				if (pid != null) {
+					HostProcessor.kill(pid)
+					// TODO: do we need to forcibly terminate? after a timeout?
+				} else {
+					// no process to kill, so no job finished event will be sent
+					// so go straight to the job cleanup (asynchronously)
+					Backend.scope.launch {
+						jobs.jobs.taskFinished(this@Task)
+					}
+				}
 			}
 		}
 	}
