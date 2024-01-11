@@ -14,7 +14,6 @@ import edu.duke.bartesaghi.micromon.services.ClusterJobResultType
 import edu.duke.bartesaghi.micromon.services.ClusterMode
 import edu.duke.bartesaghi.micromon.services.ClusterQueues
 import edu.duke.bartesaghi.micromon.services.StreamLog
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import java.nio.file.Path
 import java.time.Instant
@@ -364,10 +363,8 @@ interface Cluster {
 				}
 
 				// cleanup remote files, eventually
-				coroutineScope {
-					launch {
-						instance.deleteFiles(listOf(clusterJob.batchPath()) + clusterJob.commands.filesToDelete(clusterJob))
-					}
+				Backend.scope.launch {
+					instance.deleteFiles(listOf(clusterJob.batchPath()) + clusterJob.commands.filesToDelete(clusterJob))
 				}
 
 				// does this have an owner that's listening?

@@ -9,7 +9,6 @@ import edu.duke.bartesaghi.micromon.services.ClusterJobResultType
 import edu.duke.bartesaghi.micromon.services.ClusterMode
 import edu.duke.bartesaghi.micromon.services.ClusterQueues
 import edu.duke.bartesaghi.micromon.services.StandaloneData
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.io.IOException
@@ -131,15 +130,6 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 			return "The job has not been started yet, but could be started at any time"
 		}
 
-		suspend fun cancel() {
-
-			canceled = true
-
-			for (task in tasks) {
-				task.cancel()
-			}
-		}
-
 
 		inner class Task(val taskId: Int, val arrayId: Int?) {
 
@@ -147,6 +137,7 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 
 			var pid: Long? = null
 			var finished: Boolean = false
+			var canceled: Boolean = false
 
 			val outPath = clusterJob.outPath(arrayId)
 			val resourceReservations = ArrayList<Resource.Reservation>()
@@ -239,20 +230,6 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 
 			fun wasStarted(): Boolean {
 				return pid != null
-			}
-
-			suspend fun cancel() {
-				val pid = pid
-				if (pid != null) {
-					HostProcessor.kill(pid)
-					// TODO: do we need to forcibly terminate? after a timeout?
-				} else {
-					// no process to kill, so no job finished event will be sent
-					// so go straight to the job cleanup (asynchronously)
-					Backend.scope.launch {
-						jobs.jobs.taskFinished(this@Task)
-					}
-				}
 			}
 		}
 	}
@@ -351,6 +328,17 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 			return job
 		}
 
+		fun removeAll(jobs: List<Job>) {
+			for (job in jobs) {
+				for (task in job.tasks) {
+					_tasksWaiting.remove(task)
+					_tasksRunning.remove(task)
+					releaseResources(task)
+				}
+				_jobs.remove(job.jobId)
+			}
+		}
+
 		operator fun get(jobId: Long): Job? =
 			_jobs[jobId]
 
@@ -366,10 +354,10 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 		suspend fun maybeStartTasks() {
 			while (true) {
 
-				// see if the next task is runnable
+				// find the next task that isn't waiting on anything or isn't canceled
 				val task = _tasksWaiting
 					.firstOrNull()
-					?.takeIf { it.waitingReason(this) == null }
+					?.takeIf { it.waitingReason(this) == null && !it.canceled && !it.job.canceled }
 					?: break
 
 				// yup, we got one
@@ -403,14 +391,7 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 			_tasksRunning.remove(task)
 
 			// release any task resources
-			for (reservation in task.resourceReservations) {
-				resources[reservation.type]?.release(reservation)
-			}
-			task.resourceReservations.clear()
-
-			// release any GPUs
-			gpus.addAll(task.reservedGpus)
-			task.reservedGpus.clear()
+			releaseResources(task)
 
 			// cleanup the job, if needed
 			if (task.job.tasks.all { it.finished }) {
@@ -420,6 +401,18 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 
 			// keep going
 			maybeStartTasks()
+		}
+
+		fun releaseResources(task: Job.Task) {
+
+			for (reservation in task.resourceReservations) {
+				resources[reservation.type]?.release(reservation)
+			}
+			task.resourceReservations.clear()
+
+			// release any GPUs
+			gpus.addAll(task.reservedGpus)
+			task.reservedGpus.clear()
 		}
 	}
 
@@ -517,14 +510,40 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 	}
 
 	override suspend fun cancel(clusterJobs: List<ClusterJob>) {
-		for (clusterJob in clusterJobs) {
-			clusterJob.findJob()?.cancel()
+
+		// lookup all the jobs before deleting anything
+		val jobs = clusterJobs
+			.mapNotNull { it.findJob() }
+
+		// pass one: update all the canceled flags first,
+		// so any concurrent signals won't try to start the canceled tasks before we get a chance to flag them
+		for (job in jobs) {
+			job.canceled = true
+			job.tasks.forEach { it.canceled = true }
+		}
+
+		// pass two: remove the jobs and tasks from the lists
+		this.jobs.use { it.removeAll(jobs) }
+
+		// pass three: actually cancel any running tasks
+		for (job in jobs) {
+			for (task in job.tasks) {
+				val pid = task.pid
+				if (!task.finished && pid != null) {
+					HostProcessor.kill(pid)
+					// TODO: do we need to forcibly terminate? after a timeout?
+					// NOTE: the job end signal will be sent by the job process before it exits
+					//       but since we already removed all the tasks and jobs, we should just ignore the signal
+				}
+			}
 		}
 	}
 
 	override suspend fun jobResult(clusterJob: ClusterJob, arrayIndex: Int?): ClusterJob.Result {
 
-		// read the output file and delete it
+		println("Standalone result $arrayIndex -> job id ${clusterJob.findJob()?.jobId}  out=${clusterJob.outPath(arrayIndex).let { path -> "$path exists? ${path.exists()}" }}") // TEMP
+
+		// try to read the output file and delete it
 		val outPath = clusterJob.outPath(arrayIndex)
 		val out = outPath
 			.takeIf { it.isRegularFile() }
@@ -532,9 +551,10 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 
 		// find the job and task, if possible
 		val job = clusterJob.findJob()
-			// no launch available, the server must have been restarted while a process was running
-			// there's nothing to cleanup, so just pretend it was successful
-			?: return ClusterJob.Result(ClusterJobResultType.Success, out)
+			// job not found: either the server was restarted while a process was running,
+			// or we canceled the job and decided to forget about it.
+			// either way, just pretend the job was canceled
+			?: return ClusterJob.Result(ClusterJobResultType.Canceled, out)
 		val task = job.tasksLookup[arrayIndex]
 			?: throw NoSuchElementException("task for array=$arrayIndex wasn't found in job ${job.jobId}")
 

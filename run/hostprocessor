@@ -49,7 +49,9 @@ EOF
       /bin/sh -c "$cmdcmds" > "$cmdout" 2>&1 &
 
       # respond with the pid
-      echo "$!" > "$pipepath"
+      cmdpid=$!
+      echo "Started job with PID=$cmdpid"
+      echo "$cmdpid" > "$pipepath"
     ;;
 
 
@@ -67,6 +69,7 @@ EOF
     "kill")
 
       # the cmdbody is the pid
+      # NOTE: by default, `kill` sends SIGTERM
       kill "$cmdbody"
 
       # send some kind of response back
