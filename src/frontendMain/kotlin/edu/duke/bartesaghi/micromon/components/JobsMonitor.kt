@@ -193,7 +193,7 @@ class JobsMonitor(
 					)
 					if (cjob.arrayInfo != null) {
 						entry.numStarted = cjob.arrayInfo.started
-						entry.arrayFinished(cjob.arrayInfo.ended, cjob.arrayInfo.failed)
+						entry.arrayFinished(cjob.arrayInfo.ended, cjob.arrayInfo.canceled, cjob.arrayInfo.failed)
 					}
 					clusterJobEntries[cjob.clusterJobId] = entry
 					clusterJobsElem.add(entry.elem)
@@ -223,21 +223,21 @@ class JobsMonitor(
 			}
 
 			fun finishClusterJobArray(msg: RealTimeS2C.ClusterJobArrayEnd) {
-				clusterJobEntries[msg.clusterJobId]?.arrayFinished(msg.numEnded, msg.numFailed)
+				clusterJobEntries[msg.clusterJobId]?.arrayFinished(msg.numEnded, msg.numCanceled, msg.numFailed)
 			}
 
 			fun finishClusterJob(msg: RealTimeS2C.ClusterJobEnd) {
-				clusterJobEntries[msg.clusterJobId]?.run {
+				clusterJobEntries[msg.clusterJobId]?.let { job ->
 
-					status = when (msg.resultType) {
+					job.status = when (msg.resultType) {
 						ClusterJobResultType.Success -> RunStatus.Succeeded
 						ClusterJobResultType.Failure -> RunStatus.Failed
 						ClusterJobResultType.Canceled -> RunStatus.Canceled
 					}
 
-					// sometimes we don't get finish events for each array job... I guess they get lost somehow
+					// HACKHACK: sometimes we don't get finish events for each array job... I guess they get lost somehow
 					// but since the whole cluster job is done, just mark all the array jobs done too
-					arrayFinished(numStarted, numFailed)
+					job.arrayFinished(job.numStarted, job.numCanceled, job.numFailed)
 				}
 			}
 
@@ -285,13 +285,16 @@ class JobsMonitor(
 						updateCount()
 					}
 
-				var numFinished = 0
+				var numEnded = 0
+					private set
+				var numCanceled = 0
 					private set
 				var numFailed = 0
 					private set
 
-				fun arrayFinished(numFinished: Int, numFailed: Int) {
-					this.numFinished = numFinished
+				fun arrayFinished(numEnded: Int, numCanceled: Int, numFailed: Int) {
+					this.numEnded = numEnded
+					this.numCanceled = numCanceled
 					this.numFailed = numFailed
 					updateCount()
 				}
@@ -365,9 +368,16 @@ class JobsMonitor(
 							}
 						}
 
-						val numRunning = numStarted - numFinished
-						val numWaiting = arraySize - numStarted
-						val numSucceeded = numFinished - numFailed
+						val numRunning = numStarted - numEnded
+						var numWaiting = arraySize - numStarted
+						val numSucceeded = numEnded - numFailed - numCanceled
+						var numCanceled = numCanceled
+
+						// HACKHACK: if the job was canceled, then all the waiting jobs are canceled too
+						if (status == RunStatus.Canceled) {
+							numCanceled += numWaiting
+							numWaiting = 0
+						}
 
 						if (numWaiting > 0) {
 							group(numWaiting, IconWaiting)
@@ -377,6 +387,9 @@ class JobsMonitor(
 						}
 						if (numSucceeded > 0) {
 							group(numSucceeded, IconSucceeded)
+						}
+						if (numCanceled > 0) {
+							group(numCanceled, IconCanceled)
 						}
 						if (numFailed > 0) {
 							group(numFailed, IconFailed)
