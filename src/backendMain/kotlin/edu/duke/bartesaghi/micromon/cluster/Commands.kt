@@ -257,15 +257,20 @@ fun singularityWrapper(job: ClusterJob, container: Container): (String) -> Strin
 	singularityArgs += listOf("--pwd \"${job.dir}\"")
 
 	// turn on NVidia support if the job was submitted to a GPU queue
-	job.args
+	val isGpuQueue = job.args
 		.firstOrNull { it.startsWith("--partition=") }
 		?.let { arg ->
 			val queue = arg.split("=").getOrNull(1) ?: ""
 			val gpuQueues = Backend.config.slurm?.gpuQueues
-			if (gpuQueues != null && queue in gpuQueues) {
-				singularityArgs.add("--nv")
-			}
+			gpuQueues != null && queue in gpuQueues
 		}
+		?: false
+	// or if the job requested a GPU specifically
+	val requestedGpu = job.args
+		.any { it.startsWith("--gres=gpu:") }
+	if (isGpuQueue || requestedGpu) {
+		singularityArgs.add("--nv")
+	}
 
 	// build the singularity command
 	val prefix = mutableListOf("singularity --quiet exec",
