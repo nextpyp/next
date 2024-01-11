@@ -547,6 +547,9 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 				}
 			}
 		}
+
+		// now that we've released resources, try to start more jobs
+		this.jobs.use { it.maybeStartTasks() }
 	}
 
 	override suspend fun jobResult(clusterJob: ClusterJob, arrayIndex: Int?): ClusterJob.Result {
