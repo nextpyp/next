@@ -118,16 +118,27 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 
 			// if the first task was started, then we're not waiting
 			val firstTask = tasks.first()
-			if (firstTask.wasStarted()) {
-				return "The job has been started"
+			if (firstTask.started) {
+				val pid = firstTask.pid
+				return if (pid != null) {
+					"The job is running under PID $pid"
+				} else {
+					"The job has been submitted and should start running soon"
+				}
 			}
 
 			// otherwise, look at its waiting reason
 			firstTask.waitingReason(jobs)
 				?.let { return it.msg }
 
-			// first task is not waiting, it should be startable
-			return "The job has not been started yet, but could be started at any time"
+			// we shouldn't be able to query the waiting reason on a canceled job, but just in case ...
+			if (canceled) {
+				return "The job has been canceled and will not start"
+			}
+
+			// no reason the job shouldn't have started yet
+			// something interesting is going on if we ever get here
+			return "The job has not been started yet, but is elligible to be started"
 		}
 
 
@@ -135,6 +146,7 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 
 			val job: Job get() = this@Job
 
+			var started: Boolean = false
 			var pid: Long? = null
 			var finished: Boolean = false
 			var canceled: Boolean = false
@@ -193,6 +205,8 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 
 			suspend fun start() {
 
+				started = true
+
 				val commands = ArrayList<String>()
 
 				// emulate the SLURM environment variables
@@ -226,10 +240,6 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 				commands.add(scriptPath.toString())
 
 				pid = HostProcessor.exec(commands.joinToString(" "), outPath)
-			}
-
-			fun wasStarted(): Boolean {
-				return pid != null
 			}
 		}
 	}
@@ -540,8 +550,6 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 	}
 
 	override suspend fun jobResult(clusterJob: ClusterJob, arrayIndex: Int?): ClusterJob.Result {
-
-		println("Standalone result $arrayIndex -> job id ${clusterJob.findJob()?.jobId}  out=${clusterJob.outPath(arrayIndex).let { path -> "$path exists? ${path.exists()}" }}") // TEMP
 
 		// try to read the output file and delete it
 		val outPath = clusterJob.outPath(arrayIndex)
