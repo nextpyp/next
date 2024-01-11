@@ -194,6 +194,17 @@ export NEXTPYP_DATABASE_MEMGB
 NEXTPYP_OOMDUMP=$($cli oomdump)
 export NEXTPYP_OOMDUMP
 
+
+# The website tries to query the number of available GPUs in standalone mode
+# so we need to get apptainer to bind in the GPU libraries.
+# We can just always ask apptainer to do it whether or not Cuda is even available on this host,
+# but apptainer will show scary warnings in the console if it's not.
+# Ideally, we'd only turn on --nv if we knew Cuda was available, but detecting that in a shell script
+# is likely to be imperfect, so just always turn it on and hope no one complains about the apptainer warnings.
+gpus=--nv
+
+
 # finally, start the container
 echo "Starting singularity container ..."
-singularity instance start $binds --writable-tmpfs --no-home nextPYP.sif nextPYP
+echo "NOTE:    If you see warnings immediately below that nv files or libraries can't be found, those warnings are safe to ignore."
+singularity instance start $binds --writable-tmpfs --no-home $gpus nextPYP.sif nextPYP

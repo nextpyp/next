@@ -1,8 +1,11 @@
 package edu.duke.bartesaghi.micromon
 
+import com.sun.management.UnixOperatingSystemMXBean
 import edu.duke.bartesaghi.micromon.cluster.Commands
+import edu.duke.bartesaghi.micromon.linux.countCudaGpus
 import edu.duke.bartesaghi.micromon.services.AuthType
 import org.tomlj.Toml
+import java.lang.management.ManagementFactory
 import java.nio.file.Path
 import java.nio.file.Paths
 import kotlin.io.path.div
@@ -118,13 +121,22 @@ class Config(toml: String) {
 	val slurm: Slurm?
 
 	data class Standalone(
-		val availableCpus: Int = defaultAvailableCpus
+		val availableCpus: Int = defaultAvailableCpus,
+		val availableMemoryGiB: Int = defaultAvailableMemoryGiB,
+		val availableGpus: Int = defaultAvailableGpus
 	) {
 
 		val commandsConfig = Commands.Config()
 
 		companion object {
 			val defaultAvailableCpus = max(1, Runtime.getRuntime().availableProcessors() - 1)
+			val defaultAvailableMemoryGiB = run {
+				val os = ManagementFactory.getOperatingSystemMXBean() as UnixOperatingSystemMXBean
+				// by default, only manage 80% of total memory
+				val totalBytes = (os.totalPhysicalMemorySize*0.8).toLong()
+				(totalBytes/1024/1024/1024).toInt()
+			}
+			val defaultAvailableGpus = countCudaGpus()
 		}
 	}
 	val standalone: Standalone?
@@ -212,7 +224,9 @@ class Config(toml: String) {
 
 		standalone = doc.getTable("standalone")?.run {
 			Standalone(
-				availableCpus = getInt("availableCpus") ?: Standalone.defaultAvailableCpus
+				availableCpus = getInt("availableCpus") ?: Standalone.defaultAvailableCpus,
+				availableMemoryGiB = getInt("availabileMemoryGiB") ?: Standalone.defaultAvailableMemoryGiB,
+				availableGpus = getInt("availableGpus") ?: Standalone.defaultAvailableGpus
 			)
 		}
 
@@ -295,7 +309,9 @@ class Config(toml: String) {
 			val standalone = standalone ?: Standalone()
 			append("""
 				|[standalone]
-				|   available cpus:  ${standalone.availableCpus}
+				|     available cpus:  ${standalone.availableCpus}
+				|   available memory:  ${standalone.availableMemoryGiB} GiB
+				|     available gpus:  ${standalone.availableGpus}
 				|
 			""".trimMargin())
 		}

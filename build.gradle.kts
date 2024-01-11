@@ -233,6 +233,16 @@ kotlin {
 					but upgrading to a new DB version apparently requires a database migration, which we'd like to avoid.
 					So we'll use 0.2.3 of the WebP jar which depends on a libc that is present in Rocky 8.
 				*/
+
+				// CUDA libraries
+				// see: https://github.com/jcuda/jcuda-main/blob/master/USAGE.md
+				val jcudaVersion = "12.0.0"
+				implementation("org.jcuda:jcuda:$jcudaVersion") {
+					isTransitive = false
+				}
+				runtimeOnly("org.jcuda:jcuda-natives:$jcudaVersion:linux-x86_64")
+
+				// NOTE: if you change dependency libraries, run the `image` gradle task to update the `build/libs` folder
 			}
 		}
 		val backendTest by getting {

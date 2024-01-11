@@ -50,20 +50,24 @@ class AdminStandaloneTab(val elem: Container) {
 			}
 
 			// show the resources
-			elem.h2("Resources")
+			elem.h1("Resources")
 			elem.indent {
 				for (resource in data.resources) {
-					h3(resource.name)
+					h2(resource.name)
 					indent {
 						div("Available: ${resource.available}")
 						div("Used: ${resource.used}")
 						div("Total: ${resource.total}")
 					}
 				}
+				h2("Available GPU IDs")
+				indent {
+					div(data.availableGpus.joinToString(", "))
+				}
 			}
 
 			// running tasks
-			elem.h2("Running Tasks")
+			elem.h1("Running Tasks")
 			elem.indent {
 				if (data.tasksRunning.isEmpty()) {
 					div("(none)", classes = setOf("empty"))
@@ -78,7 +82,7 @@ class AdminStandaloneTab(val elem: Container) {
 			}
 
 			// waiting tasks
-			elem.h2("Waiting Tasks")
+			elem.h1("Waiting Tasks")
 			elem.indent {
 				if (data.tasksWaiting.isEmpty()) {
 					div("(none)", classes = setOf("empty"))
@@ -93,20 +97,20 @@ class AdminStandaloneTab(val elem: Container) {
 			}
 
 			// show the jobs
-			elem.h2("Jobs")
+			elem.h1("Jobs")
 			elem.indent {
 				if (data.jobs.isEmpty()) {
 					div("(none)", classes = setOf("empty"))
 				} else {
 					for (job in data.jobs) {
-						h3("${job.name} (${job.standaloneId})")
+						h2("${job.name} (${job.standaloneId})")
 						indent {
 							div("Cluster ID: ${job.clusterId}")
 							div("Owner ID: ${job.ownerId}")
 							div("Waiting Reason: ${job.waitingReason}")
 							div("Canceled: ${job.canceled}")
 
-							h4("Resources:")
+							h3("Resources Requested:")
 							indent {
 								if (job.resources.isEmpty()) {
 									div("(none)", classes = setOf("empty"))
@@ -117,19 +121,19 @@ class AdminStandaloneTab(val elem: Container) {
 								}
 							}
 
-							h4("Tasks:")
+							h3("Tasks:")
 							for (task in job.tasks) {
 								indent {
 									id = job.ref(task).taskUid()
 
-									h5("Task ${task.taskId}")
+									h4("Task ${task.taskId}")
 									indent {
 										div("Array Element: ${task.arrayId ?: "(none)"}")
 										div("Process ID: ${task.pid ?: "(none)"}")
 										div("Waiting Reason: ${task.waitingReason ?: "(none)"}")
 										div("Finished: ${task.finished}")
 
-										h6("Resources Currently Reserved:")
+										h5("Resources Currently Reserved:")
 										indent {
 											if (task.resources.isEmpty()) {
 												div("(none)", classes = setOf("empty"))
@@ -137,6 +141,7 @@ class AdminStandaloneTab(val elem: Container) {
 												for ((resource, num) in task.resources) {
 													div("$resource: $num")
 												}
+												div("GPU IDs: ${task.reservedGpus.joinToString(", ")}")
 											}
 										}
 									}

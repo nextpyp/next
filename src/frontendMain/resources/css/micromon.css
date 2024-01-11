@@ -211,6 +211,10 @@ div.views h2 {
 	font-size: 130%;
 }
 
+div.views h3 {
+	font-size: 120%;
+}
+
 div.views .highlighted {
 	background-color: #a3e9ff;
 }
@@ -3246,6 +3250,10 @@ div.file-browser .file-browser-bottom .file-browser-controls .file-browser-glob 
 
 .admin-standalone .indent {
 	padding-left: 20px;
+}
+
+.admin-standalone h1 {
+	margin-top: 40px;
 }
 
 

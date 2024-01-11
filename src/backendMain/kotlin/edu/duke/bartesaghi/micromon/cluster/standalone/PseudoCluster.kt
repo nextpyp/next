@@ -9,6 +9,7 @@ import edu.duke.bartesaghi.micromon.services.ClusterJobResultType
 import edu.duke.bartesaghi.micromon.services.ClusterMode
 import edu.duke.bartesaghi.micromon.services.ClusterQueues
 import edu.duke.bartesaghi.micromon.services.StandaloneData
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.io.IOException
@@ -35,13 +36,66 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 		val scriptPath: Path
 	) {
 
-		val created = Instant.now()
+		val created = Instant.now()!!
+
+		fun String.substringAfterFirst(c: Char): String? =
+			indexOfFirst { it == c }
+				.takeIf { it >= 0 }
+				?.let { pos -> substring(pos + 1) }
 
 		// parse the arguments
+
+		// CPU arguments will look like: --cpus-per-task=5
 		val numCpus: Int? =
 			clusterJob.args
 				.firstOrNull { it.startsWith("--cpus-per-task=") }
-				?.let { it.split("=")[1].toIntOrNull() }
+				?.substringAfterFirst('=')
+				?.let { value ->
+					when (val i = value.toIntOrNull()) {
+						null -> {
+							Backend.log.warn("--cpus-per-task value unrecognizable: $value")
+							null
+						}
+						else -> i
+					}
+				}
+
+		// memory arguments will look like: --mem=5G
+		val memGiB: Int? =
+			clusterJob.args
+				.firstOrNull { it.startsWith("--mem=") }
+				?.substringAfterFirst('=')
+				?.let { value ->
+					if (value.endsWith('G') || value.endsWith('g')) {
+						value.substring(0, value.length - 1)
+							.toIntOrNull()
+					} else {
+						Backend.log.warn("--mem value unrecognizable: $value")
+						null
+					}
+				}
+
+		// GPU arguments will look like: --gres=gpu:1
+		val numGpus: Int? =
+			clusterJob.args
+				.firstOrNull { it.startsWith("--gres=gpu:") }
+				?.substringAfterFirst('=')
+				?.let { value ->
+					when (val i = value.substringAfterFirst(':')?.toIntOrNull()) {
+						null -> {
+							Backend.log.warn("--gres value unrecognizable: $value")
+							null
+						}
+						else -> i
+					}
+				}
+
+		val requestedResources: List<Pair<Int,Resource.Type>> =
+			ArrayList<Pair<Int,Resource.Type>>().apply {
+				numCpus?.let { add(it to Resource.Type.Cpu) }
+				memGiB?.let { add(it to Resource.Type.Memory) }
+				numGpus?.let { add(it to Resource.Type.Gpu) }
+			}
 
 		// make the tasks
 		val tasks: List<Task> =
@@ -96,6 +150,7 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 
 			val outPath = clusterJob.outPath(arrayId)
 			val resourceReservations = ArrayList<Resource.Reservation>()
+			val reservedGpus = ArrayList<Int>()
 
 			fun waitingReason(jobs: Jobs): WaitingReason? {
 
@@ -107,9 +162,8 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 				}
 
 				// check resource limits
-				val numCpus = job.numCpus
-				if (numCpus != null) {
-					if (jobs.resources[Resource.Type.Cpu]?.isAvailable(numCpus) != true) {
+				for ((requested, type) in requestedResources) {
+					if (!jobs.resource(type).isAvailable(requested)) {
 						return WaitingReason.Resources
 					}
 				}
@@ -161,6 +215,16 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 				if (numCpus != null) {
 					commands.add("SLURM_CPUS_PER_TASK=$numCpus")
 				}
+				if (memGiB != null) {
+					commands.add("SBATCH_MEM_PER_NODE=${memGiB}G")
+				}
+				if (numGpus != null) {
+					commands.add("SBATCH_GRES=gpu:$numGpus")
+
+					// also restrict the Cuda devices
+					// https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#env-vars
+					commands.add("CUDA_VISIBLE_DEVICES=${reservedGpus.joinToString(",")}")
+				}
 
 				// add the job environment variables
 				for (envvar in clusterJob.env) {
@@ -193,7 +257,9 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 	private class Resource(val type: Type, val total: Int) {
 
 		enum class Type {
-			Cpu
+			Cpu,
+			Memory,
+			Gpu
 		}
 
 		data class Reservation(
@@ -237,9 +303,20 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 		val tasksRunning: Set<Job.Task> get() = _tasksRunning
 
 		val resources = listOf(
-			Resource(Resource.Type.Cpu, config.availableCpus)
-			// TODO: memory?
+			Resource(Resource.Type.Cpu, config.availableCpus),
+			Resource(Resource.Type.Memory, config.availableMemoryGiB),
+			Resource(Resource.Type.Gpu, config.availableGpus)
 		).associateBy { it.type }
+
+		fun resource(type: Resource.Type): Resource =
+			resources[type]
+				?: throw NoSuchElementException("Resource type $type is not tracked")
+
+		val gpus = ArrayList<Int>().apply {
+			for (i in 0 until config.availableGpus) {
+				add(i)
+			}
+		}
 
 
 		fun nextId(): Long {
@@ -290,9 +367,18 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 				// yup, we got one
 
 				// reserve resources for the task, if needed
-				val numCpus = task.job.numCpus
-				if (numCpus != null) {
-					task.resourceReservations.add(resources.getValue(Resource.Type.Cpu).reserve(numCpus))
+				for ((requested, type) in task.job.requestedResources) {
+					task.resourceReservations.add(resources.getValue(type).reserve(requested))
+				}
+
+				// reserve the individual GPUs, if needed
+				val numGpus = task.job.numGpus
+				if (numGpus != null) {
+					for (i in 0 until numGpus) {
+						val gpu = gpus.removeFirstOrNull()
+							?: throw NoSuchElementException("Individual GPU not available, even though GPU resource says one should be")
+						task.reservedGpus.add(gpu)
+					}
 				}
 
 				// start the task
@@ -313,6 +399,10 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 				resources[reservation.type]?.release(reservation)
 			}
 			task.resourceReservations.clear()
+
+			// release any GPUs
+			gpus.addAll(task.reservedGpus)
+			task.reservedGpus.clear()
 
 			// cleanup the job, if needed
 			if (task.job.tasks.all { it.finished }) {
@@ -481,6 +571,8 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 					}
 					.sortedBy { it.name },
 
+				availableGpus = ArrayList(jobs.gpus),
+
 				jobs = jobs.jobs.values
 					.toList()
 					.sortedBy { it.created }
@@ -490,8 +582,8 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 							clusterId = job.clusterJob.idOrThrow,
 							ownerId = job.clusterJob.ownerId,
 							name = job.clusterJob.clusterName,
-							resources = HashMap<String,Int>().apply {
-								job.numCpus?.let { this[Resource.Type.Cpu.name] = it }
+							resources = job.requestedResources.map { (requested, type) ->
+								type.toString() to requested
 							},
 							tasks = job.tasks.map { task ->
 								StandaloneData.Task(
@@ -500,6 +592,7 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 									resources = task.resourceReservations.associate { reservation ->
 										reservation.type.name to reservation.num
 									},
+									reservedGpus = ArrayList(task.reservedGpus),
 									pid = task.pid,
 									waitingReason = task.waitingReason(jobs)?.name,
 									finished = task.finished

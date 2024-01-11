@@ -105,6 +105,7 @@ data class PingResponse(
 @Serializable
 data class StandaloneData(
 	val resources: List<Resource>,
+	val availableGpus: List<Int>,
 	val jobs: List<Job>,
 	val tasksRunning: List<TaskRef>,
 	val tasksWaiting: List<TaskRef>
@@ -126,7 +127,7 @@ data class StandaloneData(
 		val clusterId: String,
 		val ownerId: String?,
 		val name: String?,
-		val resources: Map<String,Int>,
+		val resources: List<Pair<String,Int>>,
 		val tasks: List<Task>,
 		val waitingReason: String,
 		val canceled: Boolean
@@ -141,6 +142,7 @@ data class StandaloneData(
 		val taskId: Int,
 		val arrayId: Int?,
 		val resources: Map<String,Int>,
+		val reservedGpus: List<Int>,
 		val pid: Long?,
 		val waitingReason: String?,
 		val finished: Boolean
