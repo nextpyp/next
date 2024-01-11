@@ -62,7 +62,11 @@ class AdminStandaloneTab(val elem: Container) {
 				}
 				h2("Available GPU IDs")
 				indent {
-					div(data.availableGpus.joinToString(", "))
+					val gpuIds = data.availableGpus
+						.takeIf { it.isNotEmpty() }
+						?.joinToString(", ")
+						?: "(none)"
+					div(gpuIds)
 				}
 			}
 
@@ -141,7 +145,11 @@ class AdminStandaloneTab(val elem: Container) {
 												for ((resource, num) in task.resources) {
 													div("$resource: $num")
 												}
-												div("GPU IDs: ${task.reservedGpus.joinToString(", ")}")
+												task.reservedGpus
+													.takeIf { it.isNotEmpty() }
+													?.let { gpuIds ->
+														div("GPU IDs: ${gpuIds.joinToString(", ")}")
+													}
 											}
 										}
 									}
