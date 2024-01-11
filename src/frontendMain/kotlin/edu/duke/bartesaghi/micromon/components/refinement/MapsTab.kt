@@ -218,7 +218,11 @@ class MapsTab(
 
 			fsc.data = reconstructionPlotData
 			fsc.update()
-			hist.data = reconstructionPlotData
+			hist.data = OrientationDefocusPlots.Data(
+				job,
+				reconstruction,
+				reconstructionPlotData
+			)
 			hist.update()
 			plot.data = reconstructionPlotData
 			plot.update()

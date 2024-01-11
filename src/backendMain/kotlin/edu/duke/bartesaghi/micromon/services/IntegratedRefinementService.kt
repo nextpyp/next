@@ -84,6 +84,19 @@ actual class IntegratedRefinementService : IIntegratedRefinementService, Service
 					}
 				}
 
+				get("bild") {
+					call.respondExceptions {
+
+						// parse args
+						val jobId = parseJobId()
+						val classNum = parseClass()
+						val iteration = parseIteration()
+
+						val bytes = service.getBildData(jobId, classNum, iteration)
+						call.respondBytes(bytes, ContentType.Application.OctetStream)
+					}
+				}
+
 				route("images") {
 
 					get("map/{size}") {
@@ -252,6 +265,12 @@ actual class IntegratedRefinementService : IIntegratedRefinementService, Service
 	fun getPlotData(jobId: String, classNum: Int, iteration: Int): ByteArray {
 		val job = jobId.authJob(ProjectPermission.Read).job
 		val path = job.mapsDir / "${Reconstruction.filenameFragment(job, classNum, iteration)}_plots.json"
+		return path.readBytes()
+	}
+
+	fun getBildData(jobId: String, classNum: Int, iteration: Int): ByteArray {
+		val job = jobId.authJob(ProjectPermission.Read).job
+		val path = job.mapsDir / "${Reconstruction.filenameFragment(job, classNum, iteration)}.bild"
 		return path.readBytes()
 	}
 

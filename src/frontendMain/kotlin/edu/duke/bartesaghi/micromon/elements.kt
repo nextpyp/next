@@ -559,6 +559,23 @@ class HtmlIntAttribute(val name: String) {
 	}
 }
 
+class HtmlStringAttribute(val name: String) {
+
+	operator fun getValue(self: Component, property: KProperty<*>): String? =
+		self.getAttribute(name)
+
+	operator fun setValue(self: Component, property: KProperty<*>, value: String?) {
+		if (value != null) {
+			self.setAttribute(name, value)
+		} else {
+			self.removeAttribute(name)
+		}
+	}
+}
+
 // weird, no KVision accessors for basic table attributes?
 var Td.colspan by HtmlIntAttribute("colspan")
 var Td.rowspan by HtmlIntAttribute("rowspan")
+
+
+var Link.download by HtmlStringAttribute("download")
