@@ -3,7 +3,8 @@ package edu.duke.bartesaghi.micromon
 import edu.duke.bartesaghi.micromon.projects.ProjectEventListeners
 import edu.duke.bartesaghi.micromon.pyp.Args
 import edu.duke.bartesaghi.micromon.pyp.fromToml
-import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import org.slf4j.LoggerFactory
 import java.nio.file.Paths
 
@@ -64,5 +65,5 @@ object Backend {
 	 * coroutine scope tied to this Backend singleton instance
 	 * use `Backend.scope.launch()` instead of eg `GlobalScope.launch()`
 	 */
-	val scope = MainScope()
+	val scope = CoroutineScope(Dispatchers.Default)
 }
