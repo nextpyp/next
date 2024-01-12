@@ -174,7 +174,7 @@ Restart=always
 RestartSec=1
 WorkingDirectory=$here
 User=$username
-Environment=PYP_CONFIG=$configPath
+Environment=PYP_CONFIG=$configPath PYP_HOSTPROCESSOR_CLEAN=yup
 ExecStart=/usr/bin/nextpyp-start
 ExecStop=/usr/bin/nextpyp-stop
 

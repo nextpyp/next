@@ -149,9 +149,17 @@ binds="$binds --bind $localdir --bind $shareddir $configbinds"
 
 if [ -z "$PYP_HOSTPROCESSOR_OFF" ]; then
 
-  # start the host processor on a named pipe, so the container can launch processes on the host OS
   pidpath="/tmp/micromon.hostprocessor.pid"
   pipepath="/tmp/micromon.hostprocessor.pipe"
+
+  # clean files if explicitly asked
+  if [ -n "$PYP_HOSTPROCESSOR_CLEAN" ]; then
+    echo "Cleaning any previous hostprocessor files"
+    rm "$pidpath" 2> /dev/null || true
+    rm "$pipepath" 2> /dev/null || true
+  fi
+
+  # start the host processor on a named pipe, so the container can launch processes on the host OS
   if [ -f "$pidpath" ]; then
     echo "A host processor is already running. Stop it before starting Micromon."
     echo "And then delete the files $pidpath and $pipepath"
