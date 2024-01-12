@@ -157,6 +157,11 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 
 			fun waitingReason(jobs: Jobs): WaitingReason? {
 
+				// if we already started, we're not waiting
+				if (started) {
+					return null
+				}
+
 				// see if the dependencies are finished
 				for (depId in job.depIds) {
 					if (!dependencySatisfied(jobs, depId)) {
