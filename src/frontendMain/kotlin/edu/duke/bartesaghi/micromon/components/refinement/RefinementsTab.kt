@@ -135,8 +135,8 @@ class RefinementsTab(
 
 			override fun galleryHtml(container: FlowOrPhrasingContent, job: JobData, target: HasIDIterated) {
 				container.img(src = "${urlBase(job, target)}/scores") {
-					width = "500"
-					height = "160"
+					width = "250"
+					height = "200"
 				}
 			}
 
@@ -153,7 +153,7 @@ class RefinementsTab(
 			}
 
 			override suspend fun loadImageSizes(job: JobData, target: HasIDIterated) =
-				ImageSizes(500, 160)
+				ImageSizes(250, 200)
 		};
 
 		abstract fun galleryHtml(container: FlowOrPhrasingContent, job: JobData, target: HasIDIterated)
