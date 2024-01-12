@@ -27,7 +27,7 @@ class TomographyRelionDataJob(
 	companion object : JobInfo {
 
 		override val config = TomographyRelionDataNodeConfig
-		override val dataType = null
+		override val dataType = JobInfo.DataType.TiltSeries
 
 		override fun fromDoc(doc: Document) = TomographyRelionDataJob(
 			doc.getString("userId"),

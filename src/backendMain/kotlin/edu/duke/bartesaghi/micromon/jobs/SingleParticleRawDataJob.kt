@@ -27,7 +27,7 @@ class SingleParticleRawDataJob(
 	companion object : JobInfo {
 
 		override val config = SingleParticleRawDataNodeConfig
-		override val dataType = null
+		override val dataType = JobInfo.DataType.Micrograph
 
 		override fun fromDoc(doc: Document) = SingleParticleRawDataJob(
 			doc.getString("userId"),

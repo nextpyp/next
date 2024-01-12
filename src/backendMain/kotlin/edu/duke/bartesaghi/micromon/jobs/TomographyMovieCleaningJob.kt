@@ -27,7 +27,7 @@ class TomographyMovieCleaningJob(
 	companion object : JobInfo {
 
 		override val config = TomographyMovieCleaningNodeConfig
-		override val dataType = null
+		override val dataType = JobInfo.DataType.TiltSeries
 
 		override fun fromDoc(doc: Document) = TomographyMovieCleaningJob(
 			doc.getString("userId"),

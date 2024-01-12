@@ -27,7 +27,7 @@ class TomographyFineRefinementJob(
 	companion object : JobInfo {
 
 		override val config = TomographyFineRefinementNodeConfig
-		override val dataType = null
+		override val dataType = JobInfo.DataType.TiltSeries
 
 		override fun fromDoc(doc: Document) = TomographyFineRefinementJob(
 			doc.getString("userId"),
