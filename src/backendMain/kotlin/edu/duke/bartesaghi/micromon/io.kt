@@ -611,7 +611,7 @@ suspend inline fun ApplicationCall.respondExceptions(block: () -> Unit) =
 			is FileNotFoundException,
 			is NotFoundException -> {
 				// remap to an HTTP 404
-				respond(HttpStatusCode.NotFound, "")
+				respond(HttpStatusCode.NotFound, "Not Found")
 			}
 
 			else -> {
