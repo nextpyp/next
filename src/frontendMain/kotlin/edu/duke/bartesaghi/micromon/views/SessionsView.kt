@@ -334,8 +334,8 @@ class SessionsView : View {
 		Confirm.show(
 			"Really delete this session?",
 			"Are you sure you want to delete the session: \"$sessionName\" for $groupName?\n"
-				+ "This action will delete all associated data from the database and the filesystem. "
-				+ "It cannot be undone."
+				+ "This action will delete all associated data from the database and the filesystem, "
+				+ "INCLUDING THE RAW DATA (if you selected the option to *move* the raw data)! It cannot be undone."
 		) {
 
 			fun TabulatorProxy<SessionData>.updateSession() {
