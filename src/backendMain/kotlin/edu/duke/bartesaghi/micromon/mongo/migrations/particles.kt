@@ -21,6 +21,7 @@ fun migrationParticles(database: Database, log: Logger) {
 
 			// migrate the particles coords for each micrograph
 			for ((micrographId, coords) in doc.getMap<List<Document>>("pickings")) {
+				// TODO: the micrograph ids from the old system may have been projected? maybe need to unproject here?
 				val particles = HashMap<Int,Particle2D>()
 				var nextId = 1
 				for (coordDoc in coords) {
@@ -45,6 +46,7 @@ fun migrationParticles(database: Database, log: Logger) {
 
 			// migrate the particle coords for each tilt series
 			for ((tiltSeriesId, coords) in doc.getMap<List<Document>>("tomopickings")) {
+				// TODO: the tilt series ids from the old system may have been projected? maybe need to unproject here?
 				val particles = HashMap<Int,Particle3D>()
 				var nextId = 1
 				for (coordDoc in coords) {
