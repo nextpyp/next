@@ -13,7 +13,7 @@ name = "Raw Data"
 data_path = { ask = true }
 scope_pixel = 2.1
 scope_voltage = 300
-scope_tilt_axis = 0.0
+scope_tilt_axis = 90.0
 
 [blocks.preprocessing]
 blockId = "tomo-preprocessing"
