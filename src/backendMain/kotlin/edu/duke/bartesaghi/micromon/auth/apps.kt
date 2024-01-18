@@ -13,9 +13,65 @@ import org.bson.Document
 import org.reflections.Reflections
 import org.reflections.scanners.Scanners
 import java.security.SecureRandom
-import kotlin.reflect.full.findAnnotation
-import kotlin.reflect.full.functions
-import kotlin.reflect.full.memberProperties
+import kotlin.reflect.full.*
+
+
+val AppPermission.appPermissionId: String get() {
+
+	// Kotlin's reflection apparently doesn't let you get at annotations on enum values,
+	// so use Java's reflection instead
+	val enumField = javaClass.declaredFields
+		.first { it.name == name }
+	val annotation = enumField
+		.annotations
+		.filterIsInstance<ExportPermission>()
+		.firstOrNull()
+		?: throw NoSuchElementException("App Permission $name has no ExportPermission annotation")
+
+	return annotation.appPermissionId
+}
+
+
+fun AppPermission.toData() =
+	AppPermissionData(
+		appPermissionId,
+		description
+	)
+
+
+fun AppPermission?.toData(appPermissionId: String): AppPermissionData =
+	this?.toData()
+		?: AppPermissions.toDataUnknown(appPermissionId)
+
+
+object AppPermissions {
+
+	private val permissions = HashMap<String,AppPermission>()
+
+	init {
+
+		// build the index, make sure there are no duplicate IDs
+		for (permission in AppPermission.values()) {
+			if (permission.appPermissionId in permissions) {
+				throw Error("Duplicate app permission ID: ${permission.appPermissionId}")
+			}
+			permissions[permission.appPermissionId] = permission
+		}
+	}
+
+	operator fun get(appPermissionId: String): AppPermission? =
+		permissions[appPermissionId]
+
+	fun getOrThrow(appPermissionId: String): AppPermission =
+		get(appPermissionId)
+			?: throw NoSuchElementException("no app permission $appPermissionId")
+
+	fun toDataUnknown(appPermissionId: String) =
+		AppPermissionData(
+			appPermissionId,
+			null
+		)
+}
 
 
 /**
@@ -119,7 +175,7 @@ class AppTokenInfo(
 		tokenId,
 		appName,
 		appPermissionIds
-			.map { AppPermission[it].toData(it) }
+			.map { AppPermissions[it].toData(it) }
 	)
 
 	fun revoke() {
@@ -169,7 +225,7 @@ class AppTokenRequest(
 		requestId,
 		appName,
 		appPermissionIds
-			.map { AppPermission[it].toData(it) }
+			.map { AppPermissions[it].toData(it) }
 	)
 
 	fun reject() {
@@ -178,7 +234,7 @@ class AppTokenRequest(
 
 	fun accept(): Pair<String,AppTokenInfo> {
 		val permissions = appPermissionIds
-			.map { AppPermission.getOrThrow(it) }
+			.map { AppPermissions.getOrThrow(it) }
 		val (token, info) = AppTokenInfo.generate(userId, appName, permissions)
 		Database.appTokenRequests.delete(this)
 		return token to info

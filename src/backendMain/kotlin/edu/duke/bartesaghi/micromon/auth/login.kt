@@ -298,7 +298,7 @@ fun ApplicationCall.authApp(userId: String, token: String): User? {
 
 	// check the endpoint permissions
 	val tokenEndpoints = tokenInfo.appPermissionIds
-		.map { AppPermission[it] ?: throw deny() }
+		.map { AppPermissions[it] ?: throw deny() }
 		.flatMap { it.endpoints() }
 	val authorizedEndpoints = AppPermission.Open.endpoints() + tokenEndpoints
 	if (authorizedEndpoints.none { pathMatchesEndpoint(path, it) }) {

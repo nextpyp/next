@@ -30,15 +30,18 @@ fun DInterface.exportServiceAnnotation(): ExportServiceAnnotation? =
 		}
 
 
-class ExportServiceFunctionAnnotation // no annotation properties needed yet
+class ExportServiceFunctionAnnotation(
+	val permissionDri: DRI
+)
 
 fun DFunction.exportServiceFunctionAnnotation(): ExportServiceFunctionAnnotation? =
 	annotations()
 		.find { it.dri.packageName == PACKAGE_SERVICES && it.dri.classNames == "ExportServiceFunction" }
-		?.let { ExportServiceFunctionAnnotation() }
-
-
-class BindingRouteAnnotation(val path: String)
+		?.let {
+			ExportServiceFunctionAnnotation(
+				permissionDri = it.params.enumOrThrow("permission")
+			)
+		}
 
 
 class ExportServicePropertyAnnotation(val skip: Boolean)
@@ -55,6 +58,7 @@ fun DProperty.exportServicePropertyAnnotation(): ExportServicePropertyAnnotation
 
 class ExportRealtimeServiceAnnotation(
 	val name: String,
+	val permissionDri: DRI,
 	val messagesC2S: List<DRI>,
 	val messagesS2C: List<DRI>
 )
@@ -65,11 +69,14 @@ fun DProperty.exportRealtimeServiceAnnotation(): ExportRealtimeServiceAnnotation
 		?.let {
 			ExportRealtimeServiceAnnotation(
 				name = it.params.stringOrThrow("name"),
+				permissionDri = it.params.enumOrThrow("permission"),
 				messagesC2S = it.params.classListOrThrow("messagesC2S"),
 				messagesS2C = it.params.classListOrThrow("messagesS2C")
 			)
 		}
 
+
+class BindingRouteAnnotation(val path: String)
 
 fun DFunction.bindingRouteAnnotation(): BindingRouteAnnotation? =
 	annotations()
@@ -77,6 +84,18 @@ fun DFunction.bindingRouteAnnotation(): BindingRouteAnnotation? =
 		?.let {
 			BindingRouteAnnotation(
 				path = it.params.stringOrThrow("route")
+			)
+		}
+
+
+class ExportPermissionAnnotation(val appPermissionId: String)
+
+fun DEnumEntry.exportPermissionAnnotation(): ExportPermissionAnnotation? =
+	annotations()
+		.find { it.dri.packageName == PACKAGE_SERVICES && it.dri.classNames == "ExportPermission" }
+		?.let {
+			ExportPermissionAnnotation(
+				appPermissionId = it.params.stringOrThrow("appPermissionId")
 			)
 		}
 
@@ -115,3 +134,12 @@ fun Map<String,AnnotationParameterValue>.classList(name: String): List<DRI>? =
 fun Map<String,AnnotationParameterValue>.classListOrThrow(name: String): List<DRI> =
 	classList(name)
 		?: throw NoSuchElementException("anotation has no parameter named $name")
+
+
+fun Map<String,AnnotationParameterValue>.enum(name: String): DRI? =
+	param<EnumValue>(name)
+		?.enumDri
+
+fun Map<String,AnnotationParameterValue>.enumOrThrow(name: String): DRI =
+	enum(name)
+		?: throw NoSuchElementException("annotation has no parameter named $name")

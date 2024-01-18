@@ -35,7 +35,16 @@ class ModelCollector : DocumentableToPageTranslator {
 			.filterIsInstance<DPackage>()
 			.filter { it.packageName in PACKAGES }
 
-		// collect service info from the targeted packages
+		// pass 1: look for permission info
+		packages
+			.first { it.packageName == PACKAGE_SERVICES }
+			.classlikes
+			.filterIsInstance<DEnum>()
+			.first { it.name == "AppPermission" }
+			.entries
+			.forEach { collectPermission(it, model) }
+
+		// pass 2: collect service info
 		for (pack in packages) {
 			collectPackage(pack, model)
 		}
@@ -112,6 +121,19 @@ class ModelCollector : DocumentableToPageTranslator {
 		return Page("the page", model)
 	}
 
+	private fun collectPermission(perm: DEnumEntry, model: Model) {
+
+		println("PERMISSION: ${perm.name}")
+
+		val annotation = perm.exportPermissionAnnotation()
+			?: throw NoSuchElementException("AppPermission ${perm.name} missing ExportPermission annotation")
+
+		model.addPermission(Model.Permission(
+			dri = perm.dri,
+			appPermissionId = annotation.appPermissionId
+		))
+	}
+
 	private fun collectPackage(pack: DPackage, model: Model) {
 
 		println("PACKAGE: ${pack.name}")
@@ -124,7 +146,7 @@ class ModelCollector : DocumentableToPageTranslator {
 			.mapNotNull { iface -> iface.exportServiceAnnotation()?.let { iface to it } }
 			// the tree has tons of duplicates in it for some reason, so filter them out
 			.filter { (iface, _) -> model.services.none { it.dri == iface.dri } }
-			.map { (iface, export) -> collectService(iface, export) }
+			.map { (iface, export) -> collectService(iface, export, model::getPermission) }
 			.forEach { model.services.add(it) }
 
 		// look for realtime services
@@ -138,11 +160,15 @@ class ModelCollector : DocumentableToPageTranslator {
 			.mapNotNull { prop -> prop.exportRealtimeServiceAnnotation()?.let { prop to it } }
 			// the tree has tons of duplicates in it for some reason, so filter them out
 			.filter { (prop, _) -> model.realtimeServices.none { it.dri == prop.dri } }
-			.map { (prop, export) -> collectRealtimeService(prop, export) }
+			.map { (prop, export) -> collectRealtimeService(prop, export, model::getPermission) }
 			.forEach { model.realtimeServices.add(it) }
 	}
 
-	private fun collectService(iface: DInterface, export: ExportServiceAnnotation): Model.Service {
+	private fun collectService(
+		iface: DInterface,
+		export: ExportServiceAnnotation,
+		getPermission: (DRI) -> Model.Permission?
+	): Model.Service {
 
 		println("\tSERVICE: ${export.name}")
 
@@ -156,7 +182,7 @@ class ModelCollector : DocumentableToPageTranslator {
 			.map { (func, export) ->
 				val bindingRoute = func.bindingRouteAnnotation()
 					?: throw NoSuchElementException("${iface.name}.${func.name} marked for export, but missing KVBindingRoute annotation")
-				collectServiceFunction(iface, func, export, bindingRoute)
+				collectServiceFunction(iface, func, export, bindingRoute, getPermission)
 			}
 			.toList()
 
@@ -172,7 +198,8 @@ class ModelCollector : DocumentableToPageTranslator {
 		iface: DInterface,
 		func: DFunction,
 		export: ExportServiceFunctionAnnotation,
-		annotation: BindingRouteAnnotation
+		annotation: BindingRouteAnnotation,
+		getPermission: (DRI) -> Model.Permission?
 	): Model.Service.Function {
 
 		println("\t\tFUNCTION: ${func.name}")
@@ -192,6 +219,9 @@ class ModelCollector : DocumentableToPageTranslator {
 			.takeIf { it != Void }
 			?.let { collectTypeRef(it) }
 
+		val permission = getPermission(export.permissionDri)
+			?: throw NoSuchElementException("no permission for: ${export.permissionDri}")
+
 		return Model.Service.Function(
 			dri = func.dri,
 			mode = Model.Service.Function.Mode.KVision(),
@@ -200,6 +230,9 @@ class ModelCollector : DocumentableToPageTranslator {
 			arguments = arguments,
 			returns = returns,
 			doc = func.documentation.readKdoc(),
+			appPermissionId = permission
+				.takeIf { !it.isOpen }
+				?.appPermissionId
 		)
 	}
 
@@ -263,7 +296,11 @@ class ModelCollector : DocumentableToPageTranslator {
 			doc = prop.documentation.readKdoc()
 		)
 
-	private fun collectRealtimeService(prop: DProperty, export: ExportRealtimeServiceAnnotation): Model.RealtimeService {
+	private fun collectRealtimeService(
+		prop: DProperty,
+		export: ExportRealtimeServiceAnnotation,
+		getPermission: (DRI) -> Model.Permission?
+	): Model.RealtimeService {
 
 		println("\tREALTIME SERVICE: ${export.name}")
 
@@ -275,6 +312,9 @@ class ModelCollector : DocumentableToPageTranslator {
 			params = emptyList()
 		)
 
+		val permission = getPermission(export.permissionDri)
+			?: throw NoSuchElementException("no permission for: ${export.permissionDri}")
+
 		return Model.RealtimeService(
 			dri = prop.dri,
 			name = export.name,
@@ -283,7 +323,10 @@ class ModelCollector : DocumentableToPageTranslator {
 				.map { it.toTypeRef() },
 			messagesS2C = export.messagesS2C
 				.map { it.toTypeRef() },
-			doc = prop.documentation.readKdoc()
+			doc = prop.documentation.readKdoc(),
+			appPermissionId = permission
+				.takeIf { !it.isOpen }
+				?.appPermissionId
 		)
 	}
 

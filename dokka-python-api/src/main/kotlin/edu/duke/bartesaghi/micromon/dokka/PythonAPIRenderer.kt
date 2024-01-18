@@ -148,31 +148,11 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 
 					val name = realtimeService.name.caseCamelToSnake()
 					val path = "'${realtimeService.path}'"
+					val connectionClass = "${realtimeService.name}RealtimeServiceConnection"
 
-					writeln("self.$name: RealtimeService[${realtimeService.name}RealtimeServiceConnection] = RealtimeService(client, $path, ${realtimeService.name}RealtimeServiceConnection)")
+					writeln("self.$name: RealtimeService[$connectionClass] = RealtimeService(client, $path, ${realtimeService.name}RealtimeServiceConnection)")
 
-					docstring(run {
-
-						val header = realtimeService.doc.textOrUndocumented
-
-						// write the message types into the docstring as well
-						val c2s = realtimeService.messagesC2S
-							.map { "* :py:class:`.${it.flatName}`" }
-						val s2c = realtimeService.messagesS2C
-							.map { "* :py:class:`.${it.flatName}`" }
-
-						"""
-						|$header
-						|
-						|.. rubric:: Client to Server messages
-						|
-						|${c2s.joinToString("\n|")}
-						|
-						|.. rubric:: Server to Client messages
-						|
-						|${s2c.joinToString("\n|")}
-						"""
-					})
+					docstring("The ${realtimeService.name} realtime service, see :py:class:`.$connectionClass`")
 				}
 			}
 		}
@@ -198,9 +178,7 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 
 			// copy the interface kdocs, if any, into the Python docstring
 			// NOTE: Sphinx seems to do fine here without any docstrings, so we don't need default content here
-			if (service.doc != null) {
-				docstring(service.doc.text)
-			}
+			docstring(service.doc.textOrUndocumented)
 
 			writeln()
 
@@ -227,15 +205,17 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 		val returns = func.returns?.render()
 			?: "None"
 
-		// TODO: document what permission is needed?
-
 		indent {
 			writeln("def ${func.name.caseCamelToSnake()}(self$args) -> $returns:")
 			indent {
 
 				// copy the function kdocs, if any, into the Python docstring
 				// but make sure something gets written, or Sphinx will do weird stuff
-				docstring(func.doc.textOrUndocumented)
+				docstring("""
+					|${func.doc.textOrUndocumented}
+					|
+					|:Permission Needed: ${func.appPermissionId?.let { "``$it``"} ?: "none"}
+				""".trimMargin())
 
 				writeln("path = '${func.path}'")
 				val argNames = func.arguments
@@ -282,7 +262,7 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 		indent {
 
 			// copy the class kdocs, if any, into the Python docstring
-			type.doc?.let { docstring(it.text) }
+			docstring(type.doc.textOrUndocumented)
 
 			writeln()
 
@@ -290,13 +270,10 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 
 			writeln()
 
-			// write the constructor
+			// write the constructor, if there's anything to construct
 			if (type.props.isNotEmpty()) {
 				writeln("def __init__(self$args) -> None:")
 				indent {
-
-					docstring(type.doc?.text ?: "")
-
 					for (prop in type.props) {
 						val name = prop.name.caseCamelToSnake()
 						writeln("self.$name: ${prop.type.render()} = $name")
@@ -436,7 +413,7 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 		indent {
 
 			// copy the enum kdocs, if any, into the Python docstring
-			type.doc?.let { docstring(it.text) }
+			docstring(type.doc.textOrUndocumented)
 
 			writeln()
 
@@ -564,7 +541,28 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 		indent {
 
 			// copy the class kdocs, if any, into the Python docstring
-			realtimeService.doc?.let { docstring(it.text) }
+			docstring(run {
+
+				// write the message types into the docstring as well
+				val c2s = realtimeService.messagesC2S
+					.map { "* :py:class:`.${it.flatName}`" }
+				val s2c = realtimeService.messagesS2C
+					.map { "* :py:class:`.${it.flatName}`" }
+
+				"""
+					|${realtimeService.doc.textOrUndocumented}
+					|
+					|:Permission Needed: ${realtimeService.appPermissionId?.let { "``$it``"} ?: "none"}
+					|
+					|:Client to Server messages:
+					|
+					|${c2s.joinToString("\n|")}
+					|
+					|:Server to Client messages:
+					|
+					|${s2c.joinToString("\n|")}
+				""".trimMargin()
+			})
 
 			writeln()
 
@@ -665,12 +663,12 @@ private class Indented(val writer: Writer, val numIndents: Int) {
 	companion object {
 
 		/** ewwww spaces, gross! */
-		const val indent = "    "
+		const val INDENT = "    "
 	}
 
 	fun Writer.writeIndents() {
 		for (i in 0 until numIndents) {
-			write(indent)
+			write(INDENT)
 		}
 	}
 
@@ -699,17 +697,12 @@ private class Indented(val writer: Writer, val numIndents: Int) {
 }
 
 
-private fun <R> Writer.indent(block: Indented.() -> R): R =
-	Indented(this, 1).block()
-
-
 private fun String.appendIf(cond: Boolean, getter: () -> String): String =
 	if (cond) {
 		this + getter()
 	} else {
 		this
 	}
-
 
 
 private fun Model.TypeRef.render(): String =

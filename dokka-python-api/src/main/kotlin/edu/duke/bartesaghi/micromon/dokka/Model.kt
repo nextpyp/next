@@ -35,7 +35,8 @@ class Model {
 			val path: String,
 			val arguments: List<Argument>,
 			val returns: TypeRef?,
-			val doc: Doc?
+			val doc: Doc?,
+			val appPermissionId: String?
 		) {
 
 			sealed interface Mode {
@@ -61,7 +62,8 @@ class Model {
 		val path: String,
 		val messagesC2S: List<TypeRef>,
 		val messagesS2C: List<TypeRef>,
-		val doc: Doc?
+		val doc: Doc?,
+		val appPermissionId: String?
 	)
 	val realtimeServices = ArrayList<RealtimeService>()
 
@@ -209,6 +211,24 @@ class Model {
 	data class Doc(
 		val text: String
 	)
+
+	data class Permission(
+		val dri: DRI,
+		val appPermissionId: String
+	) {
+
+		val isOpen: Boolean get() =
+			dri.classNames == "AppPermission.Open"
+	}
+
+	private val permissions = HashMap<String,Permission>()
+
+	fun addPermission(perm: Permission) {
+		permissions[typeId(perm.dri)] = perm
+	}
+
+	fun getPermission(dri: DRI): Permission? =
+		permissions[typeId(dri)]
 }
 
 

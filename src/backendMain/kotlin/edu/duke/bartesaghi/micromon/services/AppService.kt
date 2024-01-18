@@ -48,7 +48,7 @@ actual class AppsService : IAppsService, Service {
 
 		// validate the permission ids
 		for (appPermissionId in appPermissionIds) {
-			AppPermission[appPermissionId]
+			AppPermissions[appPermissionId]
 				?: throw ServiceException("no app permission id: $appPermissionId")
 		}
 

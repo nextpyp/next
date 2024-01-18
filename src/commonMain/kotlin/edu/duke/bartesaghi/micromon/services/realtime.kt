@@ -56,7 +56,7 @@ object RealTimeServices {
 //  which is available in KVision v2.4+
 
 /**
- * client -> server (C2S) messages for real-time communication
+ * client-to-server (C2S) messages for real-time communication
  */
 @Serializable
 sealed class RealTimeC2S {
@@ -122,7 +122,7 @@ sealed class RealTimeC2S {
 }
 
 /**
- * server -> client (S2C) messages for real-time communication
+ * server-to-client (S2C) messages for real-time communication
  */
 @Serializable
 sealed class RealTimeS2C {
