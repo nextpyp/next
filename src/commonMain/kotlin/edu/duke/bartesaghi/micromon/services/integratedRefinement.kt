@@ -25,6 +25,9 @@ interface IIntegratedRefinementService {
 
 	@KVBindingRoute("refinementBundles/get")
 	suspend fun getRefinementBundles(jobId: String): List<RefinementBundleData>
+
+	@KVBindingRoute("refinements/bildData")
+	suspend fun getBildData(jobId: String, reconstructionId: String): Option<BildData>
 }
 
 
@@ -187,3 +190,9 @@ data class RefinementBundleData(
 interface HasIDIterated : HasID {
 	val iteration: Int
 }
+
+
+@Serializable
+data class BildData(
+	val bytes: Long
+)

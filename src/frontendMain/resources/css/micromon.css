@@ -654,6 +654,12 @@ div.tomography-preprocessing div.tomography-preprocessing-table div.rows div.for
     margin-left: 10px;
 }
 
+.refinements-view .reconstruction-odplots-detail {
+	display: flex;
+	flex-direction: row;
+	gap: 10px;
+}
+
 .refinements-view .reconstruction-pr-hist {
 	display: flex;
 	flex-direction: row;
@@ -3494,4 +3500,63 @@ div.file-browser .file-browser-bottom .file-browser-controls .file-browser-glob 
 
 .copy-text .form-group {
 	flex-grow: 1;
+}
+
+
+/* LINK BADGE */
+
+.link-badge {
+	display: inline-block;
+}
+
+.link-badge,
+.link-badge a {
+	color: #ffffff;
+	font-size: 11pt;
+	font-family: sans-serif;
+	text-shadow: 0px 1px 0px #00000082;
+}
+
+.link-badge a:hover {
+	text-decoration: none;
+}
+
+.link-badge .container {
+	display: flex;
+	flex-direction: row;
+}
+
+.link-badge .container .left {
+	background: linear-gradient(to bottom, #5f5f5f 0%, #4d4d4d 100%);
+	padding-top: 2px;
+	padding-bottom: 1px;
+	padding-left: 8px;
+	padding-right: 6px;
+	border-top-left-radius: 6px;
+	border-bottom-left-radius: 6px;
+}
+
+.link-badge .container .left .icon {
+	margin-right: 4px;
+}
+
+.link-badge .container .right {
+	padding-top: 2px;
+	padding-bottom: 1px;
+	padding-left: 6px;
+	padding-right: 8px;
+	border-top-right-radius: 6px;
+	border-bottom-right-radius: 6px;
+}
+
+.link-badge .container .right.grey {
+	background: linear-gradient(to bottom, #afafaf 0%, #9e9e9e 100%);
+}
+
+.link-badge .container .right.green {
+	background: linear-gradient(to bottom, #52cf25 0%, #32be1e 100%);
+}
+
+.link-badge .container .right.red {
+	background: linear-gradient(to bottom, #e23c2b 0%, #c42424 100%);
 }

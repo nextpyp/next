@@ -18,6 +18,7 @@ import io.ktor.util.pipeline.*
 import java.io.FileNotFoundException
 import java.nio.file.Path
 import kotlin.io.path.div
+import kotlin.io.path.fileSize
 
 
 actual class IntegratedRefinementService : IIntegratedRefinementService, Service {
@@ -92,7 +93,7 @@ actual class IntegratedRefinementService : IIntegratedRefinementService, Service
 						val classNum = parseClass()
 						val iteration = parseIteration()
 
-						val bytes = service.getBildData(jobId, classNum, iteration)
+						val bytes = service.getBildContent(jobId, classNum, iteration)
 						call.respondBytes(bytes, ContentType.Application.OctetStream)
 					}
 				}
@@ -268,7 +269,7 @@ actual class IntegratedRefinementService : IIntegratedRefinementService, Service
 		return path.readBytes()
 	}
 
-	fun getBildData(jobId: String, classNum: Int, iteration: Int): ByteArray {
+	fun getBildContent(jobId: String, classNum: Int, iteration: Int): ByteArray {
 		val job = jobId.authJob(ProjectPermission.Read).job
 		val path = job.mapsDir / "${Reconstruction.filenameFragment(job, classNum, iteration)}.bild"
 		return path.readBytes()
@@ -324,5 +325,15 @@ actual class IntegratedRefinementService : IIntegratedRefinementService, Service
 
 		return RefinementBundle.getAll(jobId)
 			.map { it.toData() }
+	}
+
+	override suspend fun getBildData(jobId: String, reconstructionId: String): Option<BildData> = sanitizeExceptions {
+		val job = jobId.authJob(ProjectPermission.Read).job
+		val reconstruction = getReconstructionOrThrow(jobId, reconstructionId)
+		val filename = "${Reconstruction.filenameFragment(job, reconstruction.classNum, reconstruction.iteration)}.bild"
+		return (job.mapsDir / filename)
+			.takeIf { it.exists() }
+			?.let { BildData(bytes = it.fileSize()) }
+			.toOption()
 	}
 }
