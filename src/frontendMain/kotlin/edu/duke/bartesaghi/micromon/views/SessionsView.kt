@@ -192,7 +192,7 @@ class SessionsView : View {
 						"Micrographs/Tilt Series",
 						formatterComponentFunction = tabulator.formatter { session ->
 							Span {
-								content = session.count().toString()
+								content = session.count().formatWithDigitGroupsSeparator().toString()
 							}
 						},
 						sorterFunction = tabulator.sorter { it.count() }
@@ -201,7 +201,7 @@ class SessionsView : View {
 						"Frames/Tilts",
 						formatterComponentFunction = tabulator.formatter { session ->
 							Span {
-								content = session.framesOrTilts().toString()
+								content = session.framesOrTilts().formatWithDigitGroupsSeparator().toString()
 							}
 						},
 						sorterFunction = tabulator.sorter { it.framesOrTilts() }
