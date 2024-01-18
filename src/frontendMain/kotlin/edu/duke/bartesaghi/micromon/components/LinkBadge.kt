@@ -49,7 +49,7 @@ class LinkBadge : Div(classes = setOf("link-badge")) {
 					div()
 				}
 
-			container.addCssClass("container")
+			container.addCssClass("link-badge-container")
 			container.add(leftElem)
 			container.add(rightElem)
 

@@ -33,8 +33,9 @@ open class OrientationDefocusPlots : SizedPanel("Orientation/Defocus Distributio
 		// layout the UI
 		div {
 			div(classes = setOf("reconstruction-odplots-detail")) {
-				add(this@OrientationDefocusPlots.bildLink)
 				add(this@OrientationDefocusPlots.plotCaption)
+				div(classes = setOf("spacer"))
+				add(this@OrientationDefocusPlots.bildLink)
 			}
 			add(this@OrientationDefocusPlots.container)
 		}
