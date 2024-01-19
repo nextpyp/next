@@ -10,7 +10,9 @@ const val PACKAGE_PYP = "$PP.pyp"
 val PACKAGES = setOf(PACKAGE_SERVICES, PACKAGE_PYP)
 
 
-class Model {
+class Model(
+	var apiVersion: String
+) {
 
 	companion object {
 

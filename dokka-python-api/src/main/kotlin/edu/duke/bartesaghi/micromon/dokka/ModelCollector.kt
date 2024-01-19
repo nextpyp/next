@@ -1,5 +1,6 @@
 package edu.duke.bartesaghi.micromon.dokka
 
+import org.jetbrains.dokka.base.templating.parseJson
 import org.jetbrains.dokka.links.DRI
 import org.jetbrains.dokka.model.*
 import org.jetbrains.dokka.model.Void
@@ -8,11 +9,12 @@ import org.jetbrains.dokka.model.doc.DocumentationNode
 import org.jetbrains.dokka.model.doc.Text
 import org.jetbrains.dokka.pages.PageNode
 import org.jetbrains.dokka.pages.RootPageNode
+import org.jetbrains.dokka.plugability.DokkaContext
 import org.jetbrains.dokka.transformers.documentation.DocumentableToPageTranslator
 import java.nio.file.Paths
 
 
-class ModelCollector : DocumentableToPageTranslator {
+class ModelCollector(val ctx: DokkaContext) : DocumentableToPageTranslator {
 
 	class Page(
 		override val name: String,
@@ -26,10 +28,21 @@ class ModelCollector : DocumentableToPageTranslator {
 			Page(name, model)
 	}
 
+	data class Config(
+		val apiVersion: String
+	)
+
 	override fun invoke(module: DModule): Page {
 
+		// read the plugin config
+		val config = ctx.configuration.pluginsConfiguration
+			.firstOrNull { it.fqPluginName == MicromonDokkaPlugin::class.qualifiedName }
+			?.let { parseJson<Config>(it.values) }
+			?: throw NoSuchElementException("no plugin configuration given")
+		println("Generating API v${config.apiVersion} ...")
+
 		// collect all the info we need from the source code
-		val model = Model()
+		val model = Model(config.apiVersion)
 
 		val packages = module.children
 			.filterIsInstance<DPackage>()

@@ -43,6 +43,12 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 		writeln()
 		writeln()
 
+		// write constants
+		writeln("API_VERSION = '${model.apiVersion}'")
+
+		writeln()
+		writeln()
+
 		// write the services menu
 		writeln("class Services:")
 		indent {
@@ -220,7 +226,7 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 				writeln("path = '${func.path}'")
 				val argNames = func.arguments
 					.joinToString(", ") { it.name.caseCamelToSnake() }
-				val call = "self.client._call(path, [$argNames])"
+				val call = "self.client._transport.call(path, [$argNames])"
 				when (val r = func.returns) {
 
 					// no return value, just call the web service

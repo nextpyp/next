@@ -17,7 +17,7 @@ class MicromonDokkaPlugin : DokkaPlugin() {
 	private val dokkaBasePlugin by lazy { plugin<DokkaBase>() }
 
 	val pager by extending {
-		CoreExtensions.documentableToPageTranslator providing { ctx -> ModelCollector() } override dokkaBasePlugin.documentableToPageTranslator
+		CoreExtensions.documentableToPageTranslator providing { ctx -> ModelCollector(ctx) } override dokkaBasePlugin.documentableToPageTranslator
 	}
 
 	val renderer by extending {

@@ -35,11 +35,14 @@ actual class AppsService : IAppsService, Service {
 		return token
 	}
 
-	override suspend fun version(): String = sanitizeExceptions {
+	override suspend fun versions(): VersionData = sanitizeExceptions {
 
 		call.auth()
 
-		BuildData.version
+		VersionData(
+			BuildData.version,
+			BuildData.apiVersion
+		)
 	}
 
 	override suspend fun requestToken(userId: String, appName: String, appPermissionIds: List<String>): AppTokenRequestData = sanitizeExceptions {

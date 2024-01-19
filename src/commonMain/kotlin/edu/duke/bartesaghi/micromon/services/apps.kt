@@ -16,9 +16,9 @@ interface IAppsService {
 	@ExportServiceFunction(AppPermission.Open)
 	@KVBindingRoute("apps/version")
 	/**
-	 * Returns the version number of NextPYP
+	 * Returns the version numbers of NextPYP
 	 */
-	suspend fun version(): String
+	suspend fun versions(): VersionData
 
 	@ExportServiceFunction(AppPermission.Open)
 	@KVBindingRoute("apps/requestToken")
@@ -45,6 +45,15 @@ interface IAppsService {
 	@KVBindingRoute("apps/revokeToken")
 	suspend fun revokeToken(tokenId: String)
 }
+
+
+@Serializable
+data class VersionData(
+	/** The version of nextPYP itself */
+	val version: String,
+	/** The version of the nextPYP API, to determine compatibility with API clients */
+	val apiVersion: String
+)
 
 
 @Serializable

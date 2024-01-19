@@ -3,6 +3,17 @@ package edu.duke.bartesaghi.micromon.services
 import kotlin.reflect.KClass
 
 
+/**
+ * WARNING:
+ *
+ * Whenever you add these annotations to new source code locations,
+ * or change/remove these annotations from existing source code locations,
+ * carefully consider the effect of those changes on the version number of the API.
+ *
+ * The API version number helps API clients figure out compatibility
+ */
+
+
 @Target(AnnotationTarget.CLASS)
 annotation class ExportService(
 	/** should be capitalized, so it would make sense in a Python class named <name>Service */

@@ -1,3 +1,5 @@
+import org.jetbrains.dokka.DokkaConfiguration
+import org.jetbrains.dokka.PluginConfigurationImpl
 import org.jetbrains.dokka.gradle.DokkaTask
 import org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsRootPlugin
 import org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpack
@@ -32,6 +34,25 @@ buildscript {
 }
 
 group = "edu.duke.bartesaghi"
+
+
+/**
+ * This version number describes the nextPYP API.
+ * It's not the same as the nextPYP version!
+ *
+ * This version number has defined formal semantics that helps nextPYP API clients
+ * decide if they're compatible with the API or not.
+ * The formal semantics are called Semantic Versioning: https://semver.org/
+ *
+ * Briefly, the version number should always have three integer components: major.minor.patch.
+ * If you make a change to the API that would break any existing clients, you must increment the major number.
+ * Otherwise, if you add new functionality without breaking existing funtionality, you must increment the minor number.
+ * Otherwise, if you fix a bug or patch a vulnerability without breaking compatibility, you must increment the patch number.
+ *
+ * Also, incrementing 9 yields 10. eg, incrementing the minor version of 1.9.0 yields 1.10.0
+ */
+val apiVersion = "1.0.0"
+
 
 repositories {
 	mavenCentral()
@@ -1151,6 +1172,7 @@ afterEvaluate {
 					|object BuildData {
 					|
 					|	const val version = "${project.version}"
+					|	const val apiVersion = "$apiVersion"
 					|}
 					|
 				""".trimMargin())
@@ -1192,6 +1214,17 @@ afterEvaluate {
 				// so we need to just hard-code the built jar path
 				plugins(files("${dokkaPluginSubproject.buildDir}/libs/${dokkaPluginSubproject.name}.jar"))
 			}
+
+			// send arguments to our plugin, json-style
+			pluginsConfiguration.add(PluginConfigurationImpl(
+				fqPluginName = "edu.duke.bartesaghi.micromon.dokka.MicromonDokkaPlugin",
+				serializationFormat = DokkaConfiguration.SerializationFormat.JSON,
+				values = """
+					|{
+					|	"apiVersion": "$apiVersion"
+					|}
+				""".trimMargin()
+			))
 
 			doLast {
 				// copy the generated sources to the client project, if available
