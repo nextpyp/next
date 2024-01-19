@@ -168,15 +168,18 @@ class TomographyPreprocessingJob(
 			val suffix = "_exclude_views.next"
 
 			// delete any old files
-			dir.listFiles()
-				.filter { it.fileName.toString().endsWith(suffix) }
-				.forEach { it.delete() }
+			if (dir.exists()) {
+				dir.listFiles()
+					.filter { it.fileName.toString().endsWith(suffix) }
+					.forEach { it.delete() }
+			}
 
 			// write any new files
 			val exclusionsByTiltSeries = Database.tiltExclusions.getForJob(idOrThrow)
 			if (exclusionsByTiltSeries != null) {
 				for ((tiltSeriesId, exclusionsByTiltIndex) in exclusionsByTiltSeries) {
 					val file = dir / "$tiltSeriesId$suffix"
+					file.parent.createDirsIfNeeded()
 					file.bufferedWriter().use { writer ->
 						for ((tiltIndex, isExcluded) in exclusionsByTiltIndex) {
 							if (isExcluded) {
