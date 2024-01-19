@@ -47,7 +47,64 @@ object RealTimeServices {
 	val tomographyPreprocessing by RealTimeService()
 	val reconstruction by RealTimeService()
 	val streamLog by RealTimeService()
+
+	@ExportRealtimeService("SingleParticleSession",
+		AppPermission.SessionListen,
+		messagesC2S = [
+			RealTimeC2S.ListenToSession::class,
+			RealTimeC2S.SessionSettingsSaved::class
+		],
+		messagesS2C = [
+			RealTimeS2C.SessionStatus::class,
+			RealTimeS2C.SessionSmallData::class,
+			RealTimeS2C.SessionLargeData::class,
+			RealTimeS2C.UpdatedParameters::class,
+			RealTimeS2C.SessionMicrograph::class,
+			RealTimeS2C.SessionTwoDClasses::class,
+			RealTimeS2C.SessionExport::class,
+			RealTimeS2C.SessionFilesystems::class,
+			RealTimeS2C.SessionTransferInit::class,
+			RealTimeS2C.SessionTransferWaiting::class,
+			RealTimeS2C.SessionTransferStarted::class,
+			RealTimeS2C.SessionTransferProgress::class,
+			RealTimeS2C.SessionTransferFinished::class,
+			RealTimeS2C.SessionDaemonSubmitted::class,
+			RealTimeS2C.SessionDaemonStarted::class,
+			RealTimeS2C.SessionDaemonFinished::class,
+			RealTimeS2C.SessionJobSubmitted::class,
+			RealTimeS2C.SessionJobStarted::class,
+			RealTimeS2C.SessionJobFinished::class
+		]
+	)
 	val singleParticleSession by RealTimeService()
+
+	@ExportRealtimeService("TomographySession",
+		AppPermission.SessionListen,
+		messagesC2S = [
+			RealTimeC2S.ListenToSession::class,
+			RealTimeC2S.SessionSettingsSaved::class
+		],
+		messagesS2C = [
+			RealTimeS2C.SessionStatus::class,
+			RealTimeS2C.SessionSmallData::class,
+			RealTimeS2C.SessionLargeData::class,
+			RealTimeS2C.UpdatedParameters::class,
+			RealTimeS2C.SessionTiltSeries::class,
+			RealTimeS2C.SessionExport::class,
+			RealTimeS2C.SessionFilesystems::class,
+			RealTimeS2C.SessionTransferInit::class,
+			RealTimeS2C.SessionTransferWaiting::class,
+			RealTimeS2C.SessionTransferStarted::class,
+			RealTimeS2C.SessionTransferProgress::class,
+			RealTimeS2C.SessionTransferFinished::class,
+			RealTimeS2C.SessionDaemonSubmitted::class,
+			RealTimeS2C.SessionDaemonStarted::class,
+			RealTimeS2C.SessionDaemonFinished::class,
+			RealTimeS2C.SessionJobSubmitted::class,
+			RealTimeS2C.SessionJobStarted::class,
+			RealTimeS2C.SessionJobFinished::class
+		]
+	)
 	val tomographySession by RealTimeService()
 }
 

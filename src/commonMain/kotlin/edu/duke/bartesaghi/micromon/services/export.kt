@@ -82,5 +82,68 @@ enum class AppPermission(
 		"""
 			|Listen to your project and its running jobs in real-time. 
 		""".trimMargin()
+	),
+
+	@ExportPermission("session_list")
+	SessionList(
+		"""
+			|See a list of all sessions. 
+		""".trimMargin()
+	),
+
+	@ExportPermission("session_read")
+	SessionRead(
+		"""
+			|Read-only access to individual sessions. 
+		""".trimMargin()
+	),
+
+	@ExportPermission("session_write")
+	SessionWrite(
+		"""
+			|Write access to individual sessions. 
+		""".trimMargin()
+	),
+
+	@ExportPermission("session_create")
+	SessionCreate(
+		"""
+			|Create new sessions. 
+		""".trimMargin()
+	),
+
+	@ExportPermission("session_delete")
+	SessionDelete(
+		"""
+			|Delete existing sessions. 
+		""".trimMargin()
+	),
+
+	@ExportPermission("session_control")
+	SessionControl(
+		"""
+			|Start, stop, clear, and cancel individual sessions. 
+		""".trimMargin()
+	),
+
+	@ExportPermission("session_export")
+	SessionExport(
+		"""
+			|Start and cancel session data export jobs. 
+		""".trimMargin()
+	),
+
+	@ExportPermission("session_listen")
+	SessionListen(
+		"""
+			|Listen to individual session processing in real-time. 
+		""".trimMargin()
+	),
+
+	@ExportPermission("group_list")
+	GroupList(
+		"""
+			|See a list of all groups. 
+		""".trimMargin()
 	)
 }

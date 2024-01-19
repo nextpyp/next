@@ -384,81 +384,107 @@ interface ISessionsService {
 	@KVBindingRoute("sessions/canStart")
 	suspend fun canStart(): Boolean
 
+	@ExportServiceFunction(AppPermission.SessionList)
 	@KVBindingRoute("sessions/sessionOptions")
 	suspend fun sessionOptions(search: String?, initial: String?, state: String?): List<RemoteOption>
 
+	@ExportServiceFunction(AppPermission.GroupList)
 	@KVBindingRoute("sessions/groups")
 	suspend fun groups(): List<Group>
 
+	@ExportServiceFunction(AppPermission.GroupList)
 	@KVBindingRoute("sessions/groupOptions")
 	suspend fun groupOptions(search: String?, initial: String?, state: String?): List<RemoteOption>
 
+	@ExportServiceFunction(AppPermission.SessionList)
 	@KVBindingRoute("sessions/running")
 	suspend fun running(): RunningSessions
 
+	@ExportServiceFunction(AppPermission.SessionRead)
 	@KVBindingRoute("sessions/isRunning")
 	suspend fun isRunning(sessionId: String, daemon: SessionDaemon): Boolean
 
+	@ExportServiceFunction(AppPermission.SessionControl)
 	@KVBindingRoute("sessions/start")
 	suspend fun start(sessionId: String, daemon: SessionDaemon)
 
+	@ExportServiceFunction(AppPermission.SessionControl)
 	@KVBindingRoute("sessions/restart")
 	suspend fun restart(sessionId: String, daemon: SessionDaemon)
 
+	@ExportServiceFunction(AppPermission.SessionControl)
 	@KVBindingRoute("sessions/clear")
 	suspend fun clear(sessionId: String, daemon: SessionDaemon)
 
+	@ExportServiceFunction(AppPermission.SessionControl)
 	@KVBindingRoute("sessions/stop")
 	suspend fun stop(sessionId: String, daemon: SessionDaemon)
 
+	@ExportServiceFunction(AppPermission.SessionControl)
 	@KVBindingRoute("sessions/cancel")
 	suspend fun cancel(sessionId: String)
 
+	@ExportServiceFunction(AppPermission.SessionRead)
 	@KVBindingRoute("sessions/logs")
 	suspend fun logs(sessionId: String, daemon: SessionDaemon): SessionLogs
 
+	@ExportServiceFunction(AppPermission.SessionRead)
 	@KVBindingRoute("sessions/cmds")
 	suspend fun commands(sessionId: String, jobId: String): SessionCommands
 
+	@ExportServiceFunction(AppPermission.SessionRead)
 	@KVBindingRoute("sessions/log")
 	suspend fun log(sessionId: String, jobId: String): SessionLog
 
+	@ExportServiceFunction(AppPermission.SessionRead)
 	@KVBindingRoute("sessions/speeds")
 	suspend fun speeds(sessionId: String): SessionSpeeds
 
+	@ExportServiceFunction(AppPermission.SessionRead)
 	@KVBindingRoute("sessions/jobsLogs")
 	suspend fun jobsLogs(sessionId: String): SessionJobsLogs
 
+	@ExportServiceFunction(AppPermission.SessionRead)
 	@KVBindingRoute("sessions/jobLogs")
 	suspend fun jobLogs(sessionId: String, jobId: String): SessionJobLogs
 
+	@ExportServiceFunction(AppPermission.SessionRead)
 	@KVBindingRoute("sessions/avgRot")
 	suspend fun getAvgRot(sessionId: String, dataId: String): Option<AvgRotData>
 
+	@ExportServiceFunction(AppPermission.SessionRead)
 	@KVBindingRoute("sessions/motion")
 	suspend fun getMotion(sessionId: String, dataId: String): Option<MotionData>
 
+	@ExportServiceFunction(AppPermission.SessionRead)
 	@KVBindingRoute("sessions/dataLog")
 	suspend fun dataLog(sessionId: String, dataId: String): String
 
+	@ExportServiceFunction(AppPermission.SessionRead)
 	@KVBindingRoute("sessions/listFilters")
 	suspend fun listFilters(sessionId: String): List<String>
 
+	@ExportServiceFunction(AppPermission.SessionRead)
 	@KVBindingRoute("sessions/getFilter")
 	suspend fun getFilter(sessionId: String, name: String): PreprocessingFilter
 
+	@ExportServiceFunction(AppPermission.SessionWrite)
 	@KVBindingRoute("sessions/saveFilter")
 	suspend fun saveFilter(sessionId: String, filter: PreprocessingFilter)
 
+	@ExportServiceFunction(AppPermission.SessionWrite)
 	@KVBindingRoute("sessions/deleteFilter")
 	suspend fun deleteFilter(sessionId: String, name: String)
 
+	@ExportServiceFunction(AppPermission.SessionRead)
 	@KVBindingRoute("sessions/filterOptions")
 	suspend fun filterOptions(search: String?, initial: String?, state: String?): List<RemoteOption>
 
+	@ExportServiceFunction(AppPermission.SessionExport)
 	@KVBindingRoute("sessions/export")
 	suspend fun export(sessionId: String, request: String /* serialized SessionExportRequest */, slurmValues: ArgValuesToml)
 
+	@ExportServiceFunction(AppPermission.SessionExport)
 	@KVBindingRoute("sessions/cancelExport")
 	suspend fun cancelExport(exportId: String)
 }
@@ -467,24 +493,31 @@ interface ISessionsService {
 @KVService
 interface ISingleParticleSessionService {
 
+	@ExportServiceFunction(AppPermission.SessionList)
 	@KVBindingRoute("session/${SingleParticleSessionData.ID}/list")
 	suspend fun list(): List<SingleParticleSessionData>
 
+	@ExportServiceFunction(AppPermission.SessionCreate)
 	@KVBindingRoute("session/${SingleParticleSessionData.ID}/create")
 	suspend fun create(args: SingleParticleSessionArgs): SingleParticleSessionData
 
+	@ExportServiceFunction(AppPermission.SessionWrite)
 	@KVBindingRoute("session/${SingleParticleSessionData.ID}/edit")
 	suspend fun edit(sessionId: String, args: SingleParticleSessionArgs?): SingleParticleSessionData
 
+	@ExportServiceFunction(AppPermission.SessionRead)
 	@KVBindingRoute("session/${SingleParticleSessionData.ID}/get")
 	suspend fun get(sessionId: String): SingleParticleSessionData
 
+	@ExportServiceFunction(AppPermission.SessionDelete)
 	@KVBindingRoute("session/${SingleParticleSessionData.ID}/delete")
 	suspend fun delete(sessionId: String)
 
+	@ExportServiceFunction(AppPermission.SessionRead)
 	@KVBindingRoute("session/${SingleParticleSessionData.ID}/getArgs")
 	suspend fun getArgs(): String /* Args but serialized */
 
+	// TODO: need read AND create permissions?
 	@KVBindingRoute("session/${SingleParticleSessionData.ID}/copy")
 	suspend fun copy(sessionId: String, args: CopySessionArgs): SingleParticleSessionData
 }
@@ -493,27 +526,35 @@ interface ISingleParticleSessionService {
 @KVService
 interface ITomographySessionService {
 
+	@ExportServiceFunction(AppPermission.SessionList)
 	@KVBindingRoute("session/${TomographySessionData.ID}/list")
 	suspend fun list(): List<TomographySessionData>
 
+	@ExportServiceFunction(AppPermission.SessionCreate)
 	@KVBindingRoute("session/${TomographySessionData.ID}/create")
 	suspend fun create(args: TomographySessionArgs): TomographySessionData
 
+	@ExportServiceFunction(AppPermission.SessionWrite)
 	@KVBindingRoute("session/${TomographySessionData.ID}/edit")
 	suspend fun edit(sessionId: String, args: TomographySessionArgs?): TomographySessionData
 
+	@ExportServiceFunction(AppPermission.SessionRead)
 	@KVBindingRoute("session/${TomographySessionData.ID}/get")
 	suspend fun get(sessionId: String): TomographySessionData
 
+	@ExportServiceFunction(AppPermission.SessionDelete)
 	@KVBindingRoute("session/${TomographySessionData.ID}/delete")
 	suspend fun delete(sessionId: String)
 
+	@ExportServiceFunction(AppPermission.SessionRead)
 	@KVBindingRoute("session/${TomographySessionData.ID}/getArgs")
 	suspend fun getArgs(): String /* Args but serialized */
 
+	// TODO: need read AND create permissions?
 	@KVBindingRoute("session/${TomographySessionData.ID}/copy")
 	suspend fun copy(sessionId: String, args: CopySessionArgs): TomographySessionData
 
+	@ExportServiceFunction(AppPermission.SessionRead)
 	@KVBindingRoute("session/${TomographySessionData.ID}/driftMetadata")
 	suspend fun getDriftMetadata(sessionId: String, tiltSeriesId: String): Option<DriftMetadata>
 }
