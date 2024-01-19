@@ -122,4 +122,5 @@ object Storage {
 	var projectSharingFilter by EnumStorageItem("projectSharingFilter", DashboardView.SharingOption.values())
 	var twodClassesImageSize by ImageSizeStorageItem("twodClassesImageSize")
 	var classesMovieSize by ImageSizeStorageItem("classesMovieSize")
+	var perParticleScoresSize by ImageSizeStorageItem("perParticleScoresSize")
 }

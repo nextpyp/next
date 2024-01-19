@@ -2,15 +2,12 @@ package edu.duke.bartesaghi.micromon.components.refinement
 
 import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.components.*
-import edu.duke.bartesaghi.micromon.services.JobData
-import edu.duke.bartesaghi.micromon.services.MRCType
-import edu.duke.bartesaghi.micromon.services.Services
+import edu.duke.bartesaghi.micromon.services.*
 import edu.duke.bartesaghi.micromon.views.*
-import io.kvision.html.Div
-import io.kvision.html.button
-import io.kvision.html.div
-import io.kvision.html.span
+import io.kvision.core.style
+import io.kvision.html.*
 import io.kvision.toast.Toast
+import io.kvision.utils.px
 import kotlin.js.Date
 
 
@@ -18,6 +15,7 @@ class MapsTab(
 	val job: JobData,
 	val state: IntegratedRefinementView.State,
 	urlParams: UrlParams?,
+	val showPerParticleScores: Boolean
 ) : Div(classes = setOf("maps-tab")), PathableTab {
 
 	data class UrlParams(
@@ -203,6 +201,26 @@ class MapsTab(
 			.also { contentElem.add(it) }
 		val plot = RefinementStatistics()
 			.also { contentElem.add(it) }
+
+		// show the per-particle scores, if needed
+		if (showPerParticleScores) {
+			val panel = SizedPanel(
+				"Per-Particle Scores",
+				Storage.perParticleScoresSize ?: ImageSize.Medium
+			)
+			val img = panel.image("/kv/reconstructions/${job.jobId}/${reconstruction.classNum}/${reconstruction.iteration}/images/perParticleScores")
+			fun resizeImage() {
+				img.style {
+					width = panel.size.approxWidth.px
+				}
+			}
+			resizeImage()
+			panel.onResize = { size ->
+				Storage.perParticleScoresSize = size
+				resizeImage()
+			}
+			contentElem.add(panel)
+		}
 
 		AppScope.launch {
 

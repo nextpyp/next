@@ -129,6 +129,21 @@ actual class IntegratedRefinementService : IIntegratedRefinementService, Service
 							call.respondBytes(bytes, ContentType.Image.PNG)
 						}
 					}
+
+					get("perParticleScores") {
+						call.respondExceptions {
+
+							// parse args
+							val jobId = parseJobId()
+							val classNum = parseClass()
+							val iteration = parseIteration()
+
+							val bytes = service.getPerParticleScoresImage(jobId, classNum, iteration)
+
+							call.response.headers.append(HttpHeaders.ContentEncoding, "gzip")
+							call.respondBytes(bytes, ContentType.Image.Svgz)
+						}
+					}
 				}
 			}
 
@@ -261,6 +276,12 @@ actual class IntegratedRefinementService : IIntegratedRefinementService, Service
 		val cacheInfo = ImageCacheInfo(job.wwwDir, "map-${Reconstruction.filenameFragment(job, classNum, iteration)}")
 		return size.readResize(path, ImageType.Webp, cacheInfo)
 			?: throw FileNotFoundException(path.toString())
+	}
+
+	fun getPerParticleScoresImage(jobId: String, classNum: Int, iteration: Int): ByteArray {
+		val job = jobId.authJob(ProjectPermission.Read).job
+		val path = job.mapsDir / "${Reconstruction.filenameFragment(job, classNum, iteration)}_scores.svgz"
+		return path.readBytes()
 	}
 
 	fun getPlotData(jobId: String, classNum: Int, iteration: Int): ByteArray {

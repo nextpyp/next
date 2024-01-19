@@ -321,7 +321,13 @@ class IntegratedRefinementView(
 					mapTab = MapTab(job, state, nodeInfo == SingleParticlePostprocessingNode)
 						.addAndTrack(lazyTab)
 				} else {
-					mapsTab = MapsTab(job, state, urlParams as? MapsTab.UrlParams?)
+					val showPerParticleScores = nodeInfo in listOf(
+						TomographyCoarseRefinementNode,
+						TomographyFineRefinementNode,
+						TomographyFlexibleRefinementNode,
+						TomographyMovieCleaningNode
+					)
+					mapsTab = MapsTab(job, state, urlParams as? MapsTab.UrlParams?, showPerParticleScores)
 						.addAndTrack(lazyTab)
 				}
 			}
