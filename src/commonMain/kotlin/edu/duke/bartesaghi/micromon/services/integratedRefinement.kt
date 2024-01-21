@@ -28,6 +28,9 @@ interface IIntegratedRefinementService {
 
 	@KVBindingRoute("refinements/bildData")
 	suspend fun getBildData(jobId: String, reconstructionId: String): Option<BildData>
+
+	@KVBindingRoute("refinements/perParticleScoresData")
+	suspend fun getPerParticleScoresData(jobId: String, reconstructionId: String): Option<PerParticleScoresData>
 }
 
 
@@ -194,5 +197,10 @@ interface HasIDIterated : HasID {
 
 @Serializable
 data class BildData(
+	val bytes: Long
+)
+
+@Serializable
+data class PerParticleScoresData(
 	val bytes: Long
 )

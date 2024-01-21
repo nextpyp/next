@@ -357,4 +357,14 @@ actual class IntegratedRefinementService : IIntegratedRefinementService, Service
 			?.let { BildData(bytes = it.fileSize()) }
 			.toOption()
 	}
+
+	override suspend fun getPerParticleScoresData(jobId: String, reconstructionId: String): Option<PerParticleScoresData> = sanitizeExceptions {
+		val job = jobId.authJob(ProjectPermission.Read).job
+		val reconstruction = getReconstructionOrThrow(jobId, reconstructionId)
+		val filename = "${Reconstruction.filenameFragment(job, reconstruction.classNum, reconstruction.iteration)}_scores.svgz"
+		return (job.mapsDir / filename)
+			.takeIf { it.exists() }
+			?.let { PerParticleScoresData(bytes = it.fileSize()) }
+			.toOption()
+	}
 }
