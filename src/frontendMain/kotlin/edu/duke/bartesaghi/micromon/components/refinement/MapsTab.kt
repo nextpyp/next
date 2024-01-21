@@ -4,6 +4,7 @@ import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.components.*
 import edu.duke.bartesaghi.micromon.services.*
 import edu.duke.bartesaghi.micromon.views.*
+import io.kvision.core.onEvent
 import io.kvision.core.style
 import io.kvision.html.*
 import io.kvision.toast.Toast
@@ -202,36 +203,37 @@ class MapsTab(
 		val plot = RefinementStatistics()
 			.also { contentElem.add(it) }
 
-		AppScope.launch {
-			// show the per-particle scores, if needed
-			if (showPerParticleScores) {
-				val panel = SizedPanel(
-					"Per-Particle Scores",
-					Storage.perParticleScoresSize ?: ImageSize.Medium
-				)
-
-				// first, check if the data exists
-				val plotData = Services.integratedRefinement.getPerParticleScoresData(job.jobId, reconstruction.id)
-					.unwrap()
-				var img: Image
-				// show image if it does, show placeholder if it doesn't
-				if (plotData == null) {
-					img = panel.image("img/placeholder/${ImageSize.Medium.id}")
+		// show the per-particle scores, if needed
+		if (showPerParticleScores) {
+			val panel = SizedPanel(
+				"Per-Particle Scores",
+				Storage.perParticleScoresSize ?: ImageSize.Medium
+			)
+			var exists = true
+			val img = panel.image("/kv/reconstructions/${job.jobId}/${reconstruction.classNum}/${reconstruction.iteration}/images/perParticleScores")
+			fun resizeImage() {
+				if (exists) {
+					img.setStyle("width", "${panel.size.approxWidth}px")
 				} else {
-					img = panel.image("/kv/reconstructions/${job.jobId}/${reconstruction.classNum}/${reconstruction.iteration}/images/perParticleScores")
+					img.src = "img/placeholder/${panel.size}"
+					img.removeStyle("width")
 				}
-				fun resizeImage() {
-					img.style {
-						width = panel.size.approxWidth.px
+			}
+			resizeImage()
+			panel.onResize = { size ->
+				Storage.perParticleScoresSize = size
+				resizeImage()
+			}
+			img.onEvent {
+				error = {
+					// if the image load fails, remember that it doesn't exist so we can do something else
+					if (exists) {
+						exists = false
+						resizeImage()
 					}
 				}
-				resizeImage()
-				panel.onResize = { size ->
-					Storage.perParticleScoresSize = size
-					resizeImage()
-				}
-				contentElem.add(panel)
 			}
+			contentElem.add(panel)
 		}
 
 		AppScope.launch {
