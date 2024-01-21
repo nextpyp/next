@@ -225,7 +225,7 @@ class Config(toml: String) {
 		standalone = doc.getTable("standalone")?.run {
 			Standalone(
 				availableCpus = getInt("availableCpus") ?: Standalone.defaultAvailableCpus,
-				availableMemoryGiB = getInt("availabileMemoryGiB") ?: Standalone.defaultAvailableMemoryGiB,
+				availableMemoryGiB = getInt("availableMemoryGiB") ?: Standalone.defaultAvailableMemoryGiB,
 				availableGpus = getInt("availableGpus") ?: Standalone.defaultAvailableGpus
 			)
 		}
