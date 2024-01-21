@@ -834,6 +834,7 @@ class SessionJobsMonitor(val session: SessionData) : Div(classes = setOf("sessio
 			nameSelect.onEvent {
 				change = {
 					showTimes()
+					showLog()
 				}
 			}
 			timeSelect.onEvent {
