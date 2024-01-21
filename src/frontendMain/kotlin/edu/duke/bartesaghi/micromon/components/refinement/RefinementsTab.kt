@@ -14,9 +14,12 @@ import io.kvision.html.image
 import io.kvision.html.Image
 import io.kvision.html.span
 import io.kvision.utils.perc
-import kotlinx.html.FlowOrPhrasingContent
+import kotlinx.browser.document
+import kotlinx.html.dom.create
 import kotlinx.html.img
+import kotlinx.html.js.img
 import kotlinx.html.span
+import org.w3c.dom.HTMLElement
 
 
 class RefinementsTab(
@@ -55,22 +58,23 @@ class RefinementsTab(
 		val title: String,
 		val mode: Mode,
 		val urlFragment: String,
-		val sizes: List<Int>
+		val sizes: List<Int>,
+		val fixedImageSizes: ImageSizes?
 	) : RegisterableTab {
 
 		Particles(
 			"Particles",
 			Mode.Refinement,
 			"particles",
-			ImageSize.values().map { it.approxWidth }
+			ImageSize.values().map { it.approxWidth },
+			null
 		) {
 
 			private fun url(job: JobData, target: HasIDIterated, imageSize: ImageSize): String =
 				"${urlBase(job, target)}/$urlFragment/${imageSize.id}"
 
-			override fun galleryHtml(container: FlowOrPhrasingContent, job: JobData, target: HasIDIterated) {
-				container.img(src = url(job, target, ImageSize.Small))
-			}
+			override fun galleryHtml(job: JobData, gallery: HyperGallery<*>, target: HasIDIterated) =
+				gallery.listenToImageSize(document.create.img(src = url(job, target, ImageSize.Small)))
 
 			override fun showPanel(job: JobData, target: HasIDIterated, panel: SequencePanel) {
 				panel.elem.image(url(job, target, ImageSize.values()[panel.index]))
@@ -82,30 +86,27 @@ class RefinementsTab(
 					.firstOrNull() as? Image
 				img?.src = url(job, target, ImageSize.values()[panel.index])
 			}
-
-			override suspend fun loadImageSizes(job: JobData, target: HasIDIterated) =
-				fetchImageSizes(url(job, target, ImageSize.Small))
 		},
 
 		Weights(
 			"Exposure Weights",
 			Mode.Bundle,
 			"weights",
-			listOf(1024, 1536, 2048)
+			listOf(1024, 1536, 2048),
+			ImageSizes(500, 160)
 		) {
 
-			override fun galleryHtml(container: FlowOrPhrasingContent, job: JobData, target: HasIDIterated) {
-				container.span {
+			override fun galleryHtml(job: JobData, gallery: HyperGallery<*>, target: HasIDIterated) =
+				document.create.span {
 					img(src = "${urlBase(job, target)}/scores") {
 						width = "60%"
-						height = "160"
+						height = fixedImageSizes!!.height.toString()
 					}
 					img(src = "${urlBase(job, target)}/weights") {
 						width = "40%"
-						height = "160"
+						height = fixedImageSizes!!.height.toString()
 					}
 				}
-			}
 
 			override fun showPanel(job: JobData, target: HasIDIterated, panel: SequencePanel) {
 				panel.elem.span {
@@ -121,24 +122,21 @@ class RefinementsTab(
 			override fun resizePanel(job: JobData, target: HasIDIterated, panel: SequencePanel) {
 				// nothing to do, the svg automatically resizes
 			}
-
-			override suspend fun loadImageSizes(job: JobData, target: HasIDIterated) =
-				ImageSizes(500, 160)
 		},
 
 		Scores(
 			"Per-Particle Scores",
 			Mode.Refinement,
 			"scores",
-			listOf(512, 1024, 1536)
+			listOf(512, 1024, 1536),
+			ImageSizes(250, 215)
 		) {
 
-			override fun galleryHtml(container: FlowOrPhrasingContent, job: JobData, target: HasIDIterated) {
-				container.img(src = "${urlBase(job, target)}/scores") {
-					width = "250"
-					height = "215"
+			override fun galleryHtml(job: JobData, gallery: HyperGallery<*>, target: HasIDIterated) =
+				document.create.img(src = "${urlBase(job, target)}/scores") {
+					width = fixedImageSizes!!.width.toString()
+					height = fixedImageSizes.height.toString()
 				}
-			}
 
 			override fun showPanel(job: JobData, target: HasIDIterated, panel: SequencePanel) {
 				panel.elem.span {
@@ -151,15 +149,11 @@ class RefinementsTab(
 			override fun resizePanel(job: JobData, target: HasIDIterated, panel: SequencePanel) {
 				// nothing to do, the svg automatically resizes
 			}
-
-			override suspend fun loadImageSizes(job: JobData, target: HasIDIterated) =
-				ImageSizes(250, 215)
 		};
 
-		abstract fun galleryHtml(container: FlowOrPhrasingContent, job: JobData, target: HasIDIterated)
+		abstract fun galleryHtml(job: JobData, gallery: HyperGallery<*>, target: HasIDIterated): HTMLElement
 		abstract fun showPanel(job: JobData, target: HasIDIterated, panel: SequencePanel)
 		abstract fun resizePanel(job: JobData, target: HasIDIterated, panel: SequencePanel)
-		abstract suspend fun loadImageSizes(job: JobData, target: HasIDIterated): ImageSizes
 
 		fun urlBase(job: JobData, target: HasIDIterated): String =
 			"/kv/refinements/${job.jobId}/${mode.id}/${target.id}"
@@ -180,15 +174,19 @@ class RefinementsTab(
 
 	private val headerElem = Div(classes = setOf("header"))
 
-	private val gallery = HyperGallery(
-		targets,
+	private val gallery = HyperGallery(targets).apply {
+		val tab = this@RefinementsTab
 		html = { target ->
-			imageType.galleryHtml(this, job, target)
-		},
-		linker = { _, index ->
-			showTarget(index)
+			tab.imageType.galleryHtml(tab.job, this, target)
 		}
-	)
+		linker = { _, index ->
+			tab.showTarget(index)
+		}
+
+		// if we have fixed image sizes, apply them now
+		tab.imageType.fixedImageSizes
+			?.let { imageSizes = it }
+	}
 
 	private val imagePanel = SequencePanel(
 		imageType.sizes,
@@ -240,12 +238,9 @@ class RefinementsTab(
 			}
 
 			this@RefinementsTab.targets.addAll(targets)
-			updateHeader()
 
-			// init hyper-gallery after loading data
-			targets.firstOrNull()?.let { target ->
-				gallery.loadIfNeeded { imageType.loadImageSizes(job, target) }
-			}
+			updateHeader()
+			gallery.update()
 		}
 	}
 
@@ -282,7 +277,7 @@ class RefinementsTab(
 
 		targets.add(target)
 		updateHeader()
-		gallery.loadIfNeeded { imageType.loadImageSizes(job, target) }
+		gallery.update()
 		updatePrevNext()
 	}
 

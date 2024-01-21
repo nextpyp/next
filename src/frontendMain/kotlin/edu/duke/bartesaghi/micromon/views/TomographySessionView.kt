@@ -17,7 +17,9 @@ import io.kvision.html.*
 import io.kvision.navbar.navLink
 import io.kvision.toast.Toast
 import js.getHTMLElement
-import kotlinx.html.img
+import kotlinx.browser.document
+import kotlinx.html.dom.create
+import kotlinx.html.js.img
 import kotlin.js.Date
 
 
@@ -253,7 +255,7 @@ class TomographySessionView(
 								tiltSeriesTab?.listNav?.newItem()
 								plotsTab?.onTiltSeries(msg)
 								tableTab?.onTiltSeries()
-								galleryTab?.onTiltSeries(msg)
+								galleryTab?.onTiltSeries()
 							}
 							is RealTimeS2C.SessionExport -> {
 								opsTab?.exportsMonitor?.update(msg)
@@ -491,25 +493,24 @@ class TomographySessionView(
 
 		val loader = TabDataLoader<RealTimeS2C.SessionLargeData>()
 
-		private val gallery = HyperGallery(
-			tiltSeriesesData.tiltSerieses,
-			html = { img(src = it.imageUrl(session, ImageSize.Small)) },
+		private val gallery = HyperGallery(tiltSeriesesData.tiltSerieses).apply {
+			html = { tiltSeries ->
+				document.create.img(src = tiltSeries.imageUrl(this@GalleryTab.session, ImageSize.Small))
+			}
 			linker = { _, index ->
 				showTiltSeries(index, true)
 			}
-		)
+		}
 
 		init {
 			// start with a loading message
 			loading("Loading tilt series ...", classes = setOf("spaced"))
 
 			// wire up events
-			loader.onData = { msg ->
+			loader.onData = {
 				removeAll()
 				add(gallery)
-				msg.tiltSerieses.firstOrNull()?.let { tiltSeries ->
-					gallery.loadIfNeeded { fetchImageSizes(tiltSeries.imageUrl(session, ImageSize.Small)) }
-				}
+				gallery.update()
 			}
 		}
 
@@ -518,8 +519,8 @@ class TomographySessionView(
 			loader.init(lazyTab)
 		}
 
-		fun onTiltSeries(msg: RealTimeS2C.SessionTiltSeries) {
-			gallery.loadIfNeeded { fetchImageSizes(msg.tiltSeries.imageUrl(session, ImageSize.Small)) }
+		fun onTiltSeries() {
+			gallery.update()
 		}
 	}
 

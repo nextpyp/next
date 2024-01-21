@@ -12,7 +12,9 @@ import io.kvision.html.*
 import io.kvision.html.div
 import io.kvision.html.span
 import io.kvision.navbar.navLink
-import kotlinx.html.img
+import kotlinx.browser.document
+import kotlinx.html.dom.create
+import kotlinx.html.js.img
 import kotlin.js.Date
 
 
@@ -162,17 +164,15 @@ class TomographyPreprocessingView(val project: ProjectData, val job: TomographyP
 				}
 
 				addTab("Gallery", "fas fa-image") { lazyTab ->
-					gallery = HyperGallery(
-						data.tiltSerieses,
-						html = { img(src = it.imageUrl(job, ImageSize.Small)) },
+					gallery = HyperGallery(data.tiltSerieses).apply {
+						html = { tiltSeries ->
+							listenToImageSize(document.create.img(src = tiltSeries.imageUrl(job, ImageSize.Small)))
+						}
 						linker = { _, index ->
 							showTiltSeries(index, true)
 						}
-					).apply {
 						lazyTab.elem.add(this)
-						data.tiltSerieses.firstOrNull()?.let { tiltSeries ->
-							loadIfNeeded { fetchImageSizes(tiltSeries.imageUrl(job, ImageSize.Small)) }
-						}
+						update()
 					}
 				}
 
@@ -235,7 +235,7 @@ class TomographyPreprocessingView(val project: ProjectData, val job: TomographyP
 		// update tabs
 		plots?.update(msg.tiltSeries)
 		filterTable?.update()
-		gallery?.loadIfNeeded { fetchImageSizes(msg.tiltSeries.imageUrl(job, ImageSize.Small)) }
+		gallery?.update()
 		liveTab?.listNav?.newItem()
 	}
 

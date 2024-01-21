@@ -2,8 +2,6 @@ package js.hyperlist
 
 import js.UnshadowedWidget
 import js.hyperlist.raw.HyperList as RawHyperList
-import kotlinext.js.Object
-import kotlinext.js.PropertyDescriptor
 import kotlinext.js.jsObject
 import org.w3c.dom.Element
 import io.kvision.core.Container
@@ -11,10 +9,9 @@ import io.kvision.core.Container
 
 class HyperList internal constructor(
 	container: Container,
-	itemHeight: Int,
-	items: () -> Int,
-	reverse: Boolean,
 	classes: Set<String>,
+	itemHeight: Int,
+	total: Int,
 	generator: (row: Int) -> Element
 ) : UnshadowedWidget(classes) {
 
@@ -25,13 +22,8 @@ class HyperList internal constructor(
 
 	val config = jsObject<RawHyperList.Config> {
 		this.itemHeight = itemHeight
-		this.total = 0
-		this.reverse = reverse
+		this.total = total
 		this.generate = { index -> generator(index.toInt()) }
-	}.apply {
-		Object.defineProperty(this, "total", jsObject<PropertyDescriptor<Number>> {
-			get = items
-		})
 	}
 
 	private val hyperlist = RawHyperList(elem, config)
@@ -41,16 +33,14 @@ class HyperList internal constructor(
 }
 
 fun Container.hyperList(
-	itemHeight: Int,
-	items: () -> Int,
-	reverse: Boolean = false,
+	itemHeight: Int = 0,
+	total: Int = 1, // NOTE: putting 0 here breaks hyperlist!
 	classes: Set<String> = emptySet(),
 	generator: (row: Int) -> Element
 ) = HyperList(
 	this,
-	itemHeight,
-	items,
-	reverse,
 	classes,
+	itemHeight,
+	total,
 	generator
 )

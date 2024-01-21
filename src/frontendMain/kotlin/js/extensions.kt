@@ -11,6 +11,8 @@ import kotlinx.html.InputType
 import kotlinx.html.div
 import kotlinx.html.dom.create
 import kotlinx.html.input
+import org.w3c.dom.DOMRectReadOnly
+import org.w3c.dom.Element
 import org.w3c.dom.HTMLInputElement
 import org.w3c.dom.events.MouseEvent
 import kotlin.js.Console
@@ -263,4 +265,36 @@ external object Intl {
 external class DateParts {
 	var type: String
 	var value: String
+}
+
+
+// https://developer.mozilla.org/en-US/docs/Web/API/Resize_Observer_API
+
+external class ResizeObserver(callback: (Array<ResizeObserverEntry>) -> Unit) {
+	fun disconnect()
+	fun observe(target: Element, options: ResizeObserverObserveOptions = definedExternally)
+	fun unobserve(targer: Element)
+}
+
+external class ResizeObserverEntry {
+	val borderBoxSize: Array<ResizeObserverBorderBoxSize>
+	val contentBoxSize: Array<ResizeObserverBorderBoxSize>
+	val devicePixelContentBoxSize: Array<ResizeObserverBorderBoxSize>
+	val contentRect: DOMRectReadOnly
+	val target: Element
+}
+
+external interface ResizeObserverBorderBoxSize {
+	val blockSize: Number
+	val inlineSize: Number
+}
+
+external interface ResizeObserverObserveOptions {
+	var box: String
+}
+
+object ResizeObserverBox {
+	const val CONTENT_BOX = "content-box"
+	const val BORDER_BOX = "border-box"
+	const val DEVICE_PIXEL_CONTENT_BOX = "device-pixel-content-box"
 }

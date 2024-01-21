@@ -2677,6 +2677,13 @@ div.file-browser .file-browser-bottom .file-browser-controls .file-browser-glob 
 	height: inherit !important;
 }
 
+.hyper-gallery .thumbnails-hyperlist .vrow {
+	/* don't try to wrap rows */
+	display: flex;
+	flex-direction: row;
+	gap: 0px;
+}
+
 .hyper-gallery .thumbnails-hyperlist .thumbnail {
 	margin: 10px;
 	display: inline-block;

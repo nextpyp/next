@@ -10,7 +10,11 @@ import io.kvision.html.*
 import io.kvision.html.div
 import io.kvision.html.span
 import io.kvision.navbar.navLink
+import kotlinx.browser.document
+import kotlinx.html.dom.create
 import kotlinx.html.img
+import kotlinx.html.js.img
+import org.w3c.dom.HTMLImageElement
 import kotlin.js.Date
 
 
@@ -158,17 +162,15 @@ class SingleParticlePreprocessingView(val project: ProjectData, val job: SingleP
 				}
 
 				addTab("Gallery", "fas fa-image") { lazyTab ->
-					gallery = HyperGallery(
-						micrographs,
-						html = { img(src = it.imageUrl(job, ImageSize.Small)) },
+					gallery = HyperGallery(micrographs).apply {
+						html = { micrograph ->
+							listenToImageSize(document.create.img(src = micrograph.imageUrl(job, ImageSize.Small)))
+						}
 						linker = linker@{ _, index ->
 							showMicrograph(index, true)
 						}
-					).apply {
 						lazyTab.elem.add(this)
-						micrographs.firstOrNull()?.let { micrograph ->
-							loadIfNeeded { fetchImageSizes(micrograph.imageUrl(job, ImageSize.Small)) }
-						}
+						update()
 					}
 				}
 
@@ -242,7 +244,7 @@ class SingleParticlePreprocessingView(val project: ProjectData, val job: SingleP
 		// update tabs
 		plots?.update(micrograph)
 		filterTable?.update()
-		gallery?.loadIfNeeded { fetchImageSizes(micrograph.imageUrl(job, ImageSize.Small)) }
+		gallery?.update()
 		liveTab?.listNav?.newItem()
 	}
 

@@ -17,7 +17,9 @@ import io.kvision.html.*
 import io.kvision.navbar.navLink
 import io.kvision.toast.Toast
 import js.getHTMLElement
-import kotlinx.html.img
+import kotlinx.browser.document
+import kotlinx.html.dom.create
+import kotlinx.html.js.img
 import kotlin.js.Date
 
 
@@ -273,7 +275,7 @@ class SingleParticleSessionView(
 								micrographsTab?.listNav?.newItem()
 								plotsTab?.onMicrograph(msg)
 								tableTab?.onMicrograph()
-								galleryTab?.onMicrograph(msg)
+								galleryTab?.onMicrograph()
 							}
 							is RealTimeS2C.SessionTwoDClasses -> {
 								twoDClassesTab?.onTwoDClasses(msg)
@@ -514,25 +516,24 @@ class SingleParticleSessionView(
 
 		val loader = TabDataLoader<RealTimeS2C.SessionLargeData>()
 
-		private val gallery = HyperGallery(
-			micrographs,
-			html = { img(src = it.imageUrl(session, ImageSize.Small)) },
+		private val gallery = HyperGallery(micrographs).apply {
+			html = { micrograph ->
+				listenToImageSize(document.create.img(src = micrograph.imageUrl(this@GalleryTab.session, ImageSize.Small)))
+			}
 			linker = { _, index ->
 				showMicrograph(index, true)
 			}
-		)
+		}
 
 		init {
 			// start with a loading message
 			loading("Loading micrographs ...", classes = setOf("spaced"))
 
 			// wire up events
-			loader.onData = { msg ->
+			loader.onData = {
 				removeAll()
 				add(gallery)
-				msg.micrographs.firstOrNull()?.let { micrograph ->
-					gallery.loadIfNeeded { fetchImageSizes(micrograph.imageUrl(session, ImageSize.Small)) }
-				}
+				gallery.update()
 			}
 		}
 
@@ -541,8 +542,8 @@ class SingleParticleSessionView(
 			loader.init(lazyTab)
 		}
 
-		fun onMicrograph(msg: RealTimeS2C.SessionMicrograph) {
-			gallery.loadIfNeeded { fetchImageSizes(msg.micrograph.imageUrl(session, ImageSize.Small)) }
+		fun onMicrograph() {
+			gallery.update()
 		}
 	}
 
