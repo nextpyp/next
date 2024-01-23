@@ -3,11 +3,11 @@ package edu.duke.bartesaghi.micromon.dokka
 import org.jetbrains.dokka.links.DRI
 
 
-private const val PP = "edu.duke.bartesaghi.micromon"
-const val PACKAGE_SERVICES = "$PP.services"
-const val PACKAGE_PYP = "$PP.pyp"
+private const val PACKAGE_ROOT = "edu.duke.bartesaghi.micromon"
+const val PACKAGE_SERVICES = "$PACKAGE_ROOT.services"
+const val PACKAGE_PYP = "$PACKAGE_ROOT.pyp"
 
-val PACKAGES = setOf(PACKAGE_SERVICES, PACKAGE_PYP)
+val PACKAGES = setOf(PACKAGE_ROOT, PACKAGE_SERVICES, PACKAGE_PYP)
 
 
 class Model(
@@ -72,34 +72,50 @@ class Model(
 	data class TypeRef(
 		val packageName: String,
 		val name: String,
-		val params: List<TypeRef>
+		val params: List<TypeRef> = emptyList(),
+		val nullable: Boolean = false,
+		val aliased: TypeRef? = null,
+		val parameter: Boolean = false
 	) {
 
 		val id: String get() =
 			typeId(packageName, name)
-
-		var nullable: Boolean = false
 
 		val innerName: String get() =
 			name.split('.').last()
 
 		val flatName: String get() =
 			name.split('.').joinToString("")
+
+		fun resolveAliases(): TypeRef {
+			var ref = this
+			while (true) {
+				val aliased = ref.aliased
+					?: break
+				ref = aliased
+			}
+			return ref
+		}
 	}
 
 	data class Type(
 		val packageName: String,
 		val name: String,
 		val props: List<Property>,
-		val enumValues: List<String>?,
-		val doc: Doc?,
-		val inners: MutableList<Type>
+		val typeParams: List<Param> = emptyList(),
+		val enumValues: List<String>? = null,
+		val doc: Doc? = null,
+		val inners: MutableList<Type> = ArrayList()
 	) {
+
+		data class Param(val name: String) {
+			val instances = HashSet<TypeRef>()
+		}
 
 		data class Property(
 			val name: String,
 			val type: TypeRef,
-			val doc: Doc?
+			val doc: Doc? = null
 		)
 
 		val ancestry: List<Type> get() {
@@ -128,6 +144,12 @@ class Model(
 		val flatName: String get() =
 			ancestry.reversed().joinToString("") { it.name }
 
+		val parameterizedName: String get() =
+			typeParams
+				.takeIf { it.isNotEmpty() }
+				?.let { params -> "$flatName[${params.joinToString(",") { it.name }}]" }
+				?: flatName
+
 		fun descendents(out: ArrayList<Type> = ArrayList()): ArrayList<Type> {
 			for (inner in inners) {
 				out.add(inner)
@@ -137,6 +159,7 @@ class Model(
 		}
 	}
 	val types = ArrayList<Type>()
+	val externalTypes = ArrayList<Type>()
 
 	fun typeRefs(): HashMap<String,TypeRef> {
 
@@ -150,6 +173,7 @@ class Model(
 
 			// recurse
 			typeRef.params.forEach { add(it) }
+			typeRef.aliased?.let { add(it) }
 		}
 
 		// get all the type refs in service functions
@@ -209,6 +233,28 @@ class Model(
 
 		return out
 	}
+
+	fun findExternalType(ref: TypeRef): Type? =
+		externalTypes
+			.find { it.packageName == ref.packageName && it.name == ref.name }
+
+	class TypeAlias(
+		val packageName: String,
+		val name: String,
+		val typeParams: List<Type.Param> = emptyList(),
+		val ref: TypeRef
+	) {
+
+		val id: String get() =
+			typeId(packageName, name)
+	}
+	val typeAliases = ArrayList<TypeAlias>()
+
+	fun typeAliasesLookup(): Map<String,TypeAlias> =
+		typeAliases
+			.associateBy { it.id }
+
+	val typeParameterNames = HashSet<String>()
 
 	data class Doc(
 		val text: String

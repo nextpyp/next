@@ -29,7 +29,7 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 		// write imports
 		writeln("from __future__ import annotations")
 		writeln()
-		writeln("from typing import Optional, List, Dict, Set, Any, Iterator, TYPE_CHECKING, Union, cast")
+		writeln("from typing import Optional, List, Dict, Set, Any, Iterator, TYPE_CHECKING, Union, cast, TypeVar, Generic")
 		writeln()
 		writeln("import json")
 		writeln("from websockets.legacy.client import WebSocketClientProtocol")
@@ -45,6 +45,78 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 
 		// write constants
 		writeln("API_VERSION = '${model.apiVersion}'")
+
+		writeln()
+		writeln()
+
+		// write type parameters
+		writeln("T = TypeVar('T')") // used in helper functions
+		for (param in model.typeParameterNames) {
+			if (param == "T") {
+				continue // already have it
+			}
+			writeln("$param = TypeVar('$param')")
+		}
+
+		writeln()
+		writeln()
+
+		// write type aliases
+		for (typeAlias in model.typeAliases.sortedBy { it.id }) {
+			// TODO: handle type parameters?
+			//  only if we have aliases that actually need better logic here
+			//  which so far, we don't
+			val ref = typeAlias.ref
+				.copy(params = emptyList())
+			writeln("${typeAlias.name} = ${ref.render(model)}")
+		}
+
+		writeln()
+		writeln()
+
+		// write helper functions
+		writeln("def option_from_json(val: Any) -> Option[T]:")
+		indent {
+			writeln("if len(val) == 1:")
+			indent {
+				writeln("return cast(Option[T], val[0])")
+			}
+			writeln("else:")
+			indent {
+				writeln("return cast(Option[T], None)")
+			}
+		}
+
+		writeln()
+		writeln()
+
+		writeln("def option_to_json(val: Option[T]) -> List[T]:")
+		indent {
+			writeln("if val is not None:")
+			indent {
+				writeln("return [cast(T, val)]")
+			}
+			writeln("else:")
+			indent {
+				writeln("return []")
+			}
+		}
+
+		writeln()
+		writeln()
+
+		writeln("def arg_values_toml_from_json(val: Any) -> ArgValuesToml:")
+		indent {
+			writeln("return cast(ArgValuesToml, val)")
+		}
+
+		writeln()
+		writeln()
+
+		writeln("def arg_values_toml_to_json(val: ArgValuesToml) -> str:")
+		indent {
+			writeln("return val")
+		}
 
 		writeln()
 		writeln()
@@ -99,7 +171,7 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 		for (service in model.services) {
 			writeln()
 			writeln()
-			write(service)
+			write(service, model)
 		}
 
 		writeln()
@@ -169,15 +241,22 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 			write(realtimeService)
 		}
 
+		// write the exernal types
+		for (type in model.externalTypes) {
+			writeln()
+			writeln()
+			write(type, model)
+		}
+
 		// write the types
 		for (type in model.types) {
 			writeln()
 			writeln()
-			write(type)
+			write(type, model)
 		}
 	}
 
-	private fun Indented.write(service: Model.Service) {
+	private fun Indented.write(service: Model.Service, model: Model) {
 
 		writeln("class ${service.name}Service:")
 		indent {
@@ -196,19 +275,19 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 
 		for (func in service.functions) {
 			writeln()
-			write(func)
+			write(func, model)
 		}
 	}
 
-	private fun Indented.write(func: Model.Service.Function) {
+	private fun Indented.write(func: Model.Service.Function, model: Model) {
 
 		val args = func.arguments
 			.joinToString("") { arg ->
 				val name = arg.name.caseCamelToSnake()
-				val type = arg.type.render()
+				val type = arg.type.render(model)
 				", $name: $type"
 			}
-		val returns = func.returns?.render()
+		val returns = func.returns?.render(model)
 			?: "None"
 
 		indent {
@@ -239,32 +318,38 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 						indent {
 							writeln("raise Exception(f'response expected from {path}, but none received')")
 						}
-						writeln("return ${r.renderReader("response")}")
+						writeln("return ${r.renderReader("response", model, emptyList())}")
 					}
 				}
 			}
 		}
 	}
 
-	private fun Indented.write(type: Model.Type) {
+	private fun Indented.write(type: Model.Type, model: Model) {
 		if (type.enumValues != null) {
 			writeEnum(type, type.enumValues)
 		} else {
-			writeClass(type)
+			writeClass(type, model)
 		}
 	}
 
-	private fun Indented.writeClass(type: Model.Type) {
+	private fun Indented.writeClass(type: Model.Type, model: Model) {
 
 		val args = type.props
 			.joinToString("") {
 				val name = it.name.caseCamelToSnake()
-				val argType = it.type.render()
+				val argType = it.type.render(model)
 				", $name: $argType"
 			}
 
 		// define the class
-		writeln("class ${type.flatName}:")
+		val typeParams = type.typeParams
+			.takeIf { it.isNotEmpty() }
+		val parent = typeParams
+			?.let { params -> params.joinToString(",") { it.name } }
+			?.let { "(Generic[$it])" }
+			?: ""
+		writeln("class ${type.flatName}$parent:")
 		indent {
 
 			// copy the class kdocs, if any, into the Python docstring
@@ -280,10 +365,23 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 			if (type.props.isNotEmpty()) {
 				writeln("def __init__(self$args) -> None:")
 				indent {
+
+					// write properties
 					for (prop in type.props) {
 						val name = prop.name.caseCamelToSnake()
-						writeln("self.$name: ${prop.type.render()} = $name")
+						writeln("self.$name: ${prop.type.render(model)} = $name")
 						docstring(prop.doc.textOrUndocumented)
+					}
+
+					// write the generic type ids, if needed
+					typeParams?.let { typeParams ->
+						writeln("self._generics: Dict[str,Optional[str]] = {")
+						indent {
+							for (param in typeParams) {
+								writeln("'${param.name}': None")
+							}
+						}
+						writeln("}")
 					}
 				}
 			}
@@ -296,13 +394,37 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 
 				docstring("Converts this class instance into JSON")
 
+				// write the polymorphic serializers, if any
+				for (typeParam in type.typeParams) {
+					writeln()
+					writeln("def writer_polymorphic_${typeParam.name}(val: Any) -> Any:")
+					indent {
+						writeln("type_id = self._generics['${typeParam.name}']")
+						for ((i, ref) in typeParam.instances.withIndex()) {
+							val cond = "type_id == '${ref.id}'"
+							if (i == 0) {
+								writeln("if $cond:")
+							} else {
+								writeln("elif $cond:")
+							}
+							indent {
+								writeln("return ${ref.renderWriter("val", model, type.typeParams)}")
+							}
+						}
+						writeln("else:")
+						indent {
+							writeln("raise Exception(f'Failed to serialize type, unrecognized type id `{type_id}` for type parameter ${typeParam.name}')")
+						}
+					}
+				}
+
 				writeln()
 
 				writeln("return {")
 				indent {
 					for (prop in type.props) {
 						val name = prop.name.caseCamelToSnake()
-						val value = prop.type.renderWriter("self.$name")
+						val value = prop.type.renderWriter("self.$name", model, type.typeParams)
 						writeln("'${prop.name}': $value,")
 					}
 				}
@@ -313,10 +435,35 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 
 			// write the deserializer
 			writeln("@classmethod")
-			writeln("def from_json(cls, json: Dict[str,Any]) -> ${type.flatName}:")
+			writeln("def from_json(cls, json: Dict[str,Any]) -> ${type.parameterizedName}:")
 			indent {
 
 				docstring("Creates a new class instance from JSON")
+
+				// write the polymorphic deserializers, if any
+				for (typeParam in type.typeParams) {
+					writeln()
+					writeln("def reader_polymorphic_${typeParam.name}(type_id: str, json: Dict[str,Any]) -> Any:")
+					indent {
+						for ((i, ref) in typeParam.instances.withIndex()) {
+							val cond = "type_id == '${ref.id}'"
+							if (i == 0) {
+								writeln("if $cond:")
+							} else {
+								writeln("elif $cond:")
+							}
+							indent {
+								writeln("return ${ref.renderReader("json", model, type.typeParams)}")
+							}
+						}
+						writeln("else:")
+						indent {
+							writeln("raise Exception(f'Failed to deserialize type, unrecognized type id `{type_id}` for type parameter ${typeParam.name}')")
+						}
+					}
+					writeln()
+					writeln("type_id = cast(str, json['type'])")
+				}
 
 				writeln()
 
@@ -325,7 +472,7 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 					for (prop in type.props) {
 						val json = "json['${prop.name}']"
 						val name = prop.name.caseCamelToSnake()
-						val value = prop.type.renderReader(json)
+						val value = prop.type.renderReader(json, model, type.typeParams)
 							.appendIf(prop.type.nullable) {
 								" if '${prop.name}' in json and $json is not None else None"
 							}
@@ -401,7 +548,7 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 		for (inner in type.inners) {
 			writeln()
 			writeln()
-			write(inner)
+			write(inner, model)
 		}
 	}
 
@@ -711,43 +858,61 @@ private fun String.appendIf(cond: Boolean, getter: () -> String): String =
 	}
 
 
-private fun Model.TypeRef.render(): String =
-	when (packageName) {
+private fun Model.TypeRef.render(model: Model): String {
+
+	val params = params
+		.takeIf { it.isNotEmpty() }
+
+	fun List<Model.TypeRef>.inner(i: Int): String =
+		getOrNull(i)
+			?.render(model)
+			?: throw NoSuchElementException("$name type has no parameter at $i")
+
+	return when (packageName) {
 
 		// convert basic types
-		"kotlin" -> {
-			when (name) {
-				"String" -> "str"
-				"Int", "Long" -> "int"
-				"Boolean" -> "bool"
-				"Float", "Double" -> "float"
-				else -> throw Error("Don't know how to handle kotlin type: $name")
-			}
+		"kotlin" -> when (name) {
+			"String" -> "str"
+			"Int", "Long" -> "int"
+			"Boolean" -> "bool"
+			"Float", "Double" -> "float"
+			"Any" -> "Any"
+			else -> throw Error("Don't know how to handle kotlin type: $name")
 		}
 
 		// convert collection types
-		"kotlin.collections" -> {
-
-			fun inner(i: Int): String =
-				params.getOrNull(i)
-					?.render()
-					?: throw NoSuchElementException("$name type has no parameter at $i")
-
-			when (name) {
-				"List" -> "List[${inner(0)}]"
-				"Set" -> "Set[${inner(0)}]"
-				"Map" -> "Dict[${inner(0)}, ${inner(1)}]"
-				else -> throw Error("Don't know how to handle kotlin collection type: $name")
-			}
+		"kotlin.collections" -> when (name) {
+			"List" -> params
+				?.let { "List[${it.inner(0)}]" }
+				?: "List"
+			"Set" -> params
+				?.let { "Set[${it.inner(0)}]" }
+				?: "Set"
+			"Map" -> params
+				?.let { "Dict[${it.inner(0)}, ${it.inner(1)}]" }
+				?: "Dict"
+			else -> throw Error("Don't know how to handle kotlin collection type: $name")
 		}
 
 		// handle our types
-		in PACKAGES -> flatName
+		in PACKAGES -> params
+			?.let { "$flatName[${params.joinToString(",") { it.render(model) }}]" }
+			?: flatName
 
-		// TODO: NEXTTIME:
-		//  Don't know how to handle type ref: TypeRef(packageName=edu.duke.bartesaghi.micromon.pyp, name=Block, params=[])
-		//  how to handle pyp things?
-		else -> throw Error("Don't know how to handle type ref: $this")
+		// handle type parameters
+		"" -> {
+			if (!parameter) {
+				throw Error("Type $name has no package, but is not a type parameter")
+			}
+			name
+		}
+
+		// look for an external type
+		else -> {
+			val externalType = model.findExternalType(this)
+				?: throw Error("Don't know how to handle type ref: $this")
+			externalType.flatName
+		}
 	}
 	// apply nullability
 	.let {
@@ -757,44 +922,65 @@ private fun Model.TypeRef.render(): String =
 			it
 		}
 	}
+}
 
-private fun Model.TypeRef.renderReader(expr: String): String =
-	when (packageName) {
+private fun Model.TypeRef.renderReader(expr: String, model: Model, typeParams: List<Model.Type.Param>): String {
+
+	fun inner(i: Int, expr: String): String =
+		params.getOrNull(i)
+			?.renderReader(expr, model, typeParams)
+			?: throw NoSuchElementException("$name type has no parameter at $i")
+
+	return when (packageName) {
 
 		// read basic types
-		"kotlin" -> {
-			when (name) {
-				// no translation needed, just cast the type
-				"String" -> "cast(str, $expr)"
-				"Int", "Long" -> "cast(int, $expr)"
-				"Boolean" -> "cast(bool, $expr)"
-				"Float", "Double" -> "cast(float, $expr)"
-				else -> throw Error("Don't know how to read kotlin type: $name")
-			}
+		"kotlin" -> when (name) {
+			// no translation needed, just cast the type
+			"String" -> "cast(str, $expr)"
+			"Int", "Long" -> "cast(int, $expr)"
+			"Boolean" -> "cast(bool, $expr)"
+			"Float", "Double" -> "cast(float, $expr)"
+			else -> throw Error("Don't know how to read kotlin type: $name")
 		}
 
 		// convert collection types
-		"kotlin.collections" -> {
-
-			fun inner(i: Int): Model.TypeRef =
-				params.getOrNull(i)
-					?: throw NoSuchElementException("$name type has no parameter at $i")
-
-			when (name) {
-				"List" -> "[${inner(0).renderReader("x")} for x in $expr]"
-				"Set" -> "{${inner(0).renderReader("x")} for x in $expr}"
-				"Map" -> "{${inner(0).renderReader("k")}:${inner(1).renderReader("v")} for k,v in $expr}"
-				else -> throw Error("Don't know how to read kotlin collection type: $name")
-			}
+		"kotlin.collections" -> when (name) {
+			"List" -> "[${inner(0, "x")} for x in $expr]"
+			"Set" -> "{${inner(0, "x")} for x in $expr}"
+			"Map" -> "{${inner(0, "k")}:${inner(1, "v")} for k,v in $expr}"
+			else -> throw Error("Don't know how to read kotlin collection type: $name")
 		}
 
 		// handle our types
-		in PACKAGES -> "$flatName.from_json($expr)"
+		in PACKAGES -> {
+			if (aliased != null) {
+				"${flatName.caseCamelToSnake()}_from_json($expr)"
+			} else {
+				"$flatName.from_json($expr)"
+			}
+		}
 
-		else -> throw Error("Don't know how to read type: $this")
+		// handle type parameters
+		"" -> {
+			if (!parameter) {
+				throw Error("Type $name has no package, but is not a type parameter")
+			}
+			typeParams
+				.find { it.name == name }
+				?.let { param -> "reader_polymorphic_${param.name}(type_id, $expr)" }
+				?: throw Error("Parent type has no parameter named $name")
+		}
+
+		// look for an external type
+		else -> {
+			val externalType = model.findExternalType(this)
+				?: throw Error("Don't know how to read type: $this")
+			"${externalType.flatName}.from_json($expr)"
+		}
 	}
+}
 
-private fun Model.TypeRef.renderWriter(varname: String): String =
+private fun Model.TypeRef.renderWriter(varname: String, model: Model, typeParams: List<Model.Type.Param>): String = resolveAliases().run {
 	when (packageName) {
 
 		// read basic types
@@ -809,23 +995,47 @@ private fun Model.TypeRef.renderWriter(varname: String): String =
 		// convert collection types
 		"kotlin.collections" -> {
 
-			fun inner(i: Int): Model.TypeRef =
+			fun inner(i: Int, varname: String): String =
 				params.getOrNull(i)
+					?.renderWriter(varname, model, typeParams)
 					?: throw NoSuchElementException("$name type has no parameter at $i")
 
 			when (name) {
-				"List", "Set" -> "[${inner(0).renderWriter("x")} for x in $varname]"
-				"Map" -> "[[${inner(0).renderWriter("k")},${inner(1).renderWriter("v")}] for k,v in $varname]"
+				"List", "Set" -> "[${inner(0, "x")} for x in $varname]"
+				"Map" -> "[[${inner(0, "k")},${inner(1, "v")}] for k,v in $varname]"
 				else -> throw Error("Don't know how to read kotlin collection type: $name")
 			}
 		}
 
 		// handle our types
-		in PACKAGES -> "$varname.to_json()"
+		in PACKAGES -> {
+			if (aliased != null) {
+				"${flatName.caseCamelToSnake()}_to_json($varname)"
+			} else {
+				"$varname.to_json()"
+			}
+		}
 
-		else -> throw Error("Don't know how to write type: $this")
+		// handle type parameters
+		"" -> {
+			if (!parameter) {
+				throw Error("Type $name has no package, but is not a type parameter")
+			}
+			typeParams
+				.find { it.name == name }
+				?.let { param -> "writer_polymorphic_${param.name}($varname)" }
+				?: throw Error("Parent type has no parameter named $name")
+		}
+
+		// look for an external type
+		else -> {
+			val externalType = model.findExternalType(this)
+				?: throw Error("Don't know how to write type: $this")
+			"${externalType.flatName}.to_json()"
+		}
 	}
 	// apply nullability
 	.appendIf(nullable) {
 		" if $varname is not None else None"
 	}
+}

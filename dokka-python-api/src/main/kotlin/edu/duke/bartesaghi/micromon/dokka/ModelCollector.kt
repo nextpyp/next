@@ -75,12 +75,16 @@ class ModelCollector(val ctx: DokkaContext) : DocumentableToPageTranslator {
 					.map { it.id }
 					.toMutableSet()
 					.apply {
-						// add the realtime message base classes, since they aren't refernced by services directly
+						// add the realtime message base classes, since they aren't referenced by services directly
 						add(Model.typeId(PACKAGE_SERVICES, "RealTimeC2S"))
 						add(Model.typeId(PACKAGE_SERVICES, "RealTimeS2C"))
 						add(Model.typeId(PACKAGE_SERVICES, "RealTimeS2C.Error"))
 					}
-				val numAdded = packages
+
+				var numAdded = 0
+
+				// look for types
+				numAdded += packages
 					.asSequence()
 					.flatMap { it.classlikes }
 					// add the type id
@@ -95,7 +99,25 @@ class ModelCollector(val ctx: DokkaContext) : DocumentableToPageTranslator {
 						model.types.add(it)
 						true
 					}
-				println("added $numAdded new types in loop iteration $i")
+
+				// look for type aliases
+				numAdded += packages
+					.asSequence()
+					.flatMap { it.typealiases }
+					// add the type id
+					.map { c -> c to Model.typeId(c.dri) }
+					// should be one of the service type refs
+					.filter { (_, id) -> id in serviceTypeRefIds }
+					// the tree has tons of duplicates in it for some reason, so filter them out
+					// also we need to ignore the types we've already seen on later discovery passes
+					.filter { (_, id) -> model.typeAliases.none { it.id == id } }
+					.map { (t, _) -> collectTypeAlias(t) }
+					.count {
+						model.typeAliases.add(it)
+						true
+					}
+
+				println("added $numAdded new types and alises in loop iteration $i")
 
 				if (numAdded > 0) {
 					continue
@@ -123,12 +145,37 @@ class ModelCollector(val ctx: DokkaContext) : DocumentableToPageTranslator {
 			purge(type)
 		}
 
-		// make sure we found all the type refs
+		// add referenced types that aren't in our source code
+		collectExternalTypes(model)
 		val typesLookup = model.typesLookup()
+		val typeAliasesLookup = model.typeAliasesLookup()
+
+		// make sure we found types for all the type refs
 		val missingTypeRefIds = serviceTypeRefIds
-			.filter { it !in typesLookup }
+			.filter { it !in typesLookup && it !in typeAliasesLookup }
 		if (missingTypeRefIds.isNotEmpty()) {
 			throw Error("Types referenced in services but not collected:\n\t${missingTypeRefIds.joinToString("\n\t")}")
+		}
+
+		// collect types for the type parameters
+		for (ref in model.typeRefs().values) {
+			val resolvedRef = ref.resolveAliases()
+			resolvedRef.params
+				.takeIf { resolvedRef.packageName in PACKAGES && it.isNotEmpty() }
+				?.let l@{ paramRefs ->
+					val type = typesLookup[resolvedRef.id]
+						?: throw Error("no type for ref $resolvedRef")
+					for ((paramRef, param) in paramRefs zip type.typeParams) {
+						param.instances.add(paramRef)
+					}
+				}
+		}
+
+		// collect the unique type parameter names (eg T)
+		for (type in model.types) {
+			for (typeParam in type.typeParams) {
+				model.typeParameterNames.add(typeParam.name)
+			}
 		}
 
 		return Page("the page", model)
@@ -229,7 +276,7 @@ class ModelCollector(val ctx: DokkaContext) : DocumentableToPageTranslator {
 
 		// read the function return, if any
 		val returns = func.type
-			.takeIf { it != Void }
+			.takeIf { it != Void && !(it is GenericTypeConstructor && it.dri.packageName == "kotlin" && it.dri.classNames == "Unit") }
 			?.let { collectTypeRef(it) }
 
 		val permission = getPermission(export.permissionDri)
@@ -261,14 +308,23 @@ class ModelCollector(val ctx: DokkaContext) : DocumentableToPageTranslator {
 				)
 
 			is Nullable -> collectTypeRef(type.inner)
-				.apply {
-					nullable = true
-				}
+				.copy(nullable = true)
+
 			is Variance<*> -> collectTypeRef(type.inner)
+
+			is TypeAliased -> collectTypeRef(type.typeAlias)
+				.copy(aliased = collectTypeRef(type.inner))
+
+			is TypeParameter ->
+				Model.TypeRef(
+					packageName = "",
+					name = type.name,
+					parameter = true
+				)
 
 			// do we need to handle more types here?
 
-			else -> throw Error("don't know how to reference type ${type::class.simpleName}")
+			else -> throw Error("don't know how to reference type ${type::class.simpleName} for $type")
 		}
 
 	private fun collectType(c: DClasslike): Model.Type {
@@ -285,6 +341,13 @@ class ModelCollector(val ctx: DokkaContext) : DocumentableToPageTranslator {
 				.filterNot { it.exportServicePropertyAnnotation()?.skip == true }
 				//.filter { it.getter == null && it.setter == null }
 				.map { collectProperty(it) },
+			typeParams =
+				when (c) {
+					is DClass -> c.generics.map { it.name }
+					is DInterface -> c.generics.map { it.name }
+					else -> emptyList()
+				}
+				.map { Model.Type.Param(it) },
 			enumValues = (c as? DEnum)
 				?.let { e ->
 					e.entries.map { it.name }
@@ -308,6 +371,21 @@ class ModelCollector(val ctx: DokkaContext) : DocumentableToPageTranslator {
 			type = collectTypeRef(prop.type),
 			doc = prop.documentation.readKdoc()
 		)
+
+	private fun collectTypeAlias(t: DTypeAlias): Model.TypeAlias {
+
+		println("\tTYPEALIAS: ${t.dri.classNames}")
+
+		return Model.TypeAlias(
+			packageName = t.dri.packageName ?: "",
+			name = t.dri.classNames ?: "",
+			typeParams = t.generics.map { Model.Type.Param(it.name) },
+			ref = t.underlyingType.values
+				.firstOrNull()
+				?.let { collectTypeRef(it) }
+				?: throw Error("Type alias ${t.dri} has no underlying type")
+		)
+	}
 
 	private fun collectRealtimeService(
 		prop: DProperty,
@@ -362,5 +440,26 @@ class ModelCollector(val ctx: DokkaContext) : DocumentableToPageTranslator {
 			}
 			.takeIf { it.isNotEmpty() }
 			?.let { Model.Doc(it.joinToString("\n")) }
+	}
+
+	private fun collectExternalTypes(model: Model) {
+
+		model.externalTypes.add(Model.Type(
+			"io.kvision.remote",
+			"RemoteOption",
+			listOf(
+				Model.Type.Property("value", Model.TypeRef("kotlin", "String", nullable = true)),
+				Model.Type.Property("text", Model.TypeRef("kotlin", "String", nullable = true)),
+				Model.Type.Property("className", Model.TypeRef("kotlin", "String", nullable = true)),
+				Model.Type.Property("subtext", Model.TypeRef("kotlin", "String", nullable = true)),
+				Model.Type.Property("icon", Model.TypeRef("kotlin", "String", nullable = true)),
+				Model.Type.Property("content", Model.TypeRef("kotlin", "String", nullable = true)),
+				Model.Type.Property("disabled", Model.TypeRef("kotlin", "Boolean")),
+				Model.Type.Property("divider", Model.TypeRef("kotlin", "Boolean"))
+			),
+			doc = Model.Doc("""
+				|Search result option, with some options for presentation
+			""".trimMargin())
+		))
 	}
 }
