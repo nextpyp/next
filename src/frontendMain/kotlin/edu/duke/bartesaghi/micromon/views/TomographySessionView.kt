@@ -16,7 +16,6 @@ import io.kvision.form.text.Text
 import io.kvision.html.*
 import io.kvision.navbar.navLink
 import io.kvision.toast.Toast
-import js.getHTMLElement
 import kotlinx.browser.document
 import kotlinx.html.dom.create
 import kotlinx.html.js.img
@@ -534,11 +533,6 @@ class TomographySessionView(
 
 			// clear the previous contents
 			tiltSeriesElem.removeAll()
-
-			// some controls here only work when in the real DOM
-			if (tiltSeriesElem.getHTMLElement() == null) {
-				return@e
-			}
 
 			// get the indexed tilt series, if any
 			val tiltSeries = tiltSeriesesData.tiltSerieses.getOrNull(index)
