@@ -12,9 +12,7 @@ import io.kvision.html.span
 import io.kvision.navbar.navLink
 import kotlinx.browser.document
 import kotlinx.html.dom.create
-import kotlinx.html.img
 import kotlinx.html.js.img
-import org.w3c.dom.HTMLImageElement
 import kotlin.js.Date
 
 
