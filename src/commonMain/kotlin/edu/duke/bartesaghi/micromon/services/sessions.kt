@@ -379,6 +379,7 @@ enum class SessionExportStatus(val id: String) {
 
 
 @KVService
+@ExportService("Sessions")
 interface ISessionsService {
 
 	@KVBindingRoute("sessions/canStart")
@@ -491,6 +492,7 @@ interface ISessionsService {
 
 
 @KVService
+@ExportService("SingleParticleSessions")
 interface ISingleParticleSessionService {
 
 	@ExportServiceFunction(AppPermission.SessionList)
@@ -524,6 +526,7 @@ interface ISingleParticleSessionService {
 
 
 @KVService
+@ExportService("TomographySessions")
 interface ITomographySessionService {
 
 	@ExportServiceFunction(AppPermission.SessionList)
