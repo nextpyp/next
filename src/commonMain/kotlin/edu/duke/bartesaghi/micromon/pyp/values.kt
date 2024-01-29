@@ -287,6 +287,17 @@ object MicromonArgs {
 		target = ArgTarget.Micromon
 	)
 
+	val slurmLaunchAccount = Arg(
+		groupId = "slurm",
+		argId = "launch_account",
+		name = "Slurm account (launch task)",
+		description = "Charge resources used by this job to specified account",
+		type = ArgType.TStr(),
+		required = false,
+		default = ArgValue.VStr(""),
+		target = ArgTarget.Micromon
+	)
+
 	val slurmLaunchQueue = Arg(
 		groupId = "slurm",
 		argId = "launch_queue",
@@ -302,6 +313,7 @@ object MicromonArgs {
 		slurmLaunchCpus,
 		slurmLaunchMemory,
 		slurmLaunchWalltime,
+		slurmLaunchAccount,
 		slurmLaunchQueue
 	)
 
@@ -320,6 +332,9 @@ val ArgValues.slurmLaunchMemory: Long
 
 val ArgValues.slurmLaunchWalltime: String
 	get() = getOrDefault(MicromonArgs.slurmLaunchWalltime) as String
+
+val ArgValues.slurmLaunchAccount: String
+	get() = getOrDefault(MicromonArgs.slurmLaunchAccount) as String
 
 val ArgValues.slurmLaunchQueue: String?
 	get() = get(MicromonArgs.slurmLaunchQueue) as String?

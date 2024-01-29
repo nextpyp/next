@@ -262,4 +262,7 @@ fun ArgValues.toSbatchArgs(): List<String> =
 		add("--mem=${slurmLaunchMemory}G")
 		add("--time=\"${slurmLaunchWalltime}\"")
 		slurmLaunchQueue?.let { add("--partition=\"$it\"") }
+		if ( slurmLaunchAccount != "" ){
+			add("--account=\"${slurmLaunchAccount}\"")
+		}
 	}
