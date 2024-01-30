@@ -380,7 +380,6 @@ class IntegratedRefinementView(
 			}
 
 			val scoresLazyTab = if (nodeInfo in listOf(
-					TomographyFlexibleRefinementNode,
 					TomographyFineRefinementNode,
 					TomographyMovieCleaningNode
 				)) {
