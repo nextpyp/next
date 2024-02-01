@@ -1389,7 +1389,9 @@ fun vboxrun(vmid: String, cmd: String, ignoreResult: Boolean = false) {
 		add(vmid)
 		add("run")
 		add("--exe", "/bin/sh")
-		add("--", "ignored") // first argument is ignored for some reason...
+		add("--")
+		// looks like a later version of VirtualBox fixed this?
+		//add("ignored") // first argument is ignored for some reason...
 		add("-c", cmd)
 	}
 }
