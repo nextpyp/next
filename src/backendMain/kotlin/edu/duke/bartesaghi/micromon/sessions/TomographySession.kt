@@ -48,7 +48,9 @@ class TomographySession(
 			Session.fromIdOrThrow(sessionId) as TomographySession
 
 		fun args() =
-			Backend.pypArgs.filter("stream_tomo", includeHiddenArgs = false, includeHiddenGroups = true)
+			Backend.pypArgs
+				.filter("stream_tomo", includeHiddenArgs = false, includeHiddenGroups = true)
+				.appendAll(MicromonArgs.slurmLaunch)
 
 		object StreampypListener : ClusterJob.OwnerListener {
 

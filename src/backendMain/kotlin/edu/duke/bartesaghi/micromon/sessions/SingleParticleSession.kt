@@ -48,7 +48,9 @@ class SingleParticleSession(
 			Session.fromIdOrThrow(sessionId) as SingleParticleSession
 
 		fun args() =
-			Backend.pypArgs.filter("stream_spr", includeHiddenArgs = false, includeHiddenGroups = true)
+			Backend.pypArgs
+				.filter("stream_spr", includeHiddenArgs = false, includeHiddenGroups = true)
+				.appendAll(MicromonArgs.slurmLaunch)
 
 		object StreampypListener : ClusterJob.OwnerListener {
 
