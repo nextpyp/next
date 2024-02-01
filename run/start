@@ -176,7 +176,11 @@ if [ -z "$PYP_HOSTPROCESSOR_OFF" ]; then
     hpexec="$devpath/run/hostprocessor"
   else
     # production mode, look in /usr/bin
-    hpexec="/usr/bin/nextpyp-hostprocessor"
+    if [ -x /usr/bin/nextpyp-hostprocessor ]; then
+      hpexec="/usr/bin/nextpyp-hostprocessor"
+    else
+      hpexec="./nextpyp-hostprocessor"
+    fi
   fi
   if [ ! -x "$hpexec" ]; then
     echo "Host processor executable not found at $hpexec"

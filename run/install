@@ -3,14 +3,6 @@
 # exit the installer if any command fails
 set -e
 
-
-# the installer should be run as root
-if [ "$(whoami)" != "root" ]; then
-  echo "This installer should be run as root"
-  exit 1
-fi
-
-
 # build-time settings (to be filled in by a build script)
 version="__TARGET_VERSION__"
 
@@ -45,13 +37,18 @@ if [ -z "$usergroup" ]; then
   fi
 fi
 
+if [ "$(whoami)" != "root" ]; then
+  echo "WARNING - This installer should be run as root!"
+  usdo=""
+  bindir="."
+  home=$HOME
+else
+  usdo="sudo -u $username"
+  bindir="/usr/bin/"
+  home=$(getent passwd $SUDO_USER | cut -d: -f6)
+fi
+
 echo "Installing nextPYP $version for user $username ..."
-
-
-# make a way to do things as the specified user
-# user do, `usdo`, the complement of `sudo`
-usdo="sudo -u $username"
-
 
 # download the distribution files
 echo "Downloading installation files ..."
@@ -74,12 +71,12 @@ chmod ugo+r "nextPYP.sif" "pyp.sif" "uninstall" "install-rprox"
 #       and then chmod +x later if satisfied
 
 # move the executables into /usr/bin (otherwise SELinux will deny access)
-mv "$here/start" "/usr/bin/nextpyp-start"
-chmod ugo+rx "/usr/bin/nextpyp-start"
-mv "$here/stop" "/usr/bin/nextpyp-stop"
-chmod ugo+rx "/usr/bin/nextpyp-stop"
-mv "$here/hostprocessor" "/usr/bin/nextpyp-hostprocessor"
-chmod ugo+rx "/usr/bin/nextpyp-hostprocessor"
+mv "$here/start" "$bindir/nextpyp-start"
+chmod ugo+rx "$bindir/nextpyp-start"
+mv "$here/stop" "$bindir/nextpyp-stop"
+chmod ugo+rx "$bindir/nextpyp-stop"
+mv "$here/hostprocessor" "$bindir/nextpyp-hostprocessor"
+chmod ugo+rx "$bindir/nextpyp-hostprocessor"
 
 # download the workflow files
 workflowDir="$here/workflows"
@@ -102,7 +99,6 @@ chown "$username:$usergroup" "$sharedDir"
 echo "Created shared directory: $sharedDir"
 
 # create the home configuration folder, if needed (needed by apptainer)
-home=/home/$username
 if [ ! -d "$home" ]; then
   mkdir -p "$home"
   chown -R "$username:$usergroup" "$home"
@@ -152,7 +148,7 @@ fi
 # make sure others can't write to the config file
 chmod o-w "$configPath"
 
-
+if [ "$(whoami)" = "root" ]; then
 echo "Installing integrations with systemd ..."
 
 # relevant documentation on systemd:
@@ -190,6 +186,10 @@ systemctl daemon-reload
 # start the demon now and at boot too
 systemctl start $appDaemon
 systemctl enable $appDaemon
-
+else
+echo "WARNING: Since you did not run the installer as root, nextPYP will not start automatically"
+echo "To start manually, run: PYP_CONFIG=`pwd`/config.toml ./nextpyp-start"
+echo "To stop nextPYP, run: ./nextpyp-stop"
+fi
 
 echo "Finished installing nextPYP $version"
