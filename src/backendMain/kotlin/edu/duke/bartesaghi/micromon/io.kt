@@ -164,6 +164,15 @@ private fun String.pypSafeFileName(): String =
 
 
 /**
+ * Convert user-defined inputs into values that are safe to insert into command-line arguments.
+ * eg, for --arg="<value>", the <value> should not be able to break out of the quoted argument
+ * and do injection-type attacks
+ */
+fun String.sanitizeQuotedArg(): String =
+	replace("\"", "\\\"")
+
+
+/**
  * IO operations can run really slowly (especially on NFS filesystems),
  * so always run slow IO operations on the IO thread pool to keep request threads from blocking
  */

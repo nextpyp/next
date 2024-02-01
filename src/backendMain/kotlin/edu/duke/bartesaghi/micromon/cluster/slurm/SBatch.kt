@@ -104,10 +104,15 @@ class SBatch(val config: Config.Slurm) : Cluster {
 			config.cmdSbatch,
 			"--output=\"${clusterJob.outPathMask()}\""
 		))
+
+		// WARNING: we're just copying raw command-line args verbatim from pyp's input into our shell commands!
+		// There's not really any way we can sanitize them here without knowing anything about them, so we
+		// have to just trust that pyp isn't sending us injection attacks.
 		cmd.addAll(clusterJob.args
 			// empty args break sbatch somehow, so filter them out
 			.filter { it.isNotEmpty() }
 		)
+
 		if (depIds.isNotEmpty()) {
 			cmd.add("--dependency=afterany:${depIds.joinToString(",")}")
 		}
@@ -117,11 +122,12 @@ class SBatch(val config: Config.Slurm) : Cluster {
 			.find { it.startsWith("--partition=") }
 			?.split("=")
 			?.lastOrNull()
+			?.unquote()
 		if (partition == null) {
 			// that is, if any default queue exists
 			config.queues.firstOrNull()
-				?.let { cmd.add("--partition=\"${it.unquote()}\"") }
-		} else if (partition.unquote() in config.gpuQueues) {
+				?.let { cmd.add("--partition=\"${it.sanitizeQuotedArg()}\"") }
+		} else if (partition in config.gpuQueues) {
 			// alternatively, if a GPU queue was specified, add a GPU resource request
 			cmd.add("--gres=gpu:1")
 		}
@@ -134,8 +140,10 @@ class SBatch(val config: Config.Slurm) : Cluster {
 			cmd.add("--array=1-$arraySize$bundleInfo")
 		}
 
-		// set the job name
-		cmd.add("--job-name=\"${clusterJob.clusterName}\"")
+		// set the job name, if any
+		clusterJob.clusterName?.let {
+			cmd.add("--job-name=\"${it.sanitizeQuotedArg()}\"")
+		}
 
 		cmd.add("\"$scriptPath\"")
 
@@ -264,9 +272,7 @@ fun ArgValues.toSbatchArgs(): List<String> =
 	ArrayList<String>().apply {
 		add("--cpus-per-task=$slurmLaunchCpus")
 		add("--mem=${slurmLaunchMemory}G")
-		add("--time=\"${slurmLaunchWalltime}\"")
-		slurmLaunchQueue?.let { add("--partition=\"$it\"") }
-		if ( slurmLaunchAccount != "" ){
-			add("--account=\"${slurmLaunchAccount}\"")
-		}
+		add("--time=\"${slurmLaunchWalltime.sanitizeQuotedArg()}\"") // user-defined string, needs sanitization!!
+		slurmLaunchQueue?.let { add("--partition=\"${it.sanitizeQuotedArg()}\"") } // defined by administrators, but could potentially be overridden by users, needs sanitization!
+		slurmLaunchAccount?.let { add("--account=\"${it.sanitizeQuotedArg()}\"") } // user-defined string, needs sanitization!!
 	}

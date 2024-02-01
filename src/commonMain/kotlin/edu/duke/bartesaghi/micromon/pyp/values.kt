@@ -294,7 +294,7 @@ object MicromonArgs {
 		description = "Charge resources used by this job to specified account",
 		type = ArgType.TStr(),
 		required = false,
-		default = ArgValue.VStr(""),
+		default = null,
 		target = ArgTarget.Micromon
 	)
 
@@ -333,8 +333,8 @@ val ArgValues.slurmLaunchMemory: Long
 val ArgValues.slurmLaunchWalltime: String
 	get() = getOrDefault(MicromonArgs.slurmLaunchWalltime) as String
 
-val ArgValues.slurmLaunchAccount: String
-	get() = getOrDefault(MicromonArgs.slurmLaunchAccount) as String
+val ArgValues.slurmLaunchAccount: String?
+	get() = get(MicromonArgs.slurmLaunchAccount) as String?
 
 val ArgValues.slurmLaunchQueue: String?
 	get() = get(MicromonArgs.slurmLaunchQueue) as String?
