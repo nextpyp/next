@@ -215,6 +215,7 @@ actual class ProjectsService : IProjectsService {
 
 		return ClusterJobLog(
 			clusterJob.commands.representativeCommand(),
+			log?.launchResult?.toData(),
 			log?.result?.type,
 			log?.result?.exitCode,
 			log?.result?.out,

@@ -385,10 +385,18 @@ data class JobPosition(
 @Serializable
 class ClusterJobLog(
 	val representativeCommand: String,
+	val launchResult: ClusterJobLaunchResultData?,
 	val resultType: ClusterJobResultType?,
 	val exitCode: Int?,
 	val log: String?,
 	val arraySize: Int?
+)
+
+@Serializable
+class ClusterJobLaunchResultData(
+	val command: String?,
+	val out: String,
+	val success: Boolean
 )
 
 @Serializable

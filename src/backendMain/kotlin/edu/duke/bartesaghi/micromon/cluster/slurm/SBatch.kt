@@ -139,6 +139,9 @@ class SBatch(val config: Config.Slurm) : Cluster {
 
 		cmd.add("\"$scriptPath\"")
 
+		// finalize the command
+		val command = cmd.joinToString(" ")
+
 		// call sbatch on the SLURM host and wait for the job to submit
 		val result = sshPool
 			.connection {
@@ -149,7 +152,7 @@ class SBatch(val config: Config.Slurm) : Cluster {
 					null
 				} else {
 					// submit the command to the login node
-					exec(cmd.joinToString(" "))
+					exec(command)
 				}
 			}
 			?: return null
@@ -161,11 +164,12 @@ class SBatch(val config: Config.Slurm) : Cluster {
 			?.split(" ")
 			?.last()
 			?.toLongOrNull()
-			?: throw ClusterJob.LaunchFailedException("unable to read job id from sbatch output", result.console)
+			?: throw ClusterJob.LaunchFailedException("unable to read job id from sbatch output", result.console, command)
 
 		return ClusterJob.LaunchResult(
 			sbatchId,
-			result.console.joinToString("\n")
+			result.console.joinToString("\n"),
+			command
 		)
 	}
 

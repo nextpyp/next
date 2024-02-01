@@ -3,6 +3,7 @@ package edu.duke.bartesaghi.micromon.cluster
 import com.mongodb.client.model.Updates.*
 import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.mongo.*
+import edu.duke.bartesaghi.micromon.services.ClusterJobLaunchResultData
 import edu.duke.bartesaghi.micromon.services.ClusterJobResultType
 import edu.duke.bartesaghi.micromon.services.RunStatus
 import kotlinx.coroutines.runBlocking
@@ -38,6 +39,7 @@ class ClusterJob(
 	class LaunchFailedException(
 		val reason: String,
 		val console: List<String>,
+		val command: String?
 	) : IllegalArgumentException("$reason:\n${console.joinToString("\n")}")
 
 	interface OwnerListener {
@@ -212,21 +214,31 @@ class ClusterJob(
 		/** the id the cluster uses for the job */
 		val jobId: Long?,
 		/** the console output from the cluster launcher, eg sbatch */
-		val out: String
+		val out: String,
+		/** the submission command, if any */
+		val command: String?
 	) {
 
 		fun toDoc() = Document().apply {
 			set("id", jobId)
 			set("out", out)
+			set("command", command)
 		}
 
 		companion object {
 
 			fun fromDoc(doc: Document) = LaunchResult(
 				jobId = doc.getLong("id"),
-				out = doc.getString("out")
+				out = doc.getString("out"),
+				command = doc.getString("command")
 			)
 		}
+
+		fun toData() = ClusterJobLaunchResultData(
+			command,
+			out,
+			success = jobId != null
+		)
 	}
 
 	fun create(): String {

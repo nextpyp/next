@@ -205,7 +205,8 @@ interface Cluster {
 					push("history", ClusterJob.HistoryEntry(ClusterJob.Status.Ended).toDBList()),
 					set("sbatch", ClusterJob.LaunchResult(
 						null,
-						ex.console.joinToString("\n")
+						ex.console.joinToString("\n"),
+						ex.command
 					).toDoc())
 				)
 				for (listener in ClusterJob.listeners()) {
@@ -228,7 +229,7 @@ interface Cluster {
 				return null
 			}
 
-			// launch succeeded, update the database with the sbatch result
+			// launch succeeded, update the database with the launch result
 			Database.cluster.log.update(clusterJobId, null,
 				push("history", ClusterJob.HistoryEntry(ClusterJob.Status.Launched).toDBList()),
 				set("sbatch", launchResult.toDoc())

@@ -174,7 +174,7 @@ data class ProjectRunAdminData(
 data class ClusterJobAdminData(
 	val clusterJobId: String,
 	val clusterId: Long?,
-	val launchOutput: String?,
+	val launchResult: ClusterJobLaunchResultData?,
 	val history: List<HistoryEntry>
 ) {
 

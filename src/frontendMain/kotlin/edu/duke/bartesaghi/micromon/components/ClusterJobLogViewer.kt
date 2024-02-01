@@ -26,7 +26,7 @@ class ClusterJobLogViewer(
 		classes = setOf("dashboard-popup", "cluster-job-logs", "max-height-dialog")
 	)
 
-	private val commandsElem = Div(classes = setOf("commands"))
+	private val debugElem = Div(classes = setOf("debug"))
 	private val tabs = TabPanel(classes = setOf("tabs"))
 	private val streamTab = Div(classes = setOf("stream"))
 	private val logsTab = Div(classes = setOf("logs"))
@@ -37,7 +37,7 @@ class ClusterJobLogViewer(
 	init {
 
 		// layout the UI
-		win.add(commandsElem)
+		win.add(debugElem)
 		tabs.addTab("Stream", streamTab)
 		tabs.addTab("Logs", logsTab)
 		win.add(tabs)
@@ -68,8 +68,48 @@ class ClusterJobLogViewer(
 				win.remove(loading)
 			}
 
-			// show the commands
-			commandsElem.content = clusterJobLog.representativeCommand
+			// show the debug commands
+			debugElem.disclosure(
+				label = {
+					span("Launch Info")
+				},
+				disclosed = d@{
+					val launch = clusterJobLog.launchResult
+						?: run {
+							span("(none)")
+							return@d
+						}
+					h2("Success")
+					div(if (launch.success) {
+						"Yes"
+					} else {
+						"No"
+					})
+					h2("Command")
+					div(classes = setOf("commands")) {
+						content = launch.command ?: "(no launch command)"
+					}
+					h2("Console Output")
+					div(classes = setOf("commands")) {
+						content = launch.out
+					}
+				}
+			).apply {
+				// automatically show the launch info if there was a launch problem
+				open = clusterJobLog.launchResult?.success == false
+			}
+			debugElem.disclosure(
+				label = {
+					span("Commands")
+				},
+				disclosed = {
+					div(classes = setOf("commands")) {
+						content = clusterJobLog.representativeCommand
+					}
+				}
+			).apply {
+				open = false
+			}
 
 			logStreamer = LogStreamer(RealTimeC2S.ListenToJobStreamLog(clusterJobId), true)
 				.also {

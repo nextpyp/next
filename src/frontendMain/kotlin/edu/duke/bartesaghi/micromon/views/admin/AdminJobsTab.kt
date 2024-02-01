@@ -1,6 +1,7 @@
 package edu.duke.bartesaghi.micromon.views.admin
 
 import edu.duke.bartesaghi.micromon.AppScope
+import edu.duke.bartesaghi.micromon.components.LogView
 import edu.duke.bartesaghi.micromon.errorMessage
 import edu.duke.bartesaghi.micromon.loading
 import edu.duke.bartesaghi.micromon.services.*
@@ -110,10 +111,16 @@ class AdminJobsTab(
 			div("Status: ${clusterJob.status}")
 			div("Array Info: ${clusterJob.arraySummary()}")
 			div("${adminInfo.clusterMode} Id: ${clusterJobAdmin.clusterId ?: "(no id available, cluster job not launched)"}")
+			div("Launch command:")
+			add(clusterJobAdmin.launchResult?.command
+				?.let { LogView.fromText(it) }
+				?: Span("(none)")
+			)
 			div("Launch console output:")
-			tag(TAG.PRE) {
-				content = clusterJobAdmin.launchOutput ?: "(none)"
-			}
+			add(clusterJobAdmin.launchResult?.out
+				?.let { LogView.fromText(it) }
+				?: Span("(none)")
+			)
 
 			h5("History")
 			indent {

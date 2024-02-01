@@ -263,7 +263,7 @@ actual class AdminService : IAdminService {
 							ClusterJobAdminData(
 								clusterJob.clusterJobId,
 								clusterId = log?.launchResult?.jobId,
-								launchOutput = log?.launchResult?.out,
+								launchResult = log?.launchResult?.toData(),
 								history = log?.history
 									?.map { historyEntry ->
 										ClusterJobAdminData.HistoryEntry(
