@@ -26,7 +26,7 @@ class ClusterJobLogViewer(
 		classes = setOf("dashboard-popup", "cluster-job-logs", "max-height-dialog")
 	)
 
-	private val debugElem = Div(classes = setOf("debug"))
+	private val debugElem = Div(classes = setOf("debug-info"))
 	private val tabs = TabPanel(classes = setOf("tabs"))
 	private val streamTab = Div(classes = setOf("stream"))
 	private val logsTab = Div(classes = setOf("logs"))

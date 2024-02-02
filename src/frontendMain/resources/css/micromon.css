@@ -1912,33 +1912,33 @@ img.large-scale-down {
 	overflow-y: hidden;
 }
 
-.cluster-job-logs .debug {
+.cluster-job-logs .debug-info {
 	margin-bottom: 16px;
 }
 
-.cluster-job-logs .debug .disclosure {
+.cluster-job-logs .debug-info .disclosure {
 	align-items: first baseline;
 }
 
-.cluster-job-logs .debug .disclosure .disclosure-icon {
+.cluster-job-logs .debug-info .disclosure .disclosure-icon {
 	width: 22px;
 	min-width: 22px; /* needed since long content will try to squish the icon */
 }
 
-.cluster-job-logs .debug .disclosure .disclosure-label {
+.cluster-job-logs .debug-info .disclosure .disclosure-label {
 	font-size: 122%;
 }
 
-.cluster-job-logs .debug .disclosure .disclosure-disclosed {
+.cluster-job-logs .debug-info .disclosure .disclosure-disclosed {
 	margin-left: 16px;
 }
 
-.cluster-job-logs .debug h2 {
+.cluster-job-logs .debug-info h2 {
 	font-size: 114%;
 	margin-top: 10px;
 }
 
-.cluster-job-logs .debug .commands {
+.cluster-job-logs .debug-info .commands {
 	flex-shrink: 0;
 	font-family: monospace;
 	font-size: 85%;
