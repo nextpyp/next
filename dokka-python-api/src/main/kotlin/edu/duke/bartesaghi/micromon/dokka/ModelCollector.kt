@@ -339,7 +339,6 @@ class ModelCollector(val ctx: DokkaContext) : DocumentableToPageTranslator {
 			props = c.properties
 				// filter out explicitly skipped properties
 				.filterNot { it.exportServicePropertyAnnotation()?.skip == true }
-				//.filter { it.getter == null && it.setter == null }
 				.map { collectProperty(it) },
 			typeParams =
 				when (c) {

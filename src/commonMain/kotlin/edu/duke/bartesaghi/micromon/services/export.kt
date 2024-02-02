@@ -27,6 +27,11 @@ annotation class ExportServiceFunction(
 )
 
 
+/**
+ * The Python API codegen can't tell if a property has a backing field or not
+ * (since the Dokka models don't seem to capture that particular detail),
+ * so we have to manally annotate any properties that should not be exported.
+ */
 @Target(AnnotationTarget.PROPERTY)
 annotation class ExportServiceProperty(
 	val skip: Boolean = false

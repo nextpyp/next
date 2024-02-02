@@ -52,9 +52,11 @@ sealed interface SessionData {
 	fun serialize(): String =
 		json.encodeToString(this)
 
+	@ExportServiceProperty(skip=true)
 	val name: String get() =
 		newestArgs?.name ?: "(unnamed session)"
 
+	@ExportServiceProperty(skip=true)
 	val numberedName: String get() =
 		numberedName(sessionNumber, name)
 
@@ -111,7 +113,10 @@ data class SingleParticleSessionData(
 ) : SessionData {
 	override fun isChanged() = args.hasNext()
 
+	@ExportServiceProperty(skip=true)
 	override val newestArgs get() = args.newest()?.args
+
+	@ExportServiceProperty(skip=true)
 	override val newestDisplay get() = display.newest()?.args
 
 	companion object {
@@ -147,7 +152,10 @@ data class TomographySessionData(
 ) : SessionData {
 	override fun isChanged() = args.hasNext()
 
+	@ExportServiceProperty(skip=true)
 	override val newestArgs get() = args.newest()?.args
+
+	@ExportServiceProperty(skip=true)
 	override val newestDisplay get() = display.newest()?.args
 
 	companion object {
@@ -180,6 +188,7 @@ enum class SessionDaemon(
 			values().filter { it.isSubDaemon }
 	}
 
+	@ExportServiceProperty(skip=true)
 	val isMainDaemon: Boolean get() = !isSubDaemon
 }
 
