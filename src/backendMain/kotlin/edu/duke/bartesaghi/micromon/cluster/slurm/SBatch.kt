@@ -127,9 +127,6 @@ class SBatch(val config: Config.Slurm) : Cluster {
 			// that is, if any default queue exists
 			config.queues.firstOrNull()
 				?.let { cmd.add("--partition=\"${it.sanitizeQuotedArg()}\"") }
-		} else if (partition in config.gpuQueues) {
-			// alternatively, if a GPU queue was specified, add a GPU resource request
-			cmd.add("--gres=gpu:1")
 		}
 
 		// render the array arguments
