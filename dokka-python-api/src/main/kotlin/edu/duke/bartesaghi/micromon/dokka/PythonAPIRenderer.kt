@@ -435,7 +435,7 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 
 			// write the deserializer
 			writeln("@classmethod")
-			writeln("def from_json(cls, json: Dict[str,Any]) -> ${type.parameterizedName}:")
+			writeln("def from_json(cls, json: Dict[str,Any], type_ids: Optional[Dict[str,str]] = None) -> ${type.parameterizedName}:")
 			indent {
 
 				docstring("Creates a new class instance from JSON")
@@ -443,8 +443,24 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 				// write the polymorphic deserializers, if any
 				for (typeParam in type.typeParams) {
 					writeln()
-					writeln("def reader_polymorphic_${typeParam.name}(type_id: str, json: Dict[str,Any]) -> Any:")
+					writeln("def reader_polymorphic_${typeParam.name}(json: Dict[str,Any], type_ids: Optional[Dict[str,str]] = type_ids) -> Any:")
 					indent {
+
+						writeln("if type_ids is None:")
+						indent {
+							writeln("raise Exception('${type.name}.from_json() failed because no type ids were given')")
+						}
+						writeln("try:")
+						indent {
+							writeln("type_id = type_ids['${typeParam.name}']")
+						}
+						writeln("except KeyError:")
+						indent {
+							writeln("raise Exception('${type.name}.from_json() failed because no type id was found for type parameter ${typeParam.name}')")
+						}
+
+						// TODO: look for type info in the JSON?
+
 						for ((i, ref) in typeParam.instances.withIndex()) {
 							val cond = "type_id == '${ref.id}'"
 							if (i == 0) {
@@ -462,7 +478,6 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 						}
 					}
 					writeln()
-					writeln("type_id = cast(str, json['type'])")
 				}
 
 				writeln()
@@ -955,6 +970,15 @@ private fun Model.TypeRef.renderReader(expr: String, model: Model, typeParams: L
 		in PACKAGES -> {
 			if (aliased != null) {
 				"${flatName.caseCamelToSnake()}_from_json($expr)"
+			} else if (params.isNotEmpty()) {
+				// handle type parameters
+				val type = model.findType(this)
+					?: throw Error("Don't have definition for type: $this")
+				val p = (params zip type.typeParams)
+					.joinToString(", ") { (param, typeParam) ->
+						"'${typeParam.name}': '${param.id}'"
+					}
+				"$flatName.from_json($expr, type_ids={$p})"
 			} else {
 				"$flatName.from_json($expr)"
 			}
@@ -967,7 +991,7 @@ private fun Model.TypeRef.renderReader(expr: String, model: Model, typeParams: L
 			}
 			typeParams
 				.find { it.name == name }
-				?.let { param -> "reader_polymorphic_${param.name}(type_id, $expr)" }
+				?.let { param -> "reader_polymorphic_${param.name}($expr)" }
 				?: throw Error("Parent type has no parameter named $name")
 		}
 

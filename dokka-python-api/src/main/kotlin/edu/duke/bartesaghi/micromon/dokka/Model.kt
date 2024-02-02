@@ -161,15 +161,13 @@ class Model(
 	val types = ArrayList<Type>()
 	val externalTypes = ArrayList<Type>()
 
-	fun typeRefs(): HashMap<String,TypeRef> {
+	fun typeRefs(): List<TypeRef> {
 
-		val out = HashMap<String,TypeRef>()
+		val out = ArrayList<TypeRef>()
 
 		fun add(typeRef: TypeRef) {
 
-			if (typeRef.id !in out) {
-				out[typeRef.id] = typeRef
-			}
+			out.add(typeRef)
 
 			// recurse
 			typeRef.params.forEach { add(it) }
@@ -233,6 +231,11 @@ class Model(
 
 		return out
 	}
+
+	fun findType(ref: TypeRef): Type? =
+		types
+			.find { it.packageName == ref.packageName && it.name == ref.name }
+
 
 	fun findExternalType(ref: TypeRef): Type? =
 		externalTypes

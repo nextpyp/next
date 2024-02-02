@@ -70,7 +70,6 @@ class ModelCollector(val ctx: DokkaContext) : DocumentableToPageTranslator {
 
 				// look for the types used by the services
 				val serviceTypeRefIds = model.typeRefs()
-					.values
 					.filter { it.packageName in PACKAGES }
 					.map { it.id }
 					.toMutableSet()
@@ -158,7 +157,7 @@ class ModelCollector(val ctx: DokkaContext) : DocumentableToPageTranslator {
 		}
 
 		// collect types for the type parameters
-		for (ref in model.typeRefs().values) {
+		for (ref in model.typeRefs()) {
 			val resolvedRef = ref.resolveAliases()
 			resolvedRef.params
 				.takeIf { resolvedRef.packageName in PACKAGES && it.isNotEmpty() }
