@@ -217,6 +217,7 @@ class TomographyPreprocessingJob(
 		Database.jobPreprocessingFilters.deleteAll(idOrThrow)
 		Database.particleLists.deleteAll(idOrThrow)
 		Database.particles.deleteAllParticles(idOrThrow)
+		Database.tiltExclusions.delete(idOrThrow)
 	}
 
 	override val filters get() = PreprocessingFilters.ofJob(idOrThrow)
