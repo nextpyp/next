@@ -41,11 +41,13 @@ class SingleParticleImportDataJob(
 
 		private fun SingleParticleImportDataArgs.toDoc() = Document().also { doc ->
 			doc["values"] = values
+			doc["list"] = particlesName
 		}
 
 		private fun SingleParticleImportDataArgs.Companion.fromDoc(doc: Document) =
 			SingleParticleImportDataArgs(
-				doc.getString("values")
+				doc.getString("values"),
+				doc.getString("list")
 			)
 
 		fun args() =
@@ -82,11 +84,17 @@ class SingleParticleImportDataJob(
 		// clear caches
 		clearWwwCache()
 
+		val newestArgs = args.newestOrThrow().args
+
+		// if we've picked some particles, write those out to pyp
+		newestArgs.particlesName
+			?.let { Database.particleLists.get(idOrThrow, it) }
+			?.let { ParticlesJobs.writeSingleParticle(idOrThrow, dir, it) }
+
 		// build the args for PYP
 		val pypArgs = ArgValues(Backend.pypArgs)
 
 		// set the user args
-		val newestArgs = args.newestOrThrow().args
 		pypArgs.setAll(args().diff(
 			newestArgs.values,
 			args.finished?.values

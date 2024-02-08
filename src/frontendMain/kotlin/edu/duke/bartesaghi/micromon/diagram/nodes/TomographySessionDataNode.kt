@@ -103,12 +103,46 @@ class TomographySessionDataNode(
 					label = "Session"
 				))
 
+				val sessionId = args?.newest()?.args?.sessionId
+				add(TomographySessionDataArgs::particlesName,
+					if (sessionId != null) {
+						SelectRemote(
+							serviceManager = ParticlesServiceManager,
+							function = IParticlesService::getListOptions,
+							stateFunction = { "${OwnerType.Session.id}/$sessionId" },
+							label = "Select list of positions",
+							preload = true
+						)
+					} else {
+						HiddenString()
+					}
+				)
+
 				add(TomographySessionDataArgs::values, ArgsForm(pypArgs, emptyList(), enabled, config.configId))
 			}
 
-			form.init(args)
+			// use the none filter option for the particles name in the form,
+			// since the control can't handle nulls
+			val mapper = ArgsMapper<TomographySessionDataArgs>(
+				toForm = { args ->
+					if (args.particlesName == null) {
+						args.copy(particlesName = NoneFilterOption)
+					} else {
+						args
+					}
+				},
+				fromForm = { args ->
+					if (args.particlesName == NoneFilterOption) {
+						args.copy(particlesName = null)
+					} else {
+						args
+					}
+				}
+			)
+
+			form.init(args, mapper)
 			if (enabled) {
-				win.addSaveResetButtons(form, args, onDone)
+				win.addSaveResetButtons(form, args, mapper, onDone)
 			}
 			win.show()
 		}

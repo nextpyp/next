@@ -3,6 +3,7 @@ package edu.duke.bartesaghi.micromon.jobs
 import com.mongodb.client.model.Updates
 import edu.duke.bartesaghi.micromon.Backend
 import edu.duke.bartesaghi.micromon.globCountOrNull
+import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.mongo.getDocument
 import edu.duke.bartesaghi.micromon.nodes.SingleParticleRelionDataNodeConfig
 import edu.duke.bartesaghi.micromon.projects.Project
@@ -40,11 +41,13 @@ class SingleParticleRelionDataJob(
 
 		private fun SingleParticleRelionDataArgs.toDoc() = Document().also { doc ->
 			doc["values"] = values
+			doc["list"] = particlesName
 		}
 
 		private fun SingleParticleRelionDataArgs.Companion.fromDoc(doc: Document) =
 			SingleParticleRelionDataArgs(
-				doc.getString("values")
+				doc.getString("values"),
+				doc.getString("list")
 			)
 
 		fun args() =
@@ -94,12 +97,19 @@ class SingleParticleRelionDataJob(
 		// clear caches
 		clearWwwCache()
 
+		val newestArgs = args.newestOrThrow().args
+
+		// if we've picked some particles, write those out to pyp
+		newestArgs.particlesName
+			?.let { Database.particleLists.get(idOrThrow, it) }
+			?.let { ParticlesJobs.writeSingleParticle(idOrThrow, dir, it) }
+
 		// build the args for PYP
 		val pypArgs = ArgValues(Backend.pypArgs)
 
 		// set the user args
 		pypArgs.setAll(args().diff(
-			args.newestOrThrow().args.values,
+			newestArgs.values,
 			args.finished?.values
 		))
 

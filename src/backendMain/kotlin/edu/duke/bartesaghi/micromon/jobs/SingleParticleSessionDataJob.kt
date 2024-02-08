@@ -39,12 +39,14 @@ class SingleParticleSessionDataJob(
 		private fun SingleParticleSessionDataArgs.toDoc() = Document().also { doc ->
 			doc["sessionId"] = sessionId
 			doc["values"] = values
+			doc["list"] = particlesName
 		}
 
 		private fun SingleParticleSessionDataArgs.Companion.fromDoc(doc: Document) =
 			SingleParticleSessionDataArgs(
 				doc.getString("sessionId"),
-				doc.getString("values")
+				doc.getString("values"),
+				doc.getString("list")
 			)
 
 		fun args() =
@@ -81,11 +83,17 @@ class SingleParticleSessionDataJob(
 		// clear caches
 		clearWwwCache()
 
+		val newestArgs = args.newestOrThrow().args
+
+		// if we've picked some particles, write those out to pyp
+		newestArgs.particlesName
+			?.let { Database.particleLists.get(idOrThrow, it) }
+			?.let { ParticlesJobs.writeSingleParticle(idOrThrow, dir, it) }
+
 		// build the args for PYP
 		val pypArgs = ArgValues(Backend.pypArgs)
 
 		// set the user args
-		val newestArgs = args.newestOrThrow().args
 		pypArgs.setAll(args().diff(
 			newestArgs.values,
 			args.finished?.values

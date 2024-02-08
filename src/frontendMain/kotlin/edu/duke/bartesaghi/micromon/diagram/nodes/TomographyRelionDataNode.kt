@@ -2,10 +2,7 @@ package edu.duke.bartesaghi.micromon.diagram.nodes
 
 import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.AppScope
-import edu.duke.bartesaghi.micromon.components.forms.ArgsForm
-import edu.duke.bartesaghi.micromon.components.forms.addSaveResetButtons
-import edu.duke.bartesaghi.micromon.components.forms.formPanel
-import edu.duke.bartesaghi.micromon.components.forms.init
+import edu.duke.bartesaghi.micromon.components.forms.*
 import edu.duke.bartesaghi.micromon.diagram.Diagram
 import edu.duke.bartesaghi.micromon.errorMessage
 import edu.duke.bartesaghi.micromon.nodes.TomographyRelionDataNodeConfig
@@ -15,7 +12,7 @@ import edu.duke.bartesaghi.micromon.pyp.importRelionPath
 import edu.duke.bartesaghi.micromon.pyp.toArgValues
 import edu.duke.bartesaghi.micromon.services.*
 import edu.duke.bartesaghi.micromon.views.Viewport
-import io.kvision.form.FormType
+import io.kvision.form.select.SelectRemote
 import io.kvision.html.image
 import io.kvision.modal.Modal
 import js.getHTMLElement
@@ -57,7 +54,8 @@ class TomographyRelionDataNode(
 
 		override suspend fun makeJob(project: ProjectData, argValues: ArgValuesToml, input: CommonJobData.DataId?): JobData {
 			val args = TomographyRelionDataArgs(
-				values = argValues
+				values = argValues,
+				particlesName = null
 			)
 			return Services.tomographyRelionData.import(project.owner.id, project.projectId, args)
 		}
@@ -69,7 +67,7 @@ class TomographyRelionDataNode(
 			Args.fromJson(Services.tomographyRelionData.getArgs())
 		}
 
-		private fun form(caption: String, args: JobArgs<TomographyRelionDataArgs>?, enabled: Boolean, onDone: (TomographyRelionDataArgs) -> Unit) = AppScope.launch {
+		private fun form(caption: String, args: JobArgs<TomographyRelionDataArgs>?, enabled: Boolean, jobId: String? = null, onDone: (TomographyRelionDataArgs) -> Unit) = AppScope.launch {
 
 			val pypArgs = pypArgs.get()
 
@@ -80,13 +78,47 @@ class TomographyRelionDataNode(
 				classes = setOf("dashboard-popup", "args-form-popup", "max-height-dialog")
 			)
 
-			val form = win.formPanel<TomographyRelionDataArgs>(type = FormType.HORIZONTAL) {
+			val form = win.formPanel<TomographyRelionDataArgs>().apply {
+
+				add(TomographyRelionDataArgs::particlesName,
+					if (jobId != null) {
+						SelectRemote(
+							serviceManager = ParticlesServiceManager,
+							function = IParticlesService::getListOptions,
+							stateFunction = { "${OwnerType.Project.id}/$jobId" },
+							label = "Select list of positions",
+							preload = true
+						)
+					} else {
+						HiddenString()
+					}
+				)
+
 				add(TomographyRelionDataArgs::values, ArgsForm(pypArgs, emptyList(), enabled, config.configId))
 			}
 
-			form.init(args)
+			// use the none filter option for the particles name in the form,
+			// since the control can't handle nulls
+			val mapper = ArgsMapper<TomographyRelionDataArgs>(
+				toForm = { args ->
+					if (args.particlesName == null) {
+						args.copy(particlesName = NoneFilterOption)
+					} else {
+						args
+					}
+				},
+				fromForm = { args ->
+					if (args.particlesName == NoneFilterOption) {
+						args.copy(particlesName = null)
+					} else {
+						args
+					}
+				}
+			)
+
+			form.init(args, mapper)
 			if (enabled) {
-				win.addSaveResetButtons(form, args, onDone)
+				win.addSaveResetButtons(form, args, mapper, onDone)
 			}
 			win.show()
 		}
@@ -148,7 +180,7 @@ class TomographyRelionDataNode(
 	}
 
 	override fun onEdit(enabled: Boolean) {
-		form(job.numberedName, job.args, enabled) { newArgs ->
+		form(job.numberedName, job.args, enabled, job.jobId) { newArgs ->
 
 			// save the edits if needed
 			val diff = job.args.diff(newArgs)

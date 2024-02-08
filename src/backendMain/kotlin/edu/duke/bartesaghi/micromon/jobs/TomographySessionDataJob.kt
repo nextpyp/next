@@ -39,12 +39,14 @@ class TomographySessionDataJob(
 		private fun TomographySessionDataArgs.toDoc() = Document().also { doc ->
 			doc["sessionId"] = sessionId
 			doc["values"] = values
+			doc["list"] = particlesName
 		}
 
 		private fun TomographySessionDataArgs.Companion.fromDoc(doc: Document) =
 			TomographySessionDataArgs(
 				doc.getString("sessionId"),
-				doc.getString("values")
+				doc.getString("values"),
+				doc.getString("list")
 			)
 
 		fun args() =
@@ -81,11 +83,16 @@ class TomographySessionDataJob(
 		// clear caches
 		clearWwwCache()
 
+		val newestArgs = args.newestOrThrow().args
+
+		// write out particles, if needed
+		val argValues = newestArgs.values.toArgValues(Backend.pypArgs)
+		ParticlesJobs.writeTomography(idOrThrow, dir, argValues, newestArgs.particlesName)
+
 		// build the args for PYP
 		val pypArgs = ArgValues(Backend.pypArgs)
 
 		// set the user args
-		val newestArgs = args.newestOrThrow().args
 		pypArgs.setAll(args().diff(
 			newestArgs.values,
 			args.finished?.values

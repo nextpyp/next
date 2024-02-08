@@ -41,5 +41,7 @@ class SingleParticleSessionDataData(
 @Serializable
 data class SingleParticleSessionDataArgs(
 	val sessionId: String,
-	val values: ArgValuesToml
+	val values: ArgValuesToml,
+	val particlesName: String? = null
+	// NOTE: kvision's forms require a default value here, otherwise the deserializer will throw an error
 )

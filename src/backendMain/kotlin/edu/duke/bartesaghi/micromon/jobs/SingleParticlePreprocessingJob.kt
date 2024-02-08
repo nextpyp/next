@@ -10,7 +10,6 @@ import edu.duke.bartesaghi.micromon.services.*
 import org.bson.Document
 import org.bson.conversions.Bson
 import org.slf4j.LoggerFactory
-import kotlin.io.path.*
 
 
 class SingleParticlePreprocessingJob(
@@ -40,14 +39,12 @@ class SingleParticlePreprocessingJob(
 
 		private fun SingleParticlePreprocessingArgs.toDoc() = Document().also { doc ->
 			doc["values"] = values
-			// added this
 			doc["list"] = particlesName
 		}
 
 		private fun SingleParticlePreprocessingArgs.Companion.fromDoc(doc: Document) =
 			SingleParticlePreprocessingArgs(
 				doc.getString("values"),
-					// added this
 				doc.getString("list")
 			)
 
@@ -137,53 +134,12 @@ class SingleParticlePreprocessingJob(
 		// get the input raw data job
 		val prevJob = inMovies?.resolveJob<Job>() ?: throw IllegalStateException("no movies input configured")
 
+		val newestArgs = args.newestOrThrow().args
+
 		// if we've picked some particles, write those out to pyp
-		val particlesList = args.newestOrThrow().args.particlesName
+		newestArgs.particlesName
 			?.let { Database.particleLists.get(idOrThrow, it) }
-		if (particlesList != null) {
-
-			val dir = dir
-
-			// write the name of the picked particles
-			val particlesNamePath = dir / "train" / "current_list.txt"
-			particlesNamePath.parent.createDirsIfNeeded()
-			val particles_name = particlesList.name
-				.replace(" ", "_")
-				.replace("$", "_")
-				.replace(".", "_")
-			particlesNamePath.writeString(particles_name)
-
-			// write out the micrographs and coordinates
-			val micrographsPath = dir / "train" / "${particles_name}_images.txt"		
-			micrographsPath.parent.createDirsIfNeeded()
-			micrographsPath.bufferedWriter().use { writerMicrographs ->
-				writerMicrographs.write("image_name\tpath\n")
-
-				val coordinatesPath = dir / "train" / "${particles_name}_coordinates.txt"
-				coordinatesPath.parent.createDirsIfNeeded()
-				coordinatesPath.bufferedWriter().use { writerCoords ->
-					writerCoords.write("image_name\tx_coord\ty_coord\n")
-
-					// TODO: could optimize this query to project just the micrographIds if needed
-					Micrograph.getAll(idOrThrow) { cursor ->
-						for (micrograph in cursor) {
-							val particles = Database.particles.getParticles2D(idOrThrow, particlesList.name, micrograph.micrographId)
-							if (particles.isNotEmpty()) {
-
-								writerMicrographs.write("${micrograph.micrographId}\t${micrograph.micrographId}.mrc\n")
-								for (particleId in particles.keys.sorted()) {
-									val particle = particles[particleId]
-										?: continue
-									// TODO: should we write the particle radius?
-									writerCoords.write("${micrograph.micrographId}\t${particle.x}\t${particle.y}\n")
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-
+			?.let { ParticlesJobs.writeSingleParticle(idOrThrow, dir, it) }
 
 		// build the args for PYP
 		val pypArgs = ArgValues(Backend.pypArgs)
@@ -193,7 +149,7 @@ class SingleParticlePreprocessingJob(
 
 		// set the user args
 		pypArgs.setAll(args().diff(
-			args.newestOrThrow().args.values,
+			newestArgs.values,
 			args.finished?.values ?: prevJob.finishedArgValues()
 		))
 

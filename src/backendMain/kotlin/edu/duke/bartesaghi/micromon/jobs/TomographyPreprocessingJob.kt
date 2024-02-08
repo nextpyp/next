@@ -136,30 +136,11 @@ class TomographyPreprocessingJob(
 		// get the input raw data job
 		val prevJob = inTiltSeries?.resolveJob<Job>() ?: throw IllegalStateException("no tilt series input configured")
 
-		// get the particles mode
-		val jobArgs = args.newestOrThrow().args
-		val argValues = jobArgs.values.toArgValues(Backend.pypArgs)
-		val tomoVirMethod = argValues.tomoVirMethodOrDefault
-		if (tomoVirMethod.usesAutoList) {
+		val newestArgs = args.newestOrThrow().args
 
-			if (tomoVirMethod.isVirusMode) {
-
-				// in auto virus mode, just write the particle thresholds for the auto virions
-				Database.particleLists.get(idOrThrow, ParticlesList.PypAutoVirions)
-					?.write()
-				// NOTE: write() also writes out coordinates, but that's not so bad in this case
-			}
-
-		} else if (argValues.tomoSpkMethodOrDefault.usesAutoList) {
-
-			// in auto particles mode, don't write anything
-
-		} else if (jobArgs.tomolist != null) {
-
-			// otherwise, write out the coordinates and thresholds for the picked particles
-			Database.particleLists.get(idOrThrow, jobArgs.tomolist)
-				?.write()
-		}
+		// write out particles, if needed
+		val argValues = newestArgs.values.toArgValues(Backend.pypArgs)
+		ParticlesJobs.writeTomography(idOrThrow, dir, argValues, newestArgs.tomolist)
 
 		// write out the tilt exclusions, if needed
 		run {
@@ -199,7 +180,7 @@ class TomographyPreprocessingJob(
 
 		// set the user args
 		pypArgs.setAll(args().diff(
-			jobArgs.values,
+			newestArgs.values,
 			args.finished?.values ?: prevJob.finishedArgValues()
 		))
 
@@ -213,80 +194,6 @@ class TomographyPreprocessingJob(
 		// and wipe the latest tilt series id, so we can detect when the first one comes in next time
 		latestTiltSeriesId = null
 		update()
-	}
-
-	private fun ParticlesList.write() {
-
-		// write out the particles name
-		val pathListFile = dir / "train" / "current_list.txt"
-		pathListFile.parent.createDirsIfNeeded()
-		val particlesName = name
-			.replace(" ", "_")
-			.replace("$", "_")
-			.replace(".", "_")
-		pathListFile.writeString(particlesName)
-
-		// write out the tilt series image paths and coordinates
-		val pathFile = dir / "train" / "${particlesName}_images.txt"
-		pathFile.parent.createDirsIfNeeded()
-		pathFile.bufferedWriter().use { writerPaths ->
-			writerPaths.write("image_name\trec_path\n")
-
-			val coordinatesFile = dir / "train" / "${particlesName}_coordinates.txt"
-			coordinatesFile.parent.createDirsIfNeeded()
-			coordinatesFile.bufferedWriter().use { writerCoords ->
-				writerCoords.write("image_name\tx_coord\tz_coord\ty_coord\n")
-				// NOTE: the x,z,y order for the coords file is surprising but apparently intentional
-
-				val file = dir / "next" / "virion_thresholds.next"
-				file.parent.createDirsIfNeeded()
-				file.bufferedWriter().use { writerThresholds ->
-
-					// TODO: could optimize this query to project just the tiltSeriesIds if needed
-					TiltSeries.getAll(idOrThrow) { cursor ->
-						for (tiltSeries in cursor) {
-
-							val particles = Database.particles.getParticles3D(idOrThrow, name, tiltSeries.tiltSeriesId)
-							val thresholds = Database.particles.getVirionThresholds(idOrThrow, name, tiltSeries.tiltSeriesId)
-							if (particles.isNotEmpty()) {
-
-								writerPaths.write("${tiltSeries.tiltSeriesId}\t$dir/mrc/${tiltSeries.tiltSeriesId}.rec\n")
-
-								// track the write order of the particle coordinates (call it the particleIndex)
-								// so the thresholds writer can refer to the index again later
-								val indicesById = HashMap<Int,Int>()
-
-								val boxFile = dir / "next" / "${tiltSeries.tiltSeriesId}.next"
-								boxFile.parent.createDirsIfNeeded()
-								boxFile.bufferedWriter().use { writerBox ->
-
-									for ((particleIndex, particleId) in particles.keys.sorted().withIndex()) {
-										val particle = particles[particleId]
-											?: continue
-										indicesById[particleId] = particleIndex
-										// TODO: are these supposed to be truncated to integers?
-										writerCoords.write("${tiltSeries.tiltSeriesId}\t${particle.x.toInt()}\t${particle.z.toInt()}\t${particle.y.toInt()}\n")
-										writerBox.write("${particle.x.toInt()}\t${particle.y.toInt()}\t${particle.z.toInt()}\n")
-									}
-								}
-
-								// TODO - COORDINATES PRODUVED BY THE WEBSITE IN Z WOULD NOT NEED TO BE BINNED BY 2
-
-								// Send a virion threshold for each particle, even for virions with no threshold.
-								// If there's no threshold for a particle, send a sentinal value of 9 instead.
-								// And if there are no thresholds in the whole job, just write an empty file.
-								for (particleId in particles.keys) {
-									val particleIndex = indicesById[particleId]
-									val threshold = thresholds[particleId]
-										?: 9 // no threshold, use sentinel value instead of null
-									writerThresholds.write("${tiltSeries.tiltSeriesId}\t$particleIndex\t$threshold\n")
-								}
-							}
-						}
-					}
-				}
-			}
-		}
 	}
 
 	fun diagramImageURL(): String {

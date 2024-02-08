@@ -95,7 +95,7 @@ class SingleParticleSessionDataNode(
 				classes = setOf("dashboard-popup", "args-form-popup", "max-height-dialog")
 			)
 
-			val form = win.formPanel<SingleParticleSessionDataArgs>(type = FormType.HORIZONTAL).apply {
+			val form = win.formPanel<SingleParticleSessionDataArgs>().apply {
 
 				add(SingleParticleSessionDataArgs::sessionId, SelectRemote(
 					serviceManager = SessionsServiceManager,
@@ -104,12 +104,46 @@ class SingleParticleSessionDataNode(
 					label = "Session"
 				))
 
+				val sessionId = args?.newest()?.args?.sessionId
+				add(SingleParticleSessionDataArgs::particlesName,
+					if (sessionId != null) {
+						SelectRemote(
+							serviceManager = ParticlesServiceManager,
+							function = IParticlesService::getListOptions,
+							stateFunction = { "${OwnerType.Session.id}/$sessionId" },
+							label = "Select list of positions",
+							preload = true
+						)
+					} else {
+						HiddenString()
+					}
+				)
+
 				add(SingleParticleSessionDataArgs::values, ArgsForm(pypArgs, emptyList(), enabled, config.configId))
 			}
 
-			form.init(args)
+			// use the none filter option for the particles name in the form,
+			// since the control can't handle nulls
+			val mapper = ArgsMapper<SingleParticleSessionDataArgs>(
+				toForm = { args ->
+					if (args.particlesName == null) {
+						args.copy(particlesName = NoneFilterOption)
+					} else {
+						args
+					}
+				},
+				fromForm = { args ->
+					if (args.particlesName == NoneFilterOption) {
+						args.copy(particlesName = null)
+					} else {
+						args
+					}
+				}
+			)
+
+			form.init(args, mapper)
 			if (enabled) {
-				win.addSaveResetButtons(form, args, onDone)
+				win.addSaveResetButtons(form, args, mapper, onDone)
 			}
 			win.show()
 		}

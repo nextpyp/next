@@ -41,11 +41,13 @@ class TomographyImportDataJob(
 
 		private fun TomographyImportDataArgs.toDoc() = Document().also { doc ->
 			doc["values"] = values
+			doc["list"] = particlesName
 		}
 
 		private fun TomographyImportDataArgs.Companion.fromDoc(doc: Document) =
 			TomographyImportDataArgs(
-				doc.getString("values")
+				doc.getString("values"),
+				doc.getString("list")
 			)
 
 		fun args() =
@@ -82,12 +84,18 @@ class TomographyImportDataJob(
 		// clear caches
 		clearWwwCache()
 
+		val newestArgs = args.newestOrThrow().args
+
+		// write out particles, if needed
+		val argValues = newestArgs.values.toArgValues(Backend.pypArgs)
+		ParticlesJobs.writeTomography(idOrThrow, dir, argValues, newestArgs.particlesName)
+
 		// build the args for PYP
 		val pypArgs = ArgValues(Backend.pypArgs)
 
 		// set the user args
 		pypArgs.setAll(args().diff(
-			args.newestOrThrow().args.values,
+			newestArgs.values,
 			args.finished?.values
 		))
 
