@@ -1229,9 +1229,20 @@ afterEvaluate {
 			doLast {
 				// copy the generated sources to the client project, if available
 				if (clientDir?.exists() == true) {
+
+					val clientSrcDir = clientDir.resolve("src/nextpyp/client/")
 					copy {
 						from(dir.resolve("gen.py"))
-						into(clientDir.resolve("src/nextpyp/client/"))
+						into(clientSrcDir)
+					}
+
+					// copy the pyp arguments config too
+					val pypArgsPath = pypDir.resolve("config/pyp_config.toml")
+						.takeIf { it.exists() }
+						?: throw Error("pyp config file not found")
+					copy {
+						from(pypArgsPath)
+						into(clientSrcDir)
 					}
 				}
 			}
