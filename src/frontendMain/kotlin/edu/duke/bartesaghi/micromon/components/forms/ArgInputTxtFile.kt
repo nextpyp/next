@@ -14,7 +14,7 @@ class ArgInputTxtFile(
 	target = FilesystemPicker.Target.Files,
 	name = arg.fullId,
 	initialFolder = initialFolder(outNodes),
-	filenameGlob = "*.*"
+	filenameGlob = "*.txt"
 ) {
 
 	companion object {
@@ -24,8 +24,7 @@ class ArgInputTxtFile(
 			when (val node = outNodes.firstOrNull()) {
 
 				is SingleParticlePreprocessingNode,
-				is TomographyPreprocessingNode -> PathType.Project.make("${node.dir}/frealign")
-
+				is TomographyPreprocessingNode,
 				is SingleParticleCoarseRefinementNode,
 				is SingleParticleFineRefinementNode,
 				is SingleParticleFlexibleRefinementNode,
@@ -34,7 +33,7 @@ class ArgInputTxtFile(
 				is TomographyCoarseRefinementNode,
 				is TomographyFineRefinementNode,
 				is TomographyMovieCleaningNode,
-				is TomographyFlexibleRefinementNode -> PathType.Project.make("${node.dir}/3DAVG")
+				is TomographyFlexibleRefinementNode -> PathType.Project.make("${node.dir}/frealign")
 
 				else -> null
 			}
