@@ -105,6 +105,7 @@ class Model(
 		val props: List<Property>,
 		val typeParams: List<Param> = emptyList(),
 		val enumValues: List<String>? = null,
+		val polymorphicSerialization: Boolean = false,
 		val doc: Doc? = null,
 		val inners: MutableList<Type> = ArrayList()
 	) {

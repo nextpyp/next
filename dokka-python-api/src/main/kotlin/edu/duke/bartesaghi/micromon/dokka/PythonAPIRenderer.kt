@@ -469,6 +469,11 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 
 				writeln("return {")
 				indent {
+
+					if (type.polymorphicSerialization) {
+						writeln("'type': '${type.packageName}.${type.names}',")
+					}
+
 					for (prop in type.props) {
 						val name = prop.name.caseCamelToSnake()
 						val value = prop.type.renderWriter("self.$name", model, type.typeParams)
@@ -525,6 +530,10 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 						}
 					}
 				}
+
+				// TODO: do we need to use the Type.polymorphicSerialization flag here?
+				//       yes, if we have any Serialized<T> types in service function return values
+				//       but we'd have to do it in the supertype/interface, right? not the subclass?
 
 				writeln()
 

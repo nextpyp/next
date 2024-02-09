@@ -130,7 +130,14 @@ class ModelCollector(val ctx: DokkaContext) : DocumentableToPageTranslator {
 
 		// prune out any extra inner classes we found
 		fun purge(type: Model.Type) {
-			type.inners.removeIf { inner ->
+			type.inners.removeIf r@{ inner ->
+
+				// don't prune out polymorphic serialization classes,
+				// since they could still be used but not directly referenced in signatures
+				if (inner.polymorphicSerialization) {
+					return@r false
+				}
+
 				(listOf(inner) + inner.descendents())
 					.map { it.id }
 					.none { it in serviceTypeRefIds }
@@ -350,6 +357,10 @@ class ModelCollector(val ctx: DokkaContext) : DocumentableToPageTranslator {
 				?.let { e ->
 					e.entries.map { it.name }
 				},
+			polymorphicSerialization = when (c) {
+				is DClass -> c.exportClassAnnotation()?.polymorphicSerialization ?: false
+				else -> false
+			},
 			doc = c.documentation.readKdoc(),
 
 			// recurse

@@ -53,6 +53,12 @@ annotation class ExportPermission(
 )
 
 
+@Target(AnnotationTarget.CLASS)
+annotation class ExportClass(
+	val polymorphicSerialization: Boolean
+)
+
+
 enum class AppPermission(
 	/** intended for users to understand */
 	val description: String

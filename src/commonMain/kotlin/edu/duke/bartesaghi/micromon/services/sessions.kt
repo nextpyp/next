@@ -293,12 +293,18 @@ sealed interface SessionExportRequest {
 	}
 
 	@Serializable
+	@ExportClass(polymorphicSerialization=true)
 	data class Filter(
 		val name: String
 		// TODO: do we need to add args here? eg:
 		//var args: Args? = null
 	) : SessionExportRequest
 }
+
+typealias SerializedSessionExportRequest = Serialized<SessionExportRequest>
+
+fun SerializedSessionExportRequest.deserialize() =
+	SessionExportRequest.deserialize(this)
 
 
 @Serializable
@@ -492,7 +498,7 @@ interface ISessionsService {
 
 	@ExportServiceFunction(AppPermission.SessionExport)
 	@KVBindingRoute("sessions/export")
-	suspend fun export(sessionId: String, request: String /* serialized SessionExportRequest */, slurmValues: ArgValuesToml)
+	suspend fun export(sessionId: String, request: SerializedSessionExportRequest, slurmValues: ArgValuesToml)
 
 	@ExportServiceFunction(AppPermission.SessionExport)
 	@KVBindingRoute("sessions/cancelExport")

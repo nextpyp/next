@@ -21,7 +21,7 @@ fun <T:AnnotationTarget> WithExtraProperties<T>.annotations(): List<Annotations.
 		?: emptyList()
 
 
-class ExportServiceAnnotation(val name: String)
+data class ExportServiceAnnotation(val name: String)
 
 fun DInterface.exportServiceAnnotation(): ExportServiceAnnotation? =
 	annotations()
@@ -33,7 +33,7 @@ fun DInterface.exportServiceAnnotation(): ExportServiceAnnotation? =
 		}
 
 
-class ExportServiceFunctionAnnotation(
+data class ExportServiceFunctionAnnotation(
 	val permissionDri: DRI
 )
 
@@ -47,7 +47,7 @@ fun DFunction.exportServiceFunctionAnnotation(): ExportServiceFunctionAnnotation
 		}
 
 
-class ExportServicePropertyAnnotation(val skip: Boolean)
+data class ExportServicePropertyAnnotation(val skip: Boolean)
 
 fun DProperty.exportServicePropertyAnnotation(): ExportServicePropertyAnnotation? =
 	annotations()
@@ -59,7 +59,7 @@ fun DProperty.exportServicePropertyAnnotation(): ExportServicePropertyAnnotation
 		}
 
 
-class ExportRealtimeServiceAnnotation(
+data class ExportRealtimeServiceAnnotation(
 	val name: String,
 	val permissionDri: DRI,
 	val messagesC2S: List<DRI>,
@@ -79,7 +79,7 @@ fun DProperty.exportRealtimeServiceAnnotation(): ExportRealtimeServiceAnnotation
 		}
 
 
-class BindingRouteAnnotation(val path: String)
+data class BindingRouteAnnotation(val path: String)
 
 fun DFunction.bindingRouteAnnotation(): BindingRouteAnnotation? =
 	annotations()
@@ -91,7 +91,7 @@ fun DFunction.bindingRouteAnnotation(): BindingRouteAnnotation? =
 		}
 
 
-class ExportPermissionAnnotation(val appPermissionId: String)
+data class ExportPermissionAnnotation(val appPermissionId: String)
 
 fun DEnumEntry.exportPermissionAnnotation(): ExportPermissionAnnotation? =
 	annotations()
@@ -99,6 +99,18 @@ fun DEnumEntry.exportPermissionAnnotation(): ExportPermissionAnnotation? =
 		?.let {
 			ExportPermissionAnnotation(
 				appPermissionId = it.params.stringOrThrow("appPermissionId")
+			)
+		}
+
+
+data class ExportClassAnnotation(val polymorphicSerialization: Boolean)
+
+fun DClass.exportClassAnnotation(): ExportClassAnnotation? =
+	annotations()
+		.find { it.dri.packageName == PACKAGE_SERVICES && it.dri.classNames == "ExportClass" }
+		?.let {
+			ExportClassAnnotation(
+				polymorphicSerialization = it.params.booleanOrThrow("polymorphicSerialization")
 			)
 		}
 
