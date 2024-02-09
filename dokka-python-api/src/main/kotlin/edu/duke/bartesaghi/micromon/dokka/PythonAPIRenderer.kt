@@ -79,6 +79,10 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 		// write helper functions
 		writeln("def optional_map(val: Optional[T], func: Callable[[T], R]) -> Optional[R]:")
 		indent {
+			docstring("""
+				|map the optional type,
+				|so we can avoid using intermediate variables and simplify the code generator
+			""".trimMargin())
 			writeln("if val is None:")
 			indent {
 				writeln("return None")
@@ -86,6 +90,45 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 			writeln("else:")
 			indent {
 				writeln("return func(val)")
+			}
+		}
+
+		writeln()
+		writeln()
+
+		writeln("def none_map(val: Optional[T], func: Callable[[], T]) -> T:")
+		indent {
+			docstring("""
+				|map the None value in the optional type,
+				|so we can avoid using intermediate variables and simplify the code generator
+			""".trimMargin())
+			writeln("if val is None:")
+			indent {
+				writeln("return func()")
+			}
+			writeln("else:")
+			indent {
+				writeln("return val")
+			}
+		}
+
+		writeln()
+		writeln()
+
+		writeln("def none_raise(val: Optional[T], func: Callable[[], Exception]) -> T:")
+		indent {
+			docstring("""
+				|if the optional type is None, raise the exception created by the lambda
+				|(because apparently Python doesn't allow lambdas consisting only of raise statements),
+				|so we can avoid using intermediate variables and simplify the code generator
+			""".trimMargin())
+			writeln("if val is None:")
+			indent {
+				writeln("raise func()")
+			}
+			writeln("else:")
+			indent {
+				writeln("return val")
 			}
 		}
 
@@ -481,56 +524,6 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 							writeln("raise Exception(f'Failed to deserialize type, unrecognized type id `{type_id}` for type parameter ${typeParam.name}')")
 						}
 					}
-					writeln()
-				}
-
-				// read the properties
-				for (prop in type.props) {
-
-					writeln()
-
-					// mypy makes us declare the types on these local variables
-					val name = prop.name.caseCamelToSnake()
-					writeln("$name: ${prop.type.render(model)}")
-
-					val tempvar = "temp"
-					writeln("$tempvar = json.get('${prop.name}', None)")
-					writeln("if $tempvar is not None:")
-					indent {
-						// have a value, render the reader
-						val value = prop.type.renderReader(tempvar, model, type.typeParams)
-						writeln("$name = $value")
-					}
-					writeln("else:")
-					indent {
-						// no value
-						val default = prop.default
-						if (default != null) {
-							// have a default tho, so use that
-							val pyDefault = when (default) {
-								is IntegerConstant -> default.value.toString()
-								is StringConstant -> "'${default.value.replace("'", "\\'")}'"
-								is DoubleConstant -> default.value.toString()
-								is FloatConstant -> default.value.toString()
-								is BooleanConstant -> when (default.value) {
-									true -> "True"
-									false -> "False"
-								}
-								is ComplexExpression -> when (default.value) {
-									"null" -> "None"
-									else -> throw Error("don't know how to handle property default complex expression: ${default.value}")
-								}
-								else -> throw Error("don't know how to handle property default: $default")
-							}
-							writeln("$name = $pyDefault")
-						} else if (prop.type.nullable) {
-							// no default, but nullable, so use None
-							writeln("$name = None")
-						} else {
-							// no default, not nullable, have to bail
-							writeln("raise KeyError('missing JSON key: ${prop.name}')")
-						}
-					}
 				}
 
 				writeln()
@@ -538,8 +531,41 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 				writeln("return cls(")
 				indent {
 					for (prop in type.props) {
-						val name = prop.name.caseCamelToSnake()
-						writeln("$name,")
+
+						// first, get read the value from json, returning None if the key is missing
+						// NOTE: don't use x,y,k,v as scope variables here, since they already get used for collection iteration
+						var expr = "optional_map(json.get('${prop.name}', None), lambda it: ${prop.type.renderReader("it", model, type.typeParams)})"
+
+						// apply default value (if any) or bail if the type is not nullable
+						val default = when (val default = prop.default) {
+							null -> null
+							is IntegerConstant -> default.value.toString()
+							is StringConstant -> "'${default.value.replace("'", "\\'")}'"
+							is DoubleConstant -> default.value.toString()
+							is FloatConstant -> default.value.toString()
+							is BooleanConstant -> when (default.value) {
+								true -> "True"
+								false -> "False"
+							}
+							is ComplexExpression -> when (default.value) {
+								"null" -> "None"
+								else -> throw Error("don't know how to handle property default complex expression: ${default.value}")
+							}
+							else -> throw Error("don't know how to handle property default: $default")
+						}
+						if (!prop.type.nullable) {
+							if (default != null) {
+								if (default == "None") {
+									throw Error("Non-nullable type has a null default value")
+								}
+								expr = "none_map($expr, lambda: $default)"
+							} else {
+								expr = "none_raise($expr, lambda: KeyError('missing JSON key: ${prop.name}'))"
+							}
+						} else if (default != null && default != "None") {
+							expr = "none_map($expr, lambda: $default)"
+						}
+						writeln("$expr,")
 					}
 				}
 				writeln(")")
@@ -1016,9 +1042,9 @@ private fun Model.TypeRef.renderReader(expr: String, model: Model, typeParams: L
 
 		// convert collection types
 		"kotlin.collections" -> when (name) {
-			"List" -> "[${inner(0, "x")} for x in $expr]"
-			"Set" -> "{${inner(0, "x")} for x in $expr}"
-			"Map" -> "{${inner(0, "k")}:${inner(1, "v")} for k,v in $expr}"
+			"List" -> "[${inner(0, "x")} for x in cast(List[Any], $expr)]"
+			"Set" -> "{${inner(0, "x")} for x in cast(Set[Any], $expr)}"
+			"Map" -> "{${inner(0, "k")}:${inner(1, "v")} for k,v in cast(Dict[str,Any], $expr)}"
 			else -> throw Error("Don't know how to read kotlin collection type: $name")
 		}
 
