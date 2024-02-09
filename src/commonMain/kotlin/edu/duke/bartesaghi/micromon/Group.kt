@@ -1,5 +1,6 @@
 package edu.duke.bartesaghi.micromon
 
+import edu.duke.bartesaghi.micromon.services.ExportServiceProperty
 import kotlinx.serialization.Serializable
 
 
@@ -14,6 +15,7 @@ data class Group(
 	val id: String? = null
 ) {
 
+	@ExportServiceProperty(skip = true)
 	val idOrThrow: String get() =
 		id ?: throw NoSuchElementException("this group must have an id")
 }
