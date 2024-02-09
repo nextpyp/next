@@ -303,9 +303,11 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 				""".trimMargin())
 
 				writeln("path = '${func.path}'")
-				val argNames = func.arguments
-					.joinToString(", ") { it.name.caseCamelToSnake() }
-				val call = "self.client._transport.call(path, [$argNames])"
+				val argValues = func.arguments
+					.joinToString(", ") { arg ->
+						arg.type.renderWriter(arg.name.caseCamelToSnake(), model, emptyList())
+					}
+				val call = "self.client._transport.call(path, [$argValues])"
 				when (val r = func.returns) {
 
 					// no return value, just call the web service
