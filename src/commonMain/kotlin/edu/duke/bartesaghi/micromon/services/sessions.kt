@@ -524,7 +524,6 @@ interface ISingleParticleSessionService {
 	@KVBindingRoute("session/${SingleParticleSessionData.ID}/delete")
 	suspend fun delete(sessionId: String)
 
-	@ExportServiceFunction(AppPermission.SessionRead)
 	@KVBindingRoute("session/${SingleParticleSessionData.ID}/getArgs")
 	suspend fun getArgs(): String /* Args but serialized */
 
@@ -558,7 +557,6 @@ interface ITomographySessionService {
 	@KVBindingRoute("session/${TomographySessionData.ID}/delete")
 	suspend fun delete(sessionId: String)
 
-	@ExportServiceFunction(AppPermission.SessionRead)
 	@KVBindingRoute("session/${TomographySessionData.ID}/getArgs")
 	suspend fun getArgs(): String /* Args but serialized */
 
