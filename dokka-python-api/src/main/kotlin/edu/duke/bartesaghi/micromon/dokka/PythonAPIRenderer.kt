@@ -1,5 +1,6 @@
 package edu.duke.bartesaghi.micromon.dokka
 
+import org.jetbrains.dokka.model.*
 import org.jetbrains.dokka.pages.RootPageNode
 import org.jetbrains.dokka.plugability.DokkaContext
 import org.jetbrains.dokka.renderers.Renderer
@@ -482,18 +483,62 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 					writeln()
 				}
 
+				// read the properties
+				for (prop in type.props) {
+
+					writeln()
+
+					// mypy makes us declare the types on these local variables
+					val name = prop.name.caseCamelToSnake()
+					writeln("$name: ${prop.type.render(model)}")
+
+					val tempvar = "temp"
+					writeln("$tempvar = json.get('${prop.name}', None)")
+					writeln("if $tempvar is not None:")
+					indent {
+						// have a value, render the reader
+						val value = prop.type.renderReader(tempvar, model, type.typeParams)
+						writeln("$name = $value")
+					}
+					writeln("else:")
+					indent {
+						// no value
+						val default = prop.default
+						if (default != null) {
+							// have a default tho, so use that
+							val pyDefault = when (default) {
+								is IntegerConstant -> default.value.toString()
+								is StringConstant -> "'${default.value.replace("'", "\\'")}'"
+								is DoubleConstant -> default.value.toString()
+								is FloatConstant -> default.value.toString()
+								is BooleanConstant -> when (default.value) {
+									true -> "True"
+									false -> "False"
+								}
+								is ComplexExpression -> when (default.value) {
+									"null" -> "None"
+									else -> throw Error("don't know how to handle property default complex expression: ${default.value}")
+								}
+								else -> throw Error("don't know how to handle property default: $default")
+							}
+							writeln("$name = $pyDefault")
+						} else if (prop.type.nullable) {
+							// no default, but nullable, so use None
+							writeln("$name = None")
+						} else {
+							// no default, not nullable, have to bail
+							writeln("raise KeyError('missing JSON key: ${prop.name}')")
+						}
+					}
+				}
+
 				writeln()
 
 				writeln("return cls(")
 				indent {
 					for (prop in type.props) {
-						val json = "json['${prop.name}']"
 						val name = prop.name.caseCamelToSnake()
-						val value = prop.type.renderReader(json, model, type.typeParams)
-							.appendIf(prop.type.nullable) {
-								" if '${prop.name}' in json and $json is not None else None"
-							}
-						writeln("$name=$value,")
+						writeln("$name,")
 					}
 				}
 				writeln(")")

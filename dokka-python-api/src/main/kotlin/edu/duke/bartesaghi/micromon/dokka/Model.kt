@@ -1,6 +1,7 @@
 package edu.duke.bartesaghi.micromon.dokka
 
 import org.jetbrains.dokka.links.DRI
+import org.jetbrains.dokka.model.Expression
 
 
 private const val PACKAGE_ROOT = "edu.duke.bartesaghi.micromon"
@@ -115,6 +116,7 @@ class Model(
 		data class Property(
 			val name: String,
 			val type: TypeRef,
+			val default: Expression? = null,
 			val doc: Doc? = null
 		)
 

@@ -287,6 +287,7 @@ fun PropertyContainer<*>.dump(indent: Int = 0): String {
 			is Annotations -> dumpList(value.content.values, true) { annotations ->
 				dumpList(annotations, true) { it.toString() }
 			}
+			is DefaultValue -> value.value.toString()
 			else -> "UnrecognizedValue[${value::class.qualifiedName ?: "(none)"}]"
 		}
 	})
