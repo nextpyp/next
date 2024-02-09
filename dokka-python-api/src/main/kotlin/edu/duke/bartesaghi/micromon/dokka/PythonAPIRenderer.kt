@@ -30,7 +30,7 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 		// write imports
 		writeln("from __future__ import annotations")
 		writeln()
-		writeln("from typing import Optional, List, Dict, Set, Any, Iterator, TYPE_CHECKING, Union, cast, TypeVar, Generic")
+		writeln("from typing import Optional, List, Dict, Set, Any, Iterator, TYPE_CHECKING, Union, cast, TypeVar, Generic, Callable")
 		writeln()
 		writeln("import json")
 		writeln("from websockets.legacy.client import WebSocketClientProtocol")
@@ -52,8 +52,9 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 
 		// write type parameters
 		writeln("T = TypeVar('T')") // used in helper functions
+		writeln("R = TypeVar('R')") // used in helper functions
 		for (param in model.typeParameterNames) {
-			if (param == "T") {
+			if (param in listOf("T", "R")) {
 				continue // already have it
 			}
 			writeln("$param = TypeVar('$param')")
@@ -76,30 +77,30 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 		writeln()
 
 		// write helper functions
-		writeln("def option_from_json(val: Any) -> Option[T]:")
+		writeln("def optional_map(val: Optional[T], func: Callable[[T], R]) -> Optional[R]:")
 		indent {
-			writeln("if len(val) == 1:")
+			writeln("if val is None:")
 			indent {
-				writeln("return cast(Option[T], val[0])")
+				writeln("return None")
 			}
 			writeln("else:")
 			indent {
-				writeln("return cast(Option[T], None)")
+				writeln("return func(val)")
 			}
 		}
 
 		writeln()
 		writeln()
 
-		writeln("def option_to_json(val: Option[T]) -> List[T]:")
+		writeln("def option_unwrap(val: Any) -> Optional[Any]:")
 		indent {
-			writeln("if val is not None:")
+			writeln("if len(val) == 1:")
 			indent {
-				writeln("return [cast(T, val)]")
+				writeln("return val[0]")
 			}
 			writeln("else:")
 			indent {
-				writeln("return []")
+				writeln("return None")
 			}
 		}
 
@@ -925,8 +926,9 @@ private fun Model.TypeRef.render(model: Model): String {
 	val params = params
 		.takeIf { it.isNotEmpty() }
 
-	fun List<Model.TypeRef>.inner(i: Int): String =
-		getOrNull(i)
+	fun List<Model.TypeRef>?.inner(i: Int): String =
+		this
+			?.getOrNull(i)
 			?.render(model)
 			?: throw NoSuchElementException("$name type has no parameter at $i")
 
@@ -957,9 +959,16 @@ private fun Model.TypeRef.render(model: Model): String {
 		}
 
 		// handle our types
-		in PACKAGES -> params
-			?.let { "$flatName[${params.joinToString(",") { it.render(model) }}]" }
-			?: flatName
+		in PACKAGES -> {
+			if (packageName == PACKAGE_SERVICES && name == "Option") {
+				// HACKHACK: convert Kotlin Option types to Python Optional
+				"Optional[${params.inner(0)}]"
+			} else {
+				params
+					?.let { "$flatName[${params.joinToString(",") { it.render(model) }}]" }
+					?: flatName
+			}
+		}
 
 		// handle type parameters
 		"" -> {
@@ -1015,7 +1024,10 @@ private fun Model.TypeRef.renderReader(expr: String, model: Model, typeParams: L
 
 		// handle our types
 		in PACKAGES -> {
-			if (aliased != null) {
+			if (packageName == PACKAGE_SERVICES && name == "Option") {
+				// HACKHACK: convert Kotlin Option types to Python Optional
+				"optional_map(option_unwrap($expr), lambda x: ${inner(0, "x")})"
+			} else if (aliased != null) {
 				"${flatName.caseCamelToSnake()}_from_json($expr)"
 			} else if (params.isNotEmpty()) {
 				// handle type parameters
@@ -1080,7 +1092,9 @@ private fun Model.TypeRef.renderWriter(varname: String, model: Model, typeParams
 
 		// handle our types
 		in PACKAGES -> {
-			if (aliased != null) {
+			if (packageName == PACKAGE_SERVICES && name == "Option") {
+				throw Error("Option types should be read-only")
+			} else if (aliased != null) {
 				"${flatName.caseCamelToSnake()}_to_json($varname)"
 			} else {
 				"$varname.to_json()"
