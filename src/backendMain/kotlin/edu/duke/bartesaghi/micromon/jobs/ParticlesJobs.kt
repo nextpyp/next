@@ -16,6 +16,7 @@ object ParticlesJobs {
 	fun writeSingleParticle(jobId: String, dir: Path, particlesList: ParticlesList) {
 
 		val trainDir = dir / "train"
+		val nextDir = dir / "next"
 
 		// write the name of the picked particles
 		val particlesNamePath = trainDir / "current_list.txt"
@@ -44,11 +45,16 @@ object ParticlesJobs {
 						if (particles.isNotEmpty()) {
 
 							writerMicrographs.write("${micrograph.micrographId}\t${micrograph.micrographId}.mrc\n")
-							for (particleId in particles.keys.sorted()) {
-								val particle = particles[particleId]
-									?: continue
-								// TODO: should we write the particle radius?
-								writerCoords.write("${micrograph.micrographId}\t${particle.x}\t${particle.y}\n")
+							val boxFile = nextDir / "${micrograph.micrographId}.next"
+							boxFile.parent.createDirsIfNeeded()
+							boxFile.bufferedWriter().use { writerBox ->
+								for (particleId in particles.keys.sorted()) {
+									val particle = particles[particleId]
+										?: continue
+									// TODO: should we write the particle radius?
+									writerCoords.write("${micrograph.micrographId}\t${particle.x}\t${particle.y}\n")
+									writerBox.write("${particle.x.toInt()}\t${particle.y.toInt()}\n")
+								}
 							}
 						}
 					}
