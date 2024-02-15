@@ -451,9 +451,11 @@ sealed class RealTimeS2C {
 		val bytes: Long,
 		val bytesUsed: Long
 	) {
+		@ExportServiceProperty(skip = true)
 		val used: Double get() =
 			bytesUsed.toDouble()/bytes.toDouble()
 
+		@ExportServiceProperty(skip = true)
 		val bytesAvailable: Long get() =
 			bytes - bytesUsed
 	}

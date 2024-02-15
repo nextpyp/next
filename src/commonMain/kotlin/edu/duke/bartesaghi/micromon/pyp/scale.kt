@@ -1,5 +1,6 @@
 package edu.duke.bartesaghi.micromon.pyp
 
+import edu.duke.bartesaghi.micromon.services.ExportServiceProperty
 import kotlinx.serialization.Serializable
 
 
@@ -21,6 +22,7 @@ data class ImagesScale(
 	}
 
 	/** The particle radius, in unbinned pixels */
+	@ExportServiceProperty(skip=true)
 	val particleRadiusUnbinned: Double =
 		particleRadiusA.aToUnbinned(this)
 }
@@ -50,6 +52,7 @@ data class ImageDims(
 		const val SLICE_FACTOR = 2
 	}
 
+	@ExportServiceProperty(skip=true)
 	val numSlices: Int get() =
 		depth/binningFactor/SLICE_FACTOR
 }
