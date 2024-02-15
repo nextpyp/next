@@ -140,9 +140,9 @@ enum class ProjectPermission {
 /**
  * Argument storage for jobs.
  *
- * Jobs can have two sets of arguments.
- *   The `finished` arguments: the arguments that were used when running the job the last time.
- *   And/or the `next` arguments: the arguments that will be used to run the job the next time.
+ * Jobs can have two sets of arguments:
+ * * The `finished` arguments: the arguments that were used when running the job the last time.
+ * * And/or the `next` arguments: the arguments that will be used to run the job the next time.
  */
 @Serializable
 class JobArgs<T> {

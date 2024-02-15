@@ -4,9 +4,7 @@ import org.jetbrains.dokka.base.templating.parseJson
 import org.jetbrains.dokka.links.DRI
 import org.jetbrains.dokka.model.*
 import org.jetbrains.dokka.model.Void
-import org.jetbrains.dokka.model.doc.DocTag
-import org.jetbrains.dokka.model.doc.DocumentationNode
-import org.jetbrains.dokka.model.doc.Text
+import org.jetbrains.dokka.model.doc.*
 import org.jetbrains.dokka.pages.PageNode
 import org.jetbrains.dokka.pages.RootPageNode
 import org.jetbrains.dokka.plugability.DokkaContext
@@ -446,26 +444,64 @@ class ModelCollector(val ctx: DokkaContext) : DocumentableToPageTranslator {
 		)
 	}
 
-	private fun SourceSetDependent<DocumentationNode>.readKdoc(): Model.Doc? {
+	private fun DocTag.renderRst(out: StringBuilder) {
 
-		fun DocTag.collectText(): List<String> =
-			when (this) {
+		fun recurse() = children.forEach { it.renderRst(out) }
+		fun write(text: String) = out.append(text)
+		fun writeln() {
+			write("\n")
+		}
+		fun writeln(line: String) {
+			write(line)
+			writeln()
+		}
 
-				// only get the text nodes for now
-				is Text -> listOf(body)
+		when (this) {
 
-				// just recurse through everything else looking for Text nodes
-				else -> children.flatMap { it.collectText() }
+			is Text -> write(body)
+
+			is P -> {
+				recurse()
+				writeln()
 			}
 
-		return values
+			is CodeInline -> {
+				write("``")
+				recurse()
+				write("``")
+			}
+
+			is Ul -> {
+				writeln()
+				recurse()
+			}
+
+			is Li -> {
+				write("* ")
+				recurse()
+			}
+
+			// TODO: need to support any other HTML tags?
+
+			is CustomDocTag -> when (name) {
+				"MARKDOWN_FILE" -> recurse()
+				else -> throw UnsupportedOperationException("don't know how to handle custom doc tag: $name")
+			}
+			else -> throw UnsupportedOperationException("don't know how to handle doc tag: ${this::class.simpleName}")
+		}
+	}
+
+	private fun SourceSetDependent<DocumentationNode>.readKdoc(): Model.Doc? =
+		values
 			.flatMap { node ->
-				node.children
-					.flatMap { it.root.collectText() }
+				node.children.map { wrapper ->
+					val buf = StringBuilder()
+					wrapper.root.renderRst(buf)
+					buf.toString()
+				}
 			}
 			.takeIf { it.isNotEmpty() }
 			?.let { Model.Doc(it.joinToString("\n")) }
-	}
 
 	private fun collectExternalTypes(model: Model) {
 
