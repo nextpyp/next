@@ -31,6 +31,7 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 		writeln("from __future__ import annotations")
 		writeln()
 		writeln("from typing import Optional, List, Dict, Set, Any, Iterator, TYPE_CHECKING, Union, cast, TypeVar, Generic, Callable")
+		writeln("from abc import ABCMeta, abstractmethod")
 		writeln()
 		writeln("import json")
 		writeln("from websockets.legacy.client import WebSocketClientProtocol")
@@ -60,17 +61,30 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 			writeln("$param = TypeVar('$param')")
 		}
 
-		writeln()
-		writeln()
-
 		// write type aliases
 		for (typeAlias in model.typeAliases.sortedBy { it.id }) {
-			// TODO: handle type parameters?
-			//  only if we have aliases that actually need better logic here
-			//  which so far, we don't
-			val ref = typeAlias.ref
-				.copy(params = emptyList())
-			writeln("${typeAlias.name} = ${ref.render(model)}")
+
+			writeln()
+			writeln()
+
+			// HACKHACK: type aliases don't translate well to Python-land,
+			//           so handle them on a case-by-case basis
+			if (typeAlias.isOption) {
+				writeln("${typeAlias.name} = list")
+			} else if (typeAlias.isToString) {
+				when (typeAlias.typeParams.size) {
+					0 -> writeln("${typeAlias.name} = str")
+					1 -> {
+						val param = typeAlias.typeParams[0]
+						for (instance in param.instances) {
+							writeln("${typeAlias.render(model, listOf(instance))} = str")
+						}
+					}
+					else -> throw Error("don't yet know how to handle type alias to string with multiple parameters")
+				}
+			} else {
+				throw Error("don't yet know how to handle type alias: $typeAlias")
+			}
 		}
 
 		writeln()
@@ -145,22 +159,6 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 			indent {
 				writeln("return None")
 			}
-		}
-
-		writeln()
-		writeln()
-
-		writeln("def arg_values_toml_from_json(val: Any) -> ArgValuesToml:")
-		indent {
-			writeln("return cast(ArgValuesToml, val)")
-		}
-
-		writeln()
-		writeln()
-
-		writeln("def arg_values_toml_to_json(val: ArgValuesToml) -> str:")
-		indent {
-			writeln("return val")
 		}
 
 		writeln()
@@ -392,10 +390,15 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 		// define the class
 		val typeParams = type.typeParams
 			.takeIf { it.isNotEmpty() }
-		val parent = typeParams
-			?.let { params -> params.joinToString(",") { it.name } }
-			?.let { "(Generic[$it])" }
-			?: ""
+		val parent =
+			type.polymorphicSupertype
+				?.let { "(${it.flatName}, metaclass=ABCMeta)" }
+				?: run {
+					typeParams
+						?.let { params -> params.joinToString(",") { it.name } }
+						?.let { "(Generic[$it])" }
+						?: ""
+				}
 		writeln("class ${type.flatName}$parent:")
 		indent {
 
@@ -406,10 +409,12 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 
 			writeln("TYPE_ID: str = '${type.packageName}.${type.names}'")
 
-			writeln()
-
 			// write the constructor, if there's anything to construct
-			if (type.props.isNotEmpty()) {
+			val canInstantiate = type.polymorphicSubtypes.isEmpty()
+			if (canInstantiate && type.props.isNotEmpty()) {
+
+				writeln()
+
 				writeln("def __init__(self$args) -> None:")
 				indent {
 
@@ -433,59 +438,71 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 				}
 			}
 
-			writeln()
-
-			// write the serializer
-			writeln("def to_json(self) -> Dict[str,Any]:")
-			indent {
-
-				docstring("Converts this class instance into JSON")
-
-				// write the polymorphic serializers, if any
-				for (typeParam in type.typeParams) {
-					writeln()
-					writeln("def writer_polymorphic_${typeParam.name}(val: Any) -> Any:")
-					indent {
-						writeln("type_id = self._generics['${typeParam.name}']")
-						for ((i, ref) in typeParam.instances.withIndex()) {
-							val cond = "type_id == '${ref.id}'"
-							if (i == 0) {
-								writeln("if $cond:")
-							} else {
-								writeln("elif $cond:")
-							}
-							indent {
-								writeln("return ${ref.renderWriter("val", model, type.typeParams)}")
-							}
-						}
-						writeln("else:")
-						indent {
-							writeln("raise Exception(f'Failed to serialize type, unrecognized type id `{type_id}` for type parameter ${typeParam.name}')")
-						}
-					}
-				}
+			// write the json serializer
+			if (canInstantiate) {
 
 				writeln()
 
-				writeln("return {")
+				writeln("def to_json(self) -> Dict[str,Any]:")
 				indent {
 
-					if (type.polymorphicSerialization) {
-						writeln("'type': '${type.packageName}.${type.names}',")
+					docstring("Converts this class instance into JSON")
+
+					// write the polymorphic serializers, if any
+					for (typeParam in type.typeParams) {
+						writeln()
+						writeln("def writer_polymorphic_${typeParam.name}(val: Any) -> Any:")
+						indent {
+							writeln("type_id = self._generics['${typeParam.name}']")
+							for ((i, ref) in typeParam.instances.withIndex()) {
+								val cond = "type_id == '${ref.id}'"
+								if (i == 0) {
+									writeln("if $cond:")
+								} else {
+									writeln("elif $cond:")
+								}
+								indent {
+									writeln("return ${ref.renderWriter("val", model, type.typeParams)}")
+								}
+							}
+							writeln("else:")
+							indent {
+								writeln("raise Exception(f'Failed to serialize type, unrecognized type id `{type_id}` for type parameter ${typeParam.name}')")
+							}
+						}
 					}
 
-					for (prop in type.props) {
-						val name = prop.name.caseCamelToSnake()
-						val value = prop.type.renderWriter("self.$name", model, type.typeParams)
-						writeln("'${prop.name}': $value,")
+					writeln()
+
+					writeln("return {")
+					indent {
+
+						if (type.polymorphicSerialization) {
+							writeln("'type': '${type.packageName}.${type.names}',")
+						}
+
+						for (prop in type.props) {
+							val name = prop.name.caseCamelToSnake()
+							val value = prop.type.renderWriter("self.$name", model, type.typeParams)
+							writeln("'${prop.name}': $value,")
+						}
 					}
+					writeln("}")
 				}
-				writeln("}")
+
+			} else {
+
+				// superclasses need to define to_json as abstract so they delegate to subclasses
+				writeln("@abstractmethod")
+				writeln("def to_json(self) -> Dict[str,Any]:")
+				indent {
+					writeln("pass")
+				}
 			}
 
 			writeln()
 
-			// write the deserializer
+			// write the json deserializer
 			writeln("@classmethod")
 			writeln("def from_json(cls, json: Dict[str,Any], type_ids: Optional[Dict[str,str]] = None) -> ${type.parameterizedName}:")
 			indent {
@@ -531,111 +548,166 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 					}
 				}
 
-				// TODO: do we need to use the Type.polymorphicSerialization flag here?
-				//       yes, if we have any Serialized<T> types in service function return values
-				//       but we'd have to do it in the supertype/interface, right? not the subclass?
+				writeln()
+
+				if (type.polymorphicSubtypes.isNotEmpty()) {
+
+					// polymorphic supertype, need to do polymorphic deserialization of subtypes
+					// look for 'type' key in json and match against the (exhaustive) list of possible subclasses
+					// WARNING: failing to explicitly allow-list polymorphic types during deserialization is a
+					//          very serious security vulnerability, so proceed with caution here!!
+					writeln("cls_type = json['type']")
+					for ((i, subtype) in type.polymorphicSubtypes.withIndex()) {
+						val conditional =
+							if (i == 0) {
+								"if"
+							} else {
+								"elif"
+							}
+						writeln("$conditional cls_type == '${subtype.packageName}.${subtype.names}':")
+						indent {
+							writeln("return ${subtype.flatName}.from_json(json)")
+						}
+					}
+					writeln("else:")
+					indent {
+						writeln("raise Exception(f'unrecognized polymorphic subtype {cls_type} for supertype ${type.flatName}')")
+					}
+
+				} else {
+
+					writeln("return cls(")
+					indent {
+						for (prop in type.props) {
+
+							// first, get read the value from json, returning None if the key is missing
+							// NOTE: don't use x,y,k,v as scope variables here, since they already get used for collection iteration
+							var expr = "optional_map(json.get('${prop.name}', None), lambda it: ${prop.type.renderReader("it", model, type.typeParams)})"
+
+							// apply default value (if any) or bail if the type is not nullable
+							val default = when (val default = prop.default) {
+								null -> null
+								is IntegerConstant -> default.value.toString()
+								is StringConstant -> "'${default.value.replace("'", "\\'")}'"
+								is DoubleConstant -> default.value.toString()
+								is FloatConstant -> default.value.toString()
+								is BooleanConstant -> when (default.value) {
+									true -> "True"
+									false -> "False"
+								}
+								is ComplexExpression -> when (default.value) {
+									"null" -> "None"
+									else -> throw Error("don't know how to handle property default complex expression: ${default.value}")
+								}
+								else -> throw Error("don't know how to handle property default: $default")
+							}
+							if (!prop.type.nullable) {
+								if (default != null) {
+									if (default == "None") {
+										throw Error("Non-nullable type has a null default value")
+									}
+									expr = "none_map($expr, lambda: $default)"
+								} else {
+									expr = "none_raise($expr, lambda: KeyError('missing JSON key: ${prop.name}'))"
+								}
+							} else if (default != null && default != "None") {
+								expr = "none_map($expr, lambda: $default)"
+							}
+							writeln("$expr,")
+						}
+					}
+					writeln(")")
+				}
+			}
+
+			// write the string serializer
+			if (canInstantiate) {
 
 				writeln()
 
-				writeln("return cls(")
+				writeln("def serialize(self) -> str:")
 				indent {
-					for (prop in type.props) {
+					writeln("return json.dumps(self.to_json())")
+				}
 
-						// first, get read the value from json, returning None if the key is missing
-						// NOTE: don't use x,y,k,v as scope variables here, since they already get used for collection iteration
-						var expr = "optional_map(json.get('${prop.name}', None), lambda it: ${prop.type.renderReader("it", model, type.typeParams)})"
+			} else {
 
-						// apply default value (if any) or bail if the type is not nullable
-						val default = when (val default = prop.default) {
-							null -> null
-							is IntegerConstant -> default.value.toString()
-							is StringConstant -> "'${default.value.replace("'", "\\'")}'"
-							is DoubleConstant -> default.value.toString()
-							is FloatConstant -> default.value.toString()
-							is BooleanConstant -> when (default.value) {
-								true -> "True"
-								false -> "False"
-							}
-							is ComplexExpression -> when (default.value) {
-								"null" -> "None"
-								else -> throw Error("don't know how to handle property default complex expression: ${default.value}")
-							}
-							else -> throw Error("don't know how to handle property default: $default")
+				// superclasses need to define serialize as abstract so they delegate to subclasses
+				writeln("@abstractmethod")
+				writeln("def serialize(self) -> str:")
+				indent {
+					writeln("pass")
+				}
+			}
+
+			writeln()
+
+			// write the string deserializer
+			writeln("@classmethod")
+			writeln("def deserialize(cls, serialized: str, type_ids: Optional[Dict[str,str]] = None) -> ${type.parameterizedName}:")
+			indent {
+				writeln("return ${type.flatName}.from_json(json.loads(serialized), type_ids)")
+			}
+
+			if (canInstantiate) {
+
+				writeln()
+
+				// write __str__
+				writeln("def __str__(self) -> str:")
+				indent {
+					writeln("props = ', '.join([")
+					indent {
+						for (prop in type.props) {
+							val name = prop.name.caseCamelToSnake()
+							writeln("f'$name={self.$name}',")
 						}
-						if (!prop.type.nullable) {
-							if (default != null) {
-								if (default == "None") {
-									throw Error("Non-nullable type has a null default value")
-								}
-								expr = "none_map($expr, lambda: $default)"
-							} else {
-								expr = "none_raise($expr, lambda: KeyError('missing JSON key: ${prop.name}'))"
-							}
-						} else if (default != null && default != "None") {
-							expr = "none_map($expr, lambda: $default)"
-						}
-						writeln("$expr,")
 					}
+					writeln("])")
+					writeln("return f'${type.flatName}[{props}]'")
 				}
-				writeln(")")
-			}
 
-			writeln()
+				writeln()
 
-			// write __str__
-			writeln("def __str__(self) -> str:")
-			indent {
-				writeln("props = ', '.join([")
+				// write __repr__
+				writeln("def __repr__(self) -> str:")
 				indent {
-					for (prop in type.props) {
-						val name = prop.name.caseCamelToSnake()
-						writeln("f'$name={self.$name}',")
+					writeln("return self.__str__()")
+				}
+
+				writeln()
+
+				// implement equality comparisons
+				// NOTE: __eq__ returns Any, not bool
+				writeln("def __eq__(self, other: object) -> Any:")
+				indent {
+					writeln("if not isinstance(other, ${type.flatName}):")
+					indent {
+						writeln("return NotImplemented")
 					}
-				}
-				writeln("])")
-				writeln("return f'${type.flatName}[{props}]'")
-			}
-
-			writeln()
-
-			// write __repr__
-			writeln("def __repr__(self) -> str:")
-			indent {
-				writeln("return self.__str__()")
-			}
-
-			writeln()
-
-			// implement equality comparisons
-			// NOTE: __eq__ returns Any, not bool
-			writeln("def __eq__(self, other: object) -> Any:")
-			indent {
-				writeln("if not isinstance(other, ${type.flatName}):")
-				indent {
-					writeln("return NotImplemented")
-				}
-				if (type.props.isNotEmpty()) {
-					for ((i, prop) in type.props.withIndex()) {
-						val name = prop.name.caseCamelToSnake()
-						val comparison = "self.$name == other.$name"
-						if (i == 0) {
-							if (type.props.size == 1) {
-								writeln("return $comparison")
-							} else {
-								writeln("return $comparison \\")
-							}
-						} else {
-							indent {
-								if (i == type.props.size - 1) {
-									writeln("and $comparison")
+					if (type.props.isNotEmpty()) {
+						for ((i, prop) in type.props.withIndex()) {
+							val name = prop.name.caseCamelToSnake()
+							val comparison = "self.$name == other.$name"
+							if (i == 0) {
+								if (type.props.size == 1) {
+									writeln("return $comparison")
 								} else {
-									writeln("and $comparison \\")
+									writeln("return $comparison \\")
+								}
+							} else {
+								indent {
+									if (i == type.props.size - 1) {
+										writeln("and $comparison")
+									} else {
+										writeln("and $comparison \\")
+									}
 								}
 							}
 						}
+					} else {
+						writeln("return True  # we are all the same! =D")
 					}
-				} else {
-					writeln("return True  # we are all the same! =D")
 				}
 			}
 		}
@@ -995,9 +1067,17 @@ private fun Model.TypeRef.render(model: Model): String {
 
 		// handle our types
 		in PACKAGES -> {
-			if (packageName == PACKAGE_SERVICES && name == "Option") {
-				// HACKHACK: convert Kotlin Option types to Python Optional
-				"Optional[${params.inner(0)}]"
+			if (aliased != null) {
+				val alias = model.findTypeAlias(this)
+					?: throw Error("Can't find type alias for type ref: $this")
+				if (alias.isOption) {
+					// HACKHACK: convert Kotlin Option types to Python Optional
+					"Optional[${params.inner(0)}]"
+				} else if (alias.isToString) {
+					alias.render(model, this.params)
+				} else {
+					throw Error("Don't know how to render type alias: $alias")
+				}
 			} else {
 				params
 					?.let { "$flatName[${params.joinToString(",") { it.render(model) }}]" }
@@ -1030,6 +1110,19 @@ private fun Model.TypeRef.render(model: Model): String {
 	}
 }
 
+private fun Model.TypeAlias.render(model: Model, paramRefs: List<Model.TypeRef>): String {
+
+	if (typeParams.size != paramRefs.size) {
+		throw Error("param refs (${paramRefs.size}) don't match type alias params (${typeParams.size})")
+	}
+
+	return if (paramRefs.isNotEmpty()) {
+		"${name}_${paramRefs.joinToString("_") { it.render(model) }}"
+	} else {
+		name
+	}
+}
+
 private fun Model.TypeRef.renderReader(expr: String, model: Model, typeParams: List<Model.Type.Param>): String {
 
 	fun inner(i: Int, expr: String): String =
@@ -1059,11 +1152,17 @@ private fun Model.TypeRef.renderReader(expr: String, model: Model, typeParams: L
 
 		// handle our types
 		in PACKAGES -> {
-			if (packageName == PACKAGE_SERVICES && name == "Option") {
-				// HACKHACK: convert Kotlin Option types to Python Optional
-				"optional_map(option_unwrap($expr), lambda x: ${inner(0, "x")})"
-			} else if (aliased != null) {
-				"${flatName.caseCamelToSnake()}_from_json($expr)"
+			if (aliased != null) {
+				val alias = model.findTypeAlias(this)
+					?: throw Error("Can't find type alias for type ref: $this")
+				if (alias.isOption) {
+					// HACKHACK: convert Kotlin Option types to Python Optional
+					"optional_map(option_unwrap($expr), lambda x: ${inner(0, "x")})"
+				} else if (alias.isToString) {
+					"cast(${alias.render(model, params)}, $expr)"
+				} else {
+					throw Error("Don't know how to render reader for type alias: $alias")
+				}
 			} else if (params.isNotEmpty()) {
 				// handle type parameters
 				val type = model.findType(this)
@@ -1127,10 +1226,17 @@ private fun Model.TypeRef.renderWriter(varname: String, model: Model, typeParams
 
 		// handle our types
 		in PACKAGES -> {
-			if (packageName == PACKAGE_SERVICES && name == "Option") {
-				throw Error("Option types should be read-only")
-			} else if (aliased != null) {
-				"${flatName.caseCamelToSnake()}_to_json($varname)"
+			if (aliased != null) {
+				val alias = model.findTypeAlias(this)
+					?: throw Error("Can't find type alias for type ref: $this")
+				if (alias.isOption) {
+					throw Error("Option types should be read-only")
+				} else if (alias.isToString) {
+					// no upcast needed for alias to str
+					varname
+				} else {
+					throw Error("Don't know how to render reader for type alias: $alias")
+				}
 			} else {
 				"$varname.to_json()"
 			}

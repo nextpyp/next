@@ -165,6 +165,14 @@ class ModelCollector(val ctx: DokkaContext) : DocumentableToPageTranslator {
 
 		// collect types for the type parameters
 		for (ref in model.typeRefs()) {
+
+			val alias = model.findTypeAlias(ref)
+			if (alias != null) {
+				for ((paramRef, param) in ref.params zip alias.typeParams) {
+					param.instances.add(paramRef)
+				}
+			}
+
 			val resolvedRef = ref.resolveAliases()
 			resolvedRef.params
 				.takeIf { resolvedRef.packageName in PACKAGES && it.isNotEmpty() }
@@ -366,11 +374,18 @@ class ModelCollector(val ctx: DokkaContext) : DocumentableToPageTranslator {
 			// recurse
 			inners = c.classlikes
 				// filter out objects
-				.filterIsInstance<DClass>()
+				.filter { it is DClass || it is DInterface }
 				.map { collectType(it) }
 				.toMutableList()
 		).apply {
-			inners.forEach { it.outer = this }
+			inners
+				.forEach { it.outer = this }
+			inners
+				.filter { it.polymorphicSerialization }
+				.forEach {
+					polymorphicSubtypes.add(it)
+					it.polymorphicSupertype = this
+				}
 		}
 	}
 

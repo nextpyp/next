@@ -301,22 +301,15 @@ sealed interface SessionExportRequest {
 	) : SessionExportRequest
 }
 
-typealias SerializedSessionExportRequest = Serialized<SessionExportRequest>
-
-fun SerializedSessionExportRequest.deserialize() =
-	SessionExportRequest.deserialize(this)
-
 
 @Serializable
 data class SessionExportData(
 	val sessionId: String,
 	val exportId: String,
-	/** serialized SessionExportRequest */
-	val request: String,
+	val request: Serialized<SessionExportRequest>,
 	val created: Long,
 	val clusterJobId: String?,
-	/** serialized SessionExportResult */
-	val result: String? = null
+	val result: Serialized<SessionExportResult>? = null
 ) {
 	fun getRequest(): SessionExportRequest =
 		SessionExportRequest.deserialize(request)
@@ -360,15 +353,18 @@ sealed interface SessionExportResult {
 	}
 
 	@Serializable
+	@ExportClass(polymorphicSerialization = true)
 	class Canceled : SessionExportResult
 
 	@Serializable
+	@ExportClass(polymorphicSerialization = true)
 	class Failed(
 		/** This message is displayed to the user, so make it readable */
 		val reason: String
 	) : SessionExportResult
 
 	@Serializable
+	@ExportClass(polymorphicSerialization = true)
 	class Succeeded(
 		val output: Output
 	) : SessionExportResult {
@@ -376,6 +372,7 @@ sealed interface SessionExportResult {
 		sealed interface Output {
 
 			@Serializable
+			@ExportClass(polymorphicSerialization = true)
 			data class Filter(
 				/** relative to the session folder */
 				val path: String
@@ -383,6 +380,7 @@ sealed interface SessionExportResult {
 		}
 	}
 }
+
 
 @Serializable
 enum class SessionExportStatus(val id: String) {
@@ -498,7 +496,7 @@ interface ISessionsService {
 
 	@ExportServiceFunction(AppPermission.SessionExport)
 	@KVBindingRoute("sessions/export")
-	suspend fun export(sessionId: String, request: SerializedSessionExportRequest, slurmValues: ArgValuesToml)
+	suspend fun export(sessionId: String, request: Serialized<SessionExportRequest>, slurmValues: ArgValuesToml)
 
 	@ExportServiceFunction(AppPermission.SessionExport)
 	@KVBindingRoute("sessions/cancelExport")

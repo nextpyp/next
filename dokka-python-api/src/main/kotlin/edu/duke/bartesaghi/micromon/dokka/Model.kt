@@ -106,6 +106,8 @@ class Model(
 		val typeParams: List<Param> = emptyList(),
 		val enumValues: List<String>? = null,
 		val polymorphicSerialization: Boolean = false,
+		val polymorphicSubtypes: MutableList<Type> = ArrayList(),
+		var polymorphicSupertype: Type? = null,
 		val doc: Doc? = null,
 		val inners: MutableList<Type> = ArrayList()
 	) {
@@ -244,7 +246,7 @@ class Model(
 		externalTypes
 			.find { it.packageName == ref.packageName && it.name == ref.name }
 
-	class TypeAlias(
+	data class TypeAlias(
 		val packageName: String,
 		val name: String,
 		val typeParams: List<Type.Param> = emptyList(),
@@ -253,8 +255,18 @@ class Model(
 
 		val id: String get() =
 			typeId(packageName, name)
+
+		val isOption: Boolean get() =
+			packageName == PACKAGE_SERVICES && name == "Option"
+
+		val isToString: Boolean get() =
+			ref.packageName == "kotlin" && ref.name == "String"
 	}
 	val typeAliases = ArrayList<TypeAlias>()
+
+	fun findTypeAlias(ref: TypeRef): TypeAlias? =
+		typeAliases
+			.find { it.packageName == ref.packageName && it.name == ref.name }
 
 	fun typeAliasesLookup(): Map<String,TypeAlias> =
 		typeAliases
