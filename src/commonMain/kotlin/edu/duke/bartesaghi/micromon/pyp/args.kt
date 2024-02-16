@@ -202,7 +202,8 @@ class Arg(
 	val hidden: ArgHidden = ArgHidden.none(),
 	val target: ArgTarget = ArgTarget.Pyp,
 	val copyToNewBlock: Boolean = true,
-	val advanced: Boolean = false
+	val advanced: Boolean = false,
+	val condition: ArgCondition? = null
 ) {
 
 	companion object {
@@ -887,3 +888,10 @@ enum class ArgTarget {
 	/** arguments that should be intercepted by micromon and not passed to the pyp command line */
 	Micromon
 }
+
+
+@Serializable
+class ArgCondition(
+	val argId: String,
+	val value: String
+)

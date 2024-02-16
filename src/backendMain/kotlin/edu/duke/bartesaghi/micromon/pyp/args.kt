@@ -92,7 +92,8 @@ fun Args.Companion.fromToml(toml: String): Args {
 				input = argTable.getInput("input"),
 				hidden = argTable.getArgHidden("hidden"),
 				copyToNewBlock = argTable.getBoolean("copyToNewBlock") ?: true,
-				advanced = argTable.getBoolean("advanced") ?: false
+				advanced = argTable.getBoolean("advanced") ?: false,
+				condition = argTable.getCondition("condition", args, groupId, argId)
 			))
 		}
 	}
@@ -237,6 +238,31 @@ fun TomlTable.getGroupHidden(key: String): GroupHidden {
 		}
 
 		else -> throw TomlParseException("unrecognized hidden value: $value", pos)
+	}
+}
+
+fun TomlTable.getCondition(key: String, args: List<Arg>, groupId: String, argId: String): ArgCondition? {
+
+	val pos = inputPositionOf(key)
+	val value = get(key)
+		?: return null
+
+	return when (value) {
+
+		is TomlTable -> ArgCondition(
+			value.getStringOrThrow("arg", pos).let { conditionArgId ->
+				if (args.none { it.groupId == groupId && it.argId == conditionArgId }) {
+					throw NoSuchElementException("""
+						|Argument $groupId.$conditionArgId referenced in condition of $groupId.$argId has not been defined yet.
+						|Maybe it's defined below? In that case, move that definition higher than this one.
+					""".trimMargin())
+				}
+				conditionArgId
+			},
+			value.getStringOrThrow("value", pos)
+		)
+
+		else -> throw TomlParseException("unrecognized conditionl value: $value", pos)
 	}
 }
 

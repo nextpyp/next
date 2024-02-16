@@ -83,6 +83,9 @@ class ArgsForm(
 		override fun blur() {}
 		override fun focus() {}
 
+		private fun showAdvanced(): Boolean =
+			advancedCheck.value
+
 		init {
 
 			// kotlin DSLs are dumb
@@ -101,7 +104,7 @@ class ArgsForm(
 				// show the arg in a tab panel, one tab for each group
 				tabPanel {
 					for (group in groups) {
-						val tab = ArgsInputs(form.args.args(group), values, controls, form.outNodes, form.enabled)
+						val tab = ArgsInputs(form.args.args(group), values, controls, form.outNodes, form.enabled, ::showAdvanced)
 						tabs[group.groupId] = tab
 						addTab(group.name, tab)
 					}
@@ -110,7 +113,7 @@ class ArgsForm(
 			} else {
 
 				// show all args at once
-				val tab = ArgsInputs(form.args.args, values, controls, form.outNodes, form.enabled)
+				val tab = ArgsInputs(form.args.args, values, controls, form.outNodes, form.enabled, ::showAdvanced)
 				tabs[null] = tab
 				add(tab)
 			}
@@ -119,7 +122,7 @@ class ArgsForm(
 			advancedCheck.onEvent {
 				change = {
 					for (tab in tabs.values) {
-						tab.showAdvanced(advancedCheck.value)
+						tab.updateVisibility()
 					}
 				}
 			}
@@ -197,7 +200,8 @@ class ArgsInputs(
 	val values: ArgValues,
 	val controls: Controls,
 	val outNodes: List<Node>,
-	val enabled: Boolean
+	val enabled: Boolean,
+	val showAdvanced: () -> Boolean
 ) : Div(classes = setOf("args-inputs")) {
 
 	init {
@@ -293,6 +297,11 @@ class ArgsInputs(
 							destControl.argValue = null
 						}
 					}
+
+					// if other args have conditions that depend on this one, then update visibility
+					if (args.any { it.condition?.argId == arg.argId }) {
+						updateVisibility()
+					}
 				}
 			}
 
@@ -316,12 +325,56 @@ class ArgsInputs(
 				info.updateIcon()
 			}
 		}
+
+		updateVisibility()
 	}
 
-	fun showAdvanced(visible: Boolean) {
-		args
-			.filter { it.advanced }
-			.mapNotNull { controls[it] }
-			.forEach { it.row.visible = visible }
+	fun updateVisibility() {
+
+		val showAdvanced = showAdvanced()
+
+		for (arg in args) {
+			val control = controls[arg]
+				?: continue
+
+			// assume everything is visible by default
+			var visible = true
+
+			// hide advanced controls if we're not showing them
+			if (arg.advanced && !showAdvanced) {
+				visible = false
+			}
+
+			// hide controls whose conditions aren't met
+			if (arg.condition != null) {
+				if (!arg.condition.met()) {
+					visible = false
+				}
+			}
+
+			control.row.visible = visible
+		}
+	}
+
+	private fun ArgCondition.met(): Boolean {
+
+		val parentArg = args
+			.find { it.argId == argId }
+			?: return false
+
+		val parentControl = controls[parentArg]
+			?: return false
+
+		val parentValue = parentControl.control.getValueAsString()
+			?: ""
+
+		var met = value == parentValue
+
+		if (parentArg.condition != null) {
+			// parent arg has a condition, need to check that too
+			met = met && parentArg.condition.met()
+		}
+
+		return met
 	}
 }
