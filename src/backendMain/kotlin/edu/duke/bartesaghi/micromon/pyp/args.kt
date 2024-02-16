@@ -93,8 +93,23 @@ fun Args.Companion.fromToml(toml: String): Args {
 				hidden = argTable.getArgHidden("hidden"),
 				copyToNewBlock = argTable.getBoolean("copyToNewBlock") ?: true,
 				advanced = argTable.getBoolean("advanced") ?: false,
-				condition = argTable.getCondition("condition", args, groupId, argId)
+				condition = argTable.getCondition("condition")
 			))
+		}
+
+		// check arg condition parents
+		run {
+			val errors = ArrayList<String>()
+			for (arg in args.filter { it.groupId == groupId }) {
+				val conditionArgId = arg.condition?.argId
+					?: continue
+				if (args.none { it.groupId == groupId && it.argId == conditionArgId }) {
+					errors.add("Argument $groupId.$conditionArgId referenced in condition of $groupId.${arg.argId} was not found")
+				}
+			}
+			if (errors.isNotEmpty()) {
+				throw NoSuchElementException(errors.joinToString("\n"))
+			}
 		}
 	}
 
@@ -241,7 +256,7 @@ fun TomlTable.getGroupHidden(key: String): GroupHidden {
 	}
 }
 
-fun TomlTable.getCondition(key: String, args: List<Arg>, groupId: String, argId: String): ArgCondition? {
+fun TomlTable.getCondition(key: String): ArgCondition? {
 
 	val pos = inputPositionOf(key)
 	val value = get(key)
@@ -250,15 +265,7 @@ fun TomlTable.getCondition(key: String, args: List<Arg>, groupId: String, argId:
 	return when (value) {
 
 		is TomlTable -> ArgCondition(
-			value.getStringOrThrow("arg", pos).let { conditionArgId ->
-				if (args.none { it.groupId == groupId && it.argId == conditionArgId }) {
-					throw NoSuchElementException("""
-						|Argument $groupId.$conditionArgId referenced in condition of $groupId.$argId has not been defined yet.
-						|Maybe it's defined below? In that case, move that definition higher than this one.
-					""".trimMargin())
-				}
-				conditionArgId
-			},
+			value.getStringOrThrow("arg", pos),
 			value.getStringOrThrow("value", pos)
 		)
 
