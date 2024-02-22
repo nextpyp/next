@@ -262,11 +262,35 @@ fun TomlTable.getCondition(key: String): ArgCondition? {
 	val value = get(key)
 		?: return null
 
+	fun adapt(v: Any?): String? =
+		when (v) {
+			is String -> v
+			is Int,
+			is Long,
+			is Float,
+			is Double,
+			is Boolean -> v.toString()
+			else -> null
+		}
+
 	return when (value) {
 
 		is TomlTable -> ArgCondition(
 			value.getStringOrThrow("arg", pos),
-			value.getStringOrThrow("value", pos)
+			when (val v = value.get("value")) {
+
+				null -> throw TomlParseException("condition has no value", pos)
+
+				is TomlArray -> v.indices.map {
+					adapt(v.get(it))
+						?: throw TomlParseException("condition value was not recognized: try a string, int, float, or boolean", pos)
+				}
+
+				else -> listOf(
+					adapt(v)
+						?: throw TomlParseException("condition value was not recognized: try a string, int, float, boolean, or an array of them", pos)
+				)
+			}
 		)
 
 		else -> throw TomlParseException("unrecognized conditionl value: $value", pos)

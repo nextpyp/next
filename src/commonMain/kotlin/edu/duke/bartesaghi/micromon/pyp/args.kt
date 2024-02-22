@@ -893,5 +893,5 @@ enum class ArgTarget {
 @Serializable
 class ArgCondition(
 	val argId: String,
-	val value: String
+	val values: List<String>
 )

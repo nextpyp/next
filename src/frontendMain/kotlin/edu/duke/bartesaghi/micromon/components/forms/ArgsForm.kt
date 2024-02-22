@@ -422,7 +422,7 @@ class ArgsInputs(
 		val parentValue = parentControl.control.getValueAsString()
 			?: ""
 
-		var met = value == parentValue
+		var met = parentValue in values
 
 		if (parentArg.condition != null) {
 			// parent arg has a condition, need to check that too
