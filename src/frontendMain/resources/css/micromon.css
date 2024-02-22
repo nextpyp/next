@@ -2220,6 +2220,14 @@ div.args-form table td.description {
 	line-height: 37px;
 }
 
+.args-form table.subgroup > tr:first-child > td {
+	border-top: none; /* override the default bootstrap styles */
+}
+
+.args-form table.subgroup {
+	margin-left: 40px;
+}
+
 div.args-form span.arg-icon {
 	display: inline-block;
 	text-align: center;

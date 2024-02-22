@@ -9,12 +9,12 @@ import io.kvision.form.*
 import io.kvision.form.check.CheckBox
 import io.kvision.form.check.CheckBoxStyle
 import io.kvision.html.Div
+import io.kvision.html.Table
 import io.kvision.html.div
 import io.kvision.html.span
 import io.kvision.panel.tabPanel
 import io.kvision.table.Row
 import io.kvision.table.cell
-import io.kvision.table.row
 import io.kvision.table.table
 
 
@@ -155,6 +155,8 @@ data class ControlInfo(
 	val row: Row
 ) {
 
+	var contiguousSubgroup: ControlSubgroup? = null
+
 	fun updateIcon() {
 		icon.state = if (control.isDefault()) {
 			if (control.arg.required) {
@@ -164,6 +166,18 @@ data class ControlInfo(
 			}
 		} else {
 			ArgIcon.State.Specified
+		}
+	}
+}
+
+
+class ControlSubgroup {
+	val controls = ArrayList<ControlInfo>()
+	val table = Table(classes = setOf("subgroup"))
+	val row = Row {
+		cell {
+			setAttribute("colspan", "4")
+			add(table)
 		}
 	}
 }
@@ -206,74 +220,118 @@ class ArgsInputs(
 
 	init {
 		// layout the form with a table (*GASP* a table!! iOi)
-		table {
+		val table = table()
 
-			// create form inputs for all the args
-			for (arg in args) {
+		val conditionTargetStack = ArrayList<ControlInfo>()
 
-				val icon = ArgIcon(ArgIcon.State.Default)
+		// create form inputs for all the args
+		for (arg in args) {
 
-				val control: ArgInputControl = if (arg.input != null) {
-					when (arg.input) {
-						is ArgInput.ParFile -> ArgInputParFile(arg, outNodes)
-						is ArgInput.TxtFile -> ArgInputTxtFile(arg, outNodes)
-						is ArgInput.InitialModel -> ArgInputInitialModel(arg, outNodes)
-						is ArgInput.HalfMap -> ArgInputHalfMap(arg, outNodes)
-						is ArgInput.TopazTrainedModel -> ArgInputTopazTrainedModel(arg, outNodes)
-						is ArgInput.TrainedModel2D -> ArgInputTrainedModel2D(arg, outNodes)
-						is ArgInput.TrainedModel3D -> ArgInputTrainedModel3D(arg, outNodes)
-						is ArgInput.ClusterQueue -> ArgInputClusterQueue(arg)
-					}
-				} else {
-					when (arg.type) {
-						is ArgType.TBool -> ArgInputBool(arg)
-						is ArgType.TInt -> ArgInputInt(arg)
-						is ArgType.TFloat -> ArgInputFloat(arg)
-						is ArgType.TFloat2 -> ArgInputFloat2(arg)
-						is ArgType.TStr -> ArgInputStr(arg)
-						is ArgType.TEnum -> ArgInputEnum(arg)
-						is ArgType.TPath -> ArgInputPath(arg)
-					}
+			val icon = ArgIcon(ArgIcon.State.Default)
+
+			val control: ArgInputControl = if (arg.input != null) {
+				when (arg.input) {
+					is ArgInput.ParFile -> ArgInputParFile(arg, outNodes)
+					is ArgInput.TxtFile -> ArgInputTxtFile(arg, outNodes)
+					is ArgInput.InitialModel -> ArgInputInitialModel(arg, outNodes)
+					is ArgInput.HalfMap -> ArgInputHalfMap(arg, outNodes)
+					is ArgInput.TopazTrainedModel -> ArgInputTopazTrainedModel(arg, outNodes)
+					is ArgInput.TrainedModel2D -> ArgInputTrainedModel2D(arg, outNodes)
+					is ArgInput.TrainedModel3D -> ArgInputTrainedModel3D(arg, outNodes)
+					is ArgInput.ClusterQueue -> ArgInputClusterQueue(arg)
 				}
-
-				// configure the control
-				control.enabled = enabled
-
-				// layout the controls on the form
-				val row = row {
-
-					if (arg.advanced) {
-						addCssClass("advanced")
-					}
-
-					cell(classes = setOf("icon")) {
-						add(icon)
-					}
-					cell(classes = setOf("label")) {
-						fieldLabel(control.labelTarget ?: "(no label target)", arg.name)
-					}
-					cell(classes = setOf("control")) {
-						add(control)
-					}
-					cell(classes = setOf("description")) {
-						span(arg.description, classes = setOf("description"))
-					}
+			} else {
+				when (arg.type) {
+					is ArgType.TBool -> ArgInputBool(arg)
+					is ArgType.TInt -> ArgInputInt(arg)
+					is ArgType.TFloat -> ArgInputFloat(arg)
+					is ArgType.TFloat2 -> ArgInputFloat2(arg)
+					is ArgType.TStr -> ArgInputStr(arg)
+					is ArgType.TEnum -> ArgInputEnum(arg)
+					is ArgType.TPath -> ArgInputPath(arg)
 				}
+			}
 
-				// hide advanced options by default
+			// configure the control
+			control.enabled = enabled
+
+			// layout the controls on the form
+			val row = Row {
+
 				if (arg.advanced) {
-					row.visible = false
+					addCssClass("advanced")
 				}
 
-				val info = ControlInfo(control, icon, row)
-				controls[arg] = info
+				cell(classes = setOf("icon")) {
+					add(icon)
+				}
+				cell(classes = setOf("label")) {
+					fieldLabel(control.labelTarget ?: "(no label target)", arg.name)
+				}
+				cell(classes = setOf("control")) {
+					add(control)
+				}
+				cell(classes = setOf("description")) {
+					span(arg.description, classes = setOf("description"))
+				}
+			}
 
+			val info = ControlInfo(control, icon, row)
+			controls[arg] = info
+
+			// update the condition target stack
+			val condition = control.arg.condition
+			if (condition != null) {
+				while (conditionTargetStack.isNotEmpty()) {
+					// if the condition target is on top of the stack, push this arg on next
+					val currentConditionTarget = conditionTargetStack.last()
+					if (condition.argId == currentConditionTarget.control.arg.argId) {
+						conditionTargetStack.add(info)
+
+						// also add this arg to the target arg's subgroup
+						val subgroup = currentConditionTarget.contiguousSubgroup
+							?: ControlSubgroup().also { subgroup ->
+								val parentTable = conditionTargetStack
+									.getOrNull(conditionTargetStack.size - 3)
+									?.contiguousSubgroup
+									?.table
+									?: table
+								parentTable.add(subgroup.row)
+								currentConditionTarget.contiguousSubgroup = subgroup
+							}
+						subgroup.controls.add(info)
+						subgroup.table.add(row)
+
+						break
+					} else {
+						// otherwise, pop the stack and check again
+						conditionTargetStack.removeLast()
+					}
+				}
+
+				// just in case ...
+				if (conditionTargetStack.isEmpty()) {
+					val src = arg.fullId
+					val dst = "${arg.groupId}_${condition.argId}"
+					console.warn("Arg $src had a condition on $dst, but $dst was not found"
+						+ " in the contiguous block of conditional arguments before $src")
+				}
+			} else {
+				// no condition, so end of contiguous block of arguments: wipe the stack and start over
+				conditionTargetStack.clear()
+				conditionTargetStack.add(info)
+
+				// add the argument control outside of any subgroups
+				table.add(row)
+			}
+
+			if (control.enabled) {
 				// wire up events
 				control.onChange = {
 
 					// if the current value is null, set another null to reload the default value
 					if (control.argValue == null && arg.default != null) {
- 						control.argValue = null
+						control.argValue = null
 					}
 
 					// keep the icon updated
@@ -304,26 +362,26 @@ class ArgsInputs(
 					}
 				}
 			}
+		}
 
-			// resolve reference values and wire up source/dest controls
-			for (info in controls) {
-				val arg = info.control.arg
-				if (arg.default is ArgValue.VRef) {
-					val sourceControl = controls.getOrThrow(arg.default.srcFullId).control
-					info.control.sourceControl = sourceControl
-					sourceControl.destControl = info.control
-				}
+		// resolve reference values and wire up source/dest controls
+		for (info in controls) {
+			val arg = info.control.arg
+			if (arg.default is ArgValue.VRef) {
+				val sourceControl = controls.getOrThrow(arg.default.srcFullId).control
+				info.control.sourceControl = sourceControl
+				sourceControl.destControl = info.control
 			}
+		}
 
-			// set all controls to default values
-			for (info in controls) {
-				info.control.argValue = null
-			}
+		// set all controls to default values
+		for (info in controls) {
+			info.control.argValue = null
+		}
 
-			// init all icon states
-			for (info in controls) {
-				info.updateIcon()
-			}
+		// init all icon states
+		for (info in controls) {
+			info.updateIcon()
 		}
 
 		updateVisibility()
@@ -333,6 +391,7 @@ class ArgsInputs(
 
 		val showAdvanced = showAdvanced()
 
+		// pass one: set arg visibility
 		for (arg in args) {
 			val control = controls[arg]
 				?: continue
@@ -353,6 +412,29 @@ class ArgsInputs(
 			}
 
 			control.row.visible = visible
+		}
+
+		// pass two: set subgroup visibility
+		for (arg in args) {
+			val control = controls[arg]
+				?: continue
+			val subgroup = control.contiguousSubgroup
+				?: continue
+
+			// assume visible by default
+			var visible = true
+
+			// hide subgroup when control itself is not visible
+			if (!control.row.visible) {
+				visible = false
+			}
+
+			// or when the subgroup has no visible controls inside it
+			if (subgroup.controls.none { it.row.visible }) {
+				visible = false
+			}
+
+			subgroup.row.visible = visible
 		}
 	}
 
