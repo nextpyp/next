@@ -1,14 +1,13 @@
 package edu.duke.bartesaghi.micromon.components.refinement
 
 import edu.duke.bartesaghi.micromon.*
-import edu.duke.bartesaghi.micromon.components.LinkBadge
+import edu.duke.bartesaghi.micromon.components.FileDownloadBadge
 import edu.duke.bartesaghi.micromon.components.SizedPanel
 import edu.duke.bartesaghi.micromon.services.*
 import io.kvision.html.Span
 import js.plotly.plot
 import kotlinext.js.jsObject
 import io.kvision.html.div
-import io.kvision.html.span
 
 
 open class OrientationDefocusPlots : SizedPanel("Orientation/Defocus Distribution", Storage.PRHistogramSize) {
@@ -22,11 +21,7 @@ open class OrientationDefocusPlots : SizedPanel("Orientation/Defocus Distributio
 
     private val container = div(classes = setOf("reconstruction-pr-hist"))
 	private val plotCaption = Span()
-	private val bildLink = LinkBadge()
-		.apply {
-			leftElem.iconStyled("far fa-file", classes = setOf("icon"))
-			leftElem.span(".bild file")
-		}
+	private val bildLink = FileDownloadBadge(".bild file")
 
     init {
 
@@ -54,10 +49,7 @@ open class OrientationDefocusPlots : SizedPanel("Orientation/Defocus Distributio
     fun update() {
 
 		plotCaption.content = ""
-		bildLink.rightElem.removeAll()
-		bildLink.rightElem.content = "not available"
-		bildLink.href = null
-		bildLink.download = null
+		bildLink.showEmpty()
         container.removeAll()
 
 		val data = data
@@ -71,27 +63,16 @@ open class OrientationDefocusPlots : SizedPanel("Orientation/Defocus Distributio
         plotCaption.content = "$particlesUsed from $particlesTotal projections"
 
 		// set the bild link
-		AppScope.launch {
-			bildLink.rightElem.removeAll()
-			bildLink.rightElem.loading()
-			try {
-				val bildData = Services.integratedRefinement.getBildData(data.job.jobId, data.reconstruction.id)
-					.unwrap()
-				bildLink.rightElem.removeAll()
-				if (bildData != null) {
-					bildLink.rightElem.content = bildData.bytes.toBytesString()
-					bildLink.rightColor = LinkBadge.Color.Green
-					bildLink.href = "kv/reconstructions/${data.job.jobId}/${data.reconstruction.classNum}/${data.reconstruction.iteration}/bild"
-					bildLink.download = "${data.job.jobId}_${data.reconstruction.classNum}_${data.reconstruction.iteration}.bild"
-				} else {
-					bildLink.rightElem.content = "none"
-					bildLink.rightColor = LinkBadge.Color.Grey
+		bildLink.load {
+			Services.integratedRefinement.getBildData(data.job.jobId, data.reconstruction.id)
+				.unwrap()
+				?.let { bildData ->
+					FileDownloadBadge.Info(
+						bildData,
+						"kv/reconstructions/${data.job.jobId}/${data.reconstruction.classNum}/${data.reconstruction.iteration}/bild",
+						"${data.job.jobId}_${data.reconstruction.classNum}_${data.reconstruction.iteration}.bild"
+					)
 				}
-			} catch (t: Throwable) {
-				t.reportError("Failed to get bild data")
-				bildLink.rightElem.content = "error"
-				bildLink.rightColor = LinkBadge.Color.Red
-			}
 		}
 
 		val plotHeight = when (size) {

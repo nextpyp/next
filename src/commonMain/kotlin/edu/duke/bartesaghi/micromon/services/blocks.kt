@@ -80,3 +80,9 @@ data class PreprocessingFilter(
  * so we need to use a special value to encode None, and prevent a user from picking it as a filter name
  */
 const val NoneFilterOption = "__NONE__"
+
+
+@Serializable
+data class FileDownloadData(
+	val bytes: Long
+)

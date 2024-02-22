@@ -1,6 +1,7 @@
 package edu.duke.bartesaghi.micromon
 
 import edu.duke.bartesaghi.micromon.linux.Filesystem
+import edu.duke.bartesaghi.micromon.services.FileDownloadData
 import edu.duke.bartesaghi.micromon.services.GlobCount
 import io.ktor.application.*
 import io.ktor.features.*
@@ -29,6 +30,7 @@ import java.util.*
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.TimeUnit
 import kotlin.io.NoSuchFileException
+import kotlin.io.path.fileSize
 import kotlin.io.path.moveTo
 import kotlin.math.abs
 import kotlin.streams.toList
@@ -295,6 +297,13 @@ fun Path.rename(newName: String) {
 	val target = this.parent.resolve(newName)
 	this.moveTo(target, false)
 }
+
+fun Path.toFileDownloadData(): FileDownloadData? =
+	if (exists()) {
+		FileDownloadData(bytes = fileSize())
+	} else {
+		null
+	}
 
 
 data class GlobCount(

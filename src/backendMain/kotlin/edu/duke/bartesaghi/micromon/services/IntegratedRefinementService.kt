@@ -18,7 +18,6 @@ import io.ktor.util.pipeline.*
 import java.io.FileNotFoundException
 import java.nio.file.Path
 import kotlin.io.path.div
-import kotlin.io.path.fileSize
 
 
 actual class IntegratedRefinementService : IIntegratedRefinementService, Service {
@@ -348,13 +347,12 @@ actual class IntegratedRefinementService : IIntegratedRefinementService, Service
 			.map { it.toData() }
 	}
 
-	override suspend fun getBildData(jobId: String, reconstructionId: String): Option<BildData> = sanitizeExceptions {
+	override suspend fun getBildData(jobId: String, reconstructionId: String): Option<FileDownloadData> = sanitizeExceptions {
 		val job = jobId.authJob(ProjectPermission.Read).job
 		val reconstruction = getReconstructionOrThrow(jobId, reconstructionId)
 		val filename = "${Reconstruction.filenameFragment(job, reconstruction.classNum, reconstruction.iteration)}.bild"
 		return (job.mapsDir / filename)
-			.takeIf { it.exists() }
-			?.let { BildData(bytes = it.fileSize()) }
+			.toFileDownloadData()
 			.toOption()
 	}
 }
