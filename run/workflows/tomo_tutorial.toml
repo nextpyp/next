@@ -52,6 +52,7 @@ particle_mw = 300
 particle_rad = 150
 particle_sym = "C6"
 extract_box = 192
+extract_gold = false
 extract_bin = 2
 refine_skip = true
 refine_rhref = "8.0"

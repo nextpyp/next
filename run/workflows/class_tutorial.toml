@@ -56,6 +56,7 @@ particle_mw = 2000
 particle_rad = 150
 extract_box = 64
 extract_bin = 4
+extract_gold = false
 refine_skip = true
 refine_rhref = "22.0"
 refine_fboost = true
