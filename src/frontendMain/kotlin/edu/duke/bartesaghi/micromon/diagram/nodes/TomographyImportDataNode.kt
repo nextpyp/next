@@ -4,6 +4,7 @@ import edu.duke.bartesaghi.micromon.AppScope
 import edu.duke.bartesaghi.micromon.components.forms.*
 import edu.duke.bartesaghi.micromon.diagram.Diagram
 import edu.duke.bartesaghi.micromon.dynamicImageClassName
+import edu.duke.bartesaghi.micromon.formatWithDigitGroupsSeparator
 import edu.duke.bartesaghi.micromon.nodes.TomographyImportDataNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
 import edu.duke.bartesaghi.micromon.pyp.Args
@@ -138,7 +139,7 @@ class TomographyImportDataNode(
 					text("${job.numTiltSeries} tilt-series")
 				}
 				div {
-					text("${job.numParticles} particle(s)")
+					text("${job.numParticles.formatWithDigitGroupsSeparator()} particle(s)")
 				}
 			}
 		}
