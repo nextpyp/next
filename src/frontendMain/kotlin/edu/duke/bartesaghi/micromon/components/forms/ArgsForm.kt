@@ -8,11 +8,9 @@ import io.kvision.core.onEvent
 import io.kvision.form.*
 import io.kvision.form.check.CheckBox
 import io.kvision.form.check.CheckBoxStyle
-import io.kvision.html.Div
-import io.kvision.html.Table
-import io.kvision.html.div
-import io.kvision.html.span
+import io.kvision.html.*
 import io.kvision.panel.tabPanel
+import io.kvision.table.Cell
 import io.kvision.table.Row
 import io.kvision.table.cell
 import io.kvision.table.table
@@ -173,13 +171,6 @@ data class ControlInfo(
 
 class ControlSubgroup {
 	val controls = ArrayList<ControlInfo>()
-	val table = Table(classes = setOf("subgroup"))
-	val row = Row {
-		cell {
-			setAttribute("colspan", "4")
-			add(table)
-		}
-	}
 }
 
 
@@ -256,30 +247,31 @@ class ArgsInputs(
 			control.enabled = enabled
 
 			// layout the controls on the form
+			val rowLabel = Cell(classes = setOf("label")) {
+				add(icon)
+				fieldLabel(control.labelTarget ?: "(no label target)", arg.name)
+			}
+			val rowDescription = Cell(classes = setOf("description")) {
+				span(arg.description, classes = setOf("description"))
+			}
 			val row = Row {
 
 				if (arg.advanced) {
 					addCssClass("advanced")
 				}
 
-				cell(classes = setOf("icon")) {
-					add(icon)
-				}
-				cell(classes = setOf("label")) {
-					fieldLabel(control.labelTarget ?: "(no label target)", arg.name)
-				}
+				add(rowLabel)
 				cell(classes = setOf("control")) {
 					add(control)
 				}
-				cell(classes = setOf("description")) {
-					span(arg.description, classes = setOf("description"))
-				}
+				add(rowDescription)
 			}
+			table.add(row)
 
 			val info = ControlInfo(control, icon, row)
 			controls[arg] = info
 
-			// update the condition target stack
+			// update the condition target stack and update argument subgroups
 			val condition = control.arg.condition
 			if (condition != null) {
 				while (conditionTargetStack.isNotEmpty()) {
@@ -290,17 +282,10 @@ class ArgsInputs(
 
 						// also add this arg to the target arg's subgroup
 						val subgroup = currentConditionTarget.contiguousSubgroup
-							?: ControlSubgroup().also { subgroup ->
-								val parentTable = conditionTargetStack
-									.getOrNull(conditionTargetStack.size - 3)
-									?.contiguousSubgroup
-									?.table
-									?: table
-								parentTable.add(subgroup.row)
-								currentConditionTarget.contiguousSubgroup = subgroup
+							?: ControlSubgroup().also {
+								currentConditionTarget.contiguousSubgroup = it
 							}
 						subgroup.controls.add(info)
-						subgroup.table.add(row)
 
 						break
 					} else {
@@ -320,9 +305,20 @@ class ArgsInputs(
 				// no condition, so end of contiguous block of arguments: wipe the stack and start over
 				conditionTargetStack.clear()
 				conditionTargetStack.add(info)
+			}
 
-				// add the argument control outside of any subgroups
-				table.add(row)
+			// add indentations, if needed
+			val indent = conditionTargetStack.size - 1
+			if (indent > 0) {
+				val indentSize = indent*40
+				// indent just the arg label
+				rowLabel.setAttribute("style", "padding-left: ${indentSize}px !important")
+				// NOTE: set raw style attributes here instead of using KVision's style API so we can use !important,
+				//       which is needed to override other styles here
+				/* go back to row indents?
+				row.setAttribute("style", "position: relative; left: ${indentSize}px")
+				rowDescription.setAttribute("style", "padding-right: ${indentSize}px !important")
+				*/
 			}
 
 			if (control.enabled) {
@@ -391,7 +387,6 @@ class ArgsInputs(
 
 		val showAdvanced = showAdvanced()
 
-		// pass one: set arg visibility
 		for (arg in args) {
 			val control = controls[arg]
 				?: continue
@@ -412,29 +407,6 @@ class ArgsInputs(
 			}
 
 			control.row.visible = visible
-		}
-
-		// pass two: set subgroup visibility
-		for (arg in args) {
-			val control = controls[arg]
-				?: continue
-			val subgroup = control.contiguousSubgroup
-				?: continue
-
-			// assume visible by default
-			var visible = true
-
-			// hide subgroup when control itself is not visible
-			if (!control.row.visible) {
-				visible = false
-			}
-
-			// or when the subgroup has no visible controls inside it
-			if (subgroup.controls.none { it.row.visible }) {
-				visible = false
-			}
-
-			subgroup.row.visible = visible
 		}
 	}
 

@@ -2193,10 +2193,8 @@ div.args-form div.form-group label {
 	margin-bottom: 0;
 }
 
-div.args-form label {
-	width: 100%;
-	text-align: right;
-	margin-bottom: 0;
+.args-form table {
+	overflow-x: clip;
 }
 
 .args-form table tr.advanced {
@@ -2207,25 +2205,25 @@ div.args-form table td {
 	padding: 6px;
 }
 
-div.args-form table td.icon {
+.args-form table .label {
 	line-height: 37px;
+	display: flex;
+	flex-direction: row;
+	align-items: baseline;
 }
-div.args-form table td.label {
-	line-height: 37px;
+
+.args-form table .label label {
+	flex-grow: 1;
+	text-align: right;
+	margin-bottom: 0;
 }
+
 div.args-form table td.control {
 	white-space: nowrap;
 }
+
 div.args-form table td.description {
 	line-height: 37px;
-}
-
-.args-form table.subgroup > tr:first-child > td {
-	border-top: none; /* override the default bootstrap styles */
-}
-
-.args-form table.subgroup {
-	margin-left: 40px;
 }
 
 div.args-form span.arg-icon {
