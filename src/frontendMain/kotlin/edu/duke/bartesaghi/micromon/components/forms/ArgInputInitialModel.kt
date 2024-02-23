@@ -3,6 +3,7 @@ package edu.duke.bartesaghi.micromon.components.forms
 import edu.duke.bartesaghi.micromon.diagram.nodes.*
 import edu.duke.bartesaghi.micromon.pyp.Arg
 import edu.duke.bartesaghi.micromon.pyp.ArgValue
+import edu.duke.bartesaghi.micromon.services.FileBrowserType
 import edu.duke.bartesaghi.micromon.services.PathType
 import io.kvision.core.onEvent
 
@@ -14,7 +15,8 @@ class ArgInputInitialModel(
 	target = FilesystemPicker.Target.Files,
 	name = arg.fullId,
 	initialFolder = initialFolder(outNodes),
-	filenameGlob = "*.mrc"
+	filenameGlob = "*.mrc",
+	globTypes = setOf(FileBrowserType.File,  FileBrowserType.Symlink)
 ) {
 
 	companion object {

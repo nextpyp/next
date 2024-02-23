@@ -25,8 +25,14 @@ open class FileBrowser(
 
 	data class PickFile(
 		var file: String? = null,
-		val filenameGlob: String? = null
-	) : Task
+		val filenameGlob: String? = null,
+		val globTypes: Set<FileBrowserType> = DEFAULT_GLOB_TYPES
+	) : Task {
+
+		companion object {
+			val DEFAULT_GLOB_TYPES = setOf(FileBrowserType.File)
+		}
+	}
 
 	data class PickFolder(
 		var folder: String? = null
@@ -40,13 +46,18 @@ open class FileBrowser(
 		var glob: String? = null
 	) : Task
 
+	interface FileEntryFilter {
+		fun filter(type: FileBrowserType, name: String): Boolean
+	}
+
 	private abstract inner class UI(
 		val win: Modal,
 		val init: FileBrowserInit,
 		val callback: () -> Unit
 	) {
 
-		open val filenameGlob: String? = null
+		/** a pre-defined (rather than UI-created) filter */
+		open val fileEntryFilter: FileEntryFilter? = null
 
 		// make the popup window
 		val location = TextInput(classes = setOf("file-browser-location-text"))
@@ -397,7 +408,21 @@ open class FileBrowser(
 		callback: () -> Unit
 	) : UI(win, init, callback) {
 
-		override val filenameGlob get() = task.filenameGlob
+		override val fileEntryFilter: FileEntryFilter? = task.filenameGlob
+			?.let { glob ->
+				object : FileEntryFilter {
+
+					val matcher = GlobMatcher(glob)
+
+					override fun filter(type: FileBrowserType, name: String): Boolean =
+						if (type in task.globTypes) {
+							matcher.matches(name)
+						} else {
+							// not one of the types we care about, let it through
+							true
+						}
+				}
+			}
 
 		override fun launch(initialFolder: String?) {
 
@@ -741,18 +766,15 @@ open class FileBrowser(
 
 		fun addAll(entries: FileBrowserEntries) {
 
-			val filenameMatcher = ui.filenameGlob?.let { GlobMatcher(it) }
-
 			for (i in 0 until entries.size) {
 
 				val name = entries.names[i]
 				val type = entries.type(i)
 
-				// apply the filename filter, if any
-				if (type == FileBrowserType.File) {
-					if (filenameMatcher?.matches(name) == false) {
-						continue
-					}
+				// apply the file entry filter, if any
+				val filter = ui.fileEntryFilter
+				if (filter != null && !filter.filter(type, name)) {
+					continue
 				}
 
 				// create the entry

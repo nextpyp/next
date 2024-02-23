@@ -1,5 +1,6 @@
 package edu.duke.bartesaghi.micromon.components.forms
 
+import edu.duke.bartesaghi.micromon.services.FileBrowserType
 import io.kvision.core.onEvent
 import io.kvision.html.Button
 import io.kvision.html.span
@@ -15,7 +16,9 @@ open class FilesystemPicker(
 	label: String? = null,
 	initialFolder: String? = null,
 	/** applies a filter to filenames, only used for target=Files, ignored otherwise */
-	filenameGlob: String? = null
+	filenameGlob: String? = null,
+	/** controls which file browser types the glob will be applied to */
+	globTypes: Set<FileBrowserType> = FileBrowser.PickFile.DEFAULT_GLOB_TYPES
 ) : BaseFormControl(name, label, classes = setOf("filesystem-picker")) {
 
 	enum class Target {
@@ -55,7 +58,7 @@ open class FilesystemPicker(
 			when (target) {
 
 				Target.Files -> {
-					val task = FileBrowser.PickFile(paths.firstOrNull(), filenameGlob)
+					val task = FileBrowser.PickFile(paths.firstOrNull(), filenameGlob, globTypes)
 					FileBrowser(task).launch(initialFolder) {
 						paths = task.file
 							?.let { listOf(it) }
@@ -212,7 +215,8 @@ open class FilesystemPicker(
 		name: String? = null,
 		label: String? = null,
 		initialFolder: String? = null,
-		filenameGlob: String? = null
+		filenameGlob: String? = null,
+		globTypes: Set<FileBrowserType> = FileBrowser.PickFile.DEFAULT_GLOB_TYPES
 	) : BaseFormControl(name, label, classes = setOf("filesystem-picker")) {
 
 		val picker = FilesystemPicker(
@@ -221,7 +225,8 @@ open class FilesystemPicker(
 			name = name,
 			label = label,
 			initialFolder = initialFolder,
-			filenameGlob = filenameGlob
+			filenameGlob = filenameGlob,
+			globTypes = globTypes
 		)
 
 		init {
