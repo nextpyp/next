@@ -78,6 +78,14 @@ actual class ProjectsService : IProjectsService {
 		val user = call.authOrThrow()
 		user.notDemoOrThrow()
 
+		// check project limits, if any
+		Backend.config.web.maxProjectsPerUser
+			?.let { limit ->
+				if (Database.projects.countOwnedBy(user.id) >= limit) {
+					throw ServiceException("Can't create new project, limit of $limit reached")
+				}
+			}
+
 		val project = synchronized(CreateLock) {
 			// NOTE: synchronize all project creations so we don't get data races if anything weird happens,
 			//       like a user creating two projects at the exact same time somehow

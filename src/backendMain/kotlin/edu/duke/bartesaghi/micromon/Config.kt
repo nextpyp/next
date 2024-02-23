@@ -156,7 +156,8 @@ class Config(toml: String) {
 		val jmx: Boolean,
 		val oomdump: Boolean,
 		val workflowDirs: List<Path>,
-		val demo: Boolean
+		val demo: Boolean,
+		val maxProjectsPerUser: Int?
 	) {
 
 		data class Filesystem(
@@ -266,7 +267,8 @@ class Config(toml: String) {
 						getString(i).toPath()
 					}
 				} ?: emptyList(),
-				demo = getBoolean("demo") ?: false
+				demo = getBoolean("demo") ?: false,
+				maxProjectsPerUser = getInt("maxProjectsPerUser")
 			)
 		}
 	}

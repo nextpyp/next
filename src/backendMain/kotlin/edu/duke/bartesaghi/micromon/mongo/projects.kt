@@ -73,6 +73,9 @@ class Projects {
 	fun exists(userId: String, projectId: String) =
 		collection.countDocuments(filter(userId, projectId)) > 0
 
+	fun countOwnedBy(userId: String): Long =
+		collection.countDocuments(Filters.eq("userId", userId))
+
 	fun <R> getAll(block: (Sequence<Document>) -> R): R =
 		collection.find().useCursor(block)
 
