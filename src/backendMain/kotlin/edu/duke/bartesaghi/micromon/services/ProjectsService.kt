@@ -38,22 +38,38 @@ actual class ProjectsService : IProjectsService {
 				.withInternal("for user ${user.id} to access $userId")
 		}
 
-		// get the projects
-		val ownedProjects = Database.projects.getAllOwnedBy(userId) { docs ->
-			docs
-				.map { Project(it).toData(user) }
-				.toList()
-		}
 
-		val readableProjects = Database.projects.getAllReadableBy(userId) { docs ->
-			docs
-				.map { Project(it).toData(user) }
-				.toList()
-		}
+		val projects =
+			if (user.isAdmin && userId == user.id) {
 
-		// return them all mixed together in reverse-chronological order
-		return (ownedProjects + readableProjects)
-			.sortedByDescending { it.created }
+				// admins listing their own projects always get all projects instead
+				Database.projects.getAll { docs ->
+					docs
+						.map { Project(it).toData(user) }
+						.toList()
+				}
+
+			} else {
+				// get the projects owned by the target user
+				val ownedProjects = Database.projects.getAllOwnedBy(userId) { docs ->
+					docs
+						.map { Project(it).toData(user) }
+						.toList()
+				}
+
+				// and any projects they can read too
+				val readableProjects = Database.projects.getAllReadableBy(userId) { docs ->
+					docs
+						.map { Project(it).toData(user) }
+						.toList()
+				}
+
+				// then mix them together
+				ownedProjects + readableProjects
+			}
+
+		// sort in reverse-chronological order
+		return projects.sortedByDescending { it.created }
 	}
 
 	override suspend fun create(name: String): ProjectData = sanitizeExceptions {
