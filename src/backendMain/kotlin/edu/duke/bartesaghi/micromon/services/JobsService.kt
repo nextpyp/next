@@ -202,6 +202,18 @@ actual class JobsService : IJobsService, Service {
 							call.respondBytes(bytes, ContentType.Image.WebP)
 						}
 					}
+
+					get("rec") {
+						call.respondExceptions {
+
+							// parse args
+							val jobId = parseJobId()
+							val dataId = parseDataId()
+
+							val bytes = service.recContent(jobId, dataId)
+							call.respondBytes(bytes, ContentType.Application.OctetStream)
+						}
+					}
 				}
 			}
 		}
@@ -406,5 +418,20 @@ actual class JobsService : IJobsService, Service {
 			JobInfo.DataType.TiltSeries -> PypStats.fromTomography(argsValues)
 			else -> throw NoSuchElementException("job ${job.baseConfig.id} has no data type")
 		}
+	}
+
+	override suspend fun recData(jobId: String, tiltSeriesId: String): Option<FileDownloadData> = sanitizeExceptions {
+		val job = jobId.authJob(ProjectPermission.Read).job.hasTiltSeriesOrThrow()
+		getTiltSeriesOrThrow(jobId, tiltSeriesId)
+			.recPath(job.dir)
+			.toFileDownloadData()
+			.toOption()
+	}
+
+	fun recContent(jobId: String, tiltSeriesId: String): ByteArray {
+		val job = jobId.authJob(ProjectPermission.Read).job.hasTiltSeriesOrThrow()
+		return getTiltSeriesOrThrow(jobId, tiltSeriesId)
+			.recPath(job.dir)
+			.readBytes()
 	}
 }

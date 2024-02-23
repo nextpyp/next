@@ -209,6 +209,9 @@ class TiltSeries(private val doc: Document) {
 		filter.ranges.all { range ->
 			propDouble(TiltSeriesProp[range.propId]) in range.min .. range.max
 		}
+
+	fun recPath(dir: Path): Path =
+		dir / "mrc" / "$tiltSeriesId.rec"
 }
 
 

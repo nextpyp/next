@@ -76,6 +76,8 @@ class TomoMultiPanel(
 		"Select a bar or hover over chart to view micrograph"
 	)
 
+	private val recDownloadBadge = FileDownloadBadge(".rec file")
+
 	val tabs = flatLazyTabPanel {
 
 		// DSLs make it super annoying to get to the outer scope
@@ -114,6 +116,7 @@ class TomoMultiPanel(
 
 		addTab("Reconstruction") { lazyTab ->
 			lazyTab.elem.add(self.pickingControls)
+			lazyTab.elem.add(self.recDownloadBadge)
 			lazyTab.elem.add(self.particlesImage)
 			lazyTab.elem.add(TomoSideViewImage(self.job.jobId, self.tiltSeries.id))
 		}
@@ -205,6 +208,18 @@ class TomoMultiPanel(
 			// Load the data corresponding to the initial index we want to show, determined above
 			ctfMultiTiltPlot.myOnClick(initialIndexToShow)
 			driftBarPlot.myOnClick(initialIndexToShow)
+		}
+
+		recDownloadBadge.load {
+			Services.jobs.recData(job.jobId, tiltSeries.id)
+				.unwrap()
+				?.let { recData ->
+					FileDownloadBadge.Info(
+						recData,
+						"kv/jobs/${job.jobId}/data/${tiltSeries.id}/rec",
+						"${job.jobId}_${tiltSeries.id}.rec"
+					)
+				}
 		}
 
 		// load the particles image

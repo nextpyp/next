@@ -38,6 +38,9 @@ interface IJobsService {
 
 	@KVBindingRoute("jobs/pypStats")
 	suspend fun pypStats(jobId: String): PypStats
+
+	@KVBindingRoute("jobs/rec")
+	suspend fun recData(jobId: String, tiltSeriesId: String): Option<FileDownloadData>
 }
 
 
