@@ -113,7 +113,8 @@ class IntegratedRefinementView(
 				RefinementsTab.ImageType.Particles to { it.particles },
 				RefinementsTab.ImageType.Weights to { it.scores },
 				RefinementsTab.ImageType.Scores to { it.weights },
-				ThreeDeeTab to { it.threeDee }
+				ThreeDeeTab to { it.threeDee },
+				MetadataTab to { it.metadata }
 			)
 			for ((tab, tabSelector) in registrationList) {
 				tab.registerRoutes { pathFragment, paramsFactory ->
@@ -193,7 +194,8 @@ class IntegratedRefinementView(
 		val scores: LazyTabPanel.LazyTab?,
 		val weights: LazyTabPanel.LazyTab?,
 		val threeDee: LazyTabPanel.LazyTab,
-		val classesMovie: LazyTabPanel.LazyTab?
+		val classesMovie: LazyTabPanel.LazyTab?,
+		val metadata: LazyTabPanel.LazyTab?
 	)
 
 	private var lazyTabs: LazyTabs? = null
@@ -205,6 +207,7 @@ class IntegratedRefinementView(
 	private var weightsTab: RefinementsTab? = null
 	private var threeDeeTab: ThreeDeeTab? = null
 	private var classesMovieTab: ClassesMovieTab? = null
+	private var metadataTab: MetadataTab? = null
 
 	private var connector: WebsocketConnector? = null
 
@@ -347,7 +350,7 @@ class IntegratedRefinementView(
 				null
 			}
 
-			val classesMovieTab = if (nodeInfo in listOf(
+			val classesMovieLazyTab = if (nodeInfo in listOf(
 					SingleParticleCoarseRefinementNode,
 					SingleParticleFineRefinementNode,
 					TomographyCoarseRefinementNode,
@@ -419,6 +422,21 @@ class IntegratedRefinementView(
 				}
 			}
 
+			val metadataLazyTab = if (nodeInfo in listOf(
+					// TODO: update this block filter list
+					TomographyCoarseRefinementNode,
+					TomographyFlexibleRefinementNode,
+					TomographyFineRefinementNode,
+					TomographyMovieCleaningNode
+				)) {
+				tabsPanel.addTab("Metadata", "fas fa-database") { lazyTab ->
+					metadataTab = MetadataTab(job)
+						.addAndTrack(lazyTab)
+				}
+			} else {
+				null
+			}
+
 			// show and activate the tabs
 			elem.add(tabsPanel)
 			tabsPanel.activateDefaultTab()
@@ -431,7 +449,8 @@ class IntegratedRefinementView(
 				scoresLazyTab,
 				weightsLazyTab,
 				threeDeeLazyTab,
-				classesMovieTab
+				classesMovieLazyTab,
+				metadataLazyTab
 			)
 			this@IntegratedRefinementView.lazyTabs = lazyTabs
 

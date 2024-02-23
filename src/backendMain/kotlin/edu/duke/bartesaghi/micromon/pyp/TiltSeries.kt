@@ -36,6 +36,12 @@ class TiltSeries(private val doc: Document) {
 
 		fun pypOutputImage(job: Job, tiltSeriesId: String): Path =
 			pypOutputImage(job.dir,  tiltSeriesId)
+
+		fun recPath(dir: Path, tiltSeriesId: String): Path =
+			dir / "mrc" / "$tiltSeriesId.rec"
+
+		fun metadataPath(dir: Path, tiltSeriesId: String): Path =
+			dir / "frealign" / "artiax" / "${tiltSeriesId}_K1.star"
 	}
 
 	val timestamp: Instant =
@@ -211,7 +217,10 @@ class TiltSeries(private val doc: Document) {
 		}
 
 	fun recPath(dir: Path): Path =
-		dir / "mrc" / "$tiltSeriesId.rec"
+		recPath(dir, tiltSeriesId)
+
+	fun metadataPath(dir: Path): Path =
+		metadataPath(dir, tiltSeriesId)
 }
 
 

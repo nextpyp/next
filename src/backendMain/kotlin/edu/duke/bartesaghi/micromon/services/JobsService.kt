@@ -214,6 +214,18 @@ actual class JobsService : IJobsService, Service {
 							call.respondBytes(bytes, ContentType.Application.OctetStream)
 						}
 					}
+
+					get("tiltSeriesMetadata") {
+						call.respondExceptions {
+
+							// parse args
+							val jobId = parseJobId()
+							val dataId = parseDataId()
+
+							val bytes = service.tiltSeriesMetadataContent(jobId, dataId)
+							call.respondBytes(bytes, ContentType.Application.OctetStream)
+						}
+					}
 				}
 			}
 		}
@@ -432,6 +444,31 @@ actual class JobsService : IJobsService, Service {
 		val job = jobId.authJob(ProjectPermission.Read).job.hasTiltSeriesOrThrow()
 		return getTiltSeriesOrThrow(jobId, tiltSeriesId)
 			.recPath(job.dir)
+			.readBytes()
+	}
+
+	override suspend fun findTiltSeriesMetadataData(jobId: String, tiltSeriesId: String): Option<FileDownloadData> = sanitizeExceptions {
+
+		// NOTE: this is a user search function, so don't throw errors
+		//       return null (as an option) instead
+
+		val job = jobId.authJob(ProjectPermission.Read).job
+			.takeIf { it.baseConfig.jobInfo.dataType == JobInfo.DataType.TiltSeries }
+			?: return null.toOption()
+
+		// NOTE: The tilt series won't exist in the refinement job (it's in the preprocessing job),
+		//       so don't try to look for it here. Just look for the metadata file among this job's files
+
+		return TiltSeries.metadataPath(job.dir, tiltSeriesId)
+			.toFileDownloadData()
+			.toOption()
+	}
+
+	fun tiltSeriesMetadataContent(jobId: String, tiltSeriesId: String): ByteArray {
+		val job = jobId.authJob(ProjectPermission.Read).job.hasTiltSeriesOrThrow()
+		// NOTE: The tilt series won't exist in the refinement job (it's in the preprocessing job),
+		//       so don't try to look for it here. Just look for the metadata file among this job's files
+		return TiltSeries.metadataPath(job.dir, tiltSeriesId)
 			.readBytes()
 	}
 }

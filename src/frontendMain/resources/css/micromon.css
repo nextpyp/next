@@ -826,6 +826,16 @@ div.tomography-preprocessing div.tomography-preprocessing-table div.rows div.for
 	flex-grow: 1;
 }
 
+.refinements-view .metadata-tab .search-bar {
+	display: flex;
+	flex-direction: row;
+	gap: 20px;
+}
+
+.refinements-view .metadata-tab .search-bar input[type=text] {
+	max-width: 500px;
+}
+
 
 /* TOMOGRAPHY PREPROCESSING VIEW */
 
