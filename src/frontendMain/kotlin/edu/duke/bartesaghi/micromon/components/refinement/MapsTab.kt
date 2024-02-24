@@ -179,7 +179,7 @@ class MapsTab(
 		// Make the downloads button
 		contentElem.add(MapDownloads(job, reconstruction, when (iteration) {
 			iterations.last() -> MRCType.values().toList()
-			else -> listOf(MRCType.HALF1, MRCType.HALF2)
+			else -> listOf(MRCType.CROP, MRCType.FULL)
 		}))
 
 		// show metadata
