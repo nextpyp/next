@@ -65,6 +65,8 @@ class ArgsForm(
 						control.updateIcon()
 					}
 				}
+
+				tabs.values.forEach { it.updateVisibility() }
 			}
 
 		private val controls = Controls()
@@ -387,26 +389,28 @@ class ArgsInputs(
 
 		val showAdvanced = showAdvanced()
 
-		for (arg in args) {
-			val control = controls[arg]
-				?: continue
+		batch {
+			for (arg in args) {
+				val control = controls[arg]
+					?: continue
 
-			// assume everything is visible by default
-			var visible = true
+				// assume everything is visible by default
+				var visible = true
 
-			// hide advanced controls if we're not showing them
-			if (arg.advanced && !showAdvanced) {
-				visible = false
-			}
-
-			// hide controls whose conditions aren't met
-			if (arg.condition != null) {
-				if (!arg.condition.met()) {
+				// hide advanced controls if we're not showing them
+				if (arg.advanced && !showAdvanced) {
 					visible = false
 				}
-			}
 
-			control.row.visible = visible
+				// hide controls whose conditions aren't met
+				if (arg.condition != null) {
+					if (!arg.condition.met()) {
+						visible = false
+					}
+				}
+
+				control.row.visible = visible
+			}
 		}
 	}
 
