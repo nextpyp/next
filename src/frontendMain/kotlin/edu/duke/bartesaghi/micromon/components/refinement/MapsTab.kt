@@ -5,10 +5,8 @@ import edu.duke.bartesaghi.micromon.components.*
 import edu.duke.bartesaghi.micromon.services.*
 import edu.duke.bartesaghi.micromon.views.*
 import io.kvision.core.onEvent
-import io.kvision.core.style
 import io.kvision.html.*
 import io.kvision.toast.Toast
-import io.kvision.utils.px
 import kotlin.js.Date
 
 
@@ -144,16 +142,9 @@ class MapsTab(
 		// clear the previous contents
 		contentElem.removeAll()
 
-		val iterations = state.reconstructions.iterations
-			.takeIf { it.isNotEmpty() }
-			?: run {
-				emptyMessage("No reconstructions to show")
-				return
-			}
-
 		val iteration = state.currentIteration
 			?: run {
-				emptyMessage("No iteration selected")
+				contentElem.emptyMessage("No iteration selected")
 				return
 			}
 
@@ -164,7 +155,7 @@ class MapsTab(
 			.firstOrNull()
 			?.indexToClassNum()
 			?: run {
-				emptyMessage("No class selected")
+				contentElem.emptyMessage("No class selected")
 				return
 			}
 
@@ -172,13 +163,32 @@ class MapsTab(
 			.withIteration(iteration)
 			?.withClass(classNum)
 			?: run {
-				emptyMessage("No reconstruction to show")
+				contentElem.emptyMessage("No reconstruction to show")
 				return
 			}
 
+		showReconstruction(reconstruction)
+	}
+
+	fun show(reconstruction: ReconstructionData) {
+
+		// clear the previous contents
+		contentElem.removeAll()
+
+		// update the classes radio
+		classRadio.setCount(state.reconstructions.withIteration(reconstruction.iteration)?.classes?.size ?: 0)
+		classRadio.setCheckedIndices(listOf(reconstruction.classNum.classNumToIndex()))
+
+		showReconstruction(reconstruction)
+	}
+
+	private fun showReconstruction(reconstruction: ReconstructionData) {
+
 		// Make the downloads button
-		contentElem.add(MapDownloads(job, reconstruction, when (iteration) {
-			iterations.last() -> MRCType.values().toList()
+		val lastIteration = state.reconstructions.iterations
+			.lastOrNull()
+		contentElem.add(MapDownloads(job, reconstruction, when (reconstruction.iteration) {
+			lastIteration -> MRCType.values().toList()
 			else -> listOf(MRCType.CROP, MRCType.FULL)
 		}))
 
@@ -186,7 +196,7 @@ class MapsTab(
 		val me = this
 		contentElem.div(classes = setOf("reconstruction-stats")) {
 			div {
-				span("Showing refinement Iteration $iteration, Class $classNum, completed on ${Date(reconstruction.timestamp).toLocaleString()}")
+				span("Showing refinement Iteration ${reconstruction.iteration}, Class ${reconstruction.classNum}, completed on ${Date(reconstruction.timestamp).toLocaleString()}")
 				button("Show Log", classes = setOf("log-button")).onClick {
 					LogView.showPopup("Log for Reconstruction: ${reconstruction.id}") {
 						Services.integratedRefinement.getLog(me.job.jobId, reconstruction.id)

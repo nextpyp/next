@@ -263,7 +263,13 @@ class IntegratedRefinementView(
 
 						is RealTimeS2C.UpdatedReconstruction -> {
 							state.addReconstruction(msg.reconstruction)
-							mapsTab?.update()
+							// HACKHACK: if iteration watch mode is enabled,
+							// also force the maps tab to show this reconstruction now
+							if (state.iterationNav.live) {
+								mapsTab?.show(msg.reconstruction)
+							} else {
+								mapsTab?.update()
+							}
 							mapTab?.update()
 						}
 

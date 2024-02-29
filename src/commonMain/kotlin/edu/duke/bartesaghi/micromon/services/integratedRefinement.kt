@@ -117,8 +117,12 @@ class Reconstructions {
 	private val byId = HashMap<String,ReconstructionData>()
 	private val byIteration = HashMap<Int,ByIteration>()
 
-	val iterations: List<Int> get() =
-		byIteration.keys.sorted()
+	// NOTE: we need a single instance of the sorted iteration list
+	//       for consumers like the BigListNav (since it expects a live reference),
+	//       but things like byIteration.keys.sorted() makes a copy of the list and then sorts it
+	//       but that's not live at all.
+	private val _iterations = ArrayList<Int>()
+	val iterations: List<Int> = _iterations
 
 	fun hasIteration(iteration: Int): Boolean =
 		byIteration.containsKey(iteration)
@@ -136,6 +140,8 @@ class Reconstructions {
 		byId[reconstruction.id] = reconstruction
 		byIteration.getOrPut(reconstruction.iteration) { ByIteration(reconstruction.iteration) }
 			.add(reconstruction)
+		_iterations.add(reconstruction.iteration)
+		_iterations.sort()
 	}
 
 	fun maxNumClasses(): Int =

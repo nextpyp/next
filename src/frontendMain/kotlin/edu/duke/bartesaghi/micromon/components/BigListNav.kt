@@ -201,6 +201,8 @@ class BigListNav private constructor(
 		}
 	}
 
+	val live: Boolean get() =
+		core.live
 
 	init {
 		core.instances.add(this)
