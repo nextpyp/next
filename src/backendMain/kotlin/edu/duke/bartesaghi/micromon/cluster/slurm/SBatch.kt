@@ -272,4 +272,5 @@ fun ArgValues.toSbatchArgs(): List<String> =
 		add("--time=\"${slurmLaunchWalltime.sanitizeQuotedArg()}\"") // user-defined string, needs sanitization!!
 		slurmLaunchQueue?.let { add("--partition=\"${it.sanitizeQuotedArg()}\"") } // defined by administrators, but could potentially be overridden by users, needs sanitization!
 		slurmLaunchAccount?.let { add("--account=\"${it.sanitizeQuotedArg()}\"") } // user-defined string, needs sanitization!!
+		slurmLaunchGres?.let { add("--gres=\"${it.sanitizeQuotedArg()}\"") } // user-defined string, needs sanitization!!
 	}

@@ -294,6 +294,7 @@ object MicromonArgs {
 		description = "Charge resources used by this job to specified account",
 		type = ArgType.TStr(),
 		required = false,
+		advanced = true,
 		default = null,
 		target = ArgTarget.Micromon
 	)
@@ -309,11 +310,24 @@ object MicromonArgs {
 		target = ArgTarget.Micromon
 	)
 
+	val slurmLaunchGres = Arg(
+		groupId = "slurm",
+		argId = "launch_gres",
+		name = "Gres (launch task)",
+		description = "Comma separated list of generic resource scheduling options",
+		type = ArgType.TStr(),
+		default = ArgValue.VStr(""),
+		required = false,
+		advanced = true,
+		target = ArgTarget.Micromon
+	)
+
 	val slurmLaunch = listOf(
 		slurmLaunchCpus,
 		slurmLaunchMemory,
-		slurmLaunchWalltime,
+		slurmLaunchGres,
 		slurmLaunchAccount,
+		slurmLaunchWalltime,
 		slurmLaunchQueue
 	)
 
@@ -338,3 +352,6 @@ val ArgValues.slurmLaunchAccount: String?
 
 val ArgValues.slurmLaunchQueue: String?
 	get() = get(MicromonArgs.slurmLaunchQueue) as String?
+
+val ArgValues.slurmLaunchGres: String?
+	get() = get(MicromonArgs.slurmLaunchGres) as String?
