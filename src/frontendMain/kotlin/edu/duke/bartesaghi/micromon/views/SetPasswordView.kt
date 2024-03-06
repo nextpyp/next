@@ -80,7 +80,6 @@ class SetPasswordView : View {
 
 			// make sure the new passwords match
 			if (newpw1Text.value != newpw2Text.value) {
-				// TODO: show inline error
 				Alert.show(
 					caption = "Form Error",
 					text = "New passwords don't match"
@@ -109,24 +108,28 @@ class SetPasswordView : View {
 					|Content-Disposition: form-data; name="newPassword"; filename="newPassword.txt"
 					|Content-Type: text/plain
 					|
-					|${newpw1Text.value}
+					|${newpw1Text.value ?: ""}
 					|--AaB03x--
 				""".trimMargin()
 					// HTTP requires CR LF line endings
 					.replace("\n", "\r\n")
 			}).then(
 				doneCallback = { response, status, xhr ->
-					// TODO: show a success message
+
+					// reset the form
+					oldpwText?.value = null
+					newpw1Text.value = null
+					newpw2Text.value = null
+
 					Alert.show(
 						caption = "Success",
 						text = "Password changed successfully!"
 					)
 				},
 				failCallback = { xhr, status, error ->
-					// TODO: show an inline error
 					Alert.show(
 						caption = "Password change failed",
-						text = "$error"
+						text = xhr.responseText
 					)
 				}
 			)

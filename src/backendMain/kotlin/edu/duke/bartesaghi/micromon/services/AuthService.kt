@@ -274,6 +274,12 @@ object AuthService {
 
 					// set the new password
 					Password(newpwPart.provider).use { pw ->
+
+						// enforce password restrictions
+						if (pw.len() < Backend.config.web.minPasswordLength) {
+							throw AuthException("New password must be at least ${Backend.config.web.minPasswordLength} characters long")
+						}
+
 						Database.users.setPasswordHash(user.id, pw.hash())
 					}
 
@@ -290,7 +296,7 @@ object AuthService {
 					Backend.log.info("Unsuccessful password change attempt for user ${user?.id}, reason: ${ex.msg}")
 
 					// respond with HTTP 4o1 unauthorized
-					call.respondText("fail",
+					call.respondText(ex.message ?: "(unknown error)",
 						contentType = ContentType.Text.Plain,
 						status = HttpStatusCode.Unauthorized
 					)

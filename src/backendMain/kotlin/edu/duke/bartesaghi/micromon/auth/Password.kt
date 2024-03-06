@@ -14,7 +14,7 @@ class Password(provider: () -> Input) : AutoCloseable {
 
 	// And here's a good general primer on the goals of password security from ~2013.
 	// The specific details and recommendations are horribly out of date now,
-	// but the introduction to the general theory and thread models are still useful:
+	// but the introduction to the general theory and threat models are still useful:
 	// https://security.stackexchange.com/questions/211/how-to-securely-hash-passwords
 
 	// and here's more general info on general login secutity:
@@ -56,6 +56,8 @@ class Password(provider: () -> Input) : AutoCloseable {
 				}
 			}
 
+			// NOTE: The returned buffer will have a size of powers of 1024.
+			//       The actual password may only occupy a small portion of the buffer.
 			return@pw buf
 		}
 	}
@@ -71,6 +73,16 @@ class Password(provider: () -> Input) : AutoCloseable {
 
 	fun hash(): String =
 		argon.hash(iterations, memoryKiB, threads, pw)
+
+	/**
+	 * The length of the password, in bytes.
+	 * For ASCII strings, this length will be the same as the number of characters.
+	 * For UTF-8 strings, this length will be at least a large as the number of characters.
+	 */
+	fun len(): Int =
+		// get the position of the last non-zero byte,
+		// since the password buffer will have many trailing zeroes
+		pw.indexOfLast { it != 0.toByte() } + 1
 
 	companion object {
 

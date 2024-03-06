@@ -157,7 +157,8 @@ class Config(toml: String) {
 		val oomdump: Boolean,
 		val workflowDirs: List<Path>,
 		val demo: Boolean,
-		val maxProjectsPerUser: Int?
+		val maxProjectsPerUser: Int?,
+		val minPasswordLength: Int
 	) {
 
 		data class Filesystem(
@@ -268,7 +269,8 @@ class Config(toml: String) {
 					}
 				} ?: emptyList(),
 				demo = getBoolean("demo") ?: false,
-				maxProjectsPerUser = getInt("maxProjectsPerUser")
+				maxProjectsPerUser = getInt("maxProjectsPerUser"),
+				minPasswordLength = getInt("minPasswordLength") ?: 12
 			)
 		}
 	}
