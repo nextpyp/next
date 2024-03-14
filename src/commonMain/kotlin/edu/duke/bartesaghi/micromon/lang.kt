@@ -39,6 +39,12 @@ fun String.quote() = "\"$this\""
 fun String.unquote() = this.trim { it == '"' }
 
 
+fun String.substringAfterFirst(c: Char): String? =
+	indexOfFirst { it == c }
+		.takeIf { it >= 0 }
+		?.let { pos -> substring(pos + 1) }
+
+
 fun <T> MutableList<T>.setAll(other: List<T>) {
 	clear()
 	addAll(other)

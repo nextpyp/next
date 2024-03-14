@@ -4,7 +4,9 @@ import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.cluster.Cluster
 import edu.duke.bartesaghi.micromon.cluster.ClusterJob
 import edu.duke.bartesaghi.micromon.cluster.Commands
+import edu.duke.bartesaghi.micromon.cluster.slurm.Gres
 import edu.duke.bartesaghi.micromon.linux.HostProcessor
+import edu.duke.bartesaghi.micromon.linux.Posix
 import edu.duke.bartesaghi.micromon.services.ClusterJobResultType
 import edu.duke.bartesaghi.micromon.services.ClusterMode
 import edu.duke.bartesaghi.micromon.services.ClusterQueues
@@ -37,16 +39,11 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 
 		val created = Instant.now()!!
 
-		fun String.substringAfterFirst(c: Char): String? =
-			indexOfFirst { it == c }
-				.takeIf { it >= 0 }
-				?.let { pos -> substring(pos + 1) }
-
 		// parse the arguments
 
 		// CPU arguments will look like: --cpus-per-task=5
 		val numCpus: Int? =
-			clusterJob.args
+			clusterJob.argsPosix
 				.firstOrNull { it.startsWith("--cpus-per-task=") }
 				?.substringAfterFirst('=')
 				?.let { value ->
@@ -61,7 +58,7 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 
 		// memory arguments will look like: --mem=5G
 		val memGiB: Int? =
-			clusterJob.args
+			clusterJob.argsPosix
 				.firstOrNull { it.startsWith("--mem=") }
 				?.substringAfterFirst('=')
 				?.let { value ->
@@ -74,18 +71,24 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 					}
 				}
 
-		// GPU arguments will look like: --gres=gpu:1
+		// generic resources (including GPU) arguments will look like:
+		// --gres=gpu:1
+		// --gres=foo:bar,cow:moo:5g
 		val numGpus: Int? =
-			clusterJob.args
-				.firstOrNull { it.startsWith("--gres=gpu:") }
+			clusterJob.argsPosix
+				.firstOrNull { it.startsWith("--gres=") }
 				?.substringAfterFirst('=')
-				?.let { value ->
-					when (val i = value.substringAfterFirst(':')?.toIntOrNull()) {
-						null -> {
-							Backend.log.warn("--gres value unrecognizable: $value")
-							null
-						}
-						else -> i
+				?.let { Gres.parseAll(it) }
+				?.firstOrNull { it.name == "gpu" }
+				?.count
+				?.expand()
+				?.let { count ->
+					if (count <= Int.MAX_VALUE) {
+						count.toInt()
+					} else {
+						// unlikely to ever happen in the real world,
+						// but someone could easily request 6G gpus if they really wanted ...
+						throw IllegalArgumentException("number of GPUs requested overflows int: $count")
 					}
 				}
 

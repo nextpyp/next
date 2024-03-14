@@ -1,7 +1,10 @@
 package edu.duke.bartesaghi.micromon.cluster
 
 import edu.duke.bartesaghi.micromon.Backend
+import edu.duke.bartesaghi.micromon.cluster.slurm.Gres
+import edu.duke.bartesaghi.micromon.linux.Posix
 import edu.duke.bartesaghi.micromon.mongo.getListOfStrings
+import edu.duke.bartesaghi.micromon.substringAfterFirst
 import org.bson.Document
 import java.nio.file.Path
 
@@ -257,7 +260,7 @@ fun singularityWrapper(job: ClusterJob, container: Container): (String) -> Strin
 	singularityArgs += listOf("--pwd \"${job.dir}\"")
 
 	// turn on NVidia support if the job was submitted to a GPU queue
-	val isGpuQueue = job.args
+	val isGpuQueue = job.argsPosix
 		.firstOrNull { it.startsWith("--partition=") }
 		?.let { arg ->
 			val queue = arg.split("=").getOrNull(1) ?: ""
@@ -266,8 +269,12 @@ fun singularityWrapper(job: ClusterJob, container: Container): (String) -> Strin
 		}
 		?: false
 	// or if the job requested a GPU specifically
-	val requestedGpu = job.args
-		.any { it.startsWith("--gres=gpu:") }
+	val requestedGpu = job.argsPosix
+		.firstOrNull { it.startsWith("--gres=") }
+		?.substringAfterFirst('=')
+		?.let { Gres.parseAll(it) }
+		?.any { it.name == "gpu" }
+		?: false
 	if (isGpuQueue || requestedGpu) {
 		singularityArgs.add("--nv")
 	}

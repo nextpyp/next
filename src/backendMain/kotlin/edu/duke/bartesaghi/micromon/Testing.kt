@@ -36,12 +36,13 @@ object Testing {
 }
 
 
-fun assertEq(obs: Any?, exp: Any?) {
+fun assertEq(obs: Any?, exp: Any?, msg: String? = null) {
 	if (obs != exp) {
 		throw AssertionError("""
 			|
 			|  expected:  $exp
 			|observered:  $obs
+			|       msg:  ${msg ?: ""}
 		""".trimMargin())
 	}
 }

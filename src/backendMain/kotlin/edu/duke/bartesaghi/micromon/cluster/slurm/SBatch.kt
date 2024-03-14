@@ -48,7 +48,7 @@ class SBatch(val config: Config.Slurm) : Cluster {
 			// validate the queue names, if any are given
 			val queues = config.queues + config.gpuQueues
 			this.filter { it.startsWith("--partition=") }
-				.map { it.substring("--partition=".length).unquote() }
+				.map { it.substring("--partition=".length) }
 				.forEach { queue ->
 					if (queue !in queues) {
 						throw IllegalArgumentException("the partition '$queue' was not valid, try one of $queues")
@@ -56,7 +56,7 @@ class SBatch(val config: Config.Slurm) : Cluster {
 				}
 		}
 
-		job.args.validateArgs()
+		job.argsPosix.validateArgs()
 	}
 
 	override fun validateDependency(depId: String) {
@@ -118,11 +118,10 @@ class SBatch(val config: Config.Slurm) : Cluster {
 		}
 
 		// use the default cpu queue, if none was specified in the args
-		val partition = clusterJob.args
+		val partition = clusterJob.argsPosix
 			.find { it.startsWith("--partition=") }
 			?.split("=")
 			?.lastOrNull()
-			?.unquote()
 		if (partition == null) {
 			// that is, if any default queue exists
 			config.queues.firstOrNull()

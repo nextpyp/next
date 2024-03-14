@@ -2,6 +2,7 @@ package edu.duke.bartesaghi.micromon.cluster
 
 import com.mongodb.client.model.Updates.*
 import edu.duke.bartesaghi.micromon.*
+import edu.duke.bartesaghi.micromon.linux.Posix
 import edu.duke.bartesaghi.micromon.mongo.*
 import edu.duke.bartesaghi.micromon.services.ClusterJobLaunchResultData
 import edu.duke.bartesaghi.micromon.services.ClusterJobResultType
@@ -22,6 +23,12 @@ class ClusterJob(
 	/** working directory of the command. if a container was given, this path is inside the container */
 	val dir: Path,
 	val env: List<EnvVar> = emptyList(),
+	/**
+	 * Free sbatch arguments intended for direct inclusion in a shell command,
+	 * possibly using POSIX shell formatting.
+	 * WARNING: These arguments can't be sanitized here without the context of how they're intended to be used,
+	 *          so make sure any user-sourced values get sanitized before submitting these arguments.
+	 */
 	val args: List<String> = emptyList(),
 	val deps: List<String> = emptyList(),
 	val ownerId: String? = null,
@@ -31,6 +38,13 @@ class ClusterJob(
 	/** the name of the job to display in cluster management tools (eq `squeue`) */
 	val clusterName: String? = null
 ) {
+
+	/**
+	 * The cluster job arguments, but tokenized like a POSIX shell would handle them.
+	 * Useful when you want to read/use the arguments before sending them to a shell.
+	 */
+	val argsPosix: List<String> =
+		args.map { Posix.tokenize(it).firstOrNull() ?: "" }
 
 	fun submit(): String? = runBlocking {
 		Cluster.submit(this@ClusterJob)
