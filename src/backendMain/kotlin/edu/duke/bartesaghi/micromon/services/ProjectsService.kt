@@ -16,6 +16,7 @@ import edu.duke.bartesaghi.micromon.pyp.Workflows
 import edu.duke.bartesaghi.micromon.sanitizeExceptions
 import io.ktor.application.ApplicationCall
 import io.kvision.remote.ServiceException
+import kotlinx.coroutines.launch
 import java.time.Instant
 
 
@@ -150,7 +151,16 @@ actual class ProjectsService : IProjectsService {
 		val user = call.authOrThrow()
 		val project = user.authProjectOrThrow(ProjectPermission.Write, userId, projectId)
 
-		JobRunner(project).init(jobIds)
+		// make the runner and wait for the result, so the jobs monitor populates with the run
+		val runner = JobRunner(project)
+		runner.init(jobIds)
+
+		// then start the first job, but don't wait for the result so the UI stays responsive
+		Backend.scope.launch {
+			runner.startFistJobIfIdle()
+		}
+
+		Unit
 	}
 
 	override suspend fun cancelRun(userId: String, projectId: String, runId: Int) = sanitizeExceptions {

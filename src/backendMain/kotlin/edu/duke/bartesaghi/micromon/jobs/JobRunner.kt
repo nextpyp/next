@@ -49,6 +49,13 @@ class JobRunner(val project: Project) {
 		for (listener in listeners.values) {
 			listener.onInit(project.userId, project.projectId, runId, run.timestamp, jobs.map { it.idOrThrow })
 		}
+	}
+
+	/**
+	 * Call after init() to start the first job,
+	 * but don't wait for the result if you don't want to
+	 */
+	suspend fun startFistJobIfIdle() {
 
 		// if a job isn't already running, try to start one
 		if (!isRunning()) {
