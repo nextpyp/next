@@ -455,7 +455,20 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 		ClusterQueues(emptyList(), emptyList())
 
 	override fun validate(job: ClusterJob) {
-		// all jobs are valid for now
+
+		val args = job.argsPosix
+
+		// these are errors caused by users (rather than programmers),
+		// so remap the error types so the errors can be shown in the UI
+		try {
+
+			// validate any gres arguments
+			args.filter { it.startsWith("--gres=") }
+				.forEach { Gres.parseAll(it) }
+
+		} catch (t: Throwable) {
+			throw ClusterJob.ValidationFailedException(t)
+		}
 	}
 
 	override fun validateDependency(depId: String) {

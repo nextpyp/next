@@ -27,7 +27,10 @@ interface Cluster {
 
 	val queues: ClusterQueues
 
-	/** throw an error if the job is somehow not valid */
+	/**
+	 * Throw an error if the job is somehow not valid.
+	 * If the user should be notified about the error, throw a ClusterJob.ValidationFailedException specifically
+	 */
 	fun validate(job: ClusterJob)
 
 	/**
@@ -96,10 +99,74 @@ interface Cluster {
 		}
 
 		suspend fun submit(clusterJob: ClusterJob): String? {
+			try {
+				return submitFragile(clusterJob)
+			} catch (t: Throwable) {
 
+				try {
+					recoverFailedSubmit(clusterJob, t)
+				} catch (t2: Throwable) {
+					Backend.log.error("Failed cluster job submission recovery failed too!", t2.cleanupStackTrace())
+				}
+
+				// bubble up the original error so callers know about the failure too
+				throw t
+			}
+		}
+
+		private suspend fun recoverFailedSubmit(clusterJob: ClusterJob, t: Throwable) {
+
+			// we don't know quite where the job submission failed, so just try to recover as best we can
+
+			val clusterJobId = clusterJob.id
+				?: return
+
+			// we'll never get any future events about this job, so end it now
+			Database.cluster.log.update(clusterJobId, null,
+				push("history", ClusterJob.HistoryEntry(ClusterJob.Status.Ended).toDBList()),
+
+				// also record error information, wherever we can get it
+				when (t) {
+
+					is ClusterJob.LaunchFailedException ->
+						set("sbatch", ClusterJob.LaunchResult(
+							null,
+							t.console.joinToString("\n"),
+							t.command
+						).toDoc())
+
+					is ClusterJob.ValidationFailedException ->
+						set("submitFailure", t.message ?: "(unknown validation reason)")
+
+					else ->
+						set("submitFailure", "Internal Error")
+				}
+			)
+
+			// send events to listeners
+			for (listener in ClusterJob.listeners()) {
+				listener.onEnd(clusterJob.ownerId, clusterJobId, ClusterJobResultType.Failure)
+			}
+			clusterJob.commands.arraySize?.let { arraySize ->
+				// none of the array jobs will actually start (or end), but send the numbers to the client anyway
+				// so the UI does something intelligent instead of showing N unlaunched array jobs
+				for (listener in ClusterJob.listeners()) {
+					listener.onStartArray(clusterJob.ownerId, clusterJobId, 0, arraySize)
+					listener.onEndArray(clusterJob.ownerId, clusterJobId, 0, arraySize, 0, arraySize)
+				}
+			}
+		}
+
+		private suspend fun submitFragile(clusterJob: ClusterJob): String? {
+
+			// create the cluster job id
 			if (clusterJob.id != null) {
 				throw IllegalStateException("job already submitted")
 			}
+			val clusterJobId = clusterJob.create()
+
+			// DEBUG
+			//println("Cluster.submit() ${job.name}($dbid), array=${job.commands.arraySize}")
 
 			// make sure the owner listener is registered correctly
 			if (clusterJob.ownerListener != null && ClusterJob.ownerListeners.find(clusterJob.ownerListener.id) == null) {
@@ -108,15 +175,6 @@ interface Cluster {
 					|Add it with ClusterJob.ownerListeners.add().
 				""".trimMargin())
 			}
-
-			// the job launcher checks arguments already,
-			// but check them here too, so we can fail earlier
-			instance.validate(clusterJob)
-
-			val clusterJobId = clusterJob.create()
-
-			// DEBUG
-			//println("Cluster.submit() ${job.name}($dbid), array=${job.commands.arraySize}")
 
 			// init the log
 			Database.cluster.log.create(clusterJobId) {
@@ -127,6 +185,11 @@ interface Cluster {
 			for (listener in ClusterJob.listeners()) {
 				listener.onSubmit(clusterJob)
 			}
+
+			// the job launcher checks arguments already,
+			// but check them here too, so we can fail earlier
+			// but wait until at least after the submission event went out, so failures here can be shown in the UI
+			instance.validate(clusterJob)
 
 			// resolve the dependency ids, or die trying
 			val depIds = clusterJob.deps
@@ -194,40 +257,8 @@ interface Cluster {
 			)
 
 			// try to launch the job on the cluster
-			val launchResult = try {
-				instance.launch(clusterJob, depIds, scriptFile.path)
-			} catch (ex: ClusterJob.LaunchFailedException) {
-
-				Backend.log.warn("ClusterJob failed to launch", ex.cleanupStackTrace())
-
-				// launch failed, we'll never get any future events about this job, so end it now
-				Database.cluster.log.update(clusterJobId, null,
-					push("history", ClusterJob.HistoryEntry(ClusterJob.Status.Ended).toDBList()),
-					set("sbatch", ClusterJob.LaunchResult(
-						null,
-						ex.console.joinToString("\n"),
-						ex.command
-					).toDoc())
-				)
-				for (listener in ClusterJob.listeners()) {
-					listener.onEnd(clusterJob.ownerId, clusterJobId, ClusterJobResultType.Failure)
-				}
-				clusterJob.commands.arraySize?.let { arraySize ->
-					// none of the array jobs will actually start (or end), but send the numbers to the client anyway
-					// so the UI does something intelligent instead of showing N unlaunched array jobs
-					for (listener in ClusterJob.listeners()) {
-						listener.onStartArray(clusterJob.ownerId, clusterJobId, 0, arraySize)
-						listener.onEndArray(clusterJob.ownerId, clusterJobId, 0, arraySize, 0, arraySize)
-					}
-				}
-
-				// pass the exception up the stack, so eg pyp can find out about the failure
-				throw ex
-			}
-
-			if (launchResult == null) {
-				return null
-			}
+			val launchResult = instance.launch(clusterJob, depIds, scriptFile.path)
+				?: return null
 
 			// launch succeeded, update the database with the launch result
 			Database.cluster.log.update(clusterJobId, null,

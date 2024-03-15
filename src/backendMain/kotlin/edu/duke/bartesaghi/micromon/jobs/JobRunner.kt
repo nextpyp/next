@@ -1,6 +1,7 @@
 package edu.duke.bartesaghi.micromon.jobs
 
 import edu.duke.bartesaghi.micromon.Backend
+import edu.duke.bartesaghi.micromon.cleanupStackTrace
 import edu.duke.bartesaghi.micromon.cluster.Cluster
 import edu.duke.bartesaghi.micromon.cluster.ClusterJob
 import edu.duke.bartesaghi.micromon.projects.Project
@@ -119,7 +120,22 @@ class JobRunner(val project: Project) {
 		}
 
 		// finally, actually launch the job
-		job.launch(run.idOrThrow)
+		// but in a try block, since job launches can be very error-prone
+		// and errors can even be caused by user input
+		try {
+			job.launch(run.idOrThrow)
+		} catch (t: Throwable) {
+
+			Backend.log.error("Job failed to launch", t.cleanupStackTrace())
+
+			// job couldn't be launched, so the whole run is stalled now
+			// best thing we can do is mark the job as failed
+			try {
+				finished(run.idOrThrow, job.idOrThrow, RunStatus.Failed)
+			} catch (t2: Throwable) {
+				Backend.log.error("Failed to finish failed job run", t2)
+			}
+		}
 	}
 
 	private suspend fun finishRun(run: ProjectRun) {
@@ -157,7 +173,7 @@ class JobRunner(val project: Project) {
 
 		// only finish running jobs
 		if (jobRun.status != RunStatus.Running) {
-			println("WARNING: tried to finish a job that wasn't running: $runId, $jobId, $status")
+			Backend.log.warn("tried to finish a job that wasn't running: $runId, $jobId, $status")
 			return
 		}
 

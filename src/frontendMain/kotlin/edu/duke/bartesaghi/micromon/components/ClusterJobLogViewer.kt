@@ -74,29 +74,45 @@ class ClusterJobLogViewer(
 					span("Launch Info")
 				},
 				disclosed = d@{
-					val launch = clusterJobLog.launchResult
-						?: run {
-							span("(none)")
-							return@d
+					if (clusterJobLog.submitFailure != null) {
+
+						h2("Success:")
+						div(classes = setOf("section")) {
+							content = "No"
 						}
-					h2("Success")
-					div(if (launch.success) {
-						"Yes"
+						h2("Reason:")
+						div(classes = setOf("section")) {
+							content = clusterJobLog.submitFailure
+						}
+
+					} else if (clusterJobLog.launchResult != null) {
+
+						h2("Success:")
+						div(classes = setOf("section")) {
+							content = if (clusterJobLog.launchResult.success) {
+								"Yes"
+							} else {
+								"No"
+							}
+						}
+						h2("Command")
+						div(classes = setOf("commands", "section")) {
+							content = clusterJobLog.launchResult.command ?: "(no launch command)"
+						}
+						h2("Console Output")
+						div(classes = setOf("commands", "section")) {
+							content = clusterJobLog.launchResult.out
+						}
+
 					} else {
-						"No"
-					})
-					h2("Command")
-					div(classes = setOf("commands")) {
-						content = launch.command ?: "(no launch command)"
-					}
-					h2("Console Output")
-					div(classes = setOf("commands")) {
-						content = launch.out
+
+						span("(none)")
 					}
 				}
 			).apply {
 				// automatically show the launch info if there was a launch problem
-				open = clusterJobLog.launchResult?.success == false
+				open = clusterJobLog.submitFailure != null
+					|| clusterJobLog.launchResult?.success == false
 			}
 			debugElem.disclosure(
 				label = {

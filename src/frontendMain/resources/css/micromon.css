@@ -1948,6 +1948,10 @@ img.large-scale-down {
 	margin-top: 10px;
 }
 
+.cluster-job-logs .debug-info .section {
+	margin-left: 20px;
+}
+
 .cluster-job-logs .debug-info .commands {
 	flex-shrink: 0;
 	font-family: monospace;

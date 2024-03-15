@@ -29,34 +29,43 @@ class SBatch(val config: Config.Slurm) : Cluster {
 
 	override fun validate(job: ClusterJob) {
 
-		fun List<String>.validateArgs() {
+		val args = job.argsPosix
 
-			// look for any banned arguments
-			if (any { it.startsWith("--output=") }) {
-				throw IllegalArgumentException("job outputs are handled automatically by nextPYP, no need to specify them explicitly")
-			}
-			if (any { it.startsWith("--error=") }) {
-				throw IllegalArgumentException("job errors are handled automatically by nextPYP, no need to specify them explicitly")
-			}
-			if (any { it.startsWith("--chdir=") }) {
-				throw IllegalArgumentException("the submission directory is handled automatically by nextPYP, no need to specifiy it explicitly")
-			}
-			if (any { it.startsWith("--array=") }) {
-				throw IllegalArgumentException("the array is handled automatically by nextPYP, no need to specify it explicitly")
-			}
-
-			// validate the queue names, if any are given
-			val queues = config.queues + config.gpuQueues
-			this.filter { it.startsWith("--partition=") }
-				.map { it.substring("--partition=".length) }
-				.forEach { queue ->
-					if (queue !in queues) {
-						throw IllegalArgumentException("the partition '$queue' was not valid, try one of $queues")
-					}
-				}
+		// look for any banned arguments
+		if (args.any { it.startsWith("--output=") }) {
+			throw IllegalArgumentException("job outputs are handled automatically by nextPYP, no need to specify them explicitly")
+		}
+		if (args.any { it.startsWith("--error=") }) {
+			throw IllegalArgumentException("job errors are handled automatically by nextPYP, no need to specify them explicitly")
+		}
+		if (args.any { it.startsWith("--chdir=") }) {
+			throw IllegalArgumentException("the submission directory is handled automatically by nextPYP, no need to specifiy it explicitly")
+		}
+		if (args.any { it.startsWith("--array=") }) {
+			throw IllegalArgumentException("the array is handled automatically by nextPYP, no need to specify it explicitly")
 		}
 
-		job.argsPosix.validateArgs()
+		// validate the queue names, if any are given
+		val queues = config.queues + config.gpuQueues
+		args.filter { it.startsWith("--partition=") }
+			.map { it.substring("--partition=".length) }
+			.forEach { queue ->
+				if (queue !in queues) {
+					throw IllegalArgumentException("the partition '$queue' was not valid, try one of $queues")
+				}
+			}
+
+		// these are errors caused by users (rather than programmers),
+		// so remap the error types so the errors can be shown in the UI
+		try {
+
+			// validate any gres arguments
+			args.filter { it.startsWith("--gres=") }
+				.forEach { Gres.parseAll(it) }
+
+		} catch (t: Throwable) {
+			throw ClusterJob.ValidationFailedException(t)
+		}
 	}
 
 	override fun validateDependency(depId: String) {

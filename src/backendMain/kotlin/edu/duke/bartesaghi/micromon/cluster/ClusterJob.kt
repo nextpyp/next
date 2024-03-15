@@ -56,6 +56,13 @@ class ClusterJob(
 		val command: String?
 	) : IllegalArgumentException("$reason:\n${console.joinToString("\n")}")
 
+	class ValidationFailedException(
+		val reason: String
+	) : IllegalArgumentException(reason) {
+
+		constructor(t: Throwable) : this(t.message ?: "(unknown reason")
+	}
+
 	interface OwnerListener {
 		val id: String
 		suspend fun ended(ownerId: String, resultType: ClusterJobResultType)
@@ -126,6 +133,7 @@ class ClusterJob(
 	data class Log(
 		val clusterJobId: String,
 		val arrayId: Int? = null,
+		var submitFailure: String? = null,
 		var launchResult: LaunchResult? = null,
 		var arrayProgress: ArrayProgress? = null,
 		val history: MutableList<HistoryEntry> = ArrayList(),
@@ -134,6 +142,7 @@ class ClusterJob(
 	) {
 
 		fun toDoc() = Document().apply {
+			submitFailure?.let { set("submitFailure", it) }
 			launchResult?.let { set("sbatch", it.toDoc()) }
 			arrayProgress?.let { set("arrayProgress", it.toDoc()) }
 			set("history", history.toDBList())
@@ -152,6 +161,7 @@ class ClusterJob(
 				return Log(
 					sbatchId,
 					arrayId,
+					submitFailure = doc.getString("submitFailure"),
 					launchResult = doc.getDocument("sbatch")?.let { LaunchResult.fromDoc(it) },
 					arrayProgress = doc.getDocument("arrayProgress")?.let { ArrayProgress.fromDoc(it) },
 					history = ArrayList<HistoryEntry>().apply {
