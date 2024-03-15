@@ -103,9 +103,7 @@ class Config(toml: String) {
 		val timeoutSeconds: Int,
 		val path: Path,
 		val queues: List<String>,
-		val gpuQueues: List<String>,
-		val memoryPerNode: Int,
-		val cpusPerNode: Int,
+		val gpuQueues: List<String>
 	) {
 
 		val commandsConfig = Commands.Config()
@@ -218,9 +216,7 @@ class Config(toml: String) {
 					} ?: emptyList(),
 				gpuQueues = getArray("gpuQueues")?.run {
 						indices.map { i -> getString(i) }
-					} ?: emptyList(),
-				memoryPerNode = 2,
-				cpusPerNode = 2
+					} ?: emptyList()
 			)
 		}
 
@@ -305,8 +301,6 @@ class Config(toml: String) {
 				|             path:  ${slurm.path}
 				|           queues:  ${slurm.queues}
 				|       GPU queues:  ${slurm.gpuQueues}
-				|  memory per node:  ${slurm.memoryPerNode} GiB
-				|    cpus per node:  ${slurm.cpusPerNode}
 				|
 			""".trimMargin())
 		} else {

@@ -12,8 +12,6 @@ sources = '/media/pyp'
 [slurm]
 user = '$user'
 host = 'localhost'
-memoryPerNode = 2
-cpusPerNode = 2
 mpirun = '/usr/lib64/openmpi/bin/mpirun'
 
 [web]
