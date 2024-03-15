@@ -2666,6 +2666,15 @@ div.file-browser .file-browser-bottom .file-browser-controls .file-browser-glob 
 	flex-grow: 1;
 }
 
+/* override tabulator styles to fix display issues */
+.filter-table .tabulator .tabulator-table .tabulator-cell {
+	overflow-x: clip !important;
+	/*
+		tabulator inexplicably puts an inline style with overflow:visible on the element,
+		so to override it, we need !important here
+	*/
+}
+
 .filter-table .viewpane {
 	vertical-align: top;
     padding-left: 20px;
