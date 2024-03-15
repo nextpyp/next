@@ -87,11 +87,13 @@ abstract class Node(
 		// create ports for the data
 		for (data in config.inputs) {
 			val port = model.addInPort(data.id, data.name)
+			port.setLocked(true)
 			inPortsByData[data.id] = port
 			// TODO: need click actions here?
 		}
 		for (data in config.outputs) {
 			val port = model.addOutPort(data.id, data.name)
+			port.setLocked(true)
 			outPortsByData[data.id] = port
 			diagram.onClick.register(port) {
 				onOutPortClick?.invoke(data)
