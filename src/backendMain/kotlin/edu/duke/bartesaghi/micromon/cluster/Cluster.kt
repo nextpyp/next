@@ -317,7 +317,7 @@ interface Cluster {
 			val clusterJob = ClusterJob.get(clusterJobId) ?: return
 
 			// DEBUG
-			//println("Cluster.ended() ${clusterJob.name}(${clusterJob.id}), $arrayId, exitCode=$exitCode")
+			//println("Cluster.ended() ${clusterJob.webName}(${clusterJob.id}), $arrayId, exitCode=$exitCode")
 
 			// read the job output and cleanup
 			// NOTE: this involves potentially slow operations (like SSH)

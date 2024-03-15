@@ -9,18 +9,27 @@ import edu.duke.bartesaghi.micromon.jobs.*
 import edu.duke.bartesaghi.micromon.jobs.Job
 import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.pyp.Micrograph
+import edu.duke.bartesaghi.micromon.pyp.PypService
+import edu.duke.bartesaghi.micromon.pyp.TiltSeries
 import edu.duke.bartesaghi.micromon.sessions.Session
 import edu.duke.bartesaghi.micromon.sessions.SingleParticleSession
 import edu.duke.bartesaghi.micromon.sessions.TomographySession
 import io.ktor.application.*
+import io.ktor.client.*
+import io.ktor.client.request.*
+import io.ktor.client.statement.*
 import io.ktor.features.*
 import io.ktor.http.*
+import io.ktor.request.*
 import io.ktor.response.*
 import io.ktor.routing.*
 import io.ktor.util.*
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import java.io.Writer
 import java.nio.file.Paths
 import java.time.Instant
 import java.util.concurrent.ConcurrentLinkedDeque
@@ -154,11 +163,7 @@ object DebugService {
 
 				val size = call.parameters.getOrFail("size").toInt()
 
-				// disable compression for this response, otherwise streaming won't work
-				// see: https://youtrack.jetbrains.com/issue/KTOR-5977/Kotlin-JS-Unable-to-stream-compressed-responses
-				call.attributes.put(Compression.SuppressionAttribute, true)
-
-				call.respondTextWriter(ContentType.Text.Plain) {
+				call.respondTextStream {
 
 					val startNs = System.nanoTime()
 
@@ -298,7 +303,182 @@ object DebugService {
 
 				call.respondText(response, ContentType.Text.Plain)
 			}
+
+			get("load/go") {
+
+				suspend fun request(body: String): Pair<String,Long>? =
+					try {
+						val request = HttpClient()
+							.request<HttpStatement>("http://localhost:8080/debug/load/task") {
+								this.method = HttpMethod.Post
+								this.body = body
+							}
+						val start = System.nanoTime()
+						val response = request
+							.execute()
+							.readText()
+						val elapsed = System.nanoTime() - start
+						response to elapsed
+					} catch (t: Throwable) {
+						null
+					}
+
+				suspend fun Writer.trackedRequest(i: Int): kotlinx.coroutines.Job =
+					launch(Dispatchers.IO) { // NOTE: launch outside of the netty/ktor thread pool
+						writeln("Request $i: started")
+						flush()
+						val result = request("Hi, I'm $i")
+						if (result != null) {
+							val (response, elapsed) = result
+							writeln("Request $i: got \"$response\" in ${elapsed/1_000_000} ms")
+						} else {
+							writeln("Request $i: failed")
+						}
+						flush()
+					}
+
+				call.respondTextStream {
+
+					writeln("Starting requests ...")
+					flush()
+
+					val numTasks = 200
+					val jobs = (0 until numTasks)
+						.map { trackedRequest(it) }
+					jobs.forEach { it.join() }
+
+					writeln("done")
+				}
+			}
+
+			post("load/task") f@{
+
+				val body = call.receiveText()
+
+				println("load/task: $body")
+
+				// sink the thread for a bit
+				//Thread.sleep(1_000)
+				//delay(1_000)
+
+				// do a big database read
+				val jobId = "e9fHFasL1xwH5yki"
+				TiltSeries.getAll(jobId) { tiltSerieses ->
+					tiltSerieses
+						.onEach { tiltSeries ->
+							tiltSeries.getAvgRot()
+							tiltSeries.getDriftMetadata()
+						}
+						.count()
+				}
+				//
+
+				// write a tilt series ... sort of
+				val numTilts = 41
+				val numMotionSamples = 20
+				val numDriftSamples = 20
+				val numCtfSamples = 40
+				// NOTE: this requires a hack in PypService.writeTiltSeries() to recognize
+				//       a jobId instead of the usual webid(clusterJobId)
+				val json = """
+					|{
+					|    "jobId": "e9fHFasL1xwH5yki",
+					|    "tiltseries_id": "TS_42",
+					|    "ctf": [
+					|        2.112544531250000000e+04,
+					|        1.415299996733665466e-02,
+					|        2.177435156250000000e+04,
+					|        2.047653906250000000e+04,
+					|        3.621454954147338867e+00,
+					|        1.415299996733665466e-02,
+					|        1.240000000000000000e+03,
+					|        1.200000000000000000e+03,
+					|        5.000000000000000000e+01,
+					|        1.100000000000000089e+00,
+					|        3.000000000000000000e+02,
+					|        1.000000000000000000e+04,
+					|        7.172000122070312500e+02,
+					|        0.000000000000000000e+00
+					|    ],
+					|    "xf": [
+					|        ${(0 until numMotionSamples).joinToString(", ") { i ->
+								"[1.0, 1.0, 1.0, 1.0, $i.1, $i.2]"
+							}}
+					|    ],
+					|    "avgrot": [
+					|        ${(0 until numTilts).joinToString(", ") { i ->
+								"[$i.1, $i.2, $i.3, $i.4, $i.5, $i.6]"
+							}}
+					|    ],
+					|    "metadata": {
+					|        "tilts": [
+					|            ${(0 until numTilts).joinToString(", ") { i -> "$i.0" }}
+					|        ],
+					|        "drift": [
+					|            ${(0 until numTilts).joinToString(", ") { i ->
+									"[${(0 until numDriftSamples).joinToString(", ") { j -> "[$i.1, $j.2]" }}]"
+								}}
+					|        ],
+					|        "ctf_values": [
+					|            ${(0 until numTilts).joinToString(", ") { i ->
+									"[$i, $i.2, $i.3, $i.4, $i.5, $i.6]"
+								}}
+					|        ],
+					|        "ctf_profiles": [
+					|            ${(0 until numTilts).joinToString(", ") { i ->
+									"[${listOf(
+										"[${(0 until numCtfSamples).joinToString(", ") { j -> "$i.1$j" }}]",
+										"[${(0 until numCtfSamples).joinToString(", ") { j -> "$i.2$j" }}]",
+										"[${(0 until numCtfSamples).joinToString(", ") { j -> "$i.3$j" }}]",
+										"[${(0 until numCtfSamples).joinToString(", ") { j -> "$i.4$j" }}]",
+										"[${(0 until numCtfSamples).joinToString(", ") { j -> "$i.5$j" }}]",
+										"[${(0 until numCtfSamples).joinToString(", ") { j -> "$i.6$j" }}]"
+									).joinToString(", ")}]"
+								}}
+					|        ],
+					|        "tilt_axis_angle": 5.0
+					|    }
+					|}
+				""".trimMargin()
+				val response = PypService.writeTiltSeries(ObjectMapper().readTree(json).asObject())
+				if (response is JsonRpcFailure) {
+					call.respondText("Failure: ${response.message}")
+					return@f
+				}
+				//
+
+				// try to clean up a job
+				val clusterJobId = "drHqPbnoIZjHM6qM"
+				try {
+					Cluster.ended(
+						clusterJobId,
+						5,
+						0
+					)
+				} catch (t: Throwable) {
+					call.respondText("Failed: ${t.message}")
+					return@f
+				}
+				//
+
+				call.respondText("Success")
+			}
 		}
+	}
+
+
+	private suspend fun ApplicationCall.respondTextStream(block: suspend Writer.() -> Unit) {
+
+		// disable compression for this response, otherwise streaming won't work
+		// see: https://youtrack.jetbrains.com/issue/KTOR-5977/Kotlin-JS-Unable-to-stream-compressed-responses
+		attributes.put(Compression.SuppressionAttribute, true)
+
+		respondTextWriter(ContentType.Text.Plain) { block() }
+	}
+
+	private fun Writer.writeln(line: String) {
+		write(line)
+		write("\n")
 	}
 
 
