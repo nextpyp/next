@@ -18,7 +18,6 @@ import io.ktor.routing.*
 import io.ktor.util.cio.*
 import io.ktor.websocket.*
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.channels.ClosedReceiveChannelException
 import kotlinx.coroutines.channels.ClosedSendChannelException
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
@@ -34,7 +33,7 @@ object RealTimeService {
 			val user = call.authOrThrow()
 
 			// wait to hear which project the user wants
-			val msg = incoming.receiveMessage<RealTimeC2S.ListenToProject>() ?: return@handler
+			val msg = incoming.receiveMessage<RealTimeC2S.ListenToProject>(outgoing) ?: return@handler
 
 			// authenticate the user for this project
 			val project = user.authProjectOrThrow(ProjectPermission.Read, msg.userId, msg.projectId)
@@ -114,7 +113,7 @@ object RealTimeService {
 			val user = call.authOrThrow()
 
 			// wait to hear which job the user wants
-			val msg = incoming.receiveMessage<RealTimeC2S.ListenToSingleParticlePreprocessing>()
+			val msg = incoming.receiveMessage<RealTimeC2S.ListenToSingleParticlePreprocessing>(outgoing)
 				?: return@handler
 
 			// authenticate the user for this job
@@ -142,7 +141,7 @@ object RealTimeService {
 			val user = call.authOrThrow()
 
 			// wait to hear which job the user wants
-			val msg = incoming.receiveMessage<RealTimeC2S.ListenToTomographyPreprocessing>()
+			val msg = incoming.receiveMessage<RealTimeC2S.ListenToTomographyPreprocessing>(outgoing)
 				?: return@handler
 
 			// authenticate the user for this job
@@ -174,7 +173,7 @@ object RealTimeService {
 			val user = call.authOrThrow()
 
 			// wait to hear which job the user wants
-			val msg = incoming.receiveMessage<RealTimeC2S.ListenToReconstruction>()
+			val msg = incoming.receiveMessage<RealTimeC2S.ListenToReconstruction>(outgoing)
 				?: return@handler
 
 			// authenticate the user for this job
@@ -215,7 +214,7 @@ object RealTimeService {
 
 			// wait to hear which job the user wants
 			var clusterJob: ClusterJob? = null
-			when (val request = incoming.receiveMessage<RealTimeC2S>()) {
+			when (val request = incoming.receiveMessage<RealTimeC2S>(outgoing)) {
 
 				is RealTimeC2S.ListenToJobStreamLog -> {
 
@@ -268,7 +267,7 @@ object RealTimeService {
 			val user = call.authOrThrow()
 
 			// wait to hear which session the user wants
-			val request = incoming.receiveMessage<RealTimeC2S.ListenToSession>()
+			val request = incoming.receiveMessage<RealTimeC2S.ListenToSession>(outgoing)
 				?: return@handler
 			user.authSessionOrThrow(request.sessionId, SessionPermission.Read)
 
@@ -348,7 +347,7 @@ object RealTimeService {
 			val user = call.authOrThrow()
 
 			// wait to hear which session the user wants
-			val request = incoming.receiveMessage<RealTimeC2S.ListenToSession>()
+			val request = incoming.receiveMessage<RealTimeC2S.ListenToSession>(outgoing)
 				?: return@handler
 			user.authSessionOrThrow(request.sessionId, SessionPermission.Read)
 
@@ -622,20 +621,27 @@ fun Frame.toMessage(): RealTimeC2S {
  * Throws an excepion if the message has an unexpected type.
  * Returns null if the connection was closed.
  */
-private suspend inline fun <reified M:RealTimeC2S> ReceiveChannel<Frame>.receiveMessage(): M? {
+private suspend inline fun <reified M:RealTimeC2S> ReceiveChannel<Frame>.receiveMessage(outgoing: SendChannel<Frame>): M? {
 
-	// get the next websocket frame
-	val frame = try {
-		receive()
-	} catch (ex: ClosedReceiveChannelException) {
-		return null
+	// listen to incoming messages
+	for (frame in this) {
+
+		// check for the expected message
+		when (val msg = frame.toMessage()) {
+
+			// but also respond to ping messages
+			is RealTimeC2S.Ping -> outgoing.sendMessage(RealTimeS2C.Pong())
+
+			// the message we wanted
+			is M -> return msg
+
+			// anything else is an error
+			else -> throw UnexpectedMessageException(msg)
+		}
 	}
 
-	// check for the expected message
-	return when (val msg = frame.toMessage()) {
-		is M -> msg
-		else -> throw UnexpectedMessageException(msg)
-	}
+	// channel closed, no more messages
+	return null
 }
 
 class UnexpectedMessageException(val msg: Any) : IllegalArgumentException("message type: ${msg::class.simpleName}")
