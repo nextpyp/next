@@ -390,7 +390,8 @@ class ClusterJobLog(
 	val resultType: ClusterJobResultType?,
 	val exitCode: Int?,
 	val log: String?,
-	val arraySize: Int?
+	val arraySize: Int?,
+	val failedArrayIds: List<Int>
 )
 
 @Serializable

@@ -3,6 +3,7 @@ package edu.duke.bartesaghi.micromon.mongo
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.UpdateOptions
 import com.mongodb.client.model.Updates
+import edu.duke.bartesaghi.micromon.services.ClusterJobResultType
 import edu.duke.bartesaghi.micromon.toObjectId
 import edu.duke.bartesaghi.micromon.toStringId
 import org.bson.Document
@@ -128,6 +129,29 @@ class ClusterJobs {
 			collection.find(filter(clusterJobId, arrayId)).useCursor { cursor ->
 				cursor.firstOrNull()
 			}
+
+		fun findArrayIdsByResultType(clusterJobId: String, resultType: ClusterJobResultType): List<Int> {
+			val filter = Filters.and(
+				Filters.regex("_id", "^$clusterJobId\\/"),
+				// Log ids are either in the form `<clusterJobId>` or the form `<clusterJobId>/<arrayId>`.
+				// Here, we want to match all logs with an array id, so we match the `<clusterJobId>/` prefix of the id.
+				// NOTE: Sadly, we didn't have the foresight to add explicit clusterJobId and arrayId fields in log documents.
+				//       So to match array jobs (and not their parent jobs) with a filter, we need to use a regex filter.
+				//       Normally, a general regex filter would be pretty slow on a large collection like the cluster logs,
+				//       but the Mongo docs assure us if we form the regex as a case-sensitive prefix match (eg /^foo/),
+				//       then the DMBS can optimize that case with the index and give pretty good query performance.
+				//       See: https://www.mongodb.com/docs/manual/reference/operator/query/regex/#index-use
+				Filters.eq("result.type", resultType.id)
+			)
+			return collection.find(filter).useCursor { cursor ->
+				cursor
+					.mapNotNull { doc ->
+						val (_, arrayId) = parseId(doc.getString("_id"))
+						arrayId
+					}
+					.toList()
+			}
+		}
 
 		/**
 		 * Creates a new log record.

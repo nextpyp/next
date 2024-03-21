@@ -1,9 +1,12 @@
 package edu.duke.bartesaghi.micromon.components
 
 import edu.duke.bartesaghi.micromon.*
+import edu.duke.bartesaghi.micromon.components.forms.enabled
 import edu.duke.bartesaghi.micromon.services.*
 import io.kvision.core.Container
 import io.kvision.core.onEvent
+import io.kvision.form.check.CheckBox
+import io.kvision.form.select.SelectInput
 import io.kvision.form.spinner.SpinnerInput
 import io.kvision.html.*
 import io.kvision.modal.Modal
@@ -142,9 +145,12 @@ class ClusterJobLogViewer(
 		// make the log section
 		val logElem = Div(classes = setOf("log"))
 
-		fun setLog(resultType: ClusterJobResultType?, exitCode: Int?, log: String?) {
+		fun setLog(arrayId: Int?, resultType: ClusterJobResultType?, exitCode: Int?, log: String?) {
 			logElem.removeAll()
 			logElem.div(classes = setOf("header")) {
+				if (arrayId != null) {
+					span("Array Job: $arrayId")
+				}
 				span(classes = setOf("result")) {
 					span("Result: ")
 					when (resultType) {
@@ -168,7 +174,7 @@ class ClusterJobLogViewer(
 				val loadingLog = logElem.loading("Loading log ...")
 				try {
 					val arrayLog = Services.projects.clusterJobArrayLog(clusterJobId, arrayId)
-					setLog(arrayLog.resultType, arrayLog.exitCode, arrayLog.log)
+					setLog(arrayId, arrayLog.resultType, arrayLog.exitCode, arrayLog.log)
 				} catch (t: Throwable) {
 					logElem.errorMessage(t)
 				} finally {
@@ -181,11 +187,12 @@ class ClusterJobLogViewer(
 		if (clusterJobLog.arraySize == null) {
 
 			// show the one and only log
-			setLog(clusterJobLog.resultType, clusterJobLog.exitCode, clusterJobLog.log)
+			setLog(null, clusterJobLog.resultType, clusterJobLog.exitCode, clusterJobLog.log)
 
 		} else {
-			navElem = Div().apply {
-				span("Array job has logs for jobs from 1 to ${clusterJobLog.arraySize}")
+			navElem = Div(classes = setOf("array-controls")).apply {
+
+				span("Array Job Log:")
 
 				// add some controls to show other logs in the array
 				val arrayIdSpinner = SpinnerInput(
@@ -193,18 +200,68 @@ class ClusterJobLogViewer(
 					min = 1,
 					max = clusterJobLog.arraySize
 				)
-				div(classes = setOf("array-id")) {
-					add(arrayIdSpinner)
+				val failedArrayIdDropdown = SelectInput(
+					options = clusterJobLog.failedArrayIds
+						.map { failedId -> "$failedId" to "$failedId" }
+				)
+				val idContainer = Span()
+				val showOnlyFailuresCheck = CheckBox(
+					value = false,
+					label = run {
+						val failuresMsg = when (val num = clusterJobLog.failedArrayIds.size) {
+							0 -> "no failures"
+							1 -> "$num failure"
+							else -> "$num failures"
+						}
+						"Show only failed jobs ($failuresMsg)"
+					}
+				) {
+					inline = true
+					enabled = clusterJobLog.failedArrayIds.isNotEmpty()
 				}
-				button("Load").apply {
-					onClick {
-						arrayIdSpinner.value
-							?.toInt()
-							?.let { loadArrayLog(it) }
+				val loadButton = Button("Load")
+
+				// layout the UI
+				add(idContainer)
+				span("of ${clusterJobLog.arraySize}")
+				add(loadButton)
+				add(showOnlyFailuresCheck)
+
+				// wire up events
+				fun updateVisibility() {
+					idContainer.removeAll()
+					if (showOnlyFailuresCheck.value) {
+						idContainer.span {
+							// NOTE: surround in a span to work around an apparent bug in snabdom
+							//       where the dropdown can't be removed from the real DOM
+							add(failedArrayIdDropdown)
+						}
+					} else {
+						idContainer.add(arrayIdSpinner)
+					}
+				}
+				showOnlyFailuresCheck.onEvent {
+					change = {
+						updateVisibility()
+					}
+				}
+				loadButton.onClick {
+
+					val arrayId: Int? =
+						if (showOnlyFailuresCheck.value) {
+							failedArrayIdDropdown.value
+								?.toIntOrNull()
+						} else {
+							arrayIdSpinner.value
+								?.toInt()
+						}
+					if (arrayId != null) {
+						loadArrayLog(arrayId)
 					}
 				}
 
-				// load the first log by default
+				// init UI state, load the first log by default
+				updateVisibility()
 				loadArrayLog(1)
 			}
 		}

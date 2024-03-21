@@ -247,6 +247,9 @@ actual class ProjectsService : IProjectsService {
 		// load the main log
 		val log = clusterJob.getLog()
 
+		// load log failures
+		val failedArrayIds = Database.cluster.log.findArrayIdsByResultType(clusterJobId, ClusterJobResultType.Failure)
+
 		return ClusterJobLog(
 			clusterJob.commands.representativeCommand(),
 			log?.submitFailure,
@@ -254,7 +257,8 @@ actual class ProjectsService : IProjectsService {
 			log?.result?.type,
 			log?.result?.exitCode,
 			log?.result?.out,
-			clusterJob.commands.arraySize
+			clusterJob.commands.arraySize,
+			failedArrayIds
 		)
 	}
 

@@ -2019,11 +2019,11 @@ img.large-scale-down {
 	margin-bottom: 0;
 }
 
-.cluster-job-logs .logs .array-id {
-	width: 120px;
-	display: inline-block;
-	margin-left: 20px;
-	margin-right: 10px;
+.cluster-job-logs .logs .array-controls {
+	display: flex;
+	flex-direction: row;
+	gap: 10px;
+	align-items: baseline;
 }
 
 .cluster-job-logs-pinned {
