@@ -2,7 +2,9 @@ package edu.duke.bartesaghi.micromon.linux
 
 import com.sun.jna.*
 import edu.duke.bartesaghi.micromon.slowIOs
-import kotlin.collections.ArrayList
+import java.nio.file.Files
+import java.nio.file.Path
+import kotlin.io.path.pathString
 
 
 /**
@@ -20,6 +22,18 @@ object Filesystem {
 		external fun opendir(name: String): DIR?
 		external fun readdir(dir: DIR): Dirent?
 		external fun closedir(dir: DIR): Int
+
+		// https://man7.org/linux/man-pages/man2/stat.2.html
+		external fun stat(path: String, stat: Stat.ByRef): Int
+
+		// https://man7.org/linux/man-pages/man3/getpwuid.3p.html
+		external fun getpwuid(uid: Int): Passwd.ByRef?
+
+		// https://man7.org/linux/man-pages/man3/getgrgid.3p.html
+		external fun getgrgid(gid: Int): Group.ByRef?
+
+		// https://man7.org/linux/man-pages/man3/group_member.3.html
+		external fun group_member(gid: Int): Int
 
 		// https://man7.org/linux/man-pages/man2/getdents.2.html
 		//external fun getdents64(fd: Int, dirp: Pointer, count: Long): Long
@@ -82,8 +96,78 @@ object Filesystem {
 			}
 		}
 
+		// https://man7.org/linux/man-pages/man3/stat.3type.html
+		@Structure.FieldOrder(
+			"st_dev", "st_ino", "st_nlink", "st_mode", "st_uid", "st_gid", "st_rdev", "st_size", "st_blksize",
+			"st_blocks", "st_atim", "st_mtim", "st_ctim"
+		)
+		open class Stat(
+			@JvmField var st_dev: NativeLong = NativeLong(), /* ID of device containing file */
+			@JvmField var st_ino: NativeLong = NativeLong(), /* Inode number */
+			@JvmField var st_mode: Int = 0, /* File type and mode */
+			@JvmField var st_nlink: NativeLong = NativeLong(), /* Number of hard links */
+			@JvmField var st_uid: Int = 0, /* User ID of owner */
+			@JvmField var st_gid: Int = 0, /* Group ID of owner */
+			@JvmField var st_rdev: NativeLong = NativeLong(), /* Device ID (if special file) */
+			@JvmField var st_size: NativeLong = NativeLong(), /* Total size, in bytes */
+			@JvmField var st_blksize: NativeLong = NativeLong(), /* Block size for filesystem I/O */
+			@JvmField var st_blocks: NativeLong = NativeLong(), /* Number of 512B blocks allocated */
+			@JvmField var st_atim: Timespec = Timespec(), /* Time of last access */
+			@JvmField var st_mtim: Timespec = Timespec(), /* Time of last modification */
+			@JvmField var st_ctim: Timespec = Timespec(), /* Time of last status change */
+		) : Structure() {
+			class ByRef : Stat(), ByReference
+		}
+
+		@Structure.FieldOrder(
+			"tv_sec", "tv_nsec"
+		)
+		open class Timespec(
+			@JvmField var tv_sec: Long = 0,
+			@JvmField var tv_nsec: Long = 0
+		) : Structure()
+
+		// https://man7.org/linux/man-pages/man0/pwd.h.0p.html
+		@Structure.FieldOrder(
+			"pw_name", "pw_uid", "pw_gid", "pw_dir", "pw_shell"
+		)
+		open class Passwd(
+			@JvmField var pw_name: Pointer? = null,
+			@JvmField var pw_uid: Int = 0,
+			@JvmField var pw_gid: Int = 0,
+			@JvmField var pw_dir: Pointer? = null,
+			@JvmField var pw_shell: Pointer? = null
+		) : Structure() {
+			class ByRef : Passwd(), ByReference
+		}
+
+		// https://man7.org/linux/man-pages/man0/grp.h.0p.html
+		@Structure.FieldOrder(
+			"gr_name", "gr_gid", "gr_mem"
+		)
+		open class Group(
+			@JvmField var gr_name: Pointer? = null,
+			@JvmField var gr_gid: Int = 0,
+			@JvmField var gr_mem: Pointer? = null,
+		) : Structure() {
+			class ByRef : Group(), ByReference
+		}
+
 		init {
 			Native.register(javaClass, Platform.C_LIBRARY_NAME)
+		}
+	}
+
+
+	class NativeException(
+		val err: Int = Native.getLastError(),
+		val errMsg: String = native.strerror(Native.getLastError())
+	) : RuntimeException("native function failed: $err: $errMsg") {
+
+		companion object {
+
+			fun exists(): Boolean =
+				Native.getLastError() != 0
 		}
 	}
 
@@ -156,7 +240,7 @@ object Filesystem {
 			val files = ArrayList<File>()
 			while (true) {
 				when (val bytesRead = native.syscall(native.SYS_getdents64, fd, buf, buf.size())) {
-					-1L -> throw Error("getdents64() failed: ${Native.getLastError()}: ${native.strerror(Native.getLastError())}")
+					-1L -> throw NativeException()
 					0L -> break // end of buffer
 					else -> {
 
@@ -189,6 +273,100 @@ object Filesystem {
 		} finally {
 			native.close(fd)
 		}
+	}
+
+	/**
+	 * Run a real linux stat(), since the Java stdlib wrappers hide some important details,
+	 * like setuid and setgid
+	 */
+	suspend fun stat(path: Path): Stat = slowIOs {
+
+		val stat = native.Stat.ByRef()
+		val ret = native.stat(path.pathString, stat)
+		if (ret != 0) {
+			throw NativeException()
+		}
+
+		Stat(
+			mode = stat.st_mode,
+			uid = stat.st_uid,
+			gid = stat.st_gid
+		)
+	}
+
+	data class Stat(
+		val mode: Int,
+		val uid: Int,
+		val gid: Int
+	) {
+
+		// https://man7.org/linux/man-pages/man7/inode.7.html
+
+		val isSetUID: Boolean get() =
+			(mode and (1 shl 11)) != 0
+
+		val isSetGID: Boolean get() =
+			(mode and (1 shl 10)) != 0
+
+		val isSticky: Boolean get() =
+			(mode and (1 shl 9)) != 0
+
+		val isOwnerRead: Boolean get() =
+			(mode and (1 shl 8)) != 0
+
+		val isOwnerWrite: Boolean get() =
+			(mode and (1 shl 7)) != 0
+
+		val isOwnerExecute: Boolean get() =
+			(mode and (1 shl 6)) != 0
+
+		val isGroupRead: Boolean get() =
+			(mode and (1 shl 5)) != 0
+
+		val isGroupWrite: Boolean get() =
+			(mode and (1 shl 4)) != 0
+
+		val isGroupExecute: Boolean get() =
+			(mode and (1 shl 3)) != 0
+
+		val isOtherRead: Boolean get() =
+			(mode and (1 shl 2)) != 0
+
+		val isOtherWrite: Boolean get() =
+			(mode and (1 shl 1)) != 0
+
+		val isOtherExecute: Boolean get() =
+			(mode and (1 shl 0)) != 0
+
+		suspend fun username(): String? =
+			getUsername(uid)
+
+		suspend fun groupname(): String? =
+			getGroupname(gid)
+	}
+
+	suspend fun getUsername(uid: Int): String? = slowIOs {
+
+		val passwd = native.getpwuid(uid)
+		if (NativeException.exists()) {
+			throw NativeException()
+		}
+
+		passwd?.pw_name?.getString(0)
+	}
+
+	suspend fun getGroupname(gid: Int): String? = slowIOs {
+
+		val group = native.getgrgid(gid)
+		if (NativeException.exists()) {
+			throw NativeException()
+		}
+
+		group?.gr_name?.getString(0)
+	}
+
+	suspend fun groupMember(gid: Int): Boolean = slowIOs {
+		native.group_member(gid) != 0
 	}
 }
 

@@ -156,7 +156,8 @@ class Config(toml: String) {
 		val workflowDirs: List<Path>,
 		val demo: Boolean,
 		val maxProjectsPerUser: Int?,
-		val minPasswordLength: Int
+		val minPasswordLength: Int,
+		val runasDir: Path
 	) {
 
 		data class Filesystem(
@@ -232,11 +233,12 @@ class Config(toml: String) {
 			val host = getString("host") ?: "127.0.0.1"
 			// NOTE: for security reasons, we should only bind to localhost by default, rather than all network iterfaces
 			val port = getInt("port") ?: 8080
+			val sharedDir = getStringOrThrow("sharedDir").toPath()
 			Web(
 				host = host,
 				port = port,
 				localDir = getStringOrThrow("localDir").toPath(),
-				sharedDir = getStringOrThrow("sharedDir").toPath(),
+				sharedDir = sharedDir,
 				auth = AuthType[getString("auth")] ?: AuthType.Login,
 				webhost = getString("webhost") ?: "http://$host:$port",
 				debug = getBoolean("debug") ?: false,
@@ -266,7 +268,10 @@ class Config(toml: String) {
 				} ?: emptyList(),
 				demo = getBoolean("demo") ?: false,
 				maxProjectsPerUser = getInt("maxProjectsPerUser"),
-				minPasswordLength = getInt("minPasswordLength") ?: 12
+				minPasswordLength = getInt("minPasswordLength") ?: 12,
+				runasDir = getString("runasDir")
+					?.toPath()
+					?: (sharedDir / "runas")
 			)
 		}
 	}
@@ -329,6 +334,7 @@ class Config(toml: String) {
 			|   OOM heap dumps:  ${web.oomdump}
 			|    workflow dirs:  ${web.workflowDirs.joinToString("\n$indent")}
 			|        demo mode:  ${web.demo}
+			|        runas dir:  ${web.runasDir}
 			|
 		""".trimMargin())
 	}.toString()
