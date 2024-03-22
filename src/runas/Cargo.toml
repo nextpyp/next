@@ -1,0 +1,10 @@
+
+[package]
+name = "runas"
+version = "0.1.0"
+authors = ["Jeff Martin <jmartin@cs.duke.edu>"]
+edition = "2021"
+
+[dependencies]
+gumdrop = { version = "0.8.1", features = ["default_expr"] } # MIT (or Apache-2)
+users = "0.11.0" # MIT
