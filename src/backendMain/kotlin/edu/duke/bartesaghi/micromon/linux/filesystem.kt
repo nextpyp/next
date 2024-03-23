@@ -2,7 +2,6 @@ package edu.duke.bartesaghi.micromon.linux
 
 import com.sun.jna.*
 import edu.duke.bartesaghi.micromon.slowIOs
-import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.io.path.pathString
 
@@ -24,7 +23,12 @@ object Filesystem {
 		external fun closedir(dir: DIR): Int
 
 		// https://man7.org/linux/man-pages/man2/stat.2.html
-		external fun stat(path: String, stat: Stat.ByRef): Int
+		// NOTE: Some libc builds don't export the stat symbol directly.
+		//       Sometimes stats is some internal function or macro that calls __xstat64.
+		//       So we'll have to call the symbol that's actually exported directly here
+		//       See: https://refspecs.linuxbase.org/LSB_5.0.0/LSB-Core-generic/LSB-Core-generic/baselib---xstat64.html
+		//external fun stat(path: String, stat: Stat.ByRef): Int
+		external fun __xstat64(ver: Int, path: String, stat: Stat.ByRef): Int
 
 		// https://man7.org/linux/man-pages/man3/getpwuid.3p.html
 		external fun getpwuid(uid: Int): Passwd.ByRef?
@@ -282,7 +286,8 @@ object Filesystem {
 	suspend fun stat(path: Path): Stat = slowIOs {
 
 		val stat = native.Stat.ByRef()
-		val ret = native.stat(path.pathString, stat)
+		val ret = native.__xstat64(1, path.pathString, stat)
+		// NOTE: the stat version should always be 1 on 64-bit platforms
 		if (ret != 0) {
 			throw NativeException()
 		}
