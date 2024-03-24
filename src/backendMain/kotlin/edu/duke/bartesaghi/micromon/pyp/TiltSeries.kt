@@ -194,7 +194,15 @@ class TiltSeries(private val doc: Document) {
 		}
 
 	fun getAlignedTiltSeriesMontage(dir: Path):        ByteArray = dir.resolve("webp").resolve("${tiltSeriesId}_ali.webp").readBytes()
-	fun getReconstructionTiltSeriesMontage(dir: Path): ByteArray = dir.resolve("webp").resolve("${tiltSeriesId}_rec.webp").readBytes()
+	fun getReconstructionTiltSeriesMontage(dir: Path): ByteArray {
+		// try webp first, fall back to png otherwise (this is done to workaround the max size limitation of the webp format)
+		if ( dir.resolve("webp").resolve("${tiltSeriesId}_rec.webp").exists() ){
+			return dir.resolve("webp").resolve("${tiltSeriesId}_rec.webp").readBytes()
+		}
+		else {
+			return dir.resolve("webp").resolve("${tiltSeriesId}_rec.png").readBytes()
+		}
+	}
 	fun get2dCtfTiltMontage(dir: Path):                ByteArray = dir.resolve("webp" ).resolve("${tiltSeriesId}_2D_ctftilt.webp").readBytes()
 	fun getRawTiltSeriesMontage(dir: Path):            ByteArray = dir.resolve("webp").resolve("${tiltSeriesId}_raw.webp").readBytes()
 	fun getSidesTiltSeriesImage(dir: Path):            ByteArray = dir.resolve("webp").resolve("${tiltSeriesId}_sides.webp").readBytes()
