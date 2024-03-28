@@ -2,6 +2,7 @@ package edu.duke.bartesaghi.micromon.linux
 
 import edu.duke.bartesaghi.micromon.Backend
 import edu.duke.bartesaghi.micromon.exists
+import edu.duke.bartesaghi.micromon.slowIOs
 import java.nio.file.Path
 import kotlin.io.path.div
 
@@ -10,76 +11,68 @@ sealed interface Runas {
 
 	companion object {
 
-		suspend fun find(username: String): Runas {
+		suspend fun find(username: String): Runas = slowIOs f@{
 
-			// find the user-specific runas executable
 			val dir = Backend.config.web.runasDir
 			val path = (dir / "runas-$username")
-			if (!path.exists()) {
-				return Failure(path, listOf("runas executable not found at: $path"))
-			}
 
-			// TODO: update host processor to handle user,group queries
+			// find the uid
+			val uid = HostProcessor.uid(username)
+				?: return@f Failure(path, listOf("Unknown username: $username"))
+
+			// find the user-specific runas executable
+			if (!path.exists()) {
+				return@f Failure(path, listOf("File not found: $path"))
+			}
 
 			// check the unix permissions
 			val stat = Filesystem.stat(path)
 			val failures = ArrayList<String>()
 
-			/* TEMP
-
 			// the file should be owned by the given username
-			val ownerUsername = stat.username()
-				?: stat.uid.toString()
-			if (ownerUsername != username) {
-				failures.add("not owned by $username, owned by $ownerUsername")
+			if (stat.uid != uid) {
+				val fileUsername = HostProcessor.tryUsername(stat.uid)
+				failures.add("File permissions: Should be owned by $username, not $fileUsername")
 			}
 
 			// owner should have: setuid
 			if (!stat.isSetUID) {
-				failures.add("File permissions: Not setuid")
+				failures.add("File permissions: Should be setuid")
 			}
 
 			// group should have: r-x
 			if (!stat.isGroupRead) {
-				failures.add("File permissions: Group can't read")
+				failures.add("File permissions: Group should read")
 			}
 			if (stat.isGroupWrite) {
-				failures.add("File permissions: Group can write")
+				failures.add("File permissions: Group must not write")
 			}
 			if (!stat.isGroupExecute) {
-				failures.add("File permissions: Group can't execute")
+				failures.add("File permissions: Group should execute")
 			}
 
 			// other should have: r-- or ---
 			if (stat.isOtherWrite) {
-				failures.add("File permissions: Other can write")
+				failures.add("File permissions: Others must not write")
 			}
 			if (stat.isOtherExecute) {
-				failures.add("File permissions: Other can execute")
+				failures.add("File permissions: Others must not execute")
 			}
 
 			// and the file should be owned by any group among this user's groups
-			if (!Filesystem.groupMember(stat.gid)) {
-				val websiteUsername: String = try {
-					val uid = Filesystem.getUid()
-					Filesystem.getUsername(uid)
-						?: uid.toString()
-				} catch (t: Throwable) {
-					Backend.log.error("Failed to get website username", t)
-					"(unknown)"
-				}
-				val fileGroupname: String = stat.groupname()
-					?: stat.gid.toString()
-				failures.add("File permissions: website user $websiteUsername is not a member of group $fileGroupname")
+			val websiteUid = Filesystem.getUid()
+			val websiteGids = HostProcessor.gids(websiteUid)
+			if (websiteGids == null || stat.gid !in websiteGids) {
+				val micromonUsername = HostProcessor.tryUsername(websiteUid)
+				val fileGroupname = HostProcessor.tryGroupname(stat.gid)
+				failures.add("File permissions: website user $micromonUsername is not a member of group $fileGroupname")
 			}
-
-			*/
 
 			if (failures.isNotEmpty()) {
-				return Failure(path, failures)
+				return@f Failure(path, failures)
 			}
 
-			return Success(path)
+			return@f Success(path)
 		}
 	}
 

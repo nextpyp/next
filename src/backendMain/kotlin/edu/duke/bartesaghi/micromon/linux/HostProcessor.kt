@@ -1,5 +1,6 @@
 package edu.duke.bartesaghi.micromon.linux
 
+import edu.duke.bartesaghi.micromon.Backend
 import edu.duke.bartesaghi.micromon.slowIOs
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -38,6 +39,9 @@ object HostProcessor {
 
 		pipePath.outputStream(StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.SYNC).use { pipe ->
 
+			// DEBUG
+			//println("HostProcessor cmd: $command")
+
 			// write out the command
 			// do the character encoding manually
 			pipe.write(Charsets.UTF_8.encode(command).array())
@@ -51,6 +55,8 @@ object HostProcessor {
 
 			// wait for a response
 			pipe.readAllBytes().toString(Charsets.UTF_8)
+				// DEBUG
+				//.also { println("HostProcessor response: $it") }
 		}
 	}
 
@@ -83,4 +89,46 @@ object HostProcessor {
 	suspend fun kill(pid: Long) {
 		cmd("kill $pid")
 	}
+
+	suspend fun username(uid: Int): String? =
+		cmd("username $uid")
+			.takeIf { it.isNotEmpty() }
+
+	suspend fun tryUsername(uid: Int): String =
+		try {
+			username(uid)
+		} catch (t: Throwable) {
+			Backend.log.error("Failed to get username for uid=$uid", t)
+			null
+		} ?: uid.toString()
+
+	suspend fun uid(username: String): Int? =
+		cmd("uid $username")
+			.trim()
+			.takeIf { it.isNotEmpty() }
+			?.toIntOrNull()
+
+	suspend fun groupname(gid: Int): String? =
+		cmd("groupname $gid")
+			.takeIf { it.isNotEmpty() }
+
+	suspend fun tryGroupname(gid: Int): String =
+		try {
+			groupname(gid)
+		} catch (t: Throwable) {
+			Backend.log.error("Failed to get groupname for gid=$gid", t)
+			null
+		} ?: gid.toString()
+
+	suspend fun gid(groupname: String): Int? =
+		cmd("gid $groupname")
+			.trim()
+			.takeIf { it.isNotEmpty() }
+			?.toIntOrNull()
+
+	suspend fun gids(uid: Int): List<Int>? =
+		cmd("gids $uid")
+			.takeIf { it.isNotEmpty() }
+			?.split(" ")
+			?.mapNotNull { it.trim().toIntOrNull() }
 }

@@ -77,6 +77,36 @@ EOF
     ;;
 
 
+    # lookup the username for a uid
+    "username")
+      id -un "$cmdbody" > "$pipepath"
+    ;;
+
+
+    # lookup the uid for a username
+    "uid")
+      id -u "$cmdbody" > "$pipepath"
+    ;;
+
+
+    # lookup the groupname for a gid
+    "groupname")
+      id -gn "$cmdbody" > "$pipepath"
+    ;;
+
+
+    # lookup the gid for a groupname
+    "gid")
+      id -g "$cmdbody" > "$pipepath"
+    ;;
+
+
+    # lookup the gids for a uid
+    "gids")
+      id -G "$cmdbody" > "$pipepath"
+    ;;
+
+
     *)
       echo "unrecognized command type: $cmdtype"
     ;;

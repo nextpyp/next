@@ -5,9 +5,8 @@
 	--color-error-icon: #c51818;
 	--color-error-text: #710b0b;
 
-	/* TODO: make these green */
-	--color-success-icon: #c51818;
-	--color-success-text: #710b0b;
+	--color-success-icon: #5ec518;
+	--color-success-text: #39710b;
 }
 
 
@@ -219,7 +218,7 @@ div.error-message span {
 }
 
 .success-message .icon {
-	color: var(--color-error-icon);
+	color: var(--color-success-icon);
 	margin-right: 8px;
 }
 

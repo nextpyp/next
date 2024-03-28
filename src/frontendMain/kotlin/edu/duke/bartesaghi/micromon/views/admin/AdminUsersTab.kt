@@ -71,6 +71,7 @@ class AdminUsersTab(val elem: Container, val info: AdminInfo) {
 				}
 
 				val runasInfo = RunasInfo()
+				runasInfo.username = user?.osUsername
 				add(runasInfo)
 
 				osUsernameText.onEvent {
@@ -124,20 +125,23 @@ class AdminUsersTab(val elem: Container, val info: AdminInfo) {
 
 				button("Save").onClick addUser@{
 
-					// get form data
-					val userid = user?.id
-						?: useridText.value
-						?: return@addUser
-					val name = nameText.value
-						?: return@addUser
-					val permissions = permissionChecks
-						.filter { (_, check) -> check.value }
-						.map { (perm, _) -> perm }
-					val groupIds = groupChecks
-						.filter { (_, check) -> check.value }
-						.map { (groupId, _) -> groupId }
-
-					onSave(User(userid, name, permissions.toSet(), groupIds.toSet()))
+					// save user from form data
+					onSave(User(
+						id = user?.id
+							?: useridText.value
+							?: return@addUser,
+						name = nameText.value
+							?: return@addUser,
+						permissions = permissionChecks
+							.filter { (_, check) -> check.value }
+							.map { (perm, _) -> perm }
+							.toSet(),
+						groups = groupChecks
+							.filter { (_, check) -> check.value }
+							.map { (groupId, _) -> groupId }
+							.toSet(),
+						osUsername = osUsernameText.value
+					))
 					this@modal.hide()
 				}
 
@@ -454,8 +458,8 @@ class RunasInfo : Div(classes = setOf("runas-info")) {
 	private var checking: String? = null
 	private var checkError: Throwable? = null
 
-	private val emptyMessage = Span("No OS username set", classes = setOf("empty", "spaced"))
-	private val readyMessage = Span("Ready to check runas executable", classes = setOf("empty", "spaced"))
+	private val emptyMessage = Span("No OS username set", classes = setOf("empty"))
+	private val readyMessage = Span("Ready to check runas executable", classes = setOf("empty"))
 
 	private val elem = Div(classes = setOf("main"))
 
