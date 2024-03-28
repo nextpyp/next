@@ -249,6 +249,7 @@ actual class ProjectsService : IProjectsService {
 
 		// load log failures
 		val failedArrayIds = Database.cluster.log.findArrayIdsByResultType(clusterJobId, ClusterJobResultType.Failure)
+			.sorted()
 
 		return ClusterJobLog(
 			clusterJob.commands.representativeCommand(),
