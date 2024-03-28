@@ -126,24 +126,30 @@ object Filesystem {
 		}
 
 		// https://man7.org/linux/man-pages/man3/stat.3type.html
+		// but actually, see: /usr/include/bits/struct_stat.h
 		@Structure.FieldOrder(
-			"st_dev", "st_ino", "st_nlink", "st_mode", "st_uid", "st_gid", "st_rdev", "st_size", "st_blksize",
-			"st_blocks", "st_atim", "st_mtim", "st_ctim"
+			"st_dev", "st_ino", "st_nlink",
+			"st_mode", "st_uid", "st_gid", "__pad0",
+			"st_rdev", "st_size", "st_blksize", "st_blocks",
+			"st_atim", "st_mtim", "st_ctim",
+			"__glibc_reserved"
 		)
 		open class Stat(
-			@JvmField var st_dev: NativeLong = NativeLong(), /* ID of device containing file */
-			@JvmField var st_ino: NativeLong = NativeLong(), /* Inode number */
+			@JvmField var st_dev: Long = 0L, /* ID of device containing file */
+			@JvmField var st_ino: Long = 0L, /* Inode number */
+			@JvmField var st_nlink: Long = 0L, /* Number of hard links */
 			@JvmField var st_mode: Int = 0, /* File type and mode */
-			@JvmField var st_nlink: NativeLong = NativeLong(), /* Number of hard links */
 			@JvmField var st_uid: Int = 0, /* User ID of owner */
 			@JvmField var st_gid: Int = 0, /* Group ID of owner */
-			@JvmField var st_rdev: NativeLong = NativeLong(), /* Device ID (if special file) */
-			@JvmField var st_size: NativeLong = NativeLong(), /* Total size, in bytes */
-			@JvmField var st_blksize: NativeLong = NativeLong(), /* Block size for filesystem I/O */
-			@JvmField var st_blocks: NativeLong = NativeLong(), /* Number of 512B blocks allocated */
+			@JvmField var __pad0: Int = 0, /* for 8-byte word alignment */
+			@JvmField var st_rdev: Long = 0L, /* Device ID (if special file) */
+			@JvmField var st_size: Long = 0L, /* Total size, in bytes */
+			@JvmField var st_blksize: Long = 0L, /* Block size for filesystem I/O */
+			@JvmField var st_blocks: Long = 0L, /* Number of 512B blocks allocated */
 			@JvmField var st_atim: Timespec = Timespec(), /* Time of last access */
 			@JvmField var st_mtim: Timespec = Timespec(), /* Time of last modification */
 			@JvmField var st_ctim: Timespec = Timespec(), /* Time of last status change */
+			@JvmField var __glibc_reserved: ByteArray = ByteArray(24),
 		) : Structure() {
 			class ByRef : Stat(), ByReference
 		}
