@@ -1,4 +1,18 @@
 
+/* CSS VARIABLES */
+
+:root {
+	--color-error-icon: #c51818;
+	--color-error-text: #710b0b;
+
+	/* TODO: make these green */
+	--color-success-icon: #c51818;
+	--color-success-text: #710b0b;
+}
+
+
+/* BASIC HTML */
+
 body {
 	margin-top: 20px;
 	margin-bottom: 20px;
@@ -7,6 +21,9 @@ body {
 a {
 	cursor: pointer;
 }
+
+
+/* GENERAL CLASSES */
 
 .circular {
 	border-radius: 10000px;
@@ -55,6 +72,7 @@ button.image-button {
 button.image-button.reconstruction-node img {
 	width: 256px;
 }
+
 
 /* BOOTSTRAP TWEAKS */
 
@@ -191,13 +209,22 @@ div.loading.no-height {
 }
 
 div.error-message span.icon {
-	color: #c51818;
+	color: var(--color-error-icon);
 	margin-right: 8px;
 }
 
 div.error-message span {
-	color: #710b0b;
+	color: var(--color-error-text);
 	font-style: italic;
+}
+
+.success-message .icon {
+	color: var(--color-error-icon);
+	margin-right: 8px;
+}
+
+.success-message span {
+	color: var(--color-success-text);
 }
 
 
@@ -1189,6 +1216,26 @@ div.admin-popup h1 {
 div.admin-popup div.block {
 	margin-top: 20px;
 	margin-bottom: 20px;
+}
+
+.admin-user-popup .form-group label {
+	font-size: 140%;
+}
+
+.admin-user-popup .runas-info {
+	margin-left: 8px;
+	display: flex;
+	flex-direction: row;
+	gap: 20px;
+	align-items: flex-start;
+}
+
+.admin-user-popup .runas-info .main {
+	flex-grow: 1;
+}
+
+.admin-user-popup .runas-info .main .icon {
+	margin-right: 8px;
 }
 
 

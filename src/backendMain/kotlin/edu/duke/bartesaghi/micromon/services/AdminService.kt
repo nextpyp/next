@@ -10,6 +10,7 @@ import edu.duke.bartesaghi.micromon.auth.lookupName
 import edu.duke.bartesaghi.micromon.cluster.Cluster
 import edu.duke.bartesaghi.micromon.cluster.ClusterJob
 import edu.duke.bartesaghi.micromon.cluster.standalone.PseudoCluster
+import edu.duke.bartesaghi.micromon.linux.Runas
 import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.projects.Project
 import edu.duke.bartesaghi.micromon.pyp.Pyp
@@ -350,6 +351,25 @@ actual class AdminService : IAdminService {
 			jvmHeapOld,
 			requests
 		)
+	}
+
+	override suspend fun checkRunas(osUsername: String): RunasData = sanitizeExceptions {
+
+		return when (val runas = Runas.find(osUsername)) {
+
+			is Runas.Success -> RunasData(
+				runas.path.toString(),
+				true,
+				emptyList()
+			)
+
+			is Runas.Failure -> RunasData(
+				runas.path.toString(),
+				false,
+				runas.reasons
+			)
+
+		}
 	}
 
 

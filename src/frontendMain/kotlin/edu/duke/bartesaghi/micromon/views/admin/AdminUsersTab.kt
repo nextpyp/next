@@ -5,11 +5,13 @@ import edu.duke.bartesaghi.micromon.components.TabulatorProxy
 import edu.duke.bartesaghi.micromon.components.forms.copyToClipboard
 import edu.duke.bartesaghi.micromon.components.forms.enabled
 import edu.duke.bartesaghi.micromon.services.AdminInfo
+import edu.duke.bartesaghi.micromon.services.RunasData
 import edu.duke.bartesaghi.micromon.services.Services
 import io.kvision.core.Container
 import io.kvision.core.onEvent
 import io.kvision.form.check.checkBox
 import io.kvision.form.text.TextInput
+import io.kvision.form.text.text
 import io.kvision.form.text.textInput
 import io.kvision.html.*
 import io.kvision.modal.Alert
@@ -35,7 +37,7 @@ class AdminUsersTab(val elem: Container, val info: AdminInfo) {
 			},
 			escape = true,
 			closeButton = true,
-			classes = setOf("admin-popup")
+			classes = setOf("admin-popup", "admin-user-popup", "max-height-dialog")
 		).apply modal@{
 			AppScope.launch l@{
 
@@ -52,15 +54,29 @@ class AdminUsersTab(val elem: Container, val info: AdminInfo) {
 				}
 
 				// show a box to type the id, if needed
-				val useridText = textInput {
-					placeholder = "User ID"
+				val useridText = text {
+					label = "User ID"
 					value = user?.id ?: ""
 					disabled = user != null
 				}
 
-				val nameText = textInput {
-					placeholder = "Display Name"
+				val nameText = text {
+					label = "Display Name"
 					value = user?.name ?: ""
+				}
+
+				val osUsernameText = text {
+					label = "OS Username"
+					value = user?.osUsername
+				}
+
+				val runasInfo = RunasInfo()
+				add(runasInfo)
+
+				osUsernameText.onEvent {
+					input = {
+						runasInfo.username = osUsernameText.value
+					}
 				}
 
 				// show the permissions
@@ -422,5 +438,122 @@ class AdminUsersTab(val elem: Container, val info: AdminInfo) {
 				elem.remove(loadingElem)
 			}
 		}
+	}
+}
+
+
+class RunasInfo : Div(classes = setOf("runas-info")) {
+
+	var username: String? = null
+		set(value) {
+			field = value
+			update()
+		}
+
+	private var runas: RunasData? = null
+	private var checking: String? = null
+	private var checkError: Throwable? = null
+
+	private val emptyMessage = Span("No OS username set", classes = setOf("empty", "spaced"))
+	private val readyMessage = Span("Ready to check runas executable", classes = setOf("empty", "spaced"))
+
+	private val elem = Div(classes = setOf("main"))
+
+	private val checkButton = Button("Check", icon = "fas fa-user-cog")
+
+	init {
+
+		// layout the UI
+		add(elem)
+		add(checkButton)
+
+		// wite up events
+		checkButton.onClick e@{
+			val username = username
+				?: return@e
+			AppScope.launch {
+				check(username)
+			}
+		}
+
+		update()
+	}
+
+	private fun update() {
+
+		elem.removeAll()
+
+		// copy state to local vars, because something something threads
+		val checking = checking
+		val checkError = checkError
+		val username = username
+		val runas = runas
+
+		checkButton.enabled = username != null
+
+		if (checking != null) {
+
+			elem.loading("Checking runas executable for username $checking ...")
+			checkButton.enabled = false
+
+		} else if (checkError != null) {
+
+			elem.errorMessage(checkError)
+
+		} else if (username != null) {
+
+			if (runas != null) {
+
+				elem.div {
+					iconStyled("far fa-file", classes = setOf("icon"))
+					span(runas.path)
+				}
+
+				if (runas.ok) {
+					elem.div(classes = setOf("success-message")) {
+						iconStyled("fas fa-check", classes = setOf("icon"))
+						span("runas executable available")
+					}
+				} else {
+					elem.div(classes = setOf("error-message")) {
+						div {
+							iconStyled("fas fa-exclamation-triangle", classes = setOf("icon"))
+							span("runas executable not available:")
+						}
+						ul {
+							for (problem in runas.problems) {
+								li {
+									span(problem)
+								}
+							}
+						}
+					}
+				}
+
+			} else {
+				elem.add(readyMessage)
+			}
+
+		} else {
+			elem.add(emptyMessage)
+		}
+	}
+
+	suspend fun check(username: String) {
+
+		checking = username
+		checkError = null
+		runas = null
+		update()
+
+		try {
+			runas = Services.admin.checkRunas(username)
+		} catch (t: Throwable) {
+			checkError = t
+		} finally {
+			checking = null
+		}
+
+		update()
 	}
 }

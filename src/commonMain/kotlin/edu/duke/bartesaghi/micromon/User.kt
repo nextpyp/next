@@ -17,7 +17,8 @@ data class User(
 	val name: String,
 	val permissions: Set<Permission>,
 	val groups: Set<Group>,
-	val haspw: Boolean = false
+	val haspw: Boolean = false,
+	val osUsername: String? = null
 ) {
 
 	@Serializable

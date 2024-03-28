@@ -30,6 +30,29 @@ object Filesystem {
 		//external fun stat(path: String, stat: Stat.ByRef): Int
 		external fun __xstat64(ver: Int, path: String, stat: Stat.ByRef): Int
 
+		// https://man7.org/linux/man-pages/man3/getuid.3p.html
+		external fun getuid(): Int
+
+		/* NOTE:
+			User and group query functions are nearly useless inside the container,
+			since the container won't generally know about users and groups on the host OS.
+			Just mapping PAM config (/etc/pam.d/ and files like /etc/passwd, /etc/group) may work in some cases,
+			but won't work in general, because PAM configuration may rely on userspace libraries
+			that aren't in the container.
+			Also, the container may use a different user namespace than the host OS,
+			although apptainer doesn't generally do that unless you use --fakeroot, which we don't.
+
+			So don't use these user,group query functions from the local kernel.
+			Instead, talk to the host processor to get info from the host.
+
+			Tragically, we're one syscall away from accessing host data from inside the container.
+			setns() would let us move to the host mnt namespace (apptainer only seems to use mnt namespaces by default)
+			which would let user,group queries return useful results, but alas, moving into a mnt namespace
+			requires root permisisons. They haven't made a root-less way to do this yet, even though
+			creating the mnt namespace and moving into it didn't require root to begin with.
+			The lack of symmetry here is annoying! >8(
+			See: https://www.man7.org/linux/man-pages/man2/setns.2.html
+
 		// https://man7.org/linux/man-pages/man3/getpwuid.3p.html
 		external fun getpwuid(uid: Int): Passwd.ByRef?
 
@@ -38,6 +61,8 @@ object Filesystem {
 
 		// https://man7.org/linux/man-pages/man3/group_member.3.html
 		external fun group_member(gid: Int): Int
+
+		*/
 
 		// https://man7.org/linux/man-pages/man2/getdents.2.html
 		//external fun getdents64(fd: Int, dirp: Pointer, count: Long): Long
@@ -342,43 +367,24 @@ object Filesystem {
 
 		val isOtherExecute: Boolean get() =
 			(mode and (1 shl 0)) != 0
-
-		suspend fun username(): String? =
-			getUsername(uid)
-
-		suspend fun groupname(): String? =
-			getGroupname(gid)
 	}
 
-	suspend fun getUsername(uid: Int): String? = slowIOs {
-
-		val passwd = native.getpwuid(uid)
-		if (NativeException.exists()) {
-			throw NativeException()
-		}
-
-		passwd?.pw_name?.getString(0)
-	}
-
-	suspend fun getGroupname(gid: Int): String? = slowIOs {
-
-		val group = native.getgrgid(gid)
-		if (NativeException.exists()) {
-			throw NativeException()
-		}
-
-		group?.gr_name?.getString(0)
-	}
-
-	suspend fun groupMember(gid: Int): Boolean = slowIOs {
-		native.group_member(gid) != 0
+	suspend fun getUid(): Int = slowIOs {
+		native.getuid()
 	}
 }
 
 
 /* DEBUG
 fun main() {
+
 	val path = "/"
 	println(Filesystem.listFolderFast(path)?.map { it.name })
+
+	kotlinx.coroutines.runBlocking {
+		val stat = Filesystem.stat(java.nio.file.Paths.get("/home/jeff/archbtw"))
+		println("stat: $stat")
+		println("UID: ${Filesystem.getUid()}")
+	}
 }
 */

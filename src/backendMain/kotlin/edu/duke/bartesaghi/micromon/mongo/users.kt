@@ -74,7 +74,8 @@ class Users {
 			groups = (getListOfStrings("groups") ?: emptyList())
 				.mapNotNull { groupId -> Database.groups.get(groupId) }
 				.toSet(),
-			haspw = getString("pwhash") != null
+			haspw = getString("pwhash") != null,
+			osUsername = getString("osUsername")
 		)
 
 	fun create(user: User) {
@@ -89,7 +90,8 @@ class Users {
 		update(user.id,
 			Updates.set("name", user.name),
 			Updates.set("permissions", user.permissions.map { it.id }.sorted()),
-			Updates.set("groups", user.groups.map { it.idOrThrow }.sorted())
+			Updates.set("groups", user.groups.map { it.idOrThrow }.sorted()),
+			Updates.set("osUsername", user.osUsername)
 		)
 	}
 

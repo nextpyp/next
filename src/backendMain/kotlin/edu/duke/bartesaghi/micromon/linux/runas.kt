@@ -2,8 +2,6 @@ package edu.duke.bartesaghi.micromon.linux
 
 import edu.duke.bartesaghi.micromon.Backend
 import edu.duke.bartesaghi.micromon.exists
-import edu.duke.bartesaghi.micromon.toPath
-import kotlinx.coroutines.runBlocking
 import java.nio.file.Path
 import kotlin.io.path.div
 
@@ -18,15 +16,20 @@ sealed interface Runas {
 			val dir = Backend.config.web.runasDir
 			val path = (dir / "runas-$username")
 			if (!path.exists()) {
-				return Failure(listOf("runas executable not found at: $path"))
+				return Failure(path, listOf("runas executable not found at: $path"))
 			}
+
+			// TODO: update host processor to handle user,group queries
 
 			// check the unix permissions
 			val stat = Filesystem.stat(path)
 			val failures = ArrayList<String>()
 
+			/* TEMP
+
 			// the file should be owned by the given username
 			val ownerUsername = stat.username()
+				?: stat.uid.toString()
 			if (ownerUsername != username) {
 				failures.add("not owned by $username, owned by $ownerUsername")
 			}
@@ -55,9 +58,25 @@ sealed interface Runas {
 				failures.add("File permissions: Other can execute")
 			}
 
-			// and the file should be owned by group among this user's groups
+			// and the file should be owned by any group among this user's groups
 			if (!Filesystem.groupMember(stat.gid)) {
-				failures.add("File permissions: website user $ is not a member of group ${stat.groupname()}")
+				val websiteUsername: String = try {
+					val uid = Filesystem.getUid()
+					Filesystem.getUsername(uid)
+						?: uid.toString()
+				} catch (t: Throwable) {
+					Backend.log.error("Failed to get website username", t)
+					"(unknown)"
+				}
+				val fileGroupname: String = stat.groupname()
+					?: stat.gid.toString()
+				failures.add("File permissions: website user $websiteUsername is not a member of group $fileGroupname")
+			}
+
+			*/
+
+			if (failures.isNotEmpty()) {
+				return Failure(path, failures)
 			}
 
 			return Success(path)
@@ -72,18 +91,8 @@ sealed interface Runas {
 		//   a function to start a child jvm process?
 	}
 
-	class Failure(val reasons: List<String>) : Runas
+	class Failure(
+		val path: Path,
+		val reasons: List<String>
+	) : Runas
 }
-
-
-/* DEBUG
-fun main() {
-
-	runBlocking {
-		val stat = Filesystem.stat("/home/jeff/archbtw".toPath())
-		println("stat: $stat")
-		println("username: ${stat.username()}")
-		println("groupname: ${stat.groupname()}")
-	}
-}
-*/

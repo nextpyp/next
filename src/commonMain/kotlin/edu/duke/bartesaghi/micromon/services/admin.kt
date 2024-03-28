@@ -57,6 +57,9 @@ interface IAdminService {
 
 	@KVBindingRoute("admin/perf")
 	suspend fun perf(): PerfData
+
+	@KVBindingRoute("admin/checkRunas")
+	suspend fun checkRunas(osUsername: String): RunasData
 }
 
 
@@ -254,3 +257,12 @@ data class PerfData(
 		)
 	}
 }
+
+
+@Serializable
+data class RunasData(
+	/** in the real filesystem, ie, outside the container */
+	val path: String,
+	val ok: Boolean,
+	val problems: List<String>
+)
