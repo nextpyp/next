@@ -1,8 +1,6 @@
 package edu.duke.bartesaghi.micromon.linux
 
-import edu.duke.bartesaghi.micromon.Backend
-import edu.duke.bartesaghi.micromon.exists
-import edu.duke.bartesaghi.micromon.slowIOs
+import edu.duke.bartesaghi.micromon.*
 import java.nio.file.Path
 import kotlin.io.path.div
 
@@ -80,8 +78,17 @@ sealed interface Runas {
 		val path: Path
 	) : Runas {
 
-		// TODO: some kind of run function?
-		//   a function to start a child jvm process?
+		fun cmd(cmd: String, args: List<String> = emptyList()): ProcessStreamer =
+			ProcessBuilder()
+				.command(listOf(path.toString(), "--", cmd) + args)
+				.stream()
+				.waitFor()
+
+		/* TODO
+		fun jvm(): RunasJvm {
+			// TODO
+		}
+		*/
 	}
 
 	class Failure(

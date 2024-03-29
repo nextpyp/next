@@ -58,8 +58,11 @@ interface IAdminService {
 	@KVBindingRoute("admin/perf")
 	suspend fun perf(): PerfData
 
-	@KVBindingRoute("admin/checkRunas")
+	@KVBindingRoute("admin/runas/check")
 	suspend fun checkRunas(osUsername: String): RunasData
+
+	@KVBindingRoute("admin/runas/whoami")
+	suspend fun runasWhoami(osUsername: String): String
 }
 
 

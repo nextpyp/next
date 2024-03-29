@@ -371,6 +371,17 @@ actual class AdminService : IAdminService {
 
 		}
 	}
+	
+	override suspend fun runasWhoami(osUsername: String): String = sanitizeExceptions {
+
+		val runas = (Runas.find(osUsername) as? Runas.Success)
+			?: return "Runas not available for $osUsername"
+
+		return runas.cmd("whoami")
+			.waitFor()
+			.console
+			.joinToString()
+	}
 
 
 	companion object : ClusterJob.OwnerListener {

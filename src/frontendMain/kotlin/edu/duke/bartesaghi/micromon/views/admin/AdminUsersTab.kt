@@ -457,13 +457,14 @@ class RunasInfo : Div(classes = setOf("runas-info")) {
 	private var runas: RunasData? = null
 	private var checking: String? = null
 	private var checkError: Throwable? = null
-
-	private val emptyMessage = Span("No OS username set", classes = setOf("empty"))
-	private val readyMessage = Span("Ready to check runas executable", classes = setOf("empty"))
+	private var runningWhoami: String? = null
+	private var whoamiResult: String? = null
+	private var whoamiError: Throwable? = null
 
 	private val elem = Div(classes = setOf("main"))
 
 	private val checkButton = Button("Check", icon = "fas fa-user-cog")
+	private val whoamiButton = Button("Whoami")
 
 	init {
 
@@ -471,12 +472,20 @@ class RunasInfo : Div(classes = setOf("runas-info")) {
 		add(elem)
 		add(checkButton)
 
-		// wite up events
+		// wire up events
 		checkButton.onClick e@{
 			val username = username
 				?: return@e
 			AppScope.launch {
 				check(username)
+			}
+		}
+
+		whoamiButton.onClick e@{
+			val username = username
+				?: return@e
+			AppScope.launch {
+				whoami(username)
 			}
 		}
 
@@ -492,6 +501,8 @@ class RunasInfo : Div(classes = setOf("runas-info")) {
 		val checkError = checkError
 		val username = username
 		val runas = runas
+		val runningWhoami = runningWhoami
+		val whoamiResult = whoamiResult
 
 		checkButton.enabled = username != null
 
@@ -514,11 +525,33 @@ class RunasInfo : Div(classes = setOf("runas-info")) {
 				}
 
 				if (runas.ok) {
+
 					elem.div(classes = setOf("success-message")) {
 						iconStyled("fas fa-check", classes = setOf("icon"))
 						span("runas executable available")
 					}
+
+					if (runningWhoami != null) {
+						elem.loading("Running `whoami` as $username ...")
+					} else if (whoamiResult != null) {
+						if (whoamiResult == username) {
+							elem.div(classes = setOf("success-message")) {
+								iconStyled("fas fa-check", classes = setOf("icon"))
+								span("Success: $whoamiResult")
+							}
+						} else {
+							elem.div(classes = setOf("error-message")) {
+								iconStyled("fas fa-exclamation-triangle", classes = setOf("icon"))
+								span("Failure: $whoamiResult")
+							}
+						}
+					} else {
+						elem.add(whoamiButton)
+						elem.span(" Test runas with `whoami`", classes = setOf("empty"))
+					}
+
 				} else {
+
 					elem.div(classes = setOf("error-message")) {
 						div {
 							iconStyled("fas fa-exclamation-triangle", classes = setOf("icon"))
@@ -535,11 +568,11 @@ class RunasInfo : Div(classes = setOf("runas-info")) {
 				}
 
 			} else {
-				elem.add(readyMessage)
+				elem.span("Ready to check runas executable", classes = setOf("empty"))
 			}
 
 		} else {
-			elem.add(emptyMessage)
+			elem.span("No OS username set", classes = setOf("empty"))
 		}
 	}
 
@@ -548,6 +581,8 @@ class RunasInfo : Div(classes = setOf("runas-info")) {
 		checking = username
 		checkError = null
 		runas = null
+		whoamiError = null
+		whoamiResult = null
 		update()
 
 		try {
@@ -556,6 +591,24 @@ class RunasInfo : Div(classes = setOf("runas-info")) {
 			checkError = t
 		} finally {
 			checking = null
+		}
+
+		update()
+	}
+
+	suspend fun whoami(username: String) {
+
+		runningWhoami = username
+		whoamiError = null
+		whoamiResult = null
+		update()
+
+		try {
+			whoamiResult = Services.admin.runasWhoami(username)
+		} catch (t: Throwable) {
+			whoamiError = t
+		} finally {
+			runningWhoami = null
 		}
 
 		update()
