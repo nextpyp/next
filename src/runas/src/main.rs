@@ -1,6 +1,7 @@
 
 use std::env;
 use std::ffi::{OsStr, OsString};
+use std::path::PathBuf;
 use std::process::{Command, ExitCode};
 
 use gumdrop::{Options, ParsingStyle};
@@ -73,17 +74,31 @@ fn main() -> ExitCode {
 	}
 
 	if !args.quiet {
+
+		// get the name of this runas command (it often gets renamed since we need multiple copies)
+		let runas_name = env::args_os()
+			.next()
+			.map(|s| {
+				PathBuf::from(s)
+					.file_name()
+					.map(|n| n.to_string_lossy().to_string())
+			})
+			.flatten()
+			.unwrap_or("runas (probably?)".to_string());
+
 		// show the current user
-		let user_current = users::get_current_username()
-			.map(|s| s.to_string_lossy().to_string())
+		let uid_current = users::get_current_uid();
+		let uid_effective = users::get_effective_uid();
+		let username_current = users::get_user_by_uid(uid_current)
+			.map(|user| user.name().to_string_lossy().to_string())
 			.unwrap_or("(unknown)".to_string());
-		let user_effective = users::get_effective_username()
-			.map(|s| s.to_string_lossy().to_string())
+		let username_effective = users::get_user_by_uid(uid_effective)
+			.map(|user| user.name().to_string_lossy().to_string())
 			.unwrap_or("(unknown)".to_string());
-		if user_current == user_effective {
-			println!("nextPYP runas running as {}", user_current);
+		if uid_current == uid_effective {
+			println!("nextPYP {} running as {}:{}", runas_name, uid_current, username_current);
 		} else {
-			println!("nextPYP runas started as {}, but acting as {}", user_current, user_effective);
+			println!("nextPYP {} started as {}:{}, but acting as {}:{}", runas_name, uid_current, username_current, uid_effective, username_effective);
 		}
 		// NOTE: compiling with a statically-linked libc can cause the above libc calls to segfault
 		// if the compiled libc is incompatible with the kernel in the deployed environment
