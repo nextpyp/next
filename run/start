@@ -111,7 +111,7 @@ if [ -f "$argspath" ] ; then
 fi
 
 # build the command to run the CLI
-cli="singularity run --app cli $binds nextPYP.sif"
+cli="singularity run --app cli $binds --no-home nextPYP.sif"
 
 echo "Reading config.toml using CLI tool ..."
 
