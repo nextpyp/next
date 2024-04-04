@@ -75,12 +75,15 @@ fun String.popPath(): Pair<String?,String> =
 
 /**
  * A simple implementation of a glob matcher, so we don't have to import another JS library.
- * Only supports the * operator, for now.
+ * Only supports the * and ? operators, for now.
  */
 class GlobMatcher(val glob: String) {
 
 	// convert it into a regex
-	val regex = Regex(Regex.escape(glob).replace("\\*", ".*"))
+	val regex = Regex(Regex.escape(glob)
+		.replace("\\*", ".*")
+		.replace("\\?", ".")
+	)
 
 	fun matches(q: String): Boolean =
 		regex.matches(q)
