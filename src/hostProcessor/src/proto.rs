@@ -25,9 +25,14 @@ pub enum Request {
 	},
 
 	/// send a chunk to the stdin of a process launched with Exec
-	Stdin {
+	WriteStdin {
 		pid: u32,
 		chunk: Vec<u8>
+	},
+
+	/// send a chunk to the stdin of a process launched with Exec
+	CloseStdin {
+		pid: u32
 	},
 
 	/// send SIGTERM to a process launched with Exec
@@ -61,6 +66,21 @@ pub enum Request {
 	}
 }
 
+impl Request {
+	const ID_PING: u32 = 1;
+	const ID_EXEC: u32 = 2;
+	const ID_STATUS: u32 = 3;
+	const ID_WRITE_STDIN: u32 = 4;
+	const ID_CLOSE_STDIN: u32 = 5;
+	const ID_KILL: u32 = 6;
+	const ID_USERNAME: u32 = 7;
+	const ID_UID: u32 = 8;
+	const ID_GROUPNAME: u32 = 9;
+	const ID_GID: u32 = 10;
+	const ID_GIDS: u32 = 11;
+}
+
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExecRequest {
 	pub program: String,
@@ -81,11 +101,11 @@ impl RequestEnvelope {
 
 			Request::Ping => {
 				// only need the type id
-				out.write_u32::<BigEndian>(1)?
+				out.write_u32::<BigEndian>(Request::ID_PING)?
 			}
 
 			Request::Exec(request) => {
-				out.write_u32::<BigEndian>(2)?;
+				out.write_u32::<BigEndian>(Request::ID_EXEC)?;
 				out.write_utf8(&request.program)?;
 				out.write_vec(&request.args, |out, item| {
 					out.write_utf8(item)
@@ -96,43 +116,48 @@ impl RequestEnvelope {
 			}
 
 			Request::Status { pid } => {
-				out.write_u32::<BigEndian>(3)?;
+				out.write_u32::<BigEndian>(Request::ID_STATUS)?;
 				out.write_u32::<BigEndian>(*pid)?;
 			}
 
-			Request::Stdin { pid, chunk } => {
-				out.write_u32::<BigEndian>(4)?;
+			Request::WriteStdin { pid, chunk } => {
+				out.write_u32::<BigEndian>(Request::ID_WRITE_STDIN)?;
 				out.write_u32::<BigEndian>(*pid)?;
 				out.write_bytes(chunk)?;
 			}
 
+			Request::CloseStdin { pid} => {
+				out.write_u32::<BigEndian>(Request::ID_CLOSE_STDIN)?;
+				out.write_u32::<BigEndian>(*pid)?;
+			}
+
 			Request::Kill { pid } => {
-				out.write_u32::<BigEndian>(5)?;
+				out.write_u32::<BigEndian>(Request::ID_KILL)?;
 				out.write_u32::<BigEndian>(*pid)?;
 			}
 
 			Request::Username { uid } => {
-				out.write_u32::<BigEndian>(6)?;
+				out.write_u32::<BigEndian>(Request::ID_USERNAME)?;
 				out.write_u32::<BigEndian>(*uid)?;
 			}
 
 			Request::Uid { username } => {
-				out.write_u32::<BigEndian>(7)?;
+				out.write_u32::<BigEndian>(Request::ID_UID)?;
 				out.write_utf8(username)?;
 			}
 
 			Request::Groupname { gid } => {
-				out.write_u32::<BigEndian>(8)?;
+				out.write_u32::<BigEndian>(Request::ID_GROUPNAME)?;
 				out.write_u32::<BigEndian>(*gid)?;
 			}
 
 			Request::Gid { groupname } => {
-				out.write_u32::<BigEndian>(9)?;
+				out.write_u32::<BigEndian>(Request::ID_GID)?;
 				out.write_utf8(groupname)?;
 			}
 
 			Request::Gids { uid } => {
-				out.write_u32::<BigEndian>(10)?;
+				out.write_u32::<BigEndian>(Request::ID_GIDS)?;
 				out.write_u32::<BigEndian>(*uid)?;
 			}
 		}
@@ -151,53 +176,59 @@ impl RequestEnvelope {
 		// read the request type id
 		let type_id = reader.read_u32::<BigEndian>()
 			.context("Failed to read request type id")?;
-		let request = match type_id {
-
-			1 => Request::Ping,
-
-			2 => Request::Exec(ExecRequest {
-				program: reader.read_utf8()?,
-				args: reader.read_vec(|r| r.read_utf8())?,
-				stream_stdin: reader.read_bool()?,
-				stream_stdout: reader.read_bool()?,
-				stream_stderr: reader.read_bool()?,
-			}),
-
-			3 => Request::Status {
-				pid: reader.read_u32::<BigEndian>()?
-			},
-
-			4 => Request::Stdin {
-				pid: reader.read_u32::<BigEndian>()?,
-				chunk: reader.read_bytes()?
-			},
-
-			5 => Request::Kill {
-				pid: reader.read_u32::<BigEndian>()?
-			},
-
-			6 => Request::Username {
-				uid: reader.read_u32::<BigEndian>()?
-			},
-
-			7 => Request::Uid {
-				username: reader.read_utf8()?
-			},
-
-			8 => Request::Groupname {
-				gid: reader.read_u32::<BigEndian>()?
-			},
-
-			9 => Request::Gid {
-				groupname: reader.read_utf8()?
-			},
-
-			10 => Request::Gids {
-				uid: reader.read_u32::<BigEndian>()?
-			},
-
-			_ => bail!("Unrecognized request type id: {}", type_id)
-		};
+		// NOTE: we can't match on constants here, so use if/elseif/else instead
+		//       see: https://doc.rust-lang.org/unstable-book/language-features/inline-const-pat.html
+		let request =
+			if type_id == Request::ID_PING {
+				Request::Ping
+			} else if type_id == Request::ID_EXEC {
+				Request::Exec(ExecRequest {
+					program: reader.read_utf8()?,
+					args: reader.read_vec(|r| r.read_utf8())?,
+					stream_stdin: reader.read_bool()?,
+					stream_stdout: reader.read_bool()?,
+					stream_stderr: reader.read_bool()?,
+				})
+			} else if type_id == Request::ID_STATUS {
+				Request::Status {
+					pid: reader.read_u32::<BigEndian>()?
+				}
+			} else if type_id == Request::ID_WRITE_STDIN {
+				Request::WriteStdin {
+					pid: reader.read_u32::<BigEndian>()?,
+					chunk: reader.read_bytes()?
+				}
+			} else if type_id == Request::ID_CLOSE_STDIN {
+				Request::CloseStdin {
+					pid: reader.read_u32::<BigEndian>()?
+				}
+			} else if type_id == Request::ID_KILL {
+				Request::Kill {
+					pid: reader.read_u32::<BigEndian>()?
+				}
+			} else if type_id == Request::ID_USERNAME {
+				Request::Username {
+					uid: reader.read_u32::<BigEndian>()?
+				}
+			} else if type_id == Request::ID_UID {
+				Request::Uid {
+					username: reader.read_utf8()?
+				}
+			} else if type_id == Request::ID_GROUPNAME {
+				Request::Groupname {
+					gid: reader.read_u32::<BigEndian>()?
+				}
+			} else if type_id == Request::ID_GID {
+				Request::Gid {
+					groupname: reader.read_utf8()?
+				}
+			} else if type_id == Request::ID_GIDS {
+				Request::Gids {
+					uid: reader.read_u32::<BigEndian>()?
+				}
+			} else {
+				bail!("Unrecognized request type id: {}", type_id);
+			};
 
 		Ok(RequestEnvelope {
 			id: request_id,
@@ -229,6 +260,17 @@ pub enum Response {
 	Gids(Option<Vec<u32>>)
 }
 
+impl Response {
+	const ID_PONG: u32 = 1;
+	const ID_EXEC: u32 = 2;
+	const ID_STATUS: u32 = 3;
+	const ID_USERNAME: u32 = 4;
+	const ID_UID: u32 = 5;
+	const ID_GROUPNAME: u32 = 6;
+	const ID_GID: u32 = 7;
+	const ID_GIDS: u32 = 8;
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ExecResponse {
 	Success {
@@ -250,11 +292,11 @@ impl ResponseEnvelope {
 
 			Response::Pong => {
 				// only need the type id
-				out.write_u32::<BigEndian>(1)?;
+				out.write_u32::<BigEndian>(Response::ID_PONG)?;
 			}
 
 			Response::Exec(response) => {
-				out.write_u32::<BigEndian>(2)?;
+				out.write_u32::<BigEndian>(Response::ID_EXEC)?;
 				match response {
 					ExecResponse::Success { pid} => {
 						out.write_u32::<BigEndian>(1)?;
@@ -268,21 +310,21 @@ impl ResponseEnvelope {
 			}
 
 			Response::Status(status) => {
-				out.write_u32::<BigEndian>(3)?;
+				out.write_u32::<BigEndian>(Response::ID_STATUS)?;
 				out.write_option(status, |out, status| {
 					out.write_utf8(status)
 				})?
 			}
 
 			Response::Username(username) => {
-				out.write_u32::<BigEndian>(5)?;
+				out.write_u32::<BigEndian>(Response::ID_USERNAME)?;
 				out.write_option(username, |out, username| {
 					out.write_utf8(username)
 				})?
 			}
 
 			Response::Uid(uid) => {
-				out.write_u32::<BigEndian>(6)?;
+				out.write_u32::<BigEndian>(Response::ID_UID)?;
 				out.write_option(uid, |out, uid| {
 					out.write_u32::<BigEndian>(*uid)?;
 					Ok(())
@@ -290,14 +332,14 @@ impl ResponseEnvelope {
 			}
 
 			Response::Groupname(groupname) => {
-				out.write_u32::<BigEndian>(7)?;
+				out.write_u32::<BigEndian>(Response::ID_GROUPNAME)?;
 				out.write_option(groupname, |out, groupname| {
 					out.write_utf8(groupname)
 				})?
 			}
 
 			Response::Gid(gid) => {
-				out.write_u32::<BigEndian>(8)?;
+				out.write_u32::<BigEndian>(Response::ID_GID)?;
 				out.write_option(gid, |out, gid| {
 					out.write_u32::<BigEndian>(*gid)?;
 					Ok(())
@@ -305,7 +347,7 @@ impl ResponseEnvelope {
 			}
 
 			Response::Gids(gids) => {
-				out.write_u32::<BigEndian>(9)?;
+				out.write_u32::<BigEndian>(Response::ID_GIDS)?;
 				out.write_option(gids, |out, gids| {
 					out.write_vec(gids, |out, gid| {
 						out.write_u32::<BigEndian>(*gid)?;
@@ -330,66 +372,68 @@ impl ResponseEnvelope {
 		// read the request type id
 		let type_id = reader.read_u32::<BigEndian>()
 			.context("Failed to read response type id")?;
-		let response = match type_id {
-
-			1 => Response::Pong,
-
-			2 => Response::Exec({
-				let kind = reader.read_u32::<BigEndian>()?;
-				match kind {
-					1 => ExecResponse::Success {
-						pid: reader.read_u32::<BigEndian>()?
-					},
-					2 => ExecResponse::Failure {
-						reason: reader.read_utf8()?
-					},
-					_ => bail!("Unrecognized exec response kind: {}", kind)
-				}
-			}),
-
-			3 => Response::Status(
-				reader.read_option(|reader| {
-					reader.read_utf8()
-				})?
-			),
-
-			5 => Response::Username(
-				reader.read_option(|reader| {
-					reader.read_utf8()
-				})?
-			),
-
-			6 => Response::Uid(
-				reader.read_option(|reader| {
-					let uid = reader.read_u32::<BigEndian>()?;
-					Ok(uid)
-				})?
-			),
-
-			7 => Response::Groupname(
-				reader.read_option(|reader| {
-					reader.read_utf8()
-				})?
-			),
-
-			8 => Response::Gid(
-				reader.read_option(|reader| {
-					let gid = reader.read_u32::<BigEndian>()?;
-					Ok(gid)
-				})?
-			),
-
-			9 => Response::Gids(
-				reader.read_option(|reader| {
-					reader.read_vec(|reader| {
+		// NOTE: we can't match on constants here, so use if/elseif/else instead
+		//       see: https://doc.rust-lang.org/unstable-book/language-features/inline-const-pat.html
+		let response =
+			if type_id == Response::ID_PONG {
+				Response::Pong
+			} else if type_id == Response::ID_EXEC {
+				Response::Exec({
+					let kind = reader.read_u32::<BigEndian>()?;
+					match kind {
+						1 => ExecResponse::Success {
+							pid: reader.read_u32::<BigEndian>()?
+						},
+						2 => ExecResponse::Failure {
+							reason: reader.read_utf8()?
+						},
+						_ => bail!("Unrecognized exec response kind: {}", kind)
+					}
+				})
+			} else if type_id == Response::ID_STATUS {
+				Response::Status(
+					reader.read_option(|reader| {
+						reader.read_utf8()
+					})?
+				)
+			} else if type_id == Response::ID_USERNAME {
+				Response::Username(
+					reader.read_option(|reader| {
+						reader.read_utf8()
+					})?
+				)
+			} else if type_id == Response::ID_UID {
+				Response::Uid(
+					reader.read_option(|reader| {
+						let uid = reader.read_u32::<BigEndian>()?;
+						Ok(uid)
+					})?
+				)
+			} else if type_id == Response::ID_GROUPNAME {
+				Response::Groupname(
+					reader.read_option(|reader| {
+						reader.read_utf8()
+					})?
+				)
+			} else if type_id == Response::ID_GID {
+				Response::Gid(
+					reader.read_option(|reader| {
 						let gid = reader.read_u32::<BigEndian>()?;
 						Ok(gid)
-					})
-				})?
-			),
-
-			_ => bail!("Unrecognized response type id: {}", type_id)
-		};
+					})?
+				)
+			} else if type_id == Response::ID_GIDS {
+				Response::Gids(
+					reader.read_option(|reader| {
+						reader.read_vec(|reader| {
+							let gid = reader.read_u32::<BigEndian>()?;
+							Ok(gid)
+						})
+					})?
+				)
+			} else {
+				bail!("Unrecognized response type id: {}", type_id);
+			};
 
 		Ok(ResponseEnvelope {
 			id: request_id,
@@ -412,11 +456,22 @@ pub struct ProcConsole {
 	pub buf: Vec<u8>
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ConsoleKind {
 	Stdout,
 	Stderr
 }
+
+impl ConsoleKind {
+
+	pub fn name(&self) -> &'static str {
+		match self {
+			Self::Stdout => "stdout",
+			Self::Stderr => "stderr"
+		}
+	}
+}
+
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProcFin {
@@ -696,9 +751,13 @@ mod test {
 			pid: 5
 		});
 
-		assert_roundtrip(Request::Stdin {
+		assert_roundtrip(Request::WriteStdin {
 			pid: 37,
 			chunk: b"a line".to_vec()
+		});
+
+		assert_roundtrip(Request::CloseStdin {
+			pid: 5
 		});
 
 		assert_roundtrip(Request::Kill {

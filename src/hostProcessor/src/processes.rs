@@ -24,6 +24,10 @@ impl Processes {
 		self.procs.insert(proc.pid, proc);
 	}
 
+	pub fn get_mut(&mut self, pid: u32) -> Option<&mut Proc> {
+		self.procs.get_mut(&pid)
+	}
+
 	pub fn remove(&mut self, pid: u32) -> Option<()> {
 		self.procs.remove(&pid)
 			.map(|_| ())
@@ -31,7 +35,7 @@ impl Processes {
 }
 
 
-struct Proc {
+pub struct Proc {
 	pid: u32,
-	stdin: Option<ChildStdin>
+	pub stdin: Option<ChildStdin>
 }

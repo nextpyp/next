@@ -1,5 +1,5 @@
 
-use std::io::{Read, Write};
+use std::io::{ErrorKind, Read, Write};
 
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
@@ -101,7 +101,7 @@ impl<W> AsyncWriteFramed for W
 
 #[async_trait]
 pub trait AsyncReadFramed {
-	async fn read_framed(&mut self) -> Result<Vec<u8>>;
+	async fn read_framed(&mut self) -> Result<Option<Vec<u8>>>;
 }
 
 #[async_trait]
@@ -109,14 +109,18 @@ impl<R> AsyncReadFramed for R
 	where
 		R: AsyncRead + Unpin + Send
 {
-	async fn read_framed(&mut self) -> Result<Vec<u8>> {
+	async fn read_framed(&mut self) -> Result<Option<Vec<u8>>> {
 
 		use tokio::io::AsyncReadExt;
 
 		// read the size of the next message
-		let size = self.read_u32()
-			.await
-			.context("Failed to read message size")?;
+		let result = self.read_u32()
+			.await;
+		let size = match result {
+			Ok(size) => size,
+			Err(e) if e.kind() == ErrorKind::UnexpectedEof => return Ok(None),
+			r => r.context("Failed to read message size")?
+		};
 
 		// allocate a buffer
 		let mut msg = vec![0u8; size as usize];
@@ -126,6 +130,6 @@ impl<R> AsyncReadFramed for R
 			.await
 			.context("Failed to read message")?;
 
-		Ok(msg)
+		Ok(Some(msg))
 	}
 }
