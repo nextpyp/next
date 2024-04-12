@@ -20,9 +20,9 @@ use tokio::task::LocalSet;
 use tokio_stream::{Stream, StreamExt, StreamMap};
 use tokio_util::bytes::Bytes;
 use tokio_util::io::ReaderStream;
-use tracing::{debug, error, error_span, info, Instrument, trace, warn};
-use host_processor::framing::{AsyncReadFramed, AsyncWriteFramed};
+use tracing::{debug, error_span, info, Instrument, trace, warn};
 
+use host_processor::framing::{AsyncReadFramed, AsyncWriteFramed};
 use host_processor::logging::{self, ResultExt};
 use host_processor::processes::Processes;
 use host_processor::proto::{ConsoleKind, ExecRequest, ExecResponse, ProcConsole, ProcEvent, ProcFin, Request, RequestEnvelope, Response, ResponseEnvelope};
@@ -217,7 +217,7 @@ async fn drive_connection(socket: UnixStream, processes: Rc<Mutex<Processes>>) {
 			}
 		};
 
-		// assign the request an id
+		// assign the request an internal id (separate from the id sent from the client)
 		let request_id = next_request_id;
 		next_request_id += 1;
 		let _span = error_span!("Request", id = request_id).entered();
@@ -228,13 +228,31 @@ async fn drive_connection(socket: UnixStream, processes: Rc<Mutex<Processes>>) {
 			let socket_write = socket_write.clone();
 			async move {
 
-				// assign the request an id
 				trace!("started");
 
-				let Ok(request) = RequestEnvelope::decode(msg)
-					.context("Failed to decode request")
-					.warn_err()
-					else { return; };
+				let request = match RequestEnvelope::decode(msg) {
+					Ok(r) => r,
+					Err((e, request_id)) => {
+
+						// log the error internally
+						Err::<(),_>(e)
+							.context("Failed to decode request")
+							.warn_err()
+							.ok();
+
+						// if request decoding failed to get even the client's request_id,
+						// then just use 0 and hope for the best
+						let request_id = request_id.unwrap_or(0);
+
+						// send an error response back to the client
+						write_response(&socket_write, request_id, Response::Error {
+							reason: "Failed to decode request".to_string()
+						})
+							.await
+							.ok();
+						return;
+					}
+				};
 
 				// dispatch the request
 				match request.request {
@@ -263,10 +281,25 @@ async fn drive_connection(socket: UnixStream, processes: Rc<Mutex<Processes>>) {
 						dispatch_kill(processes, pid)
 							.await,
 
-					r => {
-						error!("unhandled request: {:?}", r);
-						return;
-					}
+					Request::Username { uid } =>
+						dispatch_username(socket_write, request.id, uid)
+							.await,
+
+					Request::Uid { username } =>
+						dispatch_uid(socket_write, request.id, username)
+							.await,
+
+					Request::Groupname { gid } =>
+						dispatch_groupname(socket_write, request.id, gid)
+							.await,
+
+					Request::Gid { groupname } =>
+						dispatch_gid(socket_write, request.id, groupname)
+							.await,
+
+					Request::Gids { uid } =>
+						dispatch_gids(socket_write, request.id, uid)
+							.await
 				}
 
 				trace!("complete");
@@ -554,5 +587,98 @@ async fn dispatch_kill(processes: Rc<Mutex<Processes>>, pid: u32) {
 		.spawn()
 		.context("Failed to spawn `kill`")
 		.warn_err()
+		.ok();
+}
+
+
+#[tracing::instrument(skip_all, level = 5, name = "Username")]
+async fn dispatch_username(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32, uid: u32) {
+
+	trace!(uid, "Request");
+
+	let username = users::get_user_by_uid(uid)
+		.map(|user| user.name().to_string_lossy().to_string());
+
+	trace!(?username);
+
+	// send back the response
+	write_response(&socket, request_id, Response::Username(username))
+		.await
+		.ok();
+}
+
+
+#[tracing::instrument(skip_all, level = 5, name = "Uid")]
+async fn dispatch_uid(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32, username: String) {
+
+	trace!(username, "Request");
+
+	let uid = users::get_user_by_name(&username)
+		.map(|user| user.uid());
+
+	trace!(?uid);
+
+	// send back the response
+	write_response(&socket, request_id, Response::Uid(uid))
+		.await
+		.ok();
+}
+
+
+#[tracing::instrument(skip_all, level = 5, name = "Groupname")]
+async fn dispatch_groupname(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32, gid: u32) {
+
+	trace!(gid, "Request");
+
+	let groupname = users::get_group_by_gid(gid)
+		.map(|group| group.name().to_string_lossy().to_string());
+
+	trace!(?groupname);
+
+	// send back the response
+	write_response(&socket, request_id, Response::Groupname(groupname))
+		.await
+		.ok();
+}
+
+
+#[tracing::instrument(skip_all, level = 5, name = "Gid")]
+async fn dispatch_gid(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32, groupname: String) {
+
+	trace!(groupname, "Request");
+
+	let gid = users::get_group_by_name(&groupname)
+		.map(|group| group.gid());
+
+	trace!(?gid);
+
+	// send back the response
+	write_response(&socket, request_id, Response::Gid(gid))
+		.await
+		.ok();
+}
+
+
+#[tracing::instrument(skip_all, level = 5, name = "Gid")]
+async fn dispatch_gids(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32, uid: u32) {
+
+	trace!(uid, "Request");
+
+	let gids = users::get_user_by_uid(uid)
+		.map(|user| {
+			if let Some(groups) = user.groups() {
+				groups.iter()
+					.map(|group| group.gid())
+					.collect::<Vec<_>>()
+			} else {
+				Vec::new()
+			}
+		});
+
+	trace!(?gids);
+
+	// send back the response
+	write_response(&socket, request_id, Response::Gids(gids))
+		.await
 		.ok();
 }

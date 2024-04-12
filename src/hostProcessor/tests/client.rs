@@ -235,6 +235,100 @@ fn exec_kill() {
 }
 
 
+#[test]
+fn exec_username() {
+	let _logging = logging::init_test();
+
+	let host_processor = HostProcessor::start();
+	let mut socket = host_processor.connect();
+
+	let response = request(&mut socket, Request::Username { uid: 0 });
+	assert_that!(&response, eq(Response::Username(Some("root".to_string()))));
+
+	let response = request(&mut socket, Request::Username { uid: u32::MAX - 5 });
+	assert_that!(&response, eq(Response::Username(None))); // probably?
+
+	host_processor.disconnect(socket);
+	host_processor.stop();
+}
+
+
+#[test]
+fn exec_uid() {
+	let _logging = logging::init_test();
+
+	let host_processor = HostProcessor::start();
+	let mut socket = host_processor.connect();
+
+	let response = request(&mut socket, Request::Uid { username: "root".to_string() });
+	assert_that!(&response, eq(Response::Uid(Some(0))));
+
+	let response = request(&mut socket, Request::Uid { username: "probably not a user you have, right?".to_string() });
+	assert_that!(&response, eq(Response::Uid(None))); // probably?
+
+	host_processor.disconnect(socket);
+	host_processor.stop();
+}
+
+
+#[test]
+fn exec_groupname() {
+	let _logging = logging::init_test();
+
+	let host_processor = HostProcessor::start();
+	let mut socket = host_processor.connect();
+
+	let response = request(&mut socket, Request::Groupname { gid: 1 });
+	assert_that!(&response, eq(Response::Groupname(Some("daemon".to_string()))));
+
+	let response = request(&mut socket, Request::Groupname { gid: u32::MAX - 5 });
+	assert_that!(&response, eq(Response::Groupname(None))); // probably?
+
+	host_processor.disconnect(socket);
+	host_processor.stop();
+}
+
+
+#[test]
+fn exec_gid() {
+	let _logging = logging::init_test();
+
+	let host_processor = HostProcessor::start();
+	let mut socket = host_processor.connect();
+
+	let response = request(&mut socket, Request::Gid { groupname: "daemon".to_string() });
+	assert_that!(&response, eq(Response::Gid(Some(1))));
+
+	let response = request(&mut socket, Request::Gid { groupname: "probably not a group you have, right?".to_string() });
+	assert_that!(&response, eq(Response::Gid(None))); // probably?
+
+	host_processor.disconnect(socket);
+	host_processor.stop();
+}
+
+
+#[test]
+fn exec_gids() {
+	let _logging = logging::init_test();
+
+	let host_processor = HostProcessor::start();
+	let mut socket = host_processor.connect();
+
+	let response = request(&mut socket, Request::Gids { uid: 0 });
+	let Response::Gids(Some(gids)) = response
+		else { panic!("no gids returned") };
+
+	// the root user should be in the root group, right?
+	assert_that!(&gids.contains(&0), eq(true));
+
+	let response = request(&mut socket, Request::Gids { uid: u32::MAX - 5 });
+	assert_that!(&response, eq(Response::Gids(None))); // probably?
+
+	host_processor.disconnect(socket);
+	host_processor.stop();
+}
+
+
 const SOCKET_DIR: &str = "/tmp/nextpyp-sockets";
 
 

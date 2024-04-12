@@ -167,17 +167,19 @@ impl RequestEnvelope {
 		Ok(out)
 	}
 
-	pub fn decode(msg: impl AsRef<[u8]>) -> Result<Self> {
+	pub fn decode(msg: impl AsRef<[u8]>) -> std::result::Result<Self,(anyhow::Error,Option<u32>)> {
 
 		let msg = msg.as_ref();
 		let mut reader = Cursor::new(msg);
 
 		let request_id = reader.read_u32::<BigEndian>()
-			.context("Failed to read request id")?;
+			.context("Failed to read request id")
+			.map_err(|e| (e, None))?;
 
 		// read the request type id
 		let type_id = reader.read_u32::<BigEndian>()
-			.context("Failed to read request type id")?;
+			.context("Failed to read request type id")
+			.map_err(|e| (e, Some(request_id)))?;
 		// NOTE: we can't match on constants here, so use if/elseif/else instead
 		//       see: https://doc.rust-lang.org/unstable-book/language-features/inline-const-pat.html
 		let request =
@@ -185,52 +187,52 @@ impl RequestEnvelope {
 				Request::Ping
 			} else if type_id == Request::ID_EXEC {
 				Request::Exec(ExecRequest {
-					program: reader.read_utf8()?,
-					args: reader.read_vec(|r| r.read_utf8())?,
-					stream_stdin: reader.read_bool()?,
-					stream_stdout: reader.read_bool()?,
-					stream_stderr: reader.read_bool()?,
-					stream_fin: reader.read_bool()?
+					program: reader.read_utf8().map_err(|e| (e, Some(request_id)))?,
+					args: reader.read_vec(|r| r.read_utf8()).map_err(|e| (e, Some(request_id)))?,
+					stream_stdin: reader.read_bool().map_err(|e| (e, Some(request_id)))?,
+					stream_stdout: reader.read_bool().map_err(|e| (e, Some(request_id)))?,
+					stream_stderr: reader.read_bool().map_err(|e| (e, Some(request_id)))?,
+					stream_fin: reader.read_bool().map_err(|e| (e, Some(request_id)))?
 				})
 			} else if type_id == Request::ID_STATUS {
 				Request::Status {
-					pid: reader.read_u32::<BigEndian>()?
+					pid: reader.read_u32::<BigEndian>().map_err(|e| (e.into(), Some(request_id)))?
 				}
 			} else if type_id == Request::ID_WRITE_STDIN {
 				Request::WriteStdin {
-					pid: reader.read_u32::<BigEndian>()?,
-					chunk: reader.read_bytes()?
+					pid: reader.read_u32::<BigEndian>().map_err(|e| (e.into(), Some(request_id)))?,
+					chunk: reader.read_bytes().map_err(|e| (e, Some(request_id)))?
 				}
 			} else if type_id == Request::ID_CLOSE_STDIN {
 				Request::CloseStdin {
-					pid: reader.read_u32::<BigEndian>()?
+					pid: reader.read_u32::<BigEndian>().map_err(|e| (e.into(), Some(request_id)))?
 				}
 			} else if type_id == Request::ID_KILL {
 				Request::Kill {
-					pid: reader.read_u32::<BigEndian>()?
+					pid: reader.read_u32::<BigEndian>().map_err(|e| (e.into(), Some(request_id)))?
 				}
 			} else if type_id == Request::ID_USERNAME {
 				Request::Username {
-					uid: reader.read_u32::<BigEndian>()?
+					uid: reader.read_u32::<BigEndian>().map_err(|e| (e.into(), Some(request_id)))?
 				}
 			} else if type_id == Request::ID_UID {
 				Request::Uid {
-					username: reader.read_utf8()?
+					username: reader.read_utf8().map_err(|e| (e, Some(request_id)))?
 				}
 			} else if type_id == Request::ID_GROUPNAME {
 				Request::Groupname {
-					gid: reader.read_u32::<BigEndian>()?
+					gid: reader.read_u32::<BigEndian>().map_err(|e| (e.into(), Some(request_id)))?
 				}
 			} else if type_id == Request::ID_GID {
 				Request::Gid {
-					groupname: reader.read_utf8()?
+					groupname: reader.read_utf8().map_err(|e| (e, Some(request_id)))?
 				}
 			} else if type_id == Request::ID_GIDS {
 				Request::Gids {
-					uid: reader.read_u32::<BigEndian>()?
+					uid: reader.read_u32::<BigEndian>().map_err(|e| (e.into(), Some(request_id)))?
 				}
 			} else {
-				bail!("Unrecognized request type id: {}", type_id);
+				return Err((anyhow!("Unrecognized request type id: {}", type_id), Some(request_id)));
 			};
 
 		Ok(RequestEnvelope {
@@ -250,6 +252,8 @@ pub struct ResponseEnvelope {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Response {
 
+	Error { reason: String },
+
 	Pong,
 	Exec(ExecResponse),
 	Status(bool),
@@ -264,14 +268,15 @@ pub enum Response {
 }
 
 impl Response {
-	const ID_PONG: u32 = 1;
-	const ID_EXEC: u32 = 2;
-	const ID_STATUS: u32 = 3;
-	const ID_USERNAME: u32 = 4;
-	const ID_UID: u32 = 5;
-	const ID_GROUPNAME: u32 = 6;
-	const ID_GID: u32 = 7;
-	const ID_GIDS: u32 = 8;
+	const ID_ERROR: u32 = 1;
+	const ID_PONG: u32 = 2;
+	const ID_EXEC: u32 = 3;
+	const ID_STATUS: u32 = 4;
+	const ID_USERNAME: u32 = 5;
+	const ID_UID: u32 = 6;
+	const ID_GROUPNAME: u32 = 7;
+	const ID_GID: u32 = 8;
+	const ID_GIDS: u32 = 9;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -292,6 +297,11 @@ impl ResponseEnvelope {
 		out.write_u32::<BigEndian>(self.id)?;
 
 		match &self.response {
+
+			Response::Error { reason } => {
+				out.write_u32::<BigEndian>(Response::ID_ERROR)?;
+				out.write_utf8(reason)?;
+			}
 
 			Response::Pong => {
 				// only need the type id
@@ -376,7 +386,11 @@ impl ResponseEnvelope {
 		// NOTE: we can't match on constants here, so use if/elseif/else instead
 		//       see: https://doc.rust-lang.org/unstable-book/language-features/inline-const-pat.html
 		let response =
-			if type_id == Response::ID_PONG {
+			if type_id == Response::ID_ERROR {
+				Response::Error {
+					reason: reader.read_utf8()?
+				}
+			} else if type_id == Response::ID_PONG {
 				Response::Pong
 			} else if type_id == Response::ID_EXEC {
 				Response::Exec({
@@ -800,6 +814,10 @@ mod test {
 				.expect("Failed to decode");
 			assert_that!(&envelope2, eq(envelope));
 		}
+
+		assert_roundtrip(Response::Error {
+			reason: "foo".to_string()
+		});
 
 		assert_roundtrip(Response::Pong);
 
