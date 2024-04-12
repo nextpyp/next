@@ -31,6 +31,9 @@ use host_processor::proto::{ConsoleKind, ExecRequest, ExecResponse, ProcConsole,
 #[derive(Options)]
 struct Args {
 
+	#[options(help_flag)]
+	help: bool,
+
 	/// settings for log output
 	#[options(default = "host_processor=info")]
 	log: String,

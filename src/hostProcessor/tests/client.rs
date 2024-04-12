@@ -20,6 +20,16 @@ use host_processor::proto::{ExecRequest, ProcFin, Request, RequestEnvelope, Resp
 
 
 #[test]
+fn help() {
+	let _logging = logging::init_test();
+
+	let exit = HostProcessor::help();
+
+	assert_that!(&exit.success(), eq(true));
+}
+
+
+#[test]
 fn connect() {
 	let _logging = logging::init_test();
 
@@ -338,16 +348,28 @@ struct HostProcessor {
 
 impl HostProcessor {
 
-	fn start() -> Self {
-
-		debug!("Starting host processor ...");
-
+	fn bin_path() -> &'static Path {
 		let bin_path = Path::new(env!("CARGO_BIN_EXE_host-processor"));
 		if !bin_path.exists() {
 			panic!("Target binary not found at: {:?}", bin_path);
 		}
+		bin_path
+	}
 
-		let proc = Command::new(bin_path)
+	fn help() -> ExitStatus {
+		Command::new(Self::bin_path())
+			.args(["--help"])
+			.spawn()
+			.expect("Failed to spawn process")
+			.wait()
+			.expect("Failed to wait for process")
+	}
+
+	fn start() -> Self {
+
+		debug!("Starting host processor ...");
+
+		let proc = Command::new(Self::bin_path())
 			.args(["--log", "trace", SOCKET_DIR])
 			.spawn()
 			.expect("Failed to spawn process");
