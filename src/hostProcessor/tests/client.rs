@@ -38,23 +38,9 @@ fn ping_pong() {
 	let host_processor = HostProcessor::start();
 	let mut socket = host_processor.connect();
 
-	let request = RequestEnvelope {
-		id: 5,
-		request: Request::Ping
-	};
-	let msg = request.encode()
-		.unwrap();
-	socket.write_framed(msg)
-		.unwrap();
-	let response = socket.read_framed()
-		.unwrap();
-	let response = ResponseEnvelope::decode(response)
-		.unwrap();
+	let response = request(&mut socket, Request::Ping);
 
-	assert_that!(&response, eq(ResponseEnvelope {
-		id: request.id,
-		response: Response::Pong
-	}));
+	assert_that!(&response, eq(Response::Pong));
 
 	host_processor.disconnect(socket);
 	host_processor.stop();
@@ -69,12 +55,13 @@ fn exec() {
 	let mut socket = host_processor.connect();
 
 	// send the exec request
-	let pid = exec::launch(&mut socket, 42, ExecRequest {
+	let pid = exec::launch(&mut socket, ExecRequest {
 		program: "ls".to_string(),
 		args: vec!["-al".to_string()],
 		stream_stdin: false,
 		stream_stdout: false,
 		stream_stderr: false,
+		stream_fin: true
 	});
 
 	// wait for the fin event
@@ -94,12 +81,13 @@ fn exec_stdout() {
 	let mut socket = host_processor.connect();
 
 	// send the exec request
-	let pid = exec::launch(&mut socket, 42, ExecRequest {
+	let pid = exec::launch(&mut socket, ExecRequest {
 		program: "ls".to_string(),
 		args: vec!["-al".to_string()],
 		stream_stdin: false,
 		stream_stdout: true,
 		stream_stderr: false,
+		stream_fin: true
 	});
 
 	// get the stdout
@@ -121,12 +109,13 @@ fn exec_stderr() {
 	let mut socket = host_processor.connect();
 
 	// send the exec request
-	let pid = exec::launch(&mut socket, 42, ExecRequest {
+	let pid = exec::launch(&mut socket, ExecRequest {
 		program: "ls".to_string(),
 		args: vec!["/nope/probably/not/a/thing/right?".to_string()],
 		stream_stdin: false,
 		stream_stdout: false,
 		stream_stderr: true,
+		stream_fin: true
 	});
 
 	// get the stdout
@@ -148,12 +137,13 @@ fn exec_stdin() {
 	let mut socket = host_processor.connect();
 
 	// send the exec request
-	let pid = exec::launch(&mut socket, 42, ExecRequest {
+	let pid = exec::launch(&mut socket, ExecRequest {
 		program: "cat".to_string(),
 		args: vec!["-".to_string()],
 		stream_stdin: true,
 		stream_stdout: true,
 		stream_stderr: true,
+		stream_fin: true
 	});
 
 	// send chunks to stdin
@@ -165,6 +155,80 @@ fn exec_stdin() {
 	assert_that!(&fin.exit_code, eq(Some(0)));
 	assert_that!(&String::from_utf8_lossy(stdout.as_ref()).to_string(), eq("hi".to_string()));
 	assert_that!(&stderr.len(), eq(0));
+
+	host_processor.disconnect(socket);
+	host_processor.stop();
+}
+
+
+#[test]
+fn exec_status() {
+	let _logging = logging::init_test();
+
+	let host_processor = HostProcessor::start();
+	let mut socket = host_processor.connect();
+
+	let response = request(&mut socket, Request::Status { pid: 5 });
+	assert_that!(&response, eq(Response::Status(false)));
+
+	// start a process that will keep running until we tell it to stop (by closing stdin)
+	let pid = exec::launch(&mut socket, ExecRequest {
+		program: "cat".to_string(),
+		args: vec!["-".to_string()],
+		stream_stdin: true,
+		stream_stdout: false,
+		stream_stderr: false,
+		stream_fin: false
+	});
+
+	let response = request(&mut socket, Request::Status { pid });
+	assert_that!(&response, eq(Response::Status(true)));
+
+	// stop it
+	exec::close_stdin(&mut socket, pid);
+
+	// wait a bit for the process to exit
+	thread::sleep(Duration::from_millis(200));
+
+	let response = request(&mut socket, Request::Status { pid });
+	assert_that!(&response, eq(Response::Status(false)));
+
+	host_processor.disconnect(socket);
+	host_processor.stop();
+}
+
+
+#[test]
+fn exec_kill() {
+	let _logging = logging::init_test();
+
+	let host_processor = HostProcessor::start();
+	let mut socket = host_processor.connect();
+
+	let response = request(&mut socket, Request::Status { pid: 5 });
+	assert_that!(&response, eq(Response::Status(false)));
+
+	// start a process that will keep running until we tell it to stop (by sending SIGTERM)
+	let pid = exec::launch(&mut socket, ExecRequest {
+		program: "cat".to_string(),
+		args: vec!["-".to_string()],
+		stream_stdin: true,
+		stream_stdout: false,
+		stream_stderr: false,
+		stream_fin: false
+	});
+
+	let response = request(&mut socket, Request::Status { pid });
+	assert_that!(&response, eq(Response::Status(true)));
+
+	// stop it
+	exec::kill(&mut socket, pid);
+
+	// wait a bit for the process to exit
+	thread::sleep(Duration::from_millis(200));
+
+	let response = request(&mut socket, Request::Status { pid });
+	assert_that!(&response, eq(Response::Status(false)));
 
 	host_processor.disconnect(socket);
 	host_processor.stop();
@@ -252,6 +316,43 @@ impl Drop for HostProcessor {
 }
 
 
+fn send(socket: &mut UnixStream, request: Request) -> u32 {
+
+	// encode the request
+	let request_id = 5;
+	let request = RequestEnvelope {
+		id: request_id,
+		request
+	};
+	let msg = request.encode()
+		.unwrap();
+
+	// send it
+	socket.write_framed(msg)
+		.unwrap();
+
+	request_id
+}
+
+
+fn request(socket: &mut UnixStream, request: Request) -> Response {
+
+	let request_id = send(socket, request);
+
+	// wait for a response
+	let response = socket.read_framed()
+		.unwrap();
+
+	// decode the response
+	let response = ResponseEnvelope::decode(response)
+		.unwrap();
+
+	assert_that!(&response.id, eq(request_id));
+
+	response.response
+}
+
+
 
 mod exec {
 
@@ -261,26 +362,14 @@ mod exec {
 	use tracing::info;
 
 	use host_processor::framing::{ReadFramed, WriteFramed};
-	use host_processor::proto::{ConsoleKind, ExecRequest, ExecResponse, ProcEvent, ProcFin, Request, RequestEnvelope, Response, ResponseEnvelope};
+	use host_processor::proto::{ConsoleKind, ExecRequest, ExecResponse, ProcEvent, ProcFin, Request, RequestEnvelope, Response};
 
 
-	pub fn launch(socket: &mut UnixStream, id: u32, request: ExecRequest) -> u32 {
+	pub fn launch(socket: &mut UnixStream, request: ExecRequest) -> u32 {
 
-		let request = RequestEnvelope {
-			id,
-			request: Request::Exec(request)
-		};
-		let msg = request.encode()
-			.unwrap();
-		socket.write_framed(msg)
-			.unwrap();
-		let response = socket.read_framed()
-			.unwrap();
-		let response = ResponseEnvelope::decode(response)
-			.unwrap();
+		let response = super::request(socket, Request::Exec(request));
 
-		assert_that!(&response.id, eq(request.id));
-		let Response::Exec(response) = response.response
+		let Response::Exec(response) = response
 			else { panic!("unexpected response: {:?}", response); };
 
 		match response {
@@ -379,5 +468,10 @@ mod exec {
 			},
 			_ => panic!("expected fin event, not {:?}", event)
 		}
+	}
+
+
+	pub fn kill(socket: &mut UnixStream, pid: u32) {
+		super::send(socket, Request::Kill { pid });
 	}
 }

@@ -16,6 +16,10 @@ impl Processes {
 		}
 	}
 
+	pub fn contains(&self, pid: u32) -> bool {
+		self.procs.contains_key(&pid)
+	}
+
 	pub fn add(&mut self, pid: u32, proc: &mut Child) {
 		let proc = Proc {
 			pid,

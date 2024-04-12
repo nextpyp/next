@@ -61,7 +61,7 @@ fn main() -> ExitCode {
 
 
 #[tracing::instrument(skip_all, level = 5, name = "HostProcessor")]
-fn run (args: Args) -> Result<()> {
+fn run(args: Args) -> Result<()> {
 
 	// check for errors with the socket folder
 	let dir_exists = args.socket_dir.try_exists()
@@ -247,12 +247,20 @@ async fn drive_connection(socket: UnixStream, processes: Rc<Mutex<Processes>>) {
 						dispatch_exec(socket_write, request.id, processes, exec)
 							.await,
 
+					Request::Status { pid } =>
+						dispatch_status(socket_write, request.id, processes, pid)
+							.await,
+
 					Request::WriteStdin { pid, chunk } =>
 						dispatch_write_stdin(processes, pid, chunk)
 							.await,
 
 					Request::CloseStdin { pid } =>
 						dispatch_close_stdin(processes, pid)
+							.await,
+
+					Request::Kill { pid } =>
+						dispatch_kill(processes, pid)
 							.await,
 
 					r => {
@@ -268,26 +276,56 @@ async fn drive_connection(socket: UnixStream, processes: Rc<Mutex<Processes>>) {
 }
 
 
-#[tracing::instrument(skip_all, level = 5, name = "Ping")]
-async fn dispatch_ping(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32) {
+async fn write_response(socket: &Mutex<OwnedWriteHalf>, request_id: u32, response: Response) -> Result<(),()> {
 
-	trace!("Request: Ping");
-
-	// respond with pong
-	let Ok(msg) = ResponseEnvelope {
+	// encode the response
+	let msg = ResponseEnvelope {
 		id: request_id,
-		response: Response::Pong
+		response
 	}
 		.encode()
-		.context("Failed to encode pong")
-		.warn_err()
-		else { return; };
+		.context("Failed to encode response")
+		.warn_err()?;
+
+	// send it over the socket
 	socket.lock()
 		.await
 		.write_framed(msg)
 		.await
-		.context("Failed to write pong")
-		.warn_err()
+		.context("Failed to write response")
+		.warn_err()?;
+
+	Ok(())
+}
+
+
+async fn write_proc_event(socket: &Mutex<OwnedWriteHalf>, event: ProcEvent) -> Result<(),()> {
+
+	// encode the event
+	let msg = event.encode()
+		.context("Failed to encode proc event")
+		.warn_err()?;
+
+	// send it over the socket
+	socket.lock()
+		.await
+		.write_framed(msg)
+		.await
+		.context("Failed to write proc event")
+		.warn_err()?;
+
+	Ok(())
+}
+
+
+#[tracing::instrument(skip_all, level = 5, name = "Ping")]
+async fn dispatch_ping(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32) {
+
+	trace!("Request");
+
+	// respond with pong
+	write_response(&socket, request_id, Response::Pong)
+		.await
 		.ok();
 }
 
@@ -329,22 +367,10 @@ async fn dispatch_exec(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32, proce
 		Err(e) => {
 
 			// send back the error
-			let Ok(response) = ResponseEnvelope {
-				id: request_id,
-				response: Response::Exec(ExecResponse::Failure {
-					reason: format!("Failed to start process: {}", e.deref().chain())
-				})
-			}
-				.encode()
-				.context("Failed to encode exec failure response")
-				.warn_err()
-				else { return; };
-			socket.lock()
+			write_response(&socket, request_id, Response::Exec(ExecResponse::Failure {
+				reason: format!("Failed to start process: {}", e.deref().chain())
+			}))
 				.await
-				.write_framed(response)
-				.await
-				.context("Failed to write exec failure response")
-				.warn_err()
 				.ok();
 
 			return;
@@ -362,27 +388,17 @@ async fn dispatch_exec(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32, proce
 		trace!("Streaming stdin");
 	}
 
+	// NOTE: process is tracked now, don't exit this fn without cleaning it up
+
 	// take stdout,stderr before calling proc.wait(), so the process lib won't try to close them
 	let proc_stdout = proc.stdout.take();
 	let proc_stderr = proc.stderr.take();
 
 	// send back the pid
-	let Ok(response) = ResponseEnvelope {
-		id: request_id,
-		response: Response::Exec(ExecResponse::Success {
+	write_response(&socket, request_id, Response::Exec(ExecResponse::Success {
 			pid
-		})
-	}
-		.encode()
-		.context("Failed to encode exec success response")
-		.warn_err()
-		else { return; };
-	socket.lock()
+		}))
 		.await
-		.write_framed(response)
-		.await
-		.context("Failed to write exec success response")
-		.warn_err()
 		.ok();
 
 	// stream stdout and/or stderr, if needed
@@ -400,23 +416,14 @@ async fn dispatch_exec(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32, proce
 
 			Some((kind, Ok(chunk))) => {
 
-				// send back the pid
-				let Ok(event) = ProcEvent::Console(ProcConsole {
+				// send back the console chunk
+				let Ok(_) = write_proc_event(&socket, ProcEvent::Console(ProcConsole {
 					pid,
 					kind,
-					buf: chunk.to_vec(),
-				})
-					.encode()
-					.context("Failed to encode console event")
-					.warn_err()
-					else { continue; };
-				socket.lock()
+					buf: chunk.to_vec()
+				}))
 					.await
-					.write_framed(event)
-					.await
-					.context("Failed to write console event")
-					.warn_err()
-					.ok();
+					else { break; };
 			}
 
 			Some((kind, Err(e))) => {
@@ -441,22 +448,15 @@ async fn dispatch_exec(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32, proce
 
 		trace!(code = ?exit.code(), "Process exited");
 
-		// send the final proc event
-		let event = ProcEvent::Fin(ProcFin {
-			pid,
-			exit_code: exit.code()
-		});
-		let Ok(response) = event.encode()
-			.context("Failed to encode proc event")
-			.warn_err()
-			else { return; };
-		socket.lock()
-			.await
-			.write_framed(response)
-			.await
-			.context("Failed to write proc event")
-			.warn_err()
-			.ok();
+		// send the final proc event, if needed
+		if request.stream_fin {
+			write_proc_event(&socket, ProcEvent::Fin(ProcFin {
+				pid,
+				exit_code: exit.code()
+			}))
+				.await
+				.ok();
+		}
 	}
 
 	// cleanup the process collection
@@ -469,11 +469,30 @@ async fn dispatch_exec(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32, proce
 }
 
 
+#[tracing::instrument(skip_all, level = 5, name = "Status", fields(pid))]
+async fn dispatch_status(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32, processes: Rc<Mutex<Processes>>, pid: u32) {
+
+	tracing::Span::current().record("pid", pid);
+	trace!("Request");
+
+	let is_running = processes.lock()
+		.await
+		.contains(pid);
+
+	trace!(is_running);
+
+	// send back the response
+	write_response(&socket, request_id, Response::Status(is_running))
+		.await
+		.ok();
+}
+
+
 #[tracing::instrument(skip_all, level = 5, name = "WriteStdin", fields(pid))]
 async fn dispatch_write_stdin(processes: Rc<Mutex<Processes>>, pid: u32, chunk: Vec<u8>) {
 
 	tracing::Span::current().record("pid", pid);
-	trace!("Request: WriteStdin: {} bytes", chunk.len());
+	trace!("Request: write {} bytes", chunk.len());
 
 	let mut processes = processes.lock()
 		.await;
@@ -499,7 +518,7 @@ async fn dispatch_write_stdin(processes: Rc<Mutex<Processes>>, pid: u32, chunk: 
 async fn dispatch_close_stdin(processes: Rc<Mutex<Processes>>, pid: u32) {
 
 	tracing::Span::current().record("pid", pid);
-	trace!("Request: CloseStdin");
+	trace!("Request");
 
 	let mut processes = processes.lock()
 		.await;
@@ -511,6 +530,29 @@ async fn dispatch_close_stdin(processes: Rc<Mutex<Processes>>, pid: u32) {
 	// drop stdin to close it
 	let _ = proc.stdin.take()
 		.context("Process stdin already closed")
+		.warn_err()
+		.ok();
+}
+
+
+#[tracing::instrument(skip_all, level = 5, name = "Kill", fields(pid))]
+async fn dispatch_kill(processes: Rc<Mutex<Processes>>, pid: u32) {
+
+	tracing::Span::current().record("pid", pid);
+	trace!("Request");
+
+	let Ok(_) = processes.lock()
+		.await
+		.get_mut(pid)
+		.context("Process not found")
+		.warn_err()
+		else { return; };
+
+	// send a kill signal (SIGTERM)
+	Command::new("kill")
+		.arg(pid.to_string())
+		.spawn()
+		.context("Failed to spawn `kill`")
 		.warn_err()
 		.ok();
 }

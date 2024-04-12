@@ -87,7 +87,8 @@ pub struct ExecRequest {
 	pub args: Vec<String>,
 	pub stream_stdin: bool,
 	pub stream_stdout: bool,
-	pub stream_stderr: bool
+	pub stream_stderr: bool,
+	pub stream_fin: bool
 }
 
 impl RequestEnvelope {
@@ -113,6 +114,7 @@ impl RequestEnvelope {
 				out.write_bool(request.stream_stdin)?;
 				out.write_bool(request.stream_stdout)?;
 				out.write_bool(request.stream_stderr)?;
+				out.write_bool(request.stream_fin)?;
 			}
 
 			Request::Status { pid } => {
@@ -188,6 +190,7 @@ impl RequestEnvelope {
 					stream_stdin: reader.read_bool()?,
 					stream_stdout: reader.read_bool()?,
 					stream_stderr: reader.read_bool()?,
+					stream_fin: reader.read_bool()?
 				})
 			} else if type_id == Request::ID_STATUS {
 				Request::Status {
@@ -249,7 +252,7 @@ pub enum Response {
 
 	Pong,
 	Exec(ExecResponse),
-	Status(Option<String>),
+	Status(bool),
 
 	// no response needed for kill
 
@@ -311,9 +314,7 @@ impl ResponseEnvelope {
 
 			Response::Status(status) => {
 				out.write_u32::<BigEndian>(Response::ID_STATUS)?;
-				out.write_option(status, |out, status| {
-					out.write_utf8(status)
-				})?
+				out.write_bool(*status)?;
 			}
 
 			Response::Username(username) => {
@@ -392,9 +393,7 @@ impl ResponseEnvelope {
 				})
 			} else if type_id == Response::ID_STATUS {
 				Response::Status(
-					reader.read_option(|reader| {
-						reader.read_utf8()
-					})?
+					reader.read_bool()?
 				)
 			} else if type_id == Response::ID_USERNAME {
 				Response::Username(
@@ -744,7 +743,8 @@ mod test {
 			args: vec!["arg1".to_string(), "arg2".to_string()],
 			stream_stdin: false,
 			stream_stdout: true,
-			stream_stderr: false
+			stream_stderr: false,
+			stream_fin: true
 		}));
 
 		assert_roundtrip(Request::Status {
@@ -810,8 +810,8 @@ mod test {
 			reason: "nope".to_string()
 		}));
 
-		assert_roundtrip(Response::Status(Some("all is well".to_string())));
-		assert_roundtrip(Response::Status(None));
+		assert_roundtrip(Response::Status(true));
+		assert_roundtrip(Response::Status(false));
 
 		assert_roundtrip(Response::Username(Some("bob".to_string())));
 		assert_roundtrip(Response::Username(None));

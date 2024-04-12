@@ -119,6 +119,7 @@ impl<R> AsyncReadFramed for R
 		let size = match result {
 			Ok(size) => size,
 			Err(e) if e.kind() == ErrorKind::UnexpectedEof => return Ok(None),
+			Err(e) if e.kind() == ErrorKind::ConnectionReset => return Ok(None),
 			r => r.context("Failed to read message size")?
 		};
 
