@@ -256,6 +256,7 @@ pub enum Response {
 
 	Pong,
 	Exec(ExecResponse),
+	ProcessEvent(ProcessEvent),
 	Status(bool),
 
 	// no response needed for kill
@@ -271,12 +272,13 @@ impl Response {
 	const ID_ERROR: u32 = 1;
 	const ID_PONG: u32 = 2;
 	const ID_EXEC: u32 = 3;
-	const ID_STATUS: u32 = 4;
-	const ID_USERNAME: u32 = 5;
-	const ID_UID: u32 = 6;
-	const ID_GROUPNAME: u32 = 7;
-	const ID_GID: u32 = 8;
-	const ID_GIDS: u32 = 9;
+	const ID_PROCESS_EVENT: u32 = 4;
+	const ID_STATUS: u32 = 5;
+	const ID_USERNAME: u32 = 6;
+	const ID_UID: u32 = 7;
+	const ID_GROUPNAME: u32 = 8;
+	const ID_GID: u32 = 9;
+	const ID_GIDS: u32 = 10;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -286,6 +288,46 @@ pub enum ExecResponse {
 	},
 	Failure {
 		reason: String
+	}
+}
+
+impl ExecResponse {
+	const ID_SUCCESS: u32 = 1;
+	const ID_FAILURE: u32 = 2;
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ProcessEvent {
+	Console {
+		kind: ConsoleKind,
+		chunk: Vec<u8>
+	},
+	Fin {
+		exit_code: Option<i32>
+	}
+}
+
+impl ProcessEvent {
+	const ID_CONSOLE: u32 = 1;
+	const ID_FIN: u32 = 2;
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ConsoleKind {
+	Stdout,
+	Stderr
+}
+
+impl ConsoleKind {
+
+	pub const ID_STDOUT: u32 = 1;
+	pub const ID_STDERR: u32 = 2;
+
+	pub fn name(&self) -> &'static str {
+		match self {
+			Self::Stdout => "stdout",
+			Self::Stderr => "stderr"
+		}
 	}
 }
 
@@ -312,12 +354,33 @@ impl ResponseEnvelope {
 				out.write_u32::<BigEndian>(Response::ID_EXEC)?;
 				match response {
 					ExecResponse::Success { pid} => {
-						out.write_u32::<BigEndian>(1)?;
+						out.write_u32::<BigEndian>(ExecResponse::ID_SUCCESS)?;
 						out.write_u32::<BigEndian>(*pid)?;
 					}
 					ExecResponse::Failure { reason } => {
-						out.write_u32::<BigEndian>(2)?;
+						out.write_u32::<BigEndian>(ExecResponse::ID_FAILURE)?;
 						out.write_utf8(reason)?;
+					}
+				}
+			}
+
+			Response::ProcessEvent(event) => {
+				out.write_u32::<BigEndian>(Response::ID_PROCESS_EVENT)?;
+				match event {
+					ProcessEvent::Console { kind, chunk } => {
+						out.write_u32::<BigEndian>(ProcessEvent::ID_CONSOLE)?;
+						out.write_u32::<BigEndian>(match kind {
+							ConsoleKind::Stdout => ConsoleKind::ID_STDOUT,
+							ConsoleKind::Stderr => ConsoleKind::ID_STDERR
+						})?;
+						out.write_bytes(chunk.as_slice())?;
+					}
+					ProcessEvent::Fin { exit_code } => {
+						out.write_u32::<BigEndian>(ProcessEvent::ID_FIN)?;
+						out.write_option(&exit_code, |out, exit_code| {
+							out.write_i32::<BigEndian>(*exit_code)?;
+							Ok(())
+						})?
 					}
 				}
 			}
@@ -396,13 +459,37 @@ impl ResponseEnvelope {
 				Response::Exec({
 					let kind = reader.read_u32::<BigEndian>()?;
 					match kind {
-						1 => ExecResponse::Success {
+						ExecResponse::ID_SUCCESS => ExecResponse::Success {
 							pid: reader.read_u32::<BigEndian>()?
 						},
-						2 => ExecResponse::Failure {
+						ExecResponse::ID_FAILURE => ExecResponse::Failure {
 							reason: reader.read_utf8()?
 						},
-						_ => bail!("Unrecognized exec response kind: {}", kind)
+						_ => bail!("Unrecognized response exec kind: {}", kind)
+					}
+				})
+			} else if type_id == Response::ID_PROCESS_EVENT {
+				Response::ProcessEvent({
+					let kind = reader.read_u32::<BigEndian>()?;
+					match kind {
+						ProcessEvent::ID_CONSOLE => ProcessEvent::Console {
+							kind: {
+								let kind = reader.read_u32::<BigEndian>()?;
+								match kind {
+									ConsoleKind::ID_STDOUT => ConsoleKind::Stdout,
+									ConsoleKind::ID_STDERR => ConsoleKind::Stderr,
+									_ => bail!("Unrecognized console kind: {}", kind)
+								}
+							},
+							chunk: reader.read_bytes()?
+						},
+						ProcessEvent::ID_FIN => ProcessEvent::Fin {
+							exit_code: reader.read_option(|reader| {
+								let c = reader.read_i32::<BigEndian>()?;
+								Ok(c)
+							})?
+						},
+						_ => bail!("Unrecognized response process event kind: {}", kind)
 					}
 				})
 			} else if type_id == Response::ID_STATUS {
@@ -452,111 +539,6 @@ impl ResponseEnvelope {
 			id: request_id,
 			response
 		})
-	}
-}
-
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ProcEvent {
-	Console(ProcConsole),
-	Fin(ProcFin)
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ProcConsole {
-	pub pid: u32,
-	pub kind: ConsoleKind,
-	pub buf: Vec<u8>
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum ConsoleKind {
-	Stdout,
-	Stderr
-}
-
-impl ConsoleKind {
-
-	pub fn name(&self) -> &'static str {
-		match self {
-			Self::Stdout => "stdout",
-			Self::Stderr => "stderr"
-		}
-	}
-}
-
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ProcFin {
-	pub pid: u32,
-	pub exit_code: Option<i32>
-}
-
-
-impl ProcEvent {
-
-	pub fn encode(&self) -> Result<Vec<u8>> {
-		let mut out = Vec::<u8>::new();
-
-		match self {
-
-			ProcEvent::Console(chunk) => {
-				out.write_u32::<BigEndian>(1)?;
-
-				out.write_u32::<BigEndian>(chunk.pid)?;
-
-				out.write_u32::<BigEndian>(match chunk.kind {
-					ConsoleKind::Stdout => 1,
-					ConsoleKind::Stderr => 2
-				})?;
-
-				out.write_bytes(chunk.buf.as_slice())?;
-			}
-
-			ProcEvent::Fin(fin) => {
-				out.write_u32::<BigEndian>(2)?;
-				out.write_u32::<BigEndian>(fin.pid)?;
-				out.write_option(&fin.exit_code, |out, exit_code| {
-					out.write_i32::<BigEndian>(*exit_code)?;
-					Ok(())
-				})?
-			}
-		}
-
-		Ok(out)
-	}
-
-	pub fn decode(msg: impl AsRef<[u8]>) -> Result<Self> {
-
-		let msg = msg.as_ref();
-		let mut reader = Cursor::new(msg);
-
-		let event = reader.read_u32::<BigEndian>()?;
-		match event {
-
-			1 => Ok(Self::Console(ProcConsole {
-				pid: reader.read_u32::<BigEndian>()?,
-				kind: {
-					let kind = reader.read_u32::<BigEndian>()?;
-					match kind {
-						1 => ConsoleKind::Stdout,
-						2 => ConsoleKind::Stderr,
-						_ => bail!("Unrecognized console kind: {}", kind)
-					}
-				},
-				buf: reader.read_bytes()?
-			})),
-
-			2 => Ok(Self::Fin(ProcFin {
-				pid: reader.read_u32::<BigEndian>()?,
-				exit_code: reader.read_option(|reader| {
-					let c = reader.read_i32::<BigEndian>()?;
-					Ok(c)
-				})?
-			})),
-
-			_ => bail!("Unrecognized proc event: {}", event)
-		}
 	}
 }
 
@@ -828,6 +810,21 @@ mod test {
 			reason: "nope".to_string()
 		}));
 
+		assert_roundtrip(Response::ProcessEvent(ProcessEvent::Console {
+			kind: ConsoleKind::Stdout,
+			chunk: b"foo bar".to_vec(),
+		}));
+		assert_roundtrip(Response::ProcessEvent(ProcessEvent::Console {
+			kind: ConsoleKind::Stderr,
+			chunk: b"oh noes!".to_vec(),
+		}));
+		assert_roundtrip(Response::ProcessEvent(ProcessEvent::Fin {
+			exit_code: None
+		}));
+		assert_roundtrip(Response::ProcessEvent(ProcessEvent::Fin {
+			exit_code: Some(-9)
+		}));
+
 		assert_roundtrip(Response::Status(true));
 		assert_roundtrip(Response::Status(false));
 
@@ -845,39 +842,5 @@ mod test {
 
 		assert_roundtrip(Response::Gids(Some(vec![1, 2, 3])));
 		assert_roundtrip(Response::Gids(None));
-	}
-
-
-	#[test]
-	fn proc_event() {
-
-		fn assert_roundtrip(event: ProcEvent) {
-			let msg = event.encode()
-				.expect("Failed to encode proc event");
-			let event2 = ProcEvent::decode(msg)
-				.expect("Failed to decode proc event");
-			assert_that!(&event2, eq(event));
-		}
-
-		assert_roundtrip(ProcEvent::Console(ProcConsole {
-			pid: 5,
-			kind: ConsoleKind::Stdout,
-			buf: b"foo bar".to_vec(),
-		}));
-
-		assert_roundtrip(ProcEvent::Console(ProcConsole {
-			pid: 42,
-			kind: ConsoleKind::Stderr,
-			buf: b"oh noes!".to_vec(),
-		}));
-
-		assert_roundtrip(ProcEvent::Fin(ProcFin {
-			pid: 5,
-			exit_code: None
-		}));
-		assert_roundtrip(ProcEvent::Fin(ProcFin {
-			pid: 42,
-			exit_code: Some(-9)
-		}));
 	}
 }

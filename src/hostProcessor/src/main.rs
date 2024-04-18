@@ -25,7 +25,7 @@ use tracing::{debug, error_span, info, Instrument, trace, warn};
 use host_processor::framing::{AsyncReadFramed, AsyncWriteFramed};
 use host_processor::logging::{self, ResultExt};
 use host_processor::processes::Processes;
-use host_processor::proto::{ConsoleKind, ExecRequest, ExecResponse, ProcConsole, ProcEvent, ProcFin, Request, RequestEnvelope, Response, ResponseEnvelope};
+use host_processor::proto::{ConsoleKind, ExecRequest, ExecResponse, ProcessEvent, Request, RequestEnvelope, Response, ResponseEnvelope};
 
 
 #[derive(Options)]
@@ -335,25 +335,6 @@ async fn write_response(socket: &Mutex<OwnedWriteHalf>, request_id: u32, respons
 }
 
 
-async fn write_proc_event(socket: &Mutex<OwnedWriteHalf>, event: ProcEvent) -> Result<(),()> {
-
-	// encode the event
-	let msg = event.encode()
-		.context("Failed to encode proc event")
-		.warn_err()?;
-
-	// send it over the socket
-	socket.lock()
-		.await
-		.write_framed(msg)
-		.await
-		.context("Failed to write proc event")
-		.warn_err()?;
-
-	Ok(())
-}
-
-
 #[tracing::instrument(skip_all, level = 5, name = "Ping")]
 async fn dispatch_ping(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32) {
 
@@ -453,10 +434,9 @@ async fn dispatch_exec(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32, proce
 			Some((kind, Ok(chunk))) => {
 
 				// send back the console chunk
-				let Ok(_) = write_proc_event(&socket, ProcEvent::Console(ProcConsole {
-					pid,
+				let Ok(_) = write_response(&socket, request_id, Response::ProcessEvent(ProcessEvent::Console {
 					kind,
-					buf: chunk.to_vec()
+					chunk: chunk.to_vec()
 				}))
 					.await
 					else { break; };
@@ -486,8 +466,7 @@ async fn dispatch_exec(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32, proce
 
 		// send the final proc event, if needed
 		if request.stream_fin {
-			write_proc_event(&socket, ProcEvent::Fin(ProcFin {
-				pid,
+			write_response(&socket, request_id, Response::ProcessEvent(ProcessEvent::Fin {
 				exit_code: exit.code()
 			}))
 				.await
