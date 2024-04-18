@@ -671,8 +671,12 @@ afterEvaluate {
 		val pypId = "pyp"
 		val rawDataId = "rawdata"
 
-		val devDir = buildDir.toPath().resolve("dev")
-		val drivePath = devDir.resolve("drive.vdi")
+		// for temporary files needed to build
+		val buildDevDir = buildDir.toPath().resolve("dev")
+
+		// for persistent files that should be preserved between builds
+		val devVmDir = projectDir.toPath().resolve("dev").resolve("vm")
+		val drivePath = devVmDir.resolve("drive.vdi")
 
 		val interfacePrefix = "192.168.56"
 		val vmIp = "$interfacePrefix.5"
@@ -689,14 +693,14 @@ afterEvaluate {
 			doLast {
 
 				// make a place to do VM things
-				devDir.createFolderIfNeeded()
+				devVmDir.createFolderIfNeeded()
 
 				// download the linux install ISO
 				// CentOS is basically abandoned now (CentOS Stream is *not* the same thing!)
 				// The next best thing to CentOS is now Rocky Linux, see for more info:
 				// https://computingforgeeks.com/rocky-linux-vs-centos-stream-vs-rhel-vs-oracle-linux/
 
-				val installIso = devDir.resolve("rocky.iso")
+				val installIso = buildDevDir.createFolderIfNeeded().resolve("rocky.iso")
 				if (!installIso.exists()) {
 					URL("https://dl.rockylinux.org/vault/rocky/8.5/isos/x86_64/Rocky-8.5-x86_64-minimal.iso").let {
 						println("dowloading $it ...")
@@ -734,12 +738,11 @@ afterEvaluate {
 				// https://zaufi.github.io/administration/2012/08/31/vbox-setup-new-vm
 				// https://docs.oracle.com/en/virtualization/virtualbox/6.1/user/vboxmanage.html#vboxmanage-intro
 
-				val vmDir = devDir.resolve("vbox")
 				vbox("createvm") {
 					add("--name", vmid)
 					add("--ostype", "RedHat_64")
 					add("--register")
-					add("--basefolder", vmDir.toString())
+					add("--basefolder", devVmDir.toString())
 				}
 				vbox("modifyvm") {
 					add(vmid)
@@ -913,7 +916,7 @@ afterEvaluate {
 
 				// download the guest additions if needed
 				// NOTE: v6.1.32 doesn't seem to work
-				val guestIso = devDir.resolve("guestAdditions.iso")
+				val guestIso = buildDevDir.createFolderIfNeeded().resolve("guestAdditions.iso")
 				if (!guestIso.exists()) {
 					URL("https://download.virtualbox.org/virtualbox/6.1.30/VBoxGuestAdditions_6.1.30.iso").download(guestIso)
 				}
