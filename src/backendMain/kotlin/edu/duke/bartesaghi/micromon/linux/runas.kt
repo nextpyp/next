@@ -15,7 +15,7 @@ sealed interface Runas {
 			val path = (dir / "runas-$username")
 
 			// find the uid
-			val uid = HostProcessor.uid(username)
+			val uid = HostProcessorOld.uid(username)
 				?: return@f Failure(path, listOf("Unknown username: $username"))
 
 			// find the user-specific runas executable
@@ -29,7 +29,7 @@ sealed interface Runas {
 
 			// the file should be owned by the given username
 			if (stat.uid != uid) {
-				val fileUsername = HostProcessor.tryUsername(stat.uid)
+				val fileUsername = HostProcessorOld.tryUsername(stat.uid)
 				failures.add("File permissions: Should be owned by $username, not $fileUsername")
 			}
 
@@ -59,10 +59,10 @@ sealed interface Runas {
 
 			// and the file should be owned by any group among this user's groups
 			val websiteUid = Filesystem.getUid()
-			val websiteGids = HostProcessor.gids(websiteUid)
+			val websiteGids = HostProcessorOld.gids(websiteUid)
 			if (websiteGids == null || stat.gid !in websiteGids) {
-				val micromonUsername = HostProcessor.tryUsername(websiteUid)
-				val fileGroupname = HostProcessor.tryGroupname(stat.gid)
+				val micromonUsername = HostProcessorOld.tryUsername(websiteUid)
+				val fileGroupname = HostProcessorOld.tryGroupname(stat.gid)
 				failures.add("File permissions: website user $micromonUsername is not a member of group $fileGroupname")
 			}
 

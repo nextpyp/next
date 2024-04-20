@@ -1,5 +1,6 @@
 package edu.duke.bartesaghi.micromon
 
+import edu.duke.bartesaghi.micromon.linux.HostProcessor
 import edu.duke.bartesaghi.micromon.projects.ProjectEventListeners
 import edu.duke.bartesaghi.micromon.pyp.Args
 import edu.duke.bartesaghi.micromon.pyp.fromToml
@@ -7,6 +8,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import org.slf4j.LoggerFactory
 import java.nio.file.Paths
+import kotlin.io.path.div
 
 
 object Backend {
@@ -66,4 +68,6 @@ object Backend {
 	 * use `Backend.scope.launch()` instead of eg `GlobalScope.launch()`
 	 */
 	val scope = CoroutineScope(Dispatchers.Default)
+
+	val hostProcessor = HostProcessor(config.web.localDir / "host-processor")
 }

@@ -59,3 +59,17 @@ fun <T> Set<T>.without(value: T): Set<T> =
 	HashSet(this).apply {
 		remove(value)
 	}
+
+
+/** a sync version of AutoCloseable */
+interface SuspendCloseable {
+	suspend fun close()
+}
+
+
+suspend fun <T:SuspendCloseable,R> T.use(block: suspend (T) -> R): R =
+	try {
+		block(this)
+	} finally {
+		close()
+	}

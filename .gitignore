@@ -2,6 +2,7 @@
 /build/
 /run/config.toml
 /run/*.pid
+/run/host-processor
 /.gettext.json
 /local.properties
 *.sif

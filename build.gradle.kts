@@ -268,8 +268,10 @@ kotlin {
 		}
 		val backendTest by getting {
 			dependencies {
-				implementation(kotlin("test"))
-				implementation(kotlin("test-junit"))
+				// NOTE: this is the newest version of kotest we can use with Kotlin 1.6
+				val kotestVersion = "5.5.5"
+				implementation("io.kotest:kotest-runner-junit5-jvm:$kotestVersion")
+				implementation("io.kotest:kotest-assertions-core-jvm:$kotestVersion")
 			}
 		}
 		val frontendMain by getting {
@@ -376,6 +378,12 @@ rootProject.plugins.withType<YarnPlugin> {
 		resolution("@projectstorm/react-diagrams-defaults", "6.2.0")
 		resolution("@projectstorm/react-diagrams-routing","6.2.0")
 	}
+}
+
+
+// enable test runner for test tasks
+tasks.withType<Test>().configureEach {
+	useJUnitPlatform()
 }
 
 

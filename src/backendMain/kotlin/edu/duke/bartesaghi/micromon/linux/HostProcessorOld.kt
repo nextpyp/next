@@ -13,7 +13,7 @@ import kotlin.io.path.outputStream
  * Allows micromon to break outside of the container and run commands on the host OS,
  * as long as the host OS has a script listening to the named pipe
  */
-object HostProcessor {
+object HostProcessorOld {
 
 	val pipePath = Paths.get("/tmp/micromon.hostprocessor.pipe")
 

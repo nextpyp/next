@@ -5,8 +5,7 @@ import edu.duke.bartesaghi.micromon.cluster.Cluster
 import edu.duke.bartesaghi.micromon.cluster.ClusterJob
 import edu.duke.bartesaghi.micromon.cluster.Commands
 import edu.duke.bartesaghi.micromon.cluster.slurm.Gres
-import edu.duke.bartesaghi.micromon.linux.HostProcessor
-import edu.duke.bartesaghi.micromon.linux.Posix
+import edu.duke.bartesaghi.micromon.linux.HostProcessorOld
 import edu.duke.bartesaghi.micromon.services.ClusterJobResultType
 import edu.duke.bartesaghi.micromon.services.ClusterMode
 import edu.duke.bartesaghi.micromon.services.ClusterQueues
@@ -247,7 +246,7 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 				// add the path to the script
 				commands.add(scriptPath.toString())
 
-				pid = HostProcessor.exec(commands.joinToString(" "), outPath)
+				pid = HostProcessorOld.exec(commands.joinToString(" "), outPath)
 			}
 		}
 	}
@@ -561,7 +560,7 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 			for (task in job.tasks) {
 				val pid = task.pid
 				if (!task.finished && pid != null) {
-					HostProcessor.kill(pid)
+					HostProcessorOld.kill(pid)
 					// TODO: do we need to forcibly terminate? after a timeout?
 					// NOTE: the job end signal will be sent by the job process before it exits
 					//       but since we already removed all the tasks and jobs, we should just ignore the signal
