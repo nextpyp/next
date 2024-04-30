@@ -1,5 +1,5 @@
 
-use std::fs;
+use std::{env, fs};
 use std::ops::Deref;
 use std::path::PathBuf;
 use std::pin::Pin;
@@ -352,9 +352,17 @@ async fn dispatch_exec(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32, proce
 
 	trace!("Request: {:?}", &request);
 
+	// figure out the start folder
+	let dir = match request.dir {
+		Some(dir) => PathBuf::from(dir),
+		None => env::current_dir()
+			.unwrap_or(PathBuf::from("."))
+	};
+
 	// spawn the process
 	let response = Command::new(request.program)
 		.args(request.args)
+		.current_dir(dir)
 		.stdin(if request.stream_stdin {
 			Stdio::piped()
 		} else {
