@@ -176,7 +176,7 @@ kotlin {
 						"/kv/*" to "http://localhost:8080",
 						"/kvws/*" to mapOf("target" to "ws://localhost:8080", "ws" to true)
 					),
-					contentBase = mutableListOf("$buildDir/processedResources/frontend/main")
+					contentBase = mutableListOf("${layout.buildDirectory.toPath()}/processedResources/frontend/main")
 				)
 			}
 			webpackTask {
@@ -389,7 +389,7 @@ tasks.withType<Test>().configureEach {
 
 fun getNodeJsBinaryExecutable(): String {
 	val nodeDir = NodeJsRootPlugin.apply(rootProject).nodeJsSetupTaskProvider.get().destination
-	val isWindows = System.getProperty("os.name").toLowerCase().contains("windows")
+	val isWindows = System.getProperty("os.name").lowercase().contains("windows")
 	val nodeBinDir = if (isWindows) nodeDir else nodeDir.resolve("bin")
 	val command = NodeJsRootPlugin.apply(rootProject).nodeCommand
 	val finalCommand = if (isWindows && command == "node") "node.exe" else command
@@ -400,7 +400,7 @@ tasks {
 	create("generatePotFile", Exec::class) {
 		dependsOn("compileKotlinFrontend")
 		executable = getNodeJsBinaryExecutable()
-		args("${rootProject.buildDir}/js/node_modules/gettext-extract/bin/gettext-extract")
+		args("${rootProject.layout.buildDirectory.toPath()}/js/node_modules/gettext-extract/bin/gettext-extract")
 		inputs.files(kotlin.sourceSets["frontendMain"].kotlin.files)
 		outputs.file("$projectDir/src/frontendMain/resources/i18n/messages.pot")
 	}
@@ -417,7 +417,7 @@ afterEvaluate {
 					exec {
 						executable = getNodeJsBinaryExecutable()
 						args(
-							"${rootProject.buildDir}/js/node_modules/gettext.js/bin/po2json",
+							"${rootProject.layout.buildDirectory.toPath()}/js/node_modules/gettext.js/bin/po2json",
 							it.absolutePath,
 							"${it.parent}/${it.nameWithoutExtension}.json"
 						)
@@ -440,7 +440,7 @@ afterEvaluate {
 			group = "package"
 			archiveAppendix.set("frontend")
 			val distribution =
-				project.tasks.getByName(webpackTask, KotlinWebpack::class).destinationDirectory!!
+				project.tasks.getByName(webpackTask, KotlinWebpack::class).destinationDirectory
 			from(distribution) {
 				include("*.*")
 			}
@@ -464,7 +464,7 @@ afterEvaluate {
 			duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 		}
 		getByName("backendJar").group = "package"
-		val jarTask = create("jar", Jar::class).apply {
+		create("jar", Jar::class).apply {
 			dependsOn("frontendArchive", "backendJar")
 			group = "package"
 			manifest {
@@ -489,11 +489,11 @@ afterEvaluate {
 		create("backendRun", JavaExec::class) {
 			dependsOn("compileKotlinBackend")
 			group = "run"
-			main = "edu.duke.bartesaghi.micromon.MainKt"
+			mainClass = "edu.duke.bartesaghi.micromon.MainKt"
 			classpath =
 				configurations["backendRuntimeClasspath"] + project.tasks["compileKotlinBackend"].outputs.files +
 						project.tasks["backendProcessResources"].outputs.files
-			workingDir = buildDir
+			workingDir = layout.buildDirectory.toFile()
 		}
 		getByName("compileKotlinBackend") {
 			dependsOn("compileKotlinMetadata", "allMetadataJar", "generateBuildSources")
@@ -508,7 +508,7 @@ afterEvaluate {
 			mustRunAfter("kotlinNpmInstall")
 			val frontendDir = kotlin.sourceSets.getByName("frontendMain").kotlin.srcDirs.first().parentFile
 			from(frontendDir.resolve("js"))
-			into(buildDir.resolve("js/node_modules"))
+			into(layout.buildDirectory.dir("js/node_modules"))
 		}
 		getByName("frontendBrowserDevelopmentWebpack") {
 			dependsOn("copyLocalModules")
@@ -537,7 +537,7 @@ afterEvaluate {
 			doLast {
 
 				// resolve all the jar files against the libs folder
-				buildDir.resolve("classpath.txt")
+				layout.buildDirectory.toFile().resolve("classpath.txt")
 					.writeText("""
 						|-cp "\
 						|${collectClasspath().joinToString(":\\\n") { "libs/${it.name}" }}
@@ -551,7 +551,7 @@ afterEvaluate {
 			group = "package"
 			description = "makes the server runtime image"
 
-			destinationDir = file("$buildDir/image")
+			destinationDir = layout.buildDirectory.toFile().resolve("image")
 
 			// copy all the dependency jars
 			from(collectClasspath()) {
@@ -559,7 +559,7 @@ afterEvaluate {
 			}
 			
 			// copy the classpath file
-			from(buildDir.resolve("classpath.txt")) {
+			from(layout.buildDirectory.file("classpath.txt")) {
 				into("bin")
 			}
 
@@ -680,7 +680,7 @@ afterEvaluate {
 		val rawDataId = "rawdata"
 
 		// for temporary files needed to build
-		val buildDevDir = buildDir.toPath().resolve("dev")
+		val buildDevDir = layout.buildDirectory.toPath().resolve("dev")
 
 		// for persistent files that should be preserved between builds
 		val devVmDir = projectDir.toPath().resolve("dev").resolve("vm")
@@ -1168,7 +1168,7 @@ afterEvaluate {
 			doLast {
 
 				// make the version number available to common code
-				val srcDir = buildDir.toPath().resolve("generated-src/common")
+				val srcDir = layout.buildDirectory.toPath().resolve("generated-src/common")
 				val packName = "${project.group}.micromon"
 				val genPath = srcDir
 					.resolve(packName.replace('.', '/'))
@@ -1208,7 +1208,7 @@ afterEvaluate {
 			}
 
 			// set the output directory
-			val dir = buildDir.toPath()
+			val dir = layout.buildDirectory.toPath()
 				.resolve("generated-src")
 				.resolve("python-api")
 			outputDirectory.set(dir.toFile())
@@ -1223,7 +1223,7 @@ afterEvaluate {
 				// and dokka won't allow dokka-core on its own classpath =(
 
 				// so we need to just hard-code the built jar path
-				plugins(files("${dokkaPluginSubproject.buildDir}/libs/${dokkaPluginSubproject.name}.jar"))
+				plugins(files("${dokkaPluginSubproject.layout.buildDirectory.toPath()}/libs/${dokkaPluginSubproject.name}.jar"))
 			}
 
 			// send arguments to our plugin, json-style
@@ -1435,3 +1435,10 @@ fun URL.download(dst: Path) {
 		Files.copy(it, dst, StandardCopyOption.REPLACE_EXISTING)
 	}
 }
+
+
+fun DirectoryProperty.toFile(): File =
+	get().asFile
+
+fun DirectoryProperty.toPath(): Path =
+	toFile().toPath()
