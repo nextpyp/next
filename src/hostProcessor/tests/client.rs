@@ -246,7 +246,7 @@ fn exec_kill() {
 
 
 #[test]
-fn exec_username() {
+fn username() {
 	let _logging = logging::init_test();
 
 	let host_processor = HostProcessor::start();
@@ -264,7 +264,7 @@ fn exec_username() {
 
 
 #[test]
-fn exec_uid() {
+fn uid() {
 	let _logging = logging::init_test();
 
 	let host_processor = HostProcessor::start();
@@ -282,7 +282,7 @@ fn exec_uid() {
 
 
 #[test]
-fn exec_groupname() {
+fn groupname() {
 	let _logging = logging::init_test();
 
 	let host_processor = HostProcessor::start();
@@ -300,7 +300,7 @@ fn exec_groupname() {
 
 
 #[test]
-fn exec_gid() {
+fn gid() {
 	let _logging = logging::init_test();
 
 	let host_processor = HostProcessor::start();
@@ -318,7 +318,7 @@ fn exec_gid() {
 
 
 #[test]
-fn exec_gids() {
+fn gids() {
 	let _logging = logging::init_test();
 
 	let host_processor = HostProcessor::start();
