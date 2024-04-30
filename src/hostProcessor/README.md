@@ -19,10 +19,10 @@ host operating system outside of the container.
 To build the launcher, run the following command:
 
 ```shell
-RUSTFLAGS="-C target-feature=+crt-static" cargo build --release --target x86_64-unknown-linux-gnu
+RUSTFLAGS="-C target-feature=+crt-static" cargo build --release --target x86_64-unknown-linux-musl
 ```
 
-The executable will appear at `target/x86_64-unknown-linux-gnu/release/launcher`.
+The executable will appear at `target/x86_64-unknown-linux-musl/release/launcher`.
 
 **NOTE**: We have to put the `rustc` compile flags in the environment variable
 for now (because `.cargo/config.toml` only applies to the current crate,
@@ -31,7 +31,7 @@ after `cargo` moves the `profile-rustflags` feature to the stable branch.
 See https://github.com/rust-lang/cargo/issues/10271 for the tracking issue.
 After that, the build command could just be `cargo build --release`.
 
-**NOTE**: The explicit compilation target (eg `x86_64-unknown-linux-gnu`)
+**NOTE**: The explicit compilation target (eg `x86_64-unknown-linux-musl`)
 is needed to work around an issue where we want to compile the final binary
 with purely static linking, but we want to compile the proc macro
 (used by the `thiserror` crate) on the host with regular settings.
