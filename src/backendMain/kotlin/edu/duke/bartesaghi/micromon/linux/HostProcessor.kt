@@ -1,18 +1,9 @@
-
-@file:Suppress("RemoveRedundantQualifierName")
-// The linter thinks some of the Request.* qualifications are reduntant and some aren't.
-// Same with Response.*
-// The inconsistency is super annoying, so just allow all the qualifiers and stop complaining.
-
 package edu.duke.bartesaghi.micromon.linux
 
+import edu.duke.bartesaghi.micromon.use
 import edu.duke.bartesaghi.micromon.SuspendCloseable
 import edu.duke.bartesaghi.micromon.linux.HostProcessor.Connection.Responder
-import edu.duke.bartesaghi.micromon.linux.Request.Exec
-import edu.duke.bartesaghi.micromon.linux.Request.Ping
-import edu.duke.bartesaghi.micromon.linux.Response.Pong
 import edu.duke.bartesaghi.micromon.slowIOs
-import edu.duke.bartesaghi.micromon.use
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
@@ -23,8 +14,10 @@ import org.slf4j.LoggerFactory
 import java.io.*
 import java.net.StandardProtocolFamily
 import java.net.UnixDomainSocketAddress
+import java.nio.BufferUnderflowException
 import java.nio.ByteBuffer
 import java.nio.channels.AsynchronousCloseException
+import java.nio.channels.ClosedChannelException
 import java.nio.channels.SocketChannel
 import java.nio.file.Path
 import java.util.concurrent.atomic.AtomicLong
@@ -75,25 +68,28 @@ class HostProcessor(
 	class Connection(socketPath: Path): SuspendCloseable {
 
 		// TODO: use some kind of weak map to cleanup responders that have forgotten to close?
-		private val respondersByRequestId = HashMap<UInt,Responder>()
+		private val respondersByRequestId = HashMap<UInt,ConnectionResponder>()
 		private val respondersLock = Mutex()
 		private val nextRequestId = AtomicLong(1)
 
-		private suspend fun <R> responders(block: suspend (HashMap<UInt,Responder>) -> R): R =
+		private suspend fun <R> responders(block: suspend (HashMap<UInt,ConnectionResponder>) -> R): R =
 			respondersLock.withLock {
 				block(respondersByRequestId)
 			}
 
 		// deal with the sockets only on tasks confined to the IO thread pool
-		private val scope = CoroutineScope(Dispatchers.IO)
+		private val scopeSocket = CoroutineScope(Dispatchers.IO)
 
 		private val socket = SocketChannel.open(StandardProtocolFamily.UNIX).apply {
+			configureBlocking(true) // should be blocking by default, but let's be explicit
 			connect(UnixDomainSocketAddress.of(socketPath))
 		}
 
 		// make a task to handle sending messages
-		private val requestChannel = Channel<RequestEnvelope>()
-		private val sender = scope.launch {
+		private val requestChannel = Channel<RequestEnvelope>(Channel.UNLIMITED)
+		private val sender = scopeSocket.launch {
+
+			// wait for requests from the channel and forward them to the socket
 			for (request in requestChannel) {
 				try {
 					socket.send(request)
@@ -101,11 +97,16 @@ class HostProcessor(
 					log.error("Failed to send request", t)
 				}
 			}
+
+			// task exiting: close request channel so senders get an error instead of just buffering the traffic
+			requestChannel.close()
 		}
 
 		// make a task to handle receiving messages
-		private val responseChannel = Channel<Response>()
-		private val receiver = scope.launch {
+		private val responseChannel = Channel<Response>(Channel.UNLIMITED)
+		private val receiver = scopeSocket.launch {
+
+			// listen for responses from the socket
 			while (true) {
 				try {
 
@@ -113,15 +114,27 @@ class HostProcessor(
 					val response = socket.recvResponse()
 
 					// dispatch to a responder
-					responders { it[response.id]?.channel?.send(response.response) }
+					val responder = responders { it[response.id] }
+					responder?.channel?.send(response.response)
 
+				} catch (ex: ClosedChannelException) {
+					// channel closed, exit the receiver task
+					break
 				} catch (ex: AsynchronousCloseException) {
 					// socket closed, exit the receiver task
+					break
+				} catch (ex: BufferUnderflowException) {
+					// error in decoding response, host processor and website got out of sync somehow
+					// probably not recoverable, so just abort listener task
+					log.error("Protocol Desync!", ex)
 					break
 				} catch (t: Throwable) {
 					log.error("Failed to handle response", t)
 				}
 			}
+
+			// task exiting: close the response channel so receivers get an error
+			responseChannel.close()
 		}
 
 		override suspend fun close() {
@@ -134,10 +147,8 @@ class HostProcessor(
 			receiver.join()
 		}
 
-		suspend fun request(request: Request): Responder {
-
-			// pick an id for the request and build the envelope
-			val requestId = nextRequestId.getAndUpdate { i ->
+		private fun makeRequestId(): UInt =
+			nextRequestId.getAndUpdate { i ->
 				// just in case, roll over to 1 if we overflow a u32
 				if (i >= UInt.MAX_VALUE.toLong()) {
 					1
@@ -146,29 +157,43 @@ class HostProcessor(
 					i + 1
 				}
 			}.toUInt()
-			val envelope = RequestEnvelope(requestId, request)
+
+		suspend fun send(request: Request) {
+			val requestId = makeRequestId()
+			requestChannel.send(RequestEnvelope(requestId, request))
+		}
+
+		suspend fun request(request: Request): Responder {
+
+			val requestId = makeRequestId()
 
 			// register a new responder
-			val responder = Responder(envelope.id)
+			val responder = ConnectionResponder(requestId)
 			responders { it[requestId] = responder }
 
-			// relay the request to the sender task
-			requestChannel.send(envelope)
+			requestChannel.send(RequestEnvelope(requestId, request))
 
 			return responder
 		}
 
-		inner class Responder(private val requestId: UInt) : SuspendCloseable {
+		// NOTE: need an interface here to keep things private to the outer class, like properties, constructor
+		interface Responder : SuspendCloseable {
+			suspend fun recvResponse(): Response
+			suspend fun send(request: Request)
+		}
 
-			val channel = Channel<Response>()
+		private inner class ConnectionResponder(private val requestId: UInt) : Responder {
 
-			suspend inline fun <reified T:Response> recv(): T {
-				val response = channel.receive()
-				return when (response) {
-					is T -> response // ok
-					else -> throw UnexpectedResponseException(response)
-				}
-			}
+			val channel = Channel<Response>(Channel.UNLIMITED)
+
+			override suspend fun recvResponse(): Response =
+				channel.receive()
+
+			override suspend fun send(request: Request) =
+				requestChannel.send(RequestEnvelope(
+					requestId,
+					request
+				))
 
 			override suspend fun close() {
 				responders { it.remove(requestId) }
@@ -177,11 +202,19 @@ class HostProcessor(
 	}
 
 
+	suspend inline fun <reified T:Response> Responder.recv(): T {
+		return when (val response = recvResponse()) {
+			is T -> response // ok
+			else -> throw UnexpectedResponseException(response)
+		}
+	}
+
+
 	suspend fun ping() {
 		connectionOrThrow
-			.request(Ping())
+			.request(Request.Ping())
 			.use { responder ->
-				responder.recv<Pong>()
+				responder.recv<Response.Pong>()
 			}
 	}
 
@@ -202,13 +235,31 @@ class HostProcessor(
 			.use { responder ->
 				val response = responder.recv<Response.Exec>()
 				when (val r = response.response) {
-					is Response.Exec.Success -> Process(r.pid)
+					is Response.Exec.Success -> ProcessImpl(r.pid)
 					is Response.Exec.Failure -> throw Error("Failed to launch process: ${r.reason}")
 				}
 			}
 
-	open class Process(val pid: UInt) {
-		// TODO: status, kill
+	// NOTE: need an interface here to keep things private to the outer class, like the constructor
+	interface Process {
+		val pid: UInt
+		suspend fun status(): Boolean
+		suspend fun kill()
+	}
+
+	open inner class ProcessImpl(override val pid: UInt) : Process {
+
+		override suspend fun status(): Boolean =
+			connectionOrThrow
+				.request(Request.Status(pid))
+				.use { responder ->
+					responder.recv<Response.Status>()
+						.isRunning
+				}
+
+		override suspend fun kill() =
+			connectionOrThrow
+				.send(Request.Kill(pid))
 	}
 
 
@@ -235,30 +286,94 @@ class HostProcessor(
 
 		// handle the launch response
 		when (val response = responder.recv<Response.Exec>().response) {
-			is Response.Exec.Success -> return StreamingProcess(response.pid, responder)
+			is Response.Exec.Success -> return StreamingProcessImpl(response.pid, responder)
 			is Response.Exec.Failure -> throw Error("Failed to launch process: ${response.reason}")
 			else -> throw Error("Unexpected response: $response")
 		}
 	}
 
-	class StreamingProcess(
+	// NOTE: need an interface here to keep things private to the outer class, like the constructor
+	interface StreamingProcess : Process, SuspendCloseable {
+
+		suspend fun recvEvent(): Response.ProcessEvent.Event
+
+		interface Stdin {
+			suspend fun write(bytes: ByteArray)
+			suspend fun close()
+		}
+		val stdin: Stdin
+	}
+
+	private inner class StreamingProcessImpl(
 		pid: UInt,
-		val responder: Responder
-	) : Process(pid), SuspendCloseable {
+		private val responder: Responder
+	) : ProcessImpl(pid), StreamingProcess {
 
 		override suspend fun close() {
 			responder.close()
 		}
 
-		suspend inline fun <reified T:Response.ProcessEvent.Event> recv(): T =
-			when (val event = responder.recv<Response.ProcessEvent>().event) {
-				is T -> event
-				else -> throw Error("Unexpected event: $event")
+		override suspend fun recvEvent(): Response.ProcessEvent.Event =
+			responder.recv<Response.ProcessEvent>().event
+
+		override val stdin = object : StreamingProcess.Stdin {
+
+			override suspend fun write(bytes: ByteArray) =
+				responder.send(Request.WriteStdin(pid, bytes))
+
+			override suspend fun close() {
+				responder.send(Request.CloseStdin(pid))
 			}
+		}
 	}
 
-	// TODO: other commands
+	suspend fun username(uid: UInt): String? =
+		connectionOrThrow
+			.request(Request.Username(uid))
+			.use { responder ->
+				responder.recv<Response.Username>()
+					.username
+			}
+
+	suspend fun uid(username: String): UInt? =
+		connectionOrThrow
+			.request(Request.Uid(username))
+			.use { responder ->
+				responder.recv<Response.Uid>()
+					.uid
+			}
+
+	suspend fun groupname(gid: UInt): String? =
+		connectionOrThrow
+			.request(Request.Groupname(gid))
+			.use { responder ->
+				responder.recv<Response.Groupname>()
+					.groupname
+			}
+
+	suspend fun gid(groupname: String): UInt? =
+		connectionOrThrow
+			.request(Request.Gid(groupname))
+			.use { responder ->
+				responder.recv<Response.Gid>()
+					.gid
+			}
+
+	suspend fun gids(uid: UInt): List<UInt>? =
+		connectionOrThrow
+			.request(Request.Gids(uid))
+			.use { responder ->
+				responder.recv<Response.Gids>()
+					.gids
+			}
 }
+
+
+suspend inline fun <reified T:Response.ProcessEvent.Event> HostProcessor.StreamingProcess.recv(): T =
+	when (val event = recvEvent()) {
+		is T -> event
+		else -> throw Error("Unexpected event: $event")
+	}
 
 
 private fun SocketChannel.send(request: RequestEnvelope) {
@@ -270,17 +385,33 @@ private fun SocketChannel.send(request: RequestEnvelope) {
 	write(ByteBuffer.wrap(encoded))
 }
 
+private fun SocketChannel.readAll(size: Int): ByteBuffer {
+	val buf = ByteBuffer.allocate(size)
+	while (true) {
+		val bytesRead = read(buf)
+		if (bytesRead == -1) {
+			// end of stream: can't read any more, so throw
+			throw AsynchronousCloseException()
+		}
+		if (buf.position() < buf.capacity()) {
+			// wait a bit for more to show up
+			Thread.sleep(100)
+		} else {
+			break
+		}
+	}
+	buf.flip()
+	return buf
+}
+
 private fun SocketChannel.recvResponse(): ResponseEnvelope {
 
 	// read the message size
-	val sizeBuf = ByteBuffer.allocate(4)
-	read(sizeBuf)
-	sizeBuf.flip()
+	val sizeBuf = readAll(4)
 	val size = sizeBuf.getInt().toUInt().toIntOrThrow()
 
 	// read the message
-	val buf = ByteBuffer.allocate(size)
-	read(buf)
+	val buf = readAll(size)
 	return ResponseEnvelope.decode(buf.array())
 }
 
@@ -298,7 +429,7 @@ sealed interface Request {
 		}
 	}
 
-	data class Exec(
+	class Exec(
 		val program: String,
 		val args: List<String>,
 		val streamStdin: Boolean,
@@ -308,6 +439,79 @@ sealed interface Request {
 	) : Request {
 		companion object {
 			const val ID: UInt = 2u
+		}
+	}
+
+	class Status(
+		val pid: UInt
+	) : Request {
+		companion object {
+			const val ID: UInt = 3u
+		}
+	}
+
+	class WriteStdin(
+		val pid: UInt,
+		val chunk: ByteArray
+	) : Request {
+		companion object {
+			const val ID: UInt = 4u
+		}
+	}
+
+	class CloseStdin(
+		val pid: UInt
+	) : Request {
+		companion object {
+			const val ID: UInt = 5u
+		}
+	}
+
+	class Kill(
+		val pid: UInt
+	) : Request {
+		companion object {
+			const val ID: UInt = 6u
+		}
+	}
+
+	class Username(
+		val uid: UInt
+	) : Request {
+		companion object {
+			const val ID: UInt = 7u
+		}
+	}
+
+	class Uid(
+		val username: String
+	) : Request {
+		companion object {
+			const val ID: UInt = 8u
+		}
+	}
+
+	class Groupname(
+		val gid: UInt
+	) : Request {
+		companion object {
+			const val ID: UInt = 9u
+		}
+	}
+
+	class Gid(
+		val groupname: String
+	) : Request {
+		companion object {
+			const val ID: UInt = 10u
+		}
+	}
+
+	class Gids(
+		val uid: UInt
+	) : Request {
+		companion object {
+			const val ID: UInt = 11u
 		}
 	}
 }
@@ -343,7 +547,51 @@ private class RequestEnvelope(
 				out.writeBoolean(request.streamFin)
 			}
 
-			// TODO
+			is Request.Status -> {
+				out.writeU32(Request.Status.ID)
+				out.writeU32(request.pid)
+			}
+
+			is Request.WriteStdin -> {
+				out.writeU32(Request.WriteStdin.ID)
+				out.writeU32(request.pid)
+				out.writeBytes(request.chunk)
+			}
+
+			is Request.CloseStdin -> {
+				out.writeU32(Request.CloseStdin.ID)
+				out.writeU32(request.pid)
+			}
+
+			is Request.Kill -> {
+				out.writeU32(Request.Kill.ID)
+				out.writeU32(request.pid)
+			}
+
+			is Request.Username -> {
+				out.writeU32(Request.Username.ID)
+				out.writeU32(request.uid)
+			}
+
+			is Request.Uid -> {
+				out.writeU32(Request.Uid.ID)
+				out.writeUtf8(request.username)
+			}
+
+			is Request.Groupname -> {
+				out.writeU32(Request.Groupname.ID)
+				out.writeU32(request.gid)
+			}
+
+			is Request.Gid -> {
+				out.writeU32(Request.Gid.ID)
+				out.writeUtf8(request.groupname)
+			}
+
+			is Request.Gids -> {
+				out.writeU32(Request.Gids.ID)
+				out.writeU32(request.uid)
+			}
 		}
 
 		return bos.toByteArray()
@@ -357,14 +605,11 @@ private class RequestEnvelope(
 
 			val id = input.readU32()
 
-			@Suppress("RemoveRedundantQualifierName")
-			// The linter thinks some of these are reduntant and some aren't.
-			// The inconsistency is super annoying, so just allow all the qualifiers and stop complaining.
 			val request: Request = when (val typeId = input.readU32()) {
 
-				Request.Ping.ID -> Ping()
+				Request.Ping.ID -> Request.Ping()
 
-				Request.Exec.ID -> Exec(
+				Request.Exec.ID -> Request.Exec(
 					program = input.readUtf8(),
 					args = input.readArray {
 						input.readUtf8()
@@ -375,7 +620,42 @@ private class RequestEnvelope(
 					streamFin = input.readBoolean()
 				)
 
-				// TODO
+				Request.Status.ID -> Request.Status(
+					pid = input.readU32()
+				)
+
+				Request.WriteStdin.ID -> Request.WriteStdin(
+					pid = input.readU32(),
+					chunk = input.readBytes()
+				)
+
+				Request.CloseStdin.ID -> Request.CloseStdin(
+					pid = input.readU32()
+				)
+
+				Request.Kill.ID -> Request.Kill(
+					pid = input.readU32()
+				)
+
+				Request.Username.ID -> Request.Username(
+					uid = input.readU32()
+				)
+
+				Request.Uid.ID -> Request.Uid(
+					username = input.readUtf8()
+				)
+
+				Request.Groupname.ID -> Request.Groupname(
+					gid = input.readU32()
+				)
+
+				Request.Gid.ID -> Request.Gid(
+					groupname = input.readUtf8()
+				)
+
+				Request.Gids.ID -> Request.Gids(
+					uid = input.readU32()
+				)
 
 				else -> throw NoSuchElementException("unrecognized response type id: $typeId")
 			}
@@ -388,7 +668,7 @@ private class RequestEnvelope(
 
 sealed interface Response {
 
-	data class Error(val reason: String) : Response {
+	class Error(val reason: String) : Response {
 		companion object {
 			const val ID: UInt = 1u
 		}
@@ -400,40 +680,40 @@ sealed interface Response {
 		}
 	}
 
-	data class Exec(val response: Response) : Response {
+	class Exec(val response: Response) : Response {
 		companion object {
 			const val ID: UInt = 3u
 		}
 
 		sealed interface Response
 
-		data class Success(val pid: UInt) : Response {
+		class Success(val pid: UInt) : Response {
 			companion object {
 				const val ID: UInt = 1u
 			}
 		}
 
-		data class Failure(val reason: String) : Response {
+		class Failure(val reason: String) : Response {
 			companion object {
 				const val ID: UInt = 2u
 			}
 		}
 	}
 
-	data class ProcessEvent(val event: Event) : Response {
+	class ProcessEvent(val event: Event) : Response {
 		companion object {
 			const val ID: UInt = 4u
 		}
 
 		sealed interface Event
 
-		data class Console(val kind: ConsoleKind, val chunk: ByteArray): Event {
+		class Console(val kind: ConsoleKind, val chunk: ByteArray): Event {
 			companion object {
 				const val ID: UInt = 1u
 			}
 		}
 
-		data class Fin(val exitCode: Int?) : Event {
+		class Fin(val exitCode: Int?) : Event {
 			companion object {
 				const val ID: UInt = 2u
 			}
@@ -455,6 +735,42 @@ sealed interface Response {
 			}
 		}
 	}
+
+	class Status(val isRunning: Boolean) : Response {
+		companion object {
+			const val ID: UInt = 5u
+		}
+	}
+
+	class Username(val username: String?): Response {
+		companion object {
+			const val ID: UInt = 6u
+		}
+	}
+
+	class Uid(val uid: UInt?): Response {
+		companion object {
+			const val ID: UInt = 7u
+		}
+	}
+
+	class Groupname(val groupname: String?): Response {
+		companion object {
+			const val ID: UInt = 8u
+		}
+	}
+
+	class Gid(val gid: UInt?): Response {
+		companion object {
+			const val ID: UInt = 9u
+		}
+	}
+
+	class Gids(val gids: List<UInt>?): Response {
+		companion object {
+			const val ID: UInt = 10u
+		}
+	}
 }
 
 
@@ -470,9 +786,6 @@ private class ResponseEnvelope(
 
 		out.writeU32(id)
 
-		@Suppress("RemoveRedundantQualifierName")
-		// The linter thinks some of these are reduntant and some aren't.
-		// The inconsistency is super annoying, so just allow all the qualifiers and stop complaining.
 		when (response) {
 
 			is Response.Error -> {
@@ -516,7 +829,47 @@ private class ResponseEnvelope(
 				}
 			}
 
-			// TODO
+			is Response.Status -> {
+				out.writeU32(Response.Status.ID)
+				out.writeBoolean(response.isRunning)
+			}
+
+			is Response.Username -> {
+				out.writeU32(Response.Username.ID)
+				out.writeOption(response.username) {
+					out.writeUtf8(it)
+				}
+			}
+
+			is Response.Uid -> {
+				out.writeU32(Response.Uid.ID)
+				out.writeOption(response.uid) {
+					out.writeU32(it)
+				}
+			}
+
+			is Response.Groupname -> {
+				out.writeU32(Response.Groupname.ID)
+				out.writeOption(response.groupname) {
+					out.writeUtf8(it)
+				}
+			}
+
+			is Response.Gid -> {
+				out.writeU32(Response.Gid.ID)
+				out.writeOption(response.gid) {
+					out.writeU32(it)
+				}
+			}
+
+			is Response.Gids -> {
+				out.writeU32(Response.Gids.ID)
+				out.writeOption(response.gids) { gids ->
+					out.writeArray(gids) { gid ->
+						out.writeU32(gid)
+					}
+				}
+			}
 		}
 
 		return bos.toByteArray()
@@ -531,16 +884,13 @@ private class ResponseEnvelope(
 
 			val id = input.readU32()
 
-			@Suppress("RemoveRedundantQualifierName")
-			// The linter thinks some of these are reduntant and some aren't.
-			// The inconsistency is super annoying, so just allow all the qualifiers and stop complaining.
 			val response: Response = when (val responseTypeId = input.readU32()) {
 
 				Response.Error.ID -> Response.Error(
 					reason = input.readUtf8()
 				)
 
-				Response.Pong.ID -> Pong()
+				Response.Pong.ID -> Response.Pong()
 
 				Response.Exec.ID -> Response.Exec(when (val execTypeId = input.readU32()) {
 					Response.Exec.Success.ID -> Response.Exec.Success(
@@ -565,7 +915,41 @@ private class ResponseEnvelope(
 					else -> throw NoSuchElementException("unrecognized response process event type: $eventTypeId")
 				})
 
-				// TODO
+				Response.Status.ID -> Response.Status(
+					isRunning = input.readBoolean()
+				)
+
+				Response.Username.ID -> Response.Username(
+					username = input.readOption {
+						input.readUtf8()
+					}
+				)
+
+				Response.Uid.ID -> Response.Uid(
+					uid = input.readOption {
+						input.readU32()
+					}
+				)
+
+				Response.Groupname.ID -> Response.Groupname(
+					groupname = input.readOption {
+						input.readUtf8()
+					}
+				)
+
+				Response.Gid.ID -> Response.Gid(
+					gid = input.readOption {
+						input.readU32()
+					}
+				)
+				Response.Gids.ID -> Response.Gids(
+					gids = input.readOption {
+						input.readArray {
+							input.readU32()
+						}
+					}
+				)
+
 
 				else -> throw NoSuchElementException("unrecognized response type: $responseTypeId")
 			}
@@ -586,9 +970,11 @@ private fun UInt.toIntOrThrow(): Int {
 
 
 private fun DataOutput.writeU32(i: UInt) =
+	// NOTE: writeInt() is big-endian
 	writeInt(i.toInt())
 
 private fun DataInput.readU32(): UInt =
+	// NOTE: readInt() is big-endian
 	readInt().toUInt()
 
 

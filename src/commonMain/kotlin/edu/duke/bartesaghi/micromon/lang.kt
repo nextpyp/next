@@ -61,7 +61,7 @@ fun <T> Set<T>.without(value: T): Set<T> =
 	}
 
 
-/** a sync version of AutoCloseable */
+/** async version of AutoCloseable */
 interface SuspendCloseable {
 	suspend fun close()
 }
