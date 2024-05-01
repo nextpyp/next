@@ -3,6 +3,7 @@
 /run/config.toml
 /run/*.pid
 /run/host-processor
+/run/runas
 /.gettext.json
 /local.properties
 *.sif

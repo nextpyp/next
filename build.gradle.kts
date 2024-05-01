@@ -577,41 +577,6 @@ afterEvaluate {
 			// https://ktor.io/servers/configuration.html#available-config
 		}
 
-		/* TODO: do we need this anymore?
-		register<Tar>("dist") {
-			group = "package"
-			description = "build the distribution files for the container"
-
-			compression = Compression.GZIP
-			archiveBaseName.set("nextPyp")
-			destinationDirectory.set(buildDir.resolve("dist"))
-
-			// include all the singularity images
-			val containerNames = listOf("nextPYP.sif", "reverse-proxy.sif")
-			for (name in containerNames) {
-				val path = runDir.resolve(name)
-				from(path)
-			}
-
-			// include all the scripts
-			for (script in listOf("start", "stop", "config.toml")) {
-				from("config/$script") {
-					makeExecutable()
-				}
-			}
-
-			from("docs/install.md")
-
-			doFirst {
-
-				// make sure the container files actually exist before running the task
-				for (name in containerNames) {
-					checkContainer(name)
-				}
-			}
-		}
-		*/
-
 		fun checkContainer(name: String) {
 			val path = runDir.resolve(name)
 			if (!path.exists()) {
@@ -622,26 +587,30 @@ afterEvaluate {
 			}
 		}
 
+		fun getConfigPath(): Path {
+			// make sure the config.toml exists
+			val configPath = runDir.toPath().resolve("config.toml")
+			if (!configPath.exists()) {
+				throw Error("create a config.toml in the run dir")
+			}
+			return configPath
+		}
+
 		create("containerRun") {
 			group = "run"
 			dependsOn("jar", classpathFileTask)
 			mustRunAfter("containerStop")
 			doLast {
 
-				// make sure the config.toml exists
-				val configPath = runDir.resolve("config.toml")
-				if (!configPath.exists()) {
-					throw Error("create a config.toml in the run dir")
-				}
-
-				// make sure the container exists
+				// make sure the needed files exist
+				val configPath = getConfigPath()
 				checkContainer("nextPYP.sif")
 
 				// run the start script with the development jar
 				exec {
 					workingDir = runDir
 					executable = "./start"
-					environment("PYP_CONFIG", configPath.absolutePath)
+					environment("PYP_CONFIG", configPath.toString())
 					environment("PYP_SRC", pypDir)
 					args(projectDir.absolutePath, project.version)
 				}
@@ -1114,6 +1083,14 @@ afterEvaluate {
 			}
 		}
 
+		create("vmBuildRustc") {
+			group = "build"
+			description = "build the singularity image for the Rust build environment"
+			doLast {
+				buildContainer("rustc")
+			}
+		}
+
 		create("vmContainerRun") {
 			group = "run"
 			description = "Starts the micromon container inside the running VM"
@@ -1121,17 +1098,12 @@ afterEvaluate {
 			mustRunAfter("vmContainerStop")
 			doLast {
 
-				// make sure the config.toml exists
-				val configPath = runDir.resolve("config.toml")
-				if (!configPath.exists()) {
-					throw Error("create a config.toml in the run dir")
-				}
-
-				// make sure the container exists
+				// make sure the needed files exist
+				val configPath = getConfigPath()
 				checkContainer("nextPYP.sif")
 
 				// run the start script with the development jar
-				val vmConfigPath = vmRunDir.resolve(configPath.name)
+				val vmConfigPath = vmRunDir.resolve(configPath.fileName)
 				vboxrun(vmid, "cd \"$vmRunDir\" && PYP_CONFIG=\"$vmConfigPath\" PYP_SRC=\"$vmPypDir\" ./start \"$vmMicromonDir\" ${project.version}")
 
 				println("""
@@ -1161,6 +1133,60 @@ afterEvaluate {
 			group = "run"
 			description = "Stops and then starts the micromon container inside the running VM"
 			dependsOn("vmContainerStop", "vmContainerRun")
+		}
+		
+		fun vmRustc(projectDir: Path): Path {
+
+			checkContainer("rustc.sif")
+
+			// config paths, relative to the `next` project dir
+			val cargoRegistryDir = Paths.get("build/cargoRegistry")
+
+			// create the cargo registry dir, if needed
+			project.projectDir.toPath().resolve(cargoRegistryDir)
+				.createFolderIfNeeded()
+
+			// run cargo inside the rustc container inside the vm
+			val vmDir = Paths.get("/media/micromon")
+			val vmProjectDir = vmDir.resolve(projectDir)
+			val vmCargoRegistryDir = vmDir.resolve(cargoRegistryDir)
+			val containerCargoHome = "/usr/local/cargo"
+			val binds = "--bind \"$vmCargoRegistryDir\":\"$containerCargoHome/registry\""
+			val vmSifPath = vmDir.resolve("run/rustc.sif")
+			vboxrun(vmid, "cd \"$vmProjectDir\" && apptainer exec $binds \"$vmSifPath\" cargo build --release")
+
+			// return the out dir
+			return projectDir.resolve("target/release")
+		}
+
+		create("vmBuildHostProcessor") {
+			group = "build"
+			description = "Build the host processor in the rustc container"
+			doLast {
+
+				val outDir = vmRustc(Paths.get("src/hostProcessor"))
+
+				// copy the executable into the run folder
+				copy {
+					from(outDir.resolve("host-processor"))
+					into(runDir)
+				}
+			}
+		}
+
+		create("vmBuildRunas") {
+			group = "build"
+			description = "Build the runas tool in the rustc container"
+			doLast {
+
+				val outDir = vmRustc(Paths.get("src/runas"))
+
+				// copy the executable into the run folder
+				copy {
+					from(outDir.resolve("runas"))
+					into(runDir)
+				}
+			}
 		}
 
 		create("generateBuildSources") {
