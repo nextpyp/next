@@ -89,6 +89,18 @@ class TestHostProcessor : DescribeSpec({
 			}
 		}
 
+		it("exec dir") {
+			withHostProcessor { hostProcessor ->
+				hostProcessor.execStream("pwd", listOf(), dir=Paths.get("/tmp"), stdout=true).use { proc ->
+					val console = proc.recv<Response.ProcessEvent.Console>()
+					console.kind.shouldBe(Response.ProcessEvent.ConsoleKind.Stdout)
+					console.chunk.toString(Charsets.UTF_8).shouldBe("/tmp\n")
+					val fin = proc.recv<Response.ProcessEvent.Fin>()
+					fin.exitCode.shouldBe(0)
+				}
+			}
+		}
+
 		it("exec multiplexing") {
 			withHostProcessor { hostProcessor ->
 				hostProcessor.execStream("cat", listOf("-"), stdin=true, stdout=true).use { proc1 ->

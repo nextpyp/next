@@ -609,10 +609,10 @@ afterEvaluate {
 				// run the start script with the development jar
 				exec {
 					workingDir = runDir
-					executable = "./start"
+					executable = "./nextpyp"
 					environment("PYP_CONFIG", configPath.toString())
 					environment("PYP_SRC", pypDir)
-					args(projectDir.absolutePath, project.version)
+					args("start", projectDir.absolutePath, project.version)
 				}
 			}
 		}
@@ -621,9 +621,15 @@ afterEvaluate {
 			group = "run"
 			doLast {
 
+				// make sure the needed files exist
+				val configPath = getConfigPath()
+
 				exec {
 					workingDir = runDir
-					executable = "./stop"
+					executable = "./nextpyp"
+					environment("PYP_CONFIG", configPath.toString())
+					environment("PYP_SRC", pypDir)
+					args("stop", projectDir.absolutePath, project.version)
 
 					// if the container isn't running, Singularity will return an error exit code,
 					// which translates into a gradle exception by default
@@ -1104,7 +1110,7 @@ afterEvaluate {
 
 				// run the start script with the development jar
 				val vmConfigPath = vmRunDir.resolve(configPath.fileName)
-				vboxrun(vmid, "cd \"$vmRunDir\" && PYP_CONFIG=\"$vmConfigPath\" PYP_SRC=\"$vmPypDir\" ./start \"$vmMicromonDir\" ${project.version}")
+				vboxrun(vmid, "cd \"$vmRunDir\" && PYP_CONFIG=\"$vmConfigPath\" PYP_SRC=\"$vmPypDir\" ./nextpyp start \"$vmMicromonDir\" ${project.version}")
 
 				println("""
 					|
@@ -1121,11 +1127,16 @@ afterEvaluate {
 			description = "Stops the micromon container inside the running VM"
 			doLast {
 
+				// make sure the needed files exist
+				val configPath = getConfigPath()
+
+				val vmConfigPath = vmRunDir.resolve(configPath.fileName)
+
 				// if the container isn't running, Singularity will return an error exit code,
 				// which translates into a gradle exception by default
 				// except, if the container isn't running, we've already won! =D
 				// there's no need to stop it again, so just ignore errors from singularity entirely
-				vboxrun(vmid, "cd \"$vmRunDir\" && ./stop", ignoreResult=true)
+				vboxrun(vmid, "cd \"$vmRunDir\" && PYP_CONFIG=\"$vmConfigPath\" PYP_SRC=\"$vmPypDir\" ./nextpyp stop \"$vmMicromonDir\" ${project.version}", ignoreExit=true)
 			}
 		}
 
@@ -1134,7 +1145,7 @@ afterEvaluate {
 			description = "Stops and then starts the micromon container inside the running VM"
 			dependsOn("vmContainerStop", "vmContainerRun")
 		}
-		
+
 		fun vmRustc(projectDir: Path): Path {
 
 			checkContainer("rustc.sif")
@@ -1320,7 +1331,7 @@ interface Args {
 /**
  * Run virtualbox commands
  */
-fun vbox(command: String, ignoreResult: Boolean = false, block: Args.() -> Unit) {
+fun vbox(command: String, ignoreResult: Boolean = false, ignoreExit: Boolean = false, block: Args.() -> Unit) {
 
 	val commands = mutableListOf(
 		"VBoxManage", command
@@ -1347,8 +1358,9 @@ fun vbox(command: String, ignoreResult: Boolean = false, block: Args.() -> Unit)
 	exec {
 		commandLine = commands
 
+		isIgnoreExitValue = ignoreExit
+
 		if (ignoreResult) {
-			isIgnoreExitValue = true
 			val nullout = object : java.io.OutputStream() {
 				override fun write(b: Int) {}
 			}
@@ -1433,8 +1445,8 @@ fun vboxstop(vmid: String) {
 /**
  * Runs a shell command in a running VM
  */
-fun vboxrun(vmid: String, cmd: String, ignoreResult: Boolean = false) {
-	vbox("guestcontrol", ignoreResult) {
+fun vboxrun(vmid: String, cmd: String, ignoreResult: Boolean = false, ignoreExit: Boolean = false) {
+	vbox("guestcontrol", ignoreResult, ignoreExit) {
 		add(vmid)
 		add("run")
 		add("--exe", "/bin/sh")

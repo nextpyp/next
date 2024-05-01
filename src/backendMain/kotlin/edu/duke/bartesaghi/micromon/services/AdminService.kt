@@ -377,10 +377,14 @@ actual class AdminService : IAdminService {
 		val runas = (Runas.find(osUsername) as? Runas.Success)
 			?: return "Runas not available for $osUsername"
 
-		return runas.cmd("whoami")
-			.waitFor()
-			.console
-			.joinToString()
+		val run = runas.execStream("whoami")
+			.use { it.run() }
+
+		return if (run.exitCode == 0) {
+			run.console
+		} else {
+			"(whoami failed with exit code: ${run.exitCode})\n${run.console}"
+		}
 	}
 
 

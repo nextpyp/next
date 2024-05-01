@@ -7,11 +7,13 @@ import edu.duke.bartesaghi.micromon.slowIOs
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.ClosedSendChannelException
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.slf4j.LoggerFactory
 import java.io.*
+import java.net.SocketException
 import java.net.StandardProtocolFamily
 import java.net.UnixDomainSocketAddress
 import java.nio.BufferUnderflowException
@@ -52,6 +54,7 @@ class HostProcessor(
 
 	private val socketPath: Path? = pid
 		?.let { socketDir / "host-processor-$it" }
+		?.also { log.info("Connecting to host processor at socket file: {}", it) }
 
 	private val connection: Connection? =
 		socketPath?.let { Connection(it) }
@@ -123,13 +126,22 @@ class HostProcessor(
 				} catch (ex: AsynchronousCloseException) {
 					// socket closed, exit the receiver task
 					break
+				} catch (ex: SocketException) {
+					if (ex.message == "Connection reset") {
+						// socket broke, exit the receiver task
+						break
+					} else {
+						log.error("Socket read threw exception", ex)
+					}
 				} catch (ex: BufferUnderflowException) {
 					// error in decoding response, host processor and website got out of sync somehow
 					// probably not recoverable, so just abort listener task
 					log.error("Protocol Desync!", ex)
 					break
+				} catch (ex: ClosedSendChannelException) {
+					// responder channel closed, safe to ignore
 				} catch (t: Throwable) {
-					log.error("Failed to handle response", t)
+					log.error("Failed to receive response from socket", t)
 				}
 			}
 
@@ -222,11 +234,12 @@ class HostProcessor(
 	/**
 	 * Launch a process
 	 */
-	suspend fun exec(program: String, args: List<String>): Process =
+	suspend fun exec(program: String, args: List<String>, dir: Path? = null): Process =
 		connectionOrThrow
 			.request(Request.Exec(
 				program,
 				args,
+				dir?.toString(),
 				streamStdin = false,
 				streamStdout = false,
 				streamStderr = false,
@@ -269,6 +282,7 @@ class HostProcessor(
 	suspend fun execStream(
 		program: String,
 		args: List<String>,
+		dir: Path? = null,
 		stdin: Boolean = false,
 		stdout: Boolean = false,
 		stderr: Boolean = false
@@ -278,6 +292,7 @@ class HostProcessor(
 			.request(Request.Exec(
 				program,
 				args,
+				dir?.toString(),
 				stdin,
 				stdout,
 				stderr,
@@ -302,6 +317,33 @@ class HostProcessor(
 			suspend fun close()
 		}
 		val stdin: Stdin
+
+		data class ProcessRun(
+			val exitCode: Int?,
+			val console: String
+		)
+
+		/**
+		 * Wait for the process to finish and return its exit code and a combined stdout/stderr
+		 */
+		suspend fun run(): ProcessRun {
+
+			val console = StringBuilder()
+
+			while (true) {
+				when (val event = recvEvent()) {
+
+					is Response.ProcessEvent.Console ->
+						console.append(event.chunk.toString(Charsets.UTF_8))
+
+					is Response.ProcessEvent.Fin ->
+						return ProcessRun(
+							event.exitCode,
+							console.toString()
+						)
+				}
+			}
+		}
 	}
 
 	private inner class StreamingProcessImpl(
@@ -432,6 +474,7 @@ sealed interface Request {
 	class Exec(
 		val program: String,
 		val args: List<String>,
+		val dir: String?,
 		val streamStdin: Boolean,
 		val streamStdout: Boolean,
 		val streamStderr: Boolean,
@@ -541,6 +584,9 @@ private class RequestEnvelope(
 				out.writeArray(request.args) {
 					out.writeUtf8(it)
 				}
+				out.writeOption(request.dir) {
+					out.writeUtf8(it)
+				}
 				out.writeBoolean(request.streamStdin)
 				out.writeBoolean(request.streamStdout)
 				out.writeBoolean(request.streamStderr)
@@ -612,6 +658,9 @@ private class RequestEnvelope(
 				Request.Exec.ID -> Request.Exec(
 					program = input.readUtf8(),
 					args = input.readArray {
+						input.readUtf8()
+					},
+					dir = input.readOption {
 						input.readUtf8()
 					},
 					streamStdin = input.readBoolean(),

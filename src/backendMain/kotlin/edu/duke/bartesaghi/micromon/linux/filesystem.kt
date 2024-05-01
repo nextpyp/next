@@ -324,59 +324,59 @@ object Filesystem {
 		}
 
 		Stat(
-			mode = stat.st_mode,
-			uid = stat.st_uid,
-			gid = stat.st_gid
+			mode = stat.st_mode.toUInt(),
+			uid = stat.st_uid.toUInt(),
+			gid = stat.st_gid.toUInt()
 		)
 	}
 
 	data class Stat(
-		val mode: Int,
-		val uid: Int,
-		val gid: Int
+		val mode: UInt,
+		val uid: UInt,
+		val gid: UInt
 	) {
 
 		// https://man7.org/linux/man-pages/man7/inode.7.html
 
 		val isSetUID: Boolean get() =
-			(mode and (1 shl 11)) != 0
+			(mode and (1u shl 11)) != 0u
 
 		val isSetGID: Boolean get() =
-			(mode and (1 shl 10)) != 0
+			(mode and (1u shl 10)) != 0u
 
 		val isSticky: Boolean get() =
-			(mode and (1 shl 9)) != 0
+			(mode and (1u shl 9)) != 0u
 
 		val isOwnerRead: Boolean get() =
-			(mode and (1 shl 8)) != 0
+			(mode and (1u shl 8)) != 0u
 
 		val isOwnerWrite: Boolean get() =
-			(mode and (1 shl 7)) != 0
+			(mode and (1u shl 7)) != 0u
 
 		val isOwnerExecute: Boolean get() =
-			(mode and (1 shl 6)) != 0
+			(mode and (1u shl 6)) != 0u
 
 		val isGroupRead: Boolean get() =
-			(mode and (1 shl 5)) != 0
+			(mode and (1u shl 5)) != 0u
 
 		val isGroupWrite: Boolean get() =
-			(mode and (1 shl 4)) != 0
+			(mode and (1u shl 4)) != 0u
 
 		val isGroupExecute: Boolean get() =
-			(mode and (1 shl 3)) != 0
+			(mode and (1u shl 3)) != 0u
 
 		val isOtherRead: Boolean get() =
-			(mode and (1 shl 2)) != 0
+			(mode and (1u shl 2)) != 0u
 
 		val isOtherWrite: Boolean get() =
-			(mode and (1 shl 1)) != 0
+			(mode and (1u shl 1)) != 0u
 
 		val isOtherExecute: Boolean get() =
-			(mode and (1 shl 0)) != 0
+			(mode and (1u shl 0)) != 0u
 	}
 
-	suspend fun getUid(): Int = slowIOs {
-		native.getuid()
+	suspend fun getUid(): UInt = slowIOs {
+		native.getuid().toUInt()
 	}
 }
 
