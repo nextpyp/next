@@ -59,9 +59,11 @@ wgetopts="-nv"
 wget $wgetopts -O "nextPYP.sif" "$www/nextPYP.sif"
 wget $wgetopts -O "pyp.sif" "$www/pyp.sif"
 wget $wgetopts -O "hostprocessor" "$www/hostprocessor"
+wget $wgetopts -O "runas" "$www/runas"
 wget $wgetopts -O "nextpyp" "$www/nextpyp"
 wget $wgetopts -O "uninstall" "$www/uninstall"
 wget $wgetopts -O "install-rprox" "$www/install-rprox"
+wget $wgetopts -O "admin-runas" "$www/admin-runas"
 
 chmod ugo+r "nextPYP.sif" "pyp.sif" "uninstall" "install-rprox"
 
@@ -87,18 +89,27 @@ chmod -R ugo+r "$workflowDir"/*
 # create initial directories
 localDir="$here/local"
 mkdir -p "$localDir"
-chown "$username:$usergroup" "$localDir"
+chown "$username":"$usergroup" "$localDir"
 echo "Created local directory: $localDir"
 
 sharedDir="$here/shared"
 mkdir -p "$sharedDir"
-chown "$username:$usergroup" "$sharedDir"
+chown "$username":"$usergroup" "$sharedDir"
 echo "Created shared directory: $sharedDir"
+
+# setup the runas system
+runasDir="$sharedDir/runas"
+mkdir -p "$runasDir"
+mv "$here/runas" "$runasDir/"
+chown "$username":"$usergroup" "$runasDir/runas"
+chmod u=rw,go= "$runasDir/runas" # no one should run the base runas executable
+mv "$here/admin-runas" "$runasDir/"
+chmod u=rwx,go= "$runasDir/admin-runas" # the admin-runas script should be executable tho
 
 # create the home configuration folder, if needed (needed by apptainer)
 if [ ! -d "$home" ]; then
   mkdir -p "$home"
-  chown -R "$username:$usergroup" "$home"
+  chown -R "$username":"$usergroup" "$home"
   chmod u+rwx,go+rx,go-w "$home"
 fi
 if [ ! -d "$home/.config" ]; then

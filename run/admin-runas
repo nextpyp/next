@@ -1,0 +1,72 @@
+#!/bin/sh
+
+# exit if any command fails
+set -e
+
+
+# process the command
+case "$1" in
+
+  add)
+
+    # get the username
+    username=$2
+    if [ -z "$username" ]; then
+      echo "Required argument: username"
+      exit 1
+    fi
+
+    # get the groupname of the original runas executable
+    # (it's the pyp group)
+    groupname=$(stat -c "%G" runas)
+
+    # create the runas executable for this user
+    exec="runas-$username"
+    cp runas "$exec"
+
+    # the runas executable should be owned by the target user,
+    # but in the group used by nextpyp
+    chown "$username":"$groupname" "$exec"
+
+    # only the user should be able to write
+    chmod u+w,go-w "$exec"
+
+    # only the user and the group should be able to execute
+    chmod ug+x,o-x "$exec"
+
+    # the executable should be setuid
+    # NOTE: set this last, so we're sure the executable has the correct permissions before turning on setuid
+    chmod u+s "$exec"
+
+    ;;
+
+
+  remove)
+
+    # get the username
+    username=$2
+    if [ -z "$username" ]; then
+      echo "Required argument: username"
+      exit 1
+    fi
+
+    # remove the runas-username executable, if any
+    exec=runas-$username
+    if [ -f "$exec" ]; then
+      rm "$exec"
+    else
+      echo "No runas executable found for user $username"
+      exit 1
+    fi
+
+    ;;
+
+
+  *)
+    echo "Usage:"
+    echo "   ./admin-runas <add | remove> <username>"
+    exit 1
+    ;;
+
+
+esac
