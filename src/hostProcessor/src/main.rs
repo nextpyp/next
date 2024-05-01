@@ -409,15 +409,8 @@ async fn dispatch_exec(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32, proce
 	processes.lock()
 		.await
 		.add(pid, &mut proc);
-	if proc.stdin.is_none() {
-		trace!("Streaming stdin");
-	}
 
 	// NOTE: process is tracked now, don't exit this fn without cleaning it up
-
-	// take stdout,stderr before calling proc.wait(), so the process lib won't try to close them
-	let proc_stdout = proc.stdout.take();
-	let proc_stderr = proc.stderr.take();
 
 	// send back the pid
 	write_response(&socket, request_id, Response::Exec(ExecResponse::Success {
@@ -427,12 +420,15 @@ async fn dispatch_exec(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32, proce
 		.ok();
 
 	// stream stdout and/or stderr, if needed
+	if request.stream_stdin && proc.stdin.is_none() {
+		trace!("Streaming stdin");
+	}
 	let mut proc_outputs = StreamMap::<ConsoleKind,Pin<Box<dyn Stream<Item=std::io::Result<Bytes>>>>>::new();
-	if let Some(proc_stdout) = proc_stdout {
+	if let Some(proc_stdout) = proc.stdout.take() {
 		trace!("Streaming stdout");
 		proc_outputs.insert(ConsoleKind::Stdout, Box::pin(ReaderStream::new(proc_stdout)));
 	}
-	if let Some(proc_stderr) = proc_stderr {
+	if let Some(proc_stderr) = proc.stderr.take() {
 		trace!("Streaming stderr");
 		proc_outputs.insert(ConsoleKind::Stderr, Box::pin(ReaderStream::new(proc_stderr)));
 	}
