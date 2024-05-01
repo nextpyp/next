@@ -56,6 +56,7 @@ val apiVersion = "1.0.0"
 
 repositories {
 	mavenCentral()
+	@Suppress("DEPRECATION") // yes, we know it's deprecated, but we don't get to choose where dependencies come from
 	jcenter() // needed for some JetBrains dependencies... still works somehow
 }
 
@@ -499,7 +500,7 @@ afterEvaluate {
 			dependsOn("compileKotlinMetadata", "allMetadataJar", "generateBuildSources")
 		}
 		getByName("compileKotlinFrontend") {
-			dependsOn("compileKotlinMetadata", "allMetadataJar", "generateBuildSources")
+			dependsOn("compileKotlinMetadata", "allMetadataJar", "generateBuildSources", "copyLocalModules")
 		}
 
 		create("copyLocalModules", Copy::class) {
