@@ -2,6 +2,9 @@ package edu.duke.bartesaghi.micromon.linux
 
 import edu.duke.bartesaghi.micromon.SuspendCloseable
 import edu.duke.bartesaghi.micromon.exists
+import edu.duke.bartesaghi.micromon.linux.hostprocessor.HostProcessor
+import edu.duke.bartesaghi.micromon.linux.hostprocessor.Response
+import edu.duke.bartesaghi.micromon.linux.hostprocessor.recv
 import edu.duke.bartesaghi.micromon.slowIOs
 import edu.duke.bartesaghi.micromon.use
 import io.kotest.assertions.fail
@@ -233,12 +236,9 @@ suspend fun withHostProcessor(block: suspend (HostProcessor) -> Unit) {
 		}
 
 		HostProcessor(socketDir, process.pid).use { hostProcessor ->
-			val result = withTimeoutOrNull(2_000) {
+			withTimeoutOrNull(2_000) {
 				block(hostProcessor)
-			}
-			if (result == null) {
-				fail("Test timed out, probably waiting for the host processor")
-			}
+			} ?: fail("Test timed out, probably waiting for the host processor")
 		}
 	}
 }
@@ -267,7 +267,7 @@ class HostProcessorProcess(socketDir: Path) : SuspendCloseable {
 	val pid: Long get() =
 		process.pid()
 
-	override suspend fun close() {
+	override suspend fun closeAll() {
 
 		// cleanup the host processor
 		if (process.isAlive) {

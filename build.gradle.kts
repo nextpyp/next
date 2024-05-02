@@ -242,6 +242,7 @@ kotlin {
 				implementation("com.fasterxml.jackson.core:jackson-databind:2.12.3") // Apache 2
 				implementation("org.apache.commons:commons-vfs2:2.9.0") // Apache 2
 				implementation("org.reflections:reflections:0.10.2") // Apache 2
+				implementation("org.jetbrains.kotlinx:kotlinx-serialization-protobuf:$serializationVersion") // Apache 2
 
 				// library for WebP support in ImageIO
 				implementation("io.github.darkxanter:webp-imageio:0.2.3") // Apache 2
