@@ -15,7 +15,7 @@ class ArgInputParFile(
 	target = FilesystemPicker.Target.Files,
 	name = arg.fullId,
 	initialFolder = initialFolder(outNodes),
-	filenameGlob = "*.par.bz2",
+	filenameGlob = "*.bz2",
 	globTypes = setOf(FileBrowserType.File,  FileBrowserType.Symlink)
 ) {
 
