@@ -22,15 +22,16 @@ if [ -z "$configpath" ] || [ ! -f "$configpath" ] ; then
 fi
 echo "Using configuration at $configpath"
 
-# set the actual config path to another environment variable, so all the downstream things can find it easily
-export PYP_CONFIG_ACTUAL=$configpath
+# set the config file path (on the host) to another environment variable so processes inside the container can see it
+# useful for spawning new containers from inside the container
+export PYP_CONFIG_HOST=$configpath
 
 
 # read the developer arguments, if any
-if [ $# -ge 2 ] ; then
-  devpath=$2
-  devversion=$3
-fi
+devpath=$2
+devgradlecache=$3
+devmain=$4
+
 
 # this shell script doesn't know how to parse the TOML file
 # but the Kotlin code inside the container does
@@ -44,50 +45,38 @@ binds=(--bind "$configpath":/var/micromon/config.toml)
 
 # handle development binds if needed
 if [ -n "$devpath" ] ; then
-  echo "looking for development files at \"$devpath\" with version $devversion ..."
+  echo "looking for development files at \"$devpath\" ..."
 
-  libspath=$devpath/build/image/libs
-  if [ -d "$libspath" ] ; then
-    echo "using libraries folder at: $libspath"
-    binds+=(--bind "$libspath":/opt/micromon/libs)
+  if [ -d "$devgradlecache" ] ; then
+    echo "using gradle cache at: \"$devgradlecache\""
+    binds+=(--bind "$devgradlecache")
   else
-    echo "Error: libs folder not found at \"$libspath\""
+    echo "Error: gradle cache folder not found at \"$devgradlecache\""
     exit 1
   fi
 
-  jarpath=$devpath/build/libs/micromon.jar
-  if [ "$devversion" != "unspecified" ] ; then
-    jarpath=$devpath/build/libs/micromon-$devversion.jar
-  fi
-  if [ -f "$jarpath" ] ; then
-    echo "using jar at: $jarpath"
-    jarname=$(basename "$jarpath")
-    binds+=(--bind "$jarpath":/opt/micromon/libs/"$jarname")
-  else
-    echo "Error: jar not found at \"$jarpath\""
-    exit 1
-  fi
+  if [ "$devmain" == "run" ] ; then
 
-  classpathpath=$devpath/build/classpath.txt
-  if [ -f "$classpathpath" ] ; then
-    echo "using classpath at: $classpathpath"
-    classpathname=$(basename "$classpathpath")
-    binds+=(--bind "$classpathpath":/opt/micromon/bin/"$classpathname")
-  else
-    echo "Error: classpath not found at \"$classpathpath\""
-    exit 1
-  fi
+    # for running the website, bind the libs dir
+    libsdir=$devpath/build/libs
+    if [ -d "$libsdir" ] ; then
+      echo "using libs folder at: \"$libsdir\""
+      binds+=(--bind "$libsdir":/opt/micromon/libs)
+    else
+      echo "Error: libs folder not found at \"$libsdir\""
+      exit 1
+    fi
 
-  initpath=$devpath/config/init.sh
-  if [ -f "$initpath" ] ; then
-    echo "using init script at: $initpath"
-    binds+=(--bind "$initpath":/opt/micromon/init.sh)
-  else
-    echo "Error: init script not found at \"$initpath\""
-    exit 1
-  fi
+    initpath=$devpath/config/init.sh
+    if [ -f "$initpath" ] ; then
+      echo "using init script at: $initpath"
+      binds+=(--bind "$initpath":/opt/micromon/init.sh)
+    else
+      echo "Error: init script not found at \"$initpath\""
+      exit 1
+    fi
 
-  startpath=$devpath/config/micromon.sh
+    startpath=$devpath/config/micromon.sh
     if [ -f "$startpath" ] ; then
       echo "using JVM start script at: $startpath"
       binds+=(--bind "$startpath":/opt/micromon/bin/micromon.sh)
@@ -96,14 +85,53 @@ if [ -n "$devpath" ] ; then
       exit 1
     fi
 
-  clipath=$devpath/config/cli.sh
-    if [ -f "$clipath" ] ; then
-      echo "using CLI script at: $clipath"
-      binds+=(--bind "$clipath":/opt/micromon/bin/cli.sh)
+  elif [ "$devmain" == "test" ] ; then
+
+    # for tests, bind the classes and resource dirs directly
+
+    mainclassesdir=$devpath/build/classes/kotlin/backend/main
+    if [ -d "$mainclassesdir" ] ; then
+      echo "using main classes at: \"$mainclassesdir\""
+      binds+=(--bind "$mainclassesdir":/opt/micromon/classes/main)
     else
-      echo "Error: CLI script not found at \"$clipath\""
+      echo "Error: main classes folder not found at \"$mainclassesdir\""
       exit 1
     fi
+
+    mainresourcesdir=$devpath/build/processedResources/backend/main
+    if [ -d "$mainresourcesdir" ] ; then
+      echo "using main resources at: \"$mainresourcesdir\""
+      binds+=(--bind "$mainresourcesdir":/opt/micromon/resources/main)
+    else
+      echo "Error: main resources folder not found at \"$mainresourcesdir\""
+      exit 1
+    fi
+
+    testclassesdir=$devpath/build/classes/kotlin/backend/test
+    if [ -d "$testclassesdir" ] ; then
+      echo "using test classes at: \"$testclassesdir\""
+      binds+=(--bind "$testclassesdir":/opt/micromon/classes/test)
+    else
+      echo "Error: test classes folder not found at \"$testclassesdir\""
+      exit 1
+    fi
+
+    testresourcesdir=$devpath/build/processedResources/backend/test
+    if [ -d "$testresourcesdir" ] ; then
+      echo "using test resources at: \"$testresourcesdir\""
+      binds+=(--bind "$testresourcesdir":/opt/micromon/resources/test)
+    fi
+    # this folder might really not exist, so it missing is not an error
+  fi
+
+  classpathfile=$devpath/build/classpath.dev.$devmain.txt
+  if [ -f "$classpathfile" ] ; then
+    echo "using classpath file at: \"$classpathfile\""
+    binds+=(--bind "$classpathfile":/opt/micromon/bin/classpath.txt)
+  else
+      echo "Error: classpath file not found at \"$classpathfile\""
+      exit 1
+  fi
 fi
 
 # use the pyp args config too, if it's available
@@ -114,7 +142,15 @@ if [ -f "$argspath" ] ; then
 fi
 
 # build the command to run the CLI
-cli=(singularity run --app cli "${binds[@]}" --no-home nextPYP.sif)
+cli=(\
+  singularity exec "${binds[@]}" --no-home nextPYP.sif \
+  java \
+  -Xmx64M \
+  -Djava.awt.headless=true \
+  -Dlogback.configurationFile=logback-cli.xml \
+  @/opt/micromon/bin/classpath.txt \
+  edu.duke.bartesaghi.micromon.CliKt \
+)
 
 
 echo "Reading config.toml using CLI tool ..."
@@ -190,6 +226,7 @@ case "$1" in
       # actually start the host processor
       "$hpexec" "${hpoptions[@]}" "$hpsocketdir" > "$localdir/logs/hostprocessor" 2>&1 &
       hppid=$!
+      echo "Host Processor started pid=$hppid"
 
     fi
 
@@ -211,28 +248,64 @@ case "$1" in
     export NEXTPYP_HOSTPROCESSOR_PID
 
 
+    # set general args to apptainer
+    apptainerargs=("${binds[@]}" --writable-tmpfs --no-home)
+
     # The website tries to query the number of available GPUs in standalone mode
     # so we need to get apptainer to bind in the GPU libraries.
     # We can just always ask apptainer to do it whether or not Cuda is even available on this host,
     # but apptainer will show scary warnings in the console if it's not.
     # Ideally, we'd only turn on --nv if we knew Cuda was available, but detecting that in a shell script
     # is likely to be imperfect, so just always turn it on and hope no one complains about the apptainer warnings.
-    gpus=(--nv)
+    apptainerargs+=(--nv)
+    echo "NOTE:    If you see warnings immediately below that nv files or libraries can't be found, and you're not using any GPUs, those warnings are safe to ignore."
+
+    # set the container path
+    apptainerargs+=(nextPYP.sif)
 
 
     # finally, start the website container
     echo "Starting singularity container ..."
-    echo "NOTE:    If you see warnings immediately below that nv files or libraries can't be found, those warnings are safe to ignore."
-    singularity instance start "${binds[@]}" --writable-tmpfs --no-home "${gpus[@]}" nextPYP.sif nextPYP
+    if [ "$devmain" == "test" ]; then
+
+      # ok to fail here, keep going so we can cleanup
+      set +e
+
+      # to run tests, don't start an instance, just exec a java command
+      jvmargs=(\
+        -Xmx2G \
+        -Djava.awt.headless=true \
+        -Dlogback.configurationFile=logback-test.xml \
+        @/opt/micromon/bin/classpath.txt \
+      )
+      singularity exec "${apptainerargs[@]}" java "${jvmargs[@]}" edu.duke.bartesaghi.micromon.DevvmKt
+
+      echo "apptainer/JVM exited, cleaning up ..."
+
+      # if there's a host processor running, stop it
+      if [ -n "$hppid" ] ; then
+        kill -s TERM "$hppid"
+        echo "Sent SIGTERM to host processor at pid=$hppid"
+      fi
+
+      echo "Cleanup finished!"
+
+    else
+
+      # start the production website instance
+      singularity instance start "${apptainerargs[@]}" nextPYP
+    fi
 
     ;;
 
 
   stop)
 
+    # ok to fail here, keep going so we can cleanup
+    set +e
+
     # stop the website container
-    singularity instance stop nextPYP \
-      || true # ok if the command fails
+    singularity instance stop nextPYP
 
     # stop any running host processors
     for f in "$hpsocketdir"/host-processor-* ; do
@@ -242,8 +315,7 @@ case "$1" in
         IFS='-' read -r -a parts <<< "$(basename "$f")"
         pid=${parts[2]}
         echo "Found host processor $pid, sending SIGTERM"
-        kill -s TERM "$pid" \
-          || true # ok if command fails
+        kill -s TERM "$pid"
       fi
     done
 

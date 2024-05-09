@@ -24,30 +24,16 @@ object Backend {
 	}
 
 	// get the config
-	val config = if (Testing.active) {
-		Config.fromTest()
-	} else {
-		Config.fromCanon()
-	}
+	val config = Config.instance
 
 	init {
-		log.info("Read configuration from: ${Config.actualPath()}")
-
-		config.initDirs()
-
 		// echo the configuration, useful for troubleshooting issues
 		log.info("Configuration:\n$config")
 	}
 
 	// load the pyp args
 	val pypArgs = try {
-		Args.fromToml(
-			if (Testing.active) {
-				Testing.pypDirOrThrow
-			} else {
-				Paths.get("/opt/micromon/pyp_config.toml")
-			}.readString()
-		)
+		Args.fromToml(Paths.get("/opt/micromon/pyp_config.toml").readString())
 	} catch (t: Throwable) {
 		throw Error("Failed to parse pyp_config.toml. Aborting startup.", t)
 	}

@@ -100,6 +100,7 @@ val clientDir = (localProps["clientDir"] as? String)?.let { projectDir.resolve(i
 
 val webDir = file("src/frontendMain/web")
 val runDir = projectDir.resolve("run")
+val gradleCachesDir = gradle.gradleUserHomeDir.resolve("caches")
 
 // read the version number from pyp, if possible
 pypDir.resolve("nextpyp.toml")
@@ -217,7 +218,6 @@ kotlin {
 		}
 		val backendMain by getting {
 			dependencies {
-				implementation(kotlin("stdlib-jdk8"))
 				implementation(kotlin("reflect"))
 				implementation("io.ktor:ktor-server-netty:$ktorVersion") // Apache 2
 				implementation("io.ktor:ktor-auth:$ktorVersion") // Apache 2
@@ -270,10 +270,18 @@ kotlin {
 		}
 		val backendTest by getting {
 			dependencies {
-				// NOTE: this is the newest version of kotest we can use with Kotlin 1.6
+				// NOTE: this is the newest version of kotest we can use with Kotlin v1.6
 				val kotestVersion = "5.5.5"
-				implementation("io.kotest:kotest-runner-junit5-jvm:$kotestVersion")
-				implementation("io.kotest:kotest-assertions-core-jvm:$kotestVersion")
+				implementation("io.kotest:kotest-runner-junit5-jvm:$kotestVersion") {
+					// yet somehow, these are pulling in v1.7 of the kotlin runtime, so just ignore those transitive dependencies
+					exclude(group = "org.jetbrains.kotlin")
+				}
+				implementation("io.kotest:kotest-assertions-core-jvm:$kotestVersion") {
+					// yet somehow, these are pulling in v1.7 of the kotlin runtime, so just ignore those transitive dependencies
+					exclude(group = "org.jetbrains.kotlin")
+				}
+				val junitVersion = "1.7.2" // the version of JUnit used by the version of kotest we're using
+				implementation("org.junit.platform:junit-platform-console:$junitVersion")
 			}
 		}
 		val frontendMain by getting {
@@ -528,23 +536,47 @@ afterEvaluate {
 		}
 
 		/** get all the backend java runtime dependencies (ie jars) */
-		fun collectClasspath(): FileCollection =
-			project.tasks["jar"].outputs.files
-				.plus(configurations["backendRuntimeClasspath"])
+		fun collectClasspathLibs(configName: String): FileCollection =
+			configurations[configName]
 				.filter { it.name.endsWith(".jar") }
+
+		fun writeClasspathFile(file: File, classpath: List<String>) {
+			file.writeText("""
+				|-cp "\
+				|${classpath.joinToString(":\\\n")}
+				|"
+			""".trimMargin())
+		}
 
 		val classpathFileTask = create("classpathFile") {
 			group = "build"
-			description = "creates the classpath file needed by the website container"
+			description = "creates the classpath file needed by the website container in production mode"
 			doLast {
 
-				// resolve all the jar files against the libs folder
-				layout.buildDirectory.toFile().resolve("classpath.txt")
-					.writeText("""
-						|-cp "\
-						|${collectClasspath().joinToString(":\\\n") { "libs/${it.name}" }}
-						|"
-					""".trimMargin())
+				// in production mode, resolve all the jar files against the libs folder
+				writeClasspathFile(
+					layout.buildDirectory.toFile().resolve("classpath.txt"),
+					(
+						project.tasks["jar"].outputs.files
+						+ collectClasspathLibs("backendRuntimeClasspath")
+					).map { "libs/${it.name}" }
+				)
+			}
+		}
+
+		val classpathFileDevRunTask = create("classpathFileDevRun") {
+			group = "build"
+			description = "creates the classpath file needed by the website container in development testing mode"
+			doLast {
+
+				// in dev mode (on the host), use the regular filesystem paths
+				writeClasspathFile(
+					layout.buildDirectory.toFile().resolve("classpath.dev.run.txt"),
+					(
+						project.tasks["jar"].outputs.files
+						+ collectClasspathLibs("backendRuntimeClasspath")
+					).map { it.toString() }
+				)
 			}
 		}
 
@@ -556,7 +588,7 @@ afterEvaluate {
 			destinationDir = layout.buildDirectory.toFile().resolve("image")
 
 			// copy all the dependency jars
-			from(collectClasspath()) {
+			from(collectClasspathLibs("backendRuntimeClasspath")) {
 				into("libs")
 			}
 			
@@ -599,7 +631,7 @@ afterEvaluate {
 
 		create("containerRun") {
 			group = "run"
-			dependsOn("jar", classpathFileTask)
+			dependsOn("jar", classpathFileDevRunTask)
 			mustRunAfter("containerStop")
 			doLast {
 
@@ -613,24 +645,26 @@ afterEvaluate {
 					executable = "./nextpyp"
 					environment("PYP_CONFIG", configPath.toString())
 					environment("PYP_SRC", pypDir)
-					args("start", projectDir.absolutePath, project.version)
+					args("start", projectDir, gradleCachesDir, "run")
 				}
 			}
 		}
 
 		create("containerStop") {
 			group = "run"
+			dependsOn("jar", classpathFileDevRunTask)
 			doLast {
 
 				// make sure the needed files exist
 				val configPath = getConfigPath()
+				checkContainer("nextPYP.sif")
 
 				exec {
 					workingDir = runDir
 					executable = "./nextpyp"
 					environment("PYP_CONFIG", configPath.toString())
 					environment("PYP_SRC", pypDir)
-					args("stop", projectDir.absolutePath, project.version)
+					args("stop", projectDir, gradleCachesDir, "run")
 
 					// if the container isn't running, Singularity will return an error exit code,
 					// which translates into a gradle exception by default
@@ -655,6 +689,7 @@ afterEvaluate {
 		val micromonId = "micromon"
 		val pypId = "pyp"
 		val rawDataId = "rawdata"
+		val gradleCachesId = "gradle-caches"
 
 		// for temporary files needed to build
 		val buildDevDir = layout.buildDirectory.toPath().resolve("dev")
@@ -670,7 +705,7 @@ afterEvaluate {
 		val vmMicromonDir = Paths.get("/media/$micromonId")
 		val vmRunDir = vmMicromonDir.resolve("run")
 		val vmPypDir = Paths.get("/media/$pypId")
-		// TODO: need to share pyp folder
+		val vmGradleCachesDir = Paths.get("/media/$gradleCachesId")
 
 		create("vmCreate") {
 			group = "dev"
@@ -1001,6 +1036,22 @@ afterEvaluate {
 					}
 				}
 
+				// read-only access to the gradle cache folder
+				vbox("sharedfolder", ignoreResult=true) {
+					add("remove")
+					add(vmid)
+					add("--name", gradleCachesId)
+				}
+				vbox("sharedfolder") {
+					add("add")
+					add(vmid)
+					add("--name", gradleCachesId)
+					add("--hostpath", gradleCachesDir.toString())
+					add("--readonly")
+					add("--automount")
+					add("--auto-mount-point", "/media/$gradleCachesId")
+				}
+
 				vboxstart(vmid)
 				try {
 
@@ -1098,10 +1149,56 @@ afterEvaluate {
 			}
 		}
 
+		fun devClasspathLibsVm(configName: String) =
+			collectClasspathLibs(configName)
+				.map { "/media/${gradleCachesId}/${it.relativeTo(gradleCachesDir)}" }
+
+		val classpathFileVmDevRunTask = create("classpathFileVmDevRun") {
+			group = "build"
+			description = "creates the classpath file needed by the website container in development testing mode in the dev VM"
+			doLast {
+				val containerDir = "/opt/micromon"
+				writeClasspathFile(
+					layout.buildDirectory.toFile().resolve("classpath.dev.run.txt"),
+					// add class path entries in their container locations
+					(
+						// for running the website, we need all the frontend assets too, so reference the full jar
+						project.tasks["jar"].outputs.files
+							.map { "$containerDir/libs/${it.name}" }
+						+ devClasspathLibsVm("backendRuntimeClasspath")
+					)
+				)
+			}
+		}
+
+		val classpathFileVmDevTestTask = create("classpathFileVmDevTest") {
+			group = "build"
+			description = "creates the classpath file needed by the website container in development testing mode in the dev VM"
+			doLast {
+				val containerDir = "/opt/micromon"
+				writeClasspathFile(
+					layout.buildDirectory.toFile().resolve("classpath.dev.test.txt"),
+					// add class path entries in their container locations
+					(
+						listOf(
+							// for backend tests, we don't need the frontend assets,
+							// so we don't need to build the whole jar
+							// just reference the backend classes and resources directly
+							"$containerDir/classes/main",
+							"$containerDir/resources/main",
+							"$containerDir/classes/test",
+							"$containerDir/resources/test"
+						)
+						+ devClasspathLibsVm("backendTestRuntimeClasspath")
+					)
+				)
+			}
+		}
+
 		create("vmContainerRun") {
 			group = "run"
 			description = "Starts the micromon container inside the running VM"
-			dependsOn("jar", "vmGenerateConfig", classpathFileTask)
+			dependsOn("jar", "vmGenerateConfig", classpathFileVmDevRunTask)
 			mustRunAfter("vmContainerStop")
 			doLast {
 
@@ -1109,9 +1206,9 @@ afterEvaluate {
 				val configPath = getConfigPath()
 				checkContainer("nextPYP.sif")
 
-				// run the start script with the development jar
+				// run the start script in develoment mode with the `run` main
 				val vmConfigPath = vmRunDir.resolve(configPath.fileName)
-				vboxrun(vmid, "cd \"$vmRunDir\" && PYP_CONFIG=\"$vmConfigPath\" PYP_SRC=\"$vmPypDir\" ./nextpyp start \"$vmMicromonDir\" ${project.version}")
+				vboxrun(vmid, "cd \"$vmRunDir\" && PYP_CONFIG=\"$vmConfigPath\" PYP_SRC=\"$vmPypDir\" ./nextpyp start \"$vmMicromonDir\" \"$vmGradleCachesDir\" run")
 
 				println("""
 					|
@@ -1126,6 +1223,7 @@ afterEvaluate {
 		create("vmContainerStop") {
 			group = "run"
 			description = "Stops the micromon container inside the running VM"
+			dependsOn("jar", "vmGenerateConfig", classpathFileVmDevRunTask)
 			doLast {
 
 				// make sure the needed files exist
@@ -1137,7 +1235,7 @@ afterEvaluate {
 				// which translates into a gradle exception by default
 				// except, if the container isn't running, we've already won! =D
 				// there's no need to stop it again, so just ignore errors from singularity entirely
-				vboxrun(vmid, "cd \"$vmRunDir\" && PYP_CONFIG=\"$vmConfigPath\" PYP_SRC=\"$vmPypDir\" ./nextpyp stop \"$vmMicromonDir\" ${project.version}", ignoreExit=true)
+				vboxrun(vmid, "cd \"$vmRunDir\" && PYP_CONFIG=\"$vmConfigPath\" PYP_SRC=\"$vmPypDir\" ./nextpyp stop \"$vmMicromonDir\" \"$vmGradleCachesDir\" run", ignoreExit=true)
 			}
 		}
 
@@ -1145,6 +1243,22 @@ afterEvaluate {
 			group = "run"
 			description = "Stops and then starts the micromon container inside the running VM"
 			dependsOn("vmContainerStop", "vmContainerRun")
+		}
+
+		create("vmRunTests") {
+			group = "dev"
+			description = "Run tests inside of the dev VM"
+			dependsOn("backendMainClasses", "backendTestClasses", "vmGenerateConfig", classpathFileVmDevTestTask)
+			doLast {
+
+				// make sure the needed files exist
+				val configPath = getConfigPath()
+				checkContainer("nextPYP.sif")
+
+				// run the start script in develoment mode with the `test` main
+				val vmConfigPath = vmRunDir.resolve(configPath.fileName)
+				vboxrun(vmid, "cd \"$vmRunDir\" && PYP_CONFIG=\"$vmConfigPath\" PYP_SRC=\"$vmPypDir\" ./nextpyp start \"$vmMicromonDir\" \"$vmGradleCachesDir\" test")
+			}
 		}
 
 		fun vmRustc(projectDir: Path): Path {

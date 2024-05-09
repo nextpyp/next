@@ -3,6 +3,7 @@ package edu.duke.bartesaghi.micromon.linux
 import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.linux.subprocess.SubprocessClient
 import io.kotest.assertions.fail
+import io.kotest.core.annotation.EnabledIf
 import io.kotest.core.spec.style.DescribeSpec
 import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.withTimeoutOrNull
@@ -12,6 +13,7 @@ import java.time.Duration
 import kotlin.io.path.writeBytes
 
 
+@EnabledIf(RuntimeEnvironment.Website::class)
 class TestSubprocess : DescribeSpec({
 
 	describe("subprocess") {

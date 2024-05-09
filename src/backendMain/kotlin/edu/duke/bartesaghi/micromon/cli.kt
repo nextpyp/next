@@ -8,18 +8,15 @@ fun main(argsArray: Array<String>) {
 
 	val args = ArrayDeque(argsArray.toList())
 
-	// read the config
-	val config = Config.fromCanon()
-
 	// run the command
 	when (val cmd = args.firstOrNull()) {
-		"localdir" -> printLocalDir(config)
-		"shareddir" -> printSharedDir(config)
-		"binds" -> printBinds(config)
-		"heapmib" -> printHeapMiB(config)
-		"jmx" -> printJmx(config)
-		"database_memgb" -> printDatabaseMemGB(config)
-		"oomdump" -> printOomdump(config)
+		"localdir" -> printLocalDir()
+		"shareddir" -> printSharedDir()
+		"binds" -> printBinds()
+		"heapmib" -> printHeapMiB()
+		"jmx" -> printJmx()
+		"database_memgb" -> printDatabaseMemGB()
+		"oomdump" -> printOomdump()
 		null -> failCmd("no comamnd")
 		else -> failCmd("unrecognized command: $cmd")
 	}
@@ -34,35 +31,35 @@ private fun failCmd(msg: String): Nothing =
 	fail("$msg\nTry one of these commands: [localdir, shareddir, binds, heapmib, database_memgb, jmx]")
 
 
-private fun printLocalDir(config: Config) {
-	println(config.web.localDir)
+private fun printLocalDir() {
+	println(Config.instance.web.localDir)
 }
 
-private fun printSharedDir(config: Config) {
-	println(config.web.sharedDir)
+private fun printSharedDir() {
+	println(Config.instance.web.sharedDir)
 }
 
-private fun printBinds(config: Config) {
+private fun printBinds() {
 	val paths = ArrayList<Path>().apply {
-		addAll(config.pyp.binds)
-		config.slurm?.key?.let { add(it) }
-		addAll(config.web.workflowDirs)
+		addAll(Config.instance.pyp.binds)
+		Config.instance.slurm?.key?.let { add(it) }
+		addAll(Config.instance.web.workflowDirs)
 	}
 	println(paths.joinToString(" ") { "--bind $it" })
 }
 
-private fun printHeapMiB(config: Config) {
-	println(config.web.heapMiB)
+private fun printHeapMiB() {
+	println(Config.instance.web.heapMiB)
 }
 
-private fun printJmx(config: Config) {
-	println(if (config.web.jmx) "on" else "")
+private fun printJmx() {
+	println(if (Config.instance.web.jmx) "on" else "")
 }
 
-private fun printDatabaseMemGB(config: Config) {
-	println(config.web.databaseGB)
+private fun printDatabaseMemGB() {
+	println(Config.instance.web.databaseGB)
 }
 
-private fun printOomdump(config: Config) {
-	println(if (config.web.oomdump) "on" else "")
+private fun printOomdump() {
+	println(if (Config.instance.web.oomdump) "on" else "")
 }

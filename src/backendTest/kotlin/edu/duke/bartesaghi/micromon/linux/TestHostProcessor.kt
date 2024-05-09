@@ -1,13 +1,11 @@
 package edu.duke.bartesaghi.micromon.linux
 
-import edu.duke.bartesaghi.micromon.SuspendCloseable
-import edu.duke.bartesaghi.micromon.exists
+import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.linux.hostprocessor.HostProcessor
 import edu.duke.bartesaghi.micromon.linux.hostprocessor.Response
 import edu.duke.bartesaghi.micromon.linux.hostprocessor.recv
-import edu.duke.bartesaghi.micromon.slowIOs
-import edu.duke.bartesaghi.micromon.use
 import io.kotest.assertions.fail
+import io.kotest.core.annotation.EnabledIf
 import io.kotest.core.spec.style.DescribeSpec
 import io.kotest.matchers.comparables.shouldBeGreaterThan
 import io.kotest.matchers.nulls.shouldBeNull
@@ -20,6 +18,7 @@ import java.util.concurrent.TimeUnit
 import kotlin.io.path.div
 
 
+@EnabledIf(RuntimeEnvironment.Host::class)
 class TestHostProcessor : DescribeSpec({
 
 	describe("host processor") {

@@ -66,7 +66,7 @@ sealed interface Container {
 			ArrayList<String>().apply {
 
 				// add the config file bind
-				add("${Config.actualPath()}:$canonicalConfigPath")
+				add("${Config.hostPath()}:$canonicalConfigPath")
 
 				// add the config binds
 				for (bind in binds) {
