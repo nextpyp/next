@@ -8,7 +8,6 @@ import io.kotest.core.spec.style.DescribeSpec
 import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.withTimeoutOrNull
 import java.nio.file.Files
-import java.nio.file.Paths
 import kotlin.io.path.writeBytes
 
 
@@ -101,7 +100,7 @@ class TestSubprocess : DescribeSpec({
 
 
 suspend fun withSubprocess(block: suspend (SubprocessClient) -> Unit) {
-	SubprocessClient.start(Paths.get("/tmp/nextpyp-subprocess"), "Test", 64, 2000)
+	SubprocessClient.start("Test", 64, 2000)
 		.use { client ->
 			withTimeoutOrNull(2000) {
 				block(client)

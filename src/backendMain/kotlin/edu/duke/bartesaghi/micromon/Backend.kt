@@ -1,6 +1,7 @@
 package edu.duke.bartesaghi.micromon
 
 import edu.duke.bartesaghi.micromon.linux.hostprocessor.HostProcessor
+import edu.duke.bartesaghi.micromon.linux.subprocess.UserSubprocesses
 import edu.duke.bartesaghi.micromon.projects.ProjectEventListeners
 import edu.duke.bartesaghi.micromon.pyp.Args
 import edu.duke.bartesaghi.micromon.pyp.fromToml
@@ -56,4 +57,5 @@ object Backend {
 	val scope = CoroutineScope(Dispatchers.Default)
 
 	val hostProcessor = HostProcessor(config.web.localDir / "host-processor")
+	val userSubprocesses = UserSubprocesses()
 }

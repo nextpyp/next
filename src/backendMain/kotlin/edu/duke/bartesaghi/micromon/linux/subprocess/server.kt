@@ -23,7 +23,6 @@ import kotlin.io.path.outputStream
 
 class SubprocessServer(
 	val log: Logger,
-	val socketDir: Path,
 	val name: String,
 ) : SuspendCloseable {
 
@@ -36,10 +35,7 @@ class SubprocessServer(
 		fun main(args: Array<String>) {
 
 			// read the args
-			val socketDir = args.getOrNull(0)
-				?.let { Paths.get(it) }
-				?: throw NoSuchElementException("missing socketDir argument")
-			val name = args.getOrNull(1)
+			val name = args.getOrNull(0)
 				?: throw NoSuchElementException("missing name argument")
 
 			// start the log
@@ -48,7 +44,7 @@ class SubprocessServer(
 			runBlocking {
 
 				val task = launch(Dispatchers.IO) {
-					SubprocessServer(log, socketDir, name)
+					SubprocessServer(log, name)
 						.use { it.serve() }
 				}
 
@@ -90,7 +86,7 @@ class SubprocessServer(
 	private val scopeDispatch = CoroutineScope(Dispatchers.Default)
 
 	// start a unix socket server
-	private val socketPath = socketPath(socketDir, name)
+	private val socketPath = socketPath(name)
 	private val socket = ServerSocketChannel.open(StandardProtocolFamily.UNIX).apply {
 		configureBlocking(true) // should be blocking by default, but let's be explicit
 		socketPath.parent.createDirsIfNeeded()

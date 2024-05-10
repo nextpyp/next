@@ -34,7 +34,6 @@ class SubprocessClient(
 	companion object {
 
 		suspend fun start(
-			socketDir: Path,
 			name: String,
 			heapMiB: Int,
 			socketTimeoutMs: Long
@@ -44,7 +43,7 @@ class SubprocessClient(
 
 			// there shouldn't be a socket file just yet, we haven't started the server yet
 			// if there is one, that means a server is already running
-			val socketPath = socketPath(socketDir, name)
+			val socketPath = socketPath(name)
 			log.debug("expecting socket file: {}", socketPath)
 			if (socketPath.exists()) {
 				throw IllegalStateException("Subprocess already running with name: $name")
@@ -67,7 +66,6 @@ class SubprocessClient(
 						"-Xmx${heapMiB}m",
 						"-Djava.awt.headless=true", // don't look for any graphics libraries
 						SubprocessServer::class.qualifiedName,
-						socketDir.toString(),
 						name
 					)
 					.redirectInput(ProcessBuilder.Redirect.INHERIT)

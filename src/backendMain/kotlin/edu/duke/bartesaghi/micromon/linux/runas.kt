@@ -107,12 +107,6 @@ sealed interface Runas {
 				stdout = true,
 				stderr = true
 			)
-
-		/* TODO
-		fun jvm(): RunasJvm {
-			// TODO
-		}
-		*/
 	}
 
 	class Failure(
