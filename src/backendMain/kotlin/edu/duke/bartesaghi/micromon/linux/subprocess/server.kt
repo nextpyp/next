@@ -16,8 +16,6 @@ import java.nio.channels.ServerSocketChannel
 import java.nio.channels.SocketChannel
 import java.nio.file.Path
 import java.nio.file.Paths
-import java.time.Duration
-import java.time.Instant
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.io.path.inputStream
 
@@ -64,13 +62,16 @@ class SubprocessServer(
 					task.cancel()
 
 					// wait for the task to finish (the single-threaded way), but don't wait forever
-					val start = Instant.now()
-					while (!task.isCompleted) {
-						if (Duration.between(start, Instant.now()).seconds < 10) {
-							Thread.sleep(100)
-						} else {
+					retryLoop(10_000) { elapsedMs, timedOut ->
+						if (task.isCompleted) {
+							Tried.Return(Unit)
+						} else if (timedOut) {
 							log.warn("Timed out waiting for cleanup")
-							break
+							Tried.Return(Unit)
+						} else {
+							Thread.sleep(100)
+							log.trace("waited {} ms", elapsedMs())
+							Tried.Waited()
 						}
 					}
 				})

@@ -1,39 +1,35 @@
 package edu.duke.bartesaghi.micromon.linux.subprocess
 
-import edu.duke.bartesaghi.micromon.SuspendCloseable
-import edu.duke.bartesaghi.micromon.exists
+import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.linux.recvFramedOrNull
 import edu.duke.bartesaghi.micromon.linux.sendFramed
-import edu.duke.bartesaghi.micromon.slowIOs
-import edu.duke.bartesaghi.micromon.use
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ClosedSendChannelException
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.ByteArrayOutputStream
 import java.io.IOException
+import java.net.ConnectException
 import java.net.StandardProtocolFamily
 import java.net.UnixDomainSocketAddress
 import java.nio.channels.SocketChannel
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.time.Duration
-import java.time.Instant
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.io.path.div
 import kotlin.math.min
 
 
 class SubprocessClient(
-	val name: String,
+	val log: Logger,
 	private val subproc: Process,
 	private val socket: SocketChannel
 ) : SuspendCloseable {
-
-	private val log = LoggerFactory.getLogger("SubprocessClient:$name")
 
 	companion object {
 
@@ -44,6 +40,16 @@ class SubprocessClient(
 			socketTimeout: Duration
 		): SubprocessClient {
 
+			val log = LoggerFactory.getLogger("SubprocessClient:$name")
+
+			// there shouldn't be a socket file just yet, we haven't started the server yet
+			// if there is one, that means a server is already running
+			val socketPath = socketPath(socketDir, name)
+			log.debug("expecting socket file: {}", socketPath)
+			if (socketPath.exists()) {
+				throw IllegalStateException("Subprocess already running with name: $name")
+			}
+
 			// start a JVM process with the same classpath as this one, but a different entry point
 			val subproc = slowIOs {
 
@@ -51,6 +57,8 @@ class SubprocessClient(
 				val javaHomeDir = Paths.get(System.getProperty("java.home"))
 				val javaBin = javaHomeDir / "bin" / "java"
 				val classpath = System.getProperty("java.class.path")
+
+				log.debug("Starting subprocess: {}", javaBin)
 
 				ProcessBuilder()
 					.command(
@@ -68,34 +76,98 @@ class SubprocessClient(
 					.start()
 			}
 
-			// wait for the socket to show up
-			val socketPath = socketPath(socketDir, name)
-			run {
-				val start = Instant.now()
-				while (true) {
+			// NOTE: the subprocess has started now:
+			//       don't exit this function without either stopping the process,
+			//       or returning the client instance
 
-					if (socketPath.exists()) {
-						break
-					}
+			// try to connect to the subprocess socket
+			val socket = try {
+				slowIOs {
 
-					// but don't wait forver
-					val elapsed = Duration.between(start, Instant.now())
-					if (elapsed > socketTimeout) {
-						throw NoSuchElementException("timed out waiting for subprocess socket file")
+					// wait for the socket to show up
+					log.debug("waiting for socket file ...")
+					retryLoop(2000) { elapsedMs, timedOut ->
+						if (socketPath.exists()) {
+							Tried.Return(Unit)
+						} else if (timedOut) {
+							log.debug("timed out")
+							throw NoSuchElementException("timed out waiting for subprocess socket file")
+						} else {
+							delay(100)
+							log.trace("waited {} ms", elapsedMs())
+							Tried.Waited()
+						}
 					}
-					delay(100)
+					log.debug("socket file visible")
+
+					// connect the socket
+					val socket = SocketChannel.open(StandardProtocolFamily.UNIX)
+					socket.configureBlocking(true) // should be blocking by default, but let's be explicit
+
+					retryLoop(2000) { elapsedMs, timedOut ->
+						try {
+							socket.connect(UnixDomainSocketAddress.of(socketPath))
+							Tried.Return(Unit)
+						} catch (ex: ConnectException) {
+							if (ex.message == "Connection refused") {
+								log.debug("connection refused")
+								// sometimes the socket file is visible, but the server isn't quite ready yet
+								// so wait a bit and try again ... but don't wait forever
+								if (timedOut) {
+									log.debug("timed out")
+									throw ConnectException("timed out trying to connect")
+								} else {
+									delay(100)
+									log.trace("waited {} ms", elapsedMs())
+									Tried.Waited()
+								}
+							} else {
+								throw ex
+							}
+						}
+					}
+					log.debug("connected to server")
+
+					socket
 				}
+			} catch (t: Throwable) {
+
+				// try to cleanup the subprocess before failing
+				subproc.close(log)
+
+				throw t
 			}
 
-			// connect the socket
-			val socket = slowIOs {
-				SocketChannel.open(StandardProtocolFamily.UNIX).apply {
-					configureBlocking(true) // should be blocking by default, but let's be explicit
-					connect(UnixDomainSocketAddress.of(socketPath))
+			return SubprocessClient(log, subproc, socket)
+		}
+
+		suspend fun Process.close(log: Logger) {
+
+			log.debug("cleaning up subprocess, alive? {}", isAlive)
+			if (isAlive) {
+
+				// process still running, send SIGTERM
+				log.debug("sending SIGTERM ...")
+				destroy()
+
+				withTimeoutOrNull(2000L) {
+					onExit().await()
+					log.debug("Exited!")
+				} ?: run {
+
+					// didn't exit, send SIGKILL this time
+					log.warn("didn't respond to SIGTERM in time, sending SIGKILL ...")
+					destroyForcibly()
+					withTimeoutOrNull(2000L) {
+						onExit().await()
+						log.debug("Killed!")
+					} ?: run {
+
+						// still didn't exit, nothing else we can do
+						log.warn("didn't respond to SIGKILL, unable to end subprocess!")
+					}
 				}
 			}
-
-			return SubprocessClient(name, subproc, socket)
 		}
 	}
 
@@ -157,6 +229,8 @@ class SubprocessClient(
 
 	override suspend fun closeAll() {
 
+		log.debug("closing ...")
+
 		// cleanup tasks and close the socket
 		requestChannel.close()
 		slowIOs {
@@ -166,32 +240,8 @@ class SubprocessClient(
 		receiver.join()
 
 		// finally, stop the subprocess, if needed
-		if (subproc.isAlive) {
-
-			// process still running, send SIGTERM
-			log.debug("Closing ...")
-			subproc.destroy()
-
-			withTimeoutOrNull(2000L) {
-				subproc.onExit().await()
-				log.debug("Exited!")
-			} ?: run {
-
-				// didn't exit, send SIGKILL this time
-				log.warn("didn't respond to SIGTERM in time, sending SIGKILL ...")
-				subproc.destroyForcibly()
-				withTimeoutOrNull(2000L) {
-					subproc.onExit().await()
-					log.debug("Killed!")
-				} ?: run {
-
-					// still didn't exit, nothing else we can do
-					log.warn("didn't respond to SIGKILL, unable to end subprocess!")
-				}
-			}
-		}
+		subproc.close(log)
 	}
-
 
 	private inner class Responder(private val requestId: Long) : SuspendCloseable {
 

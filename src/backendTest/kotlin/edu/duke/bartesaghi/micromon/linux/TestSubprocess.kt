@@ -16,81 +16,80 @@ import kotlin.io.path.writeBytes
 @EnabledIf(RuntimeEnvironment.Website::class)
 class TestSubprocess : DescribeSpec({
 
-	describe("subprocess") {
+	it("ping/pong") {
+		withSubprocess { client ->
+			client.ping()
+		}
+	}
 
-		it("ping/pong") {
-			withSubprocess { client ->
-				client.ping()
+	it("read file, small") {
+		withSubprocess { client ->
+			TempFile().use { file ->
+
+				// write a small file
+				val msg = "hello"
+				file.path.writeString(msg)
+
+				// read it
+				val buf = client.readFile(file.path)
+				buf.toString(Charsets.UTF_8).shouldBe(msg)
 			}
 		}
+	}
 
-		it("read file, small") {
-			withSubprocess { client ->
-				TempFile().use { file ->
+	it("read file, large") {
+		withSubprocess { client ->
+			TempFile().use { file ->
 
-					// write a small file
-					val msg = "hello"
-					file.path.writeString(msg)
-
-					// read it
-					val buf = client.readFile(file.path)
-					buf.toString(Charsets.UTF_8).shouldBe(msg)
+				// write a large file with structured, but non-trivial, content
+				val content = ByteArray(16*1024*1024 - 16)
+				for (i in content.indices) {
+					content[i] = i.toUByte().toByte()
 				}
+				file.path.writeBytes(content)
+
+				// read it
+				val buf = client.readFile(file.path)
+				buf.shouldBe(content)
 			}
 		}
+	}
 
-		it("read file, large") {
-			withSubprocess { client ->
-				TempFile().use { file ->
+	it("write file, small") {
+		withSubprocess { client ->
+			TempFile().use { file ->
 
-					// write a large file with structured, but non-trivial, content
-					val content = ByteArray(16*1024*1024 - 16)
-					for (i in content.indices) {
-						content[i] = i.toUByte().toByte()
+				// write a small file
+				val msg = "hello"
+				client.writeFile(file.path)
+					.use { writer ->
+						writer.write(msg.toByteArray(Charsets.UTF_8))
 					}
-					file.path.writeBytes(content)
 
-					// read it
-					val buf = client.readFile(file.path)
-					buf.shouldBe(content)
-				}
+				// read it
+				file.path.readString().shouldBe(msg)
+				// TODO: NEXTTIME: sometimes fails: expected:<"hello"> but was:<<empty string>>
+				//   probably need to wait for the server file close on the client?
 			}
 		}
+	}
 
-		it("write file, small") {
-			withSubprocess { client ->
-				TempFile().use { file ->
+	it("write file, large") {
+		withSubprocess { client ->
+			TempFile().use { file ->
 
-					// write a small file
-					val msg = "hello"
-					client.writeFile(file.path)
-						.use { writer ->
-							writer.write(msg.toByteArray(Charsets.UTF_8))
-						}
-
-					// read it
-					file.path.readString().shouldBe(msg)
+				// write a large file with structured, but non-trivial, content
+				val content = ByteArray(16*1024*1024 - 16)
+				for (i in content.indices) {
+					content[i] = i.toUByte().toByte()
 				}
-			}
-		}
-
-		it("write file, large") {
-			withSubprocess { client ->
-				TempFile().use { file ->
-
-					// write a large file with structured, but non-trivial, content
-					val content = ByteArray(16*1024*1024 - 16)
-					for (i in content.indices) {
-						content[i] = i.toUByte().toByte()
+				client.writeFile(file.path)
+					.use { writer ->
+						writer.write(content)
 					}
-					client.writeFile(file.path)
-						.use { writer ->
-							writer.write(content)
-						}
 
-					// read it
-					file.path.readBytes().shouldBe(content)
-				}
+				// read it
+				file.path.readBytes().shouldBe(content)
 			}
 		}
 	}
@@ -98,7 +97,7 @@ class TestSubprocess : DescribeSpec({
 
 
 suspend fun withSubprocess(block: suspend (SubprocessClient) -> Unit) {
-	SubprocessClient.start(Paths.get("/tmp/nextpyp-subprocess"), "Test", 64, Duration.ofMillis(500))
+	SubprocessClient.start(Paths.get("/tmp/nextpyp-subprocess"), "Test", 64, Duration.ofMillis(2000))
 		.use { client ->
 			withTimeoutOrNull(2000) {
 				block(client)
