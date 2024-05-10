@@ -7,11 +7,8 @@ import io.kotest.core.annotation.EnabledIf
 import io.kotest.core.spec.style.DescribeSpec
 import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.withTimeoutOrNull
-import org.slf4j.LoggerFactory
 import java.nio.file.Files
 import java.nio.file.Paths
-import java.time.Duration
-import kotlin.io.path.fileSize
 import kotlin.io.path.writeBytes
 
 

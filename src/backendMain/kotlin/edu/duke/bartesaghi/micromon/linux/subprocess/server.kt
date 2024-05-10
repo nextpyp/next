@@ -17,7 +17,6 @@ import java.nio.channels.SocketChannel
 import java.nio.file.Path
 import java.nio.file.Paths
 import kotlin.coroutines.cancellation.CancellationException
-import kotlin.io.path.fileSize
 import kotlin.io.path.inputStream
 import kotlin.io.path.outputStream
 
@@ -316,11 +315,11 @@ class SubprocessServer(
 
 				val writer = fileWriters { it[responder.requestId] }
 					?: run {
-						log.trace("write chunk ${request.writeId} ignored because writer not found")
+						log.trace("write chunk {} ignored because writer not found", request.writeId)
 						return
 					}
 
-				log.trace("write chunk ${request.writeId} trying to get lock ...")
+				log.trace("write chunk {} trying to get lock ...", request.writeId)
 				writer.lock(request.writeId) { locked ->
 
 					try {
@@ -334,7 +333,7 @@ class SubprocessServer(
 						}
 					}
 				}
-				log.trace("write chunk ${request.writeId} finished")
+				log.trace("write chunk {} finished", request.writeId)
 
 				// no need for a response here, this isn't TCP after all =P
 			}
@@ -349,7 +348,7 @@ class SubprocessServer(
 
 				// try to close the file
 				try {
-					log.trace("write close ${request.writeId} trying to get lock ...")
+					log.trace("write close {} trying to get lock ...", request.writeId)
 					writer.lock(request.writeId) { locked ->
 
 						// send any pending errors
@@ -362,7 +361,7 @@ class SubprocessServer(
 							locked.out.close()
 						}
 					}
-					log.trace("write close ${request.writeId} finished for ${writer.path}")
+					log.trace("write close {} finished for {}", request.writeId, writer.path)
 				} catch (t: Throwable) {
 					responder.send(Response.WriteFile.Fail(t.message ?: ""))
 					return
