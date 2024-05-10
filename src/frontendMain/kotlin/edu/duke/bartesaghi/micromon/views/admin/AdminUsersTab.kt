@@ -534,15 +534,24 @@ class RunasInfo : Div(classes = setOf("runas-info")) {
 					if (runningWhoami != null) {
 						elem.loading("Running `whoami` as $username ...")
 					} else if (whoamiResult != null) {
-						if (whoamiResult == username) {
+
+						// the whoami result will have some log spam from runas in it,
+						// so look at the last line for the whoami output
+						val whoamiUser = whoamiResult.lines()
+							.last { it.isNotBlank() }
+							.trim()
+						if (whoamiUser == username) {
 							elem.div(classes = setOf("success-message")) {
 								iconStyled("fas fa-check", classes = setOf("icon"))
-								span("Success: $whoamiResult")
+								span("Success: $whoamiUser")
 							}
 						} else {
 							elem.div(classes = setOf("error-message")) {
 								iconStyled("fas fa-exclamation-triangle", classes = setOf("icon"))
-								span("Failure: $whoamiResult")
+								span("Failure: whoami=\"$whoamiUser\", expected=\"$username\"")
+								div {
+									tag(TAG.PRE, whoamiResult)
+								}
 							}
 						}
 					} else {

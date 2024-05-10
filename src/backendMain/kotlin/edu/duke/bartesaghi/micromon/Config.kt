@@ -20,21 +20,13 @@ class Config(toml: String) {
 
 	companion object {
 
-		fun actualPath(): String =
-			if (Testing.active) {
-				"run/config.toml"
-			} else {
-				System.getenv("PYP_CONFIG_ACTUAL")
-					?: throw NoSuchElementException("no actual pyp config path")
-			}
+		/** path of the config file on the host (ie, outside of the container */
+		fun hostPath(): String =
+			System.getenv("PYP_CONFIG_HOST")
+				?: throw NoSuchElementException("no host pyp config path")
 
-		val canonicalPath: Path = Paths.get("/var/micromon/config.toml")
-
-		fun fromCanon(): Config =
-			Config(canonicalPath.readString())
-
-		fun fromTest(): Config =
-			Config(Paths.get(actualPath()).readString())
+		val instance: Config =
+			Config(Paths.get("/var/micromon/config.toml").readString())
 	}
 
 	val dev: Boolean
@@ -274,11 +266,6 @@ class Config(toml: String) {
 					?: (sharedDir / "runas")
 			)
 		}
-	}
-
-	fun initDirs() {
-		web.localDir.createDirsIfNeeded()
-		web.sharedDir.createDirsIfNeeded()
 	}
 
 	override fun toString() = StringBuilder().apply {

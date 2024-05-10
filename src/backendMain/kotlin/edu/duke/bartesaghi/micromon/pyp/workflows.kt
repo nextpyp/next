@@ -117,10 +117,9 @@ object Workflows {
 }
 
 
+// TODO: convert this to kotest
 /** a sort of crude unit test */
 fun main() {
-
-	Testing.active = true
 
 	val workflow = Workflows.readToml("""
 		|

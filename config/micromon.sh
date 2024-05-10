@@ -1,26 +1,37 @@
 #! /bin/sh
 
-# show the environmental config
+# build the JVM args and show the environmental config
 echo Starting MicroMon with:
+jvmargs=
+
+# set the JVM max heap size
 echo "  JVM heap size: $NEXTPYP_HEAPMIB MiB"
+jvmargs="$jvmargs -Xmx${NEXTPYP_HEAPMIB}M"
+
+# explicitly pick the production logging configuration
+# since sometimes logback likes to default to the testing one for some reason
+jvmargs="$jvmargs -Dlogback.configurationFile=logback.xml"
 
 if [ -n "$NEXTPYP_JMX" ]; then
   echo "  JMX remote monitoring ON"
-  jmx="-Dcom.sun.management.jmxremote.ssl=false \
-    -Dcom.sun.management.jmxremote.authenticate=false \
-    -Dcom.sun.management.jmxremote.port=9010 \
-    -Dcom.sun.management.jmxremote.rmi.port=9011 \
-    -Djava.rmi.server.hostname=localhost \
-    -Dcom.sun.management.jmxremote.local.only=false"
+  jvmargs="$jvmargs -Dcom.sun.management.jmxremote.ssl=false"
+  jvmargs="$jvmargs -Dcom.sun.management.jmxremote.authenticate=false"
+  jvmargs="$jvmargs -Dcom.sun.management.jmxremote.port=9010"
+  jvmargs="$jvmargs -Dcom.sun.management.jmxremote.rmi.port=9011"
+  jvmargs="$jvmargs -Djava.rmi.server.hostname=localhost"
+  jvmargs="$jvmargs -Dcom.sun.management.jmxremote.local.only=false"
 else
   echo "  JMX remote monitoring off"
 fi
 
 if [ -n "$NEXTPYP_OOMDUMP" ]; then
   echo "  Will perform heap dump on out-of-memory errors"
-  dump="-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp"
+  jvmargs="$jvmargs -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp"
 else
   echo "  Will not perform heap dump on out-of-memory errors"
 fi
 
-java -Xmx${NEXTPYP_HEAPMIB}M $jmx $dump -Djava.awt.headless=true @bin/classpath.txt edu.duke.bartesaghi.micromon.MainKt
+# turn on headless mode so the JVM doesn't try to look for a display/GPU
+jvmargs="$jvmargs -Djava.awt.headless=true"
+
+java $jvmargs @bin/classpath.txt edu.duke.bartesaghi.micromon.MainKt

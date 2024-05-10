@@ -1,0 +1,37 @@
+
+# The trick for getting Rust binaries to run on a wide variety of linux distros is not static linking libc,
+# like I previously thought, but rather to dynamically link a very old version of GNU libc.
+# So this container sets up a build environment for Rust using CentOS 7
+# which uses a very old GNU libc: v2.17 (from 2012!)
+# Probably no one's using anything in production older than that, eh?
+
+
+Bootstrap: docker
+From: centos:7
+IncludeCmd: no
+
+%environment
+	# these are only set at continer runtime
+	export RUSTUP_HOME=/usr/local/rustup
+	export CARGO_HOME=/usr/local/cargo
+	export PATH=$CARGO_HOME/bin:$PATH
+
+%post
+
+	# need to set envvars at build time too
+	export RUSTUP_HOME=/usr/local/rustup
+	export CARGO_HOME=/usr/local/cargo
+
+	# install OS packages
+	yum group install "Development Tools" -y
+	yum clean all
+
+	# install rust
+	mkdir -p "$CARGO_HOME"
+	mkdir -p "$RUSTUP_HOME"
+	curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain stable
+
+	# make a place to download crates
+	registry_dir=$CARGO_HOME/registry
+	mkdir -p "$registry_dir"
+	chmod -R a=rwX "$registry_dir"

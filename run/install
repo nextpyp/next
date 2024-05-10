@@ -45,7 +45,7 @@ if [ "$(whoami)" != "root" ]; then
 else
   usdo="sudo -u $username"
   bindir="/usr/bin/"
-  home=$(getent passwd $SUDO_USER | cut -d: -f6)
+  home=$(getent passwd "$SUDO_USER" | cut -d: -f6)
 fi
 
 echo "Installing nextPYP $version for user $username ..."
@@ -59,10 +59,11 @@ wgetopts="-nv"
 wget $wgetopts -O "nextPYP.sif" "$www/nextPYP.sif"
 wget $wgetopts -O "pyp.sif" "$www/pyp.sif"
 wget $wgetopts -O "hostprocessor" "$www/hostprocessor"
-wget $wgetopts -O "start" "$www/start"
-wget $wgetopts -O "stop" "$www/stop"
+wget $wgetopts -O "runas" "$www/runas"
+wget $wgetopts -O "nextpyp" "$www/nextpyp"
 wget $wgetopts -O "uninstall" "$www/uninstall"
 wget $wgetopts -O "install-rprox" "$www/install-rprox"
+wget $wgetopts -O "admin-runas" "$www/admin-runas"
 
 chmod ugo+r "nextPYP.sif" "pyp.sif" "uninstall" "install-rprox"
 
@@ -71,10 +72,8 @@ chmod ugo+r "nextPYP.sif" "pyp.sif" "uninstall" "install-rprox"
 #       and then chmod +x later if satisfied
 
 # move the executables into /usr/bin (otherwise SELinux will deny access)
-mv "$here/start" "$bindir/nextpyp-start"
-chmod ugo+rx "$bindir/nextpyp-start"
-mv "$here/stop" "$bindir/nextpyp-stop"
-chmod ugo+rx "$bindir/nextpyp-stop"
+mv "$here/nextpyp" "$bindir/nextpyp"
+chmod ugo+rx "$bindir/nextpyp"
 mv "$here/hostprocessor" "$bindir/nextpyp-hostprocessor"
 chmod ugo+rx "$bindir/nextpyp-hostprocessor"
 
@@ -90,18 +89,27 @@ chmod -R ugo+r "$workflowDir"/*
 # create initial directories
 localDir="$here/local"
 mkdir -p "$localDir"
-chown "$username:$usergroup" "$localDir"
+chown "$username":"$usergroup" "$localDir"
 echo "Created local directory: $localDir"
 
 sharedDir="$here/shared"
 mkdir -p "$sharedDir"
-chown "$username:$usergroup" "$sharedDir"
+chown "$username":"$usergroup" "$sharedDir"
 echo "Created shared directory: $sharedDir"
+
+# setup the runas system
+runasDir="$sharedDir/runas"
+mkdir -p "$runasDir"
+mv "$here/runas" "$runasDir/"
+chown "$username":"$usergroup" "$runasDir/runas"
+chmod u=rw,go= "$runasDir/runas" # no one should run the base runas executable
+mv "$here/admin-runas" "$runasDir/"
+chmod u=rwx,go= "$runasDir/admin-runas" # the admin-runas script should be executable tho
 
 # create the home configuration folder, if needed (needed by apptainer)
 if [ ! -d "$home" ]; then
   mkdir -p "$home"
-  chown -R "$username:$usergroup" "$home"
+  chown -R "$username":"$usergroup" "$home"
   chmod u+rwx,go+rx,go-w "$home"
 fi
 if [ ! -d "$home/.config" ]; then
@@ -149,18 +157,18 @@ fi
 chmod o-w "$configPath"
 
 if [ "$(whoami)" = "root" ]; then
-echo "Installing integrations with systemd ..."
+  echo "Installing integrations with systemd ..."
 
-# relevant documentation on systemd:
-# https://www.freedesktop.org/software/systemd/man/systemd.unit.html
-# https://www.freedesktop.org/software/systemd/man/systemd.exec.html
-# https://www.freedesktop.org/software/systemd/man/systemd.service.html
+  # relevant documentation on systemd:
+  # https://www.freedesktop.org/software/systemd/man/systemd.unit.html
+  # https://www.freedesktop.org/software/systemd/man/systemd.exec.html
+  # https://www.freedesktop.org/software/systemd/man/systemd.service.html
 
 
-# make the unit file for the application server
-appDaemon="nextPYP"
-appFile="/lib/systemd/system/$appDaemon.service"
-cat << EOF > "$appFile"
+  # make the unit file for the application server
+  appDaemon="nextPYP"
+  appFile="/lib/systemd/system/$appDaemon.service"
+  cat << EOF > "$appFile"
 [Unit]
 Description=$appDaemon
 
@@ -170,26 +178,27 @@ Restart=always
 RestartSec=1
 WorkingDirectory=$here
 User=$username
-Environment=PYP_CONFIG=$configPath PYP_HOSTPROCESSOR_CLEAN=yup
-ExecStart=/usr/bin/nextpyp-start
-ExecStop=/usr/bin/nextpyp-stop
+Environment=PYP_CONFIG=$configPath
+ExecStart=$bindir/nextpyp start
+ExecStop=$bindir/nextpyp stop
 
 [Install]
 WantedBy = multi-user.target
 EOF
-chmod go-w "$appFile"
+  chmod go-w "$appFile"
 
 
-# poke systemd to recognize the new daemons
-systemctl daemon-reload
+  # poke systemd to recognize the new daemons
+  systemctl daemon-reload
 
-# start the demon now and at boot too
-systemctl start $appDaemon
-systemctl enable $appDaemon
+  # start the demon now and at boot too
+  systemctl start $appDaemon
+  systemctl enable $appDaemon
+
 else
-echo "WARNING: Since you did not run the installer as root, nextPYP will not start automatically"
-echo "To start manually, run: PYP_CONFIG=`pwd`/config.toml ./nextpyp-start"
-echo "To stop nextPYP, run: ./nextpyp-stop"
+  echo "WARNING: Since you did not run the installer as root, nextPYP will not start automatically"
+  echo "To start manually, run: PYP_CONFIG=\"$configPath\" \"$bindir/nextpyp\" start"
+  echo "To stop nextPYP, run: PYP_CONFIG=\"$configPath\" \"$bindir/nextpyp\" stop"
 fi
 
 echo "Finished installing nextPYP $version"

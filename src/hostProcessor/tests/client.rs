@@ -68,6 +68,7 @@ fn exec() {
 	let (_pid, request_id) = exec::launch(&mut socket, ExecRequest {
 		program: "ls".to_string(),
 		args: vec!["-al".to_string()],
+		dir: None,
 		stream_stdin: false,
 		stream_stdout: false,
 		stream_stderr: false,
@@ -94,6 +95,7 @@ fn exec_stdout() {
 	let (_pid, request_id) = exec::launch(&mut socket, ExecRequest {
 		program: "ls".to_string(),
 		args: vec!["-al".to_string()],
+		dir: None,
 		stream_stdin: false,
 		stream_stdout: true,
 		stream_stderr: false,
@@ -122,6 +124,7 @@ fn exec_stderr() {
 	let (_pid, request_id) = exec::launch(&mut socket, ExecRequest {
 		program: "ls".to_string(),
 		args: vec!["/nope/probably/not/a/thing/right?".to_string()],
+		dir: None,
 		stream_stdin: false,
 		stream_stdout: false,
 		stream_stderr: true,
@@ -150,6 +153,7 @@ fn exec_stdin() {
 	let (pid, request_id) = exec::launch(&mut socket, ExecRequest {
 		program: "cat".to_string(),
 		args: vec!["-".to_string()],
+		dir: None,
 		stream_stdin: true,
 		stream_stdout: true,
 		stream_stderr: true,
@@ -172,6 +176,34 @@ fn exec_stdin() {
 
 
 #[test]
+fn exec_dir() {
+	let _logging = logging::init_test();
+
+	let host_processor = HostProcessor::start();
+	let mut socket = host_processor.connect();
+
+	// send the exec request
+	let (_pid, request_id) = exec::launch(&mut socket, ExecRequest {
+		program: "pwd".to_string(),
+		args: vec![],
+		dir: Some("/tmp".to_string()),
+		stream_stdin: false,
+		stream_stdout: true,
+		stream_stderr: false,
+		stream_fin: true
+	});
+
+	// get the stdout
+	let (stdout, _, exit_code) = exec::outputs(&mut socket, request_id);
+	assert_that!(&exit_code, eq(Some(0)));
+	assert_that!(&String::from_utf8_lossy(stdout.as_ref()).to_string(), eq("/tmp\n".to_string()));
+
+	host_processor.disconnect(socket);
+	host_processor.stop();
+}
+
+
+#[test]
 fn exec_status() {
 	let _logging = logging::init_test();
 
@@ -185,6 +217,7 @@ fn exec_status() {
 	let (pid, _request_id) = exec::launch(&mut socket, ExecRequest {
 		program: "cat".to_string(),
 		args: vec!["-".to_string()],
+		dir: None,
 		stream_stdin: true,
 		stream_stdout: false,
 		stream_stderr: false,
@@ -222,6 +255,7 @@ fn exec_kill() {
 	let (pid, _request_id) = exec::launch(&mut socket, ExecRequest {
 		program: "cat".to_string(),
 		args: vec!["-".to_string()],
+		dir: None,
 		stream_stdin: true,
 		stream_stdout: false,
 		stream_stderr: false,
@@ -246,7 +280,7 @@ fn exec_kill() {
 
 
 #[test]
-fn exec_username() {
+fn username() {
 	let _logging = logging::init_test();
 
 	let host_processor = HostProcessor::start();
@@ -264,7 +298,7 @@ fn exec_username() {
 
 
 #[test]
-fn exec_uid() {
+fn uid() {
 	let _logging = logging::init_test();
 
 	let host_processor = HostProcessor::start();
@@ -282,7 +316,7 @@ fn exec_uid() {
 
 
 #[test]
-fn exec_groupname() {
+fn groupname() {
 	let _logging = logging::init_test();
 
 	let host_processor = HostProcessor::start();
@@ -300,7 +334,7 @@ fn exec_groupname() {
 
 
 #[test]
-fn exec_gid() {
+fn gid() {
 	let _logging = logging::init_test();
 
 	let host_processor = HostProcessor::start();
@@ -318,7 +352,7 @@ fn exec_gid() {
 
 
 #[test]
-fn exec_gids() {
+fn gids() {
 	let _logging = logging::init_test();
 
 	let host_processor = HostProcessor::start();

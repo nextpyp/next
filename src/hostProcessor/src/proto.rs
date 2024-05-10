@@ -85,6 +85,7 @@ impl Request {
 pub struct ExecRequest {
 	pub program: String,
 	pub args: Vec<String>,
+	pub dir: Option<String>,
 	pub stream_stdin: bool,
 	pub stream_stdout: bool,
 	pub stream_stderr: bool,
@@ -109,6 +110,9 @@ impl RequestEnvelope {
 				out.write_u32::<BigEndian>(Request::ID_EXEC)?;
 				out.write_utf8(&request.program)?;
 				out.write_vec(&request.args, |out, item| {
+					out.write_utf8(item)
+				})?;
+				out.write_option(&request.dir, |out, item| {
 					out.write_utf8(item)
 				})?;
 				out.write_bool(request.stream_stdin)?;
@@ -189,6 +193,7 @@ impl RequestEnvelope {
 				Request::Exec(ExecRequest {
 					program: reader.read_utf8().map_err(|e| (e, Some(request_id)))?,
 					args: reader.read_vec(|r| r.read_utf8()).map_err(|e| (e, Some(request_id)))?,
+					dir: reader.read_option(|r| r.read_utf8()).map_err(|e| (e, Some(request_id)))?,
 					stream_stdin: reader.read_bool().map_err(|e| (e, Some(request_id)))?,
 					stream_stdout: reader.read_bool().map_err(|e| (e, Some(request_id)))?,
 					stream_stderr: reader.read_bool().map_err(|e| (e, Some(request_id)))?,
@@ -737,10 +742,20 @@ mod test {
 		assert_roundtrip(Request::Exec(ExecRequest {
 			program: "program".to_string(),
 			args: vec!["arg1".to_string(), "arg2".to_string()],
+			dir: None,
 			stream_stdin: false,
 			stream_stdout: true,
 			stream_stderr: false,
 			stream_fin: true
+		}));
+		assert_roundtrip(Request::Exec(ExecRequest {
+			program: "program".to_string(),
+			args: vec![],
+			dir: Some("/path/to/dir".to_string()),
+			stream_stdin: false,
+			stream_stdout: false,
+			stream_stderr: false,
+			stream_fin: false
 		}));
 
 		assert_roundtrip(Request::Status {

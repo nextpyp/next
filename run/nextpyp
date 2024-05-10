@@ -1,0 +1,331 @@
+#!/bin/bash
+# NOTE: need bash proper here instead of POSIX shell so we can build commands with quoted args properly
+
+
+# exit if any command fails
+set -e
+
+
+# look for the config file in the usual places
+# first try the environment
+configpath=$(realpath "$PYP_CONFIG" || echo "")
+defaultpath=~/.pyp/config.toml
+if [ -z "$configpath" ] || [ ! -f "$configpath" ] ; then
+  # then look in the default location
+  configpath=$defaultpath
+fi
+if [ -z "$configpath" ] || [ ! -f "$configpath" ] ; then
+  echo "no configuration file found!"
+  echo "checked PYP_CONFIG=$PYP_CONFIG"
+  echo "and $defaultpath"
+  exit 1
+fi
+echo "Using configuration at $configpath"
+
+# set the config file path (on the host) to another environment variable so processes inside the container can see it
+# useful for spawning new containers from inside the container
+export PYP_CONFIG_HOST=$configpath
+
+
+# read the developer arguments, if any
+devpath=$2
+devgradlecache=$3
+devmain=$4
+
+
+# this shell script doesn't know how to parse the TOML file
+# but the Kotlin code inside the container does
+# so use the container to parse the config file and check for errors
+# but send the directories back here to the shell script for validation
+# since the conainer can't check external directories without binds, which we haven't done yet
+
+# create binds to map the config file into the container
+# must bind the config file to a canonical path so it doesn't conflict with any of the bind folders
+binds=(--bind "$configpath":/var/micromon/config.toml)
+
+# handle development binds if needed
+if [ -n "$devpath" ] ; then
+  echo "looking for development files at \"$devpath\" ..."
+
+  if [ -d "$devgradlecache" ] ; then
+    echo "using gradle cache at: \"$devgradlecache\""
+    binds+=(--bind "$devgradlecache")
+  else
+    echo "Error: gradle cache folder not found at \"$devgradlecache\""
+    exit 1
+  fi
+
+  if [ "$devmain" == "run" ] ; then
+
+    # for running the website, bind the libs dir
+    libsdir=$devpath/build/libs
+    if [ -d "$libsdir" ] ; then
+      echo "using libs folder at: \"$libsdir\""
+      binds+=(--bind "$libsdir":/opt/micromon/libs)
+    else
+      echo "Error: libs folder not found at \"$libsdir\""
+      exit 1
+    fi
+
+    initpath=$devpath/config/init.sh
+    if [ -f "$initpath" ] ; then
+      echo "using init script at: $initpath"
+      binds+=(--bind "$initpath":/opt/micromon/init.sh)
+    else
+      echo "Error: init script not found at \"$initpath\""
+      exit 1
+    fi
+
+    startpath=$devpath/config/micromon.sh
+    if [ -f "$startpath" ] ; then
+      echo "using JVM start script at: $startpath"
+      binds+=(--bind "$startpath":/opt/micromon/bin/micromon.sh)
+    else
+      echo "Error: JVM start script not found at \"$startpath\""
+      exit 1
+    fi
+
+  elif [ "$devmain" == "test" ] ; then
+
+    # for tests, bind the classes and resource dirs directly
+
+    mainclassesdir=$devpath/build/classes/kotlin/backend/main
+    if [ -d "$mainclassesdir" ] ; then
+      echo "using main classes at: \"$mainclassesdir\""
+      binds+=(--bind "$mainclassesdir":/opt/micromon/classes/main)
+    else
+      echo "Error: main classes folder not found at \"$mainclassesdir\""
+      exit 1
+    fi
+
+    mainresourcesdir=$devpath/build/processedResources/backend/main
+    if [ -d "$mainresourcesdir" ] ; then
+      echo "using main resources at: \"$mainresourcesdir\""
+      binds+=(--bind "$mainresourcesdir":/opt/micromon/resources/main)
+    else
+      echo "Error: main resources folder not found at \"$mainresourcesdir\""
+      exit 1
+    fi
+
+    testclassesdir=$devpath/build/classes/kotlin/backend/test
+    if [ -d "$testclassesdir" ] ; then
+      echo "using test classes at: \"$testclassesdir\""
+      binds+=(--bind "$testclassesdir":/opt/micromon/classes/test)
+    else
+      echo "Error: test classes folder not found at \"$testclassesdir\""
+      exit 1
+    fi
+
+    testresourcesdir=$devpath/build/processedResources/backend/test
+    if [ -d "$testresourcesdir" ] ; then
+      echo "using test resources at: \"$testresourcesdir\""
+      binds+=(--bind "$testresourcesdir":/opt/micromon/resources/test)
+    fi
+    # this folder might really not exist, so it missing is not an error
+  fi
+
+  classpathfile=$devpath/build/classpath.dev.$devmain.txt
+  if [ -f "$classpathfile" ] ; then
+    echo "using classpath file at: \"$classpathfile\""
+    binds+=(--bind "$classpathfile":/opt/micromon/bin/classpath.txt)
+  else
+      echo "Error: classpath file not found at \"$classpathfile\""
+      exit 1
+  fi
+fi
+
+# use the pyp args config too, if it's available
+argspath=$PYP_SRC/config/pyp_config.toml
+if [ -f "$argspath" ] ; then
+  echo "using PYP args at: $argspath"
+  binds+=(--bind "$argspath":/opt/micromon/pyp_config.toml)
+fi
+
+# build the command to run the CLI
+cli=(\
+  singularity exec "${binds[@]}" --no-home nextPYP.sif \
+  java \
+  -Xmx64M \
+  -Djava.awt.headless=true \
+  -Dlogback.configurationFile=logback-cli.xml \
+  @/opt/micromon/bin/classpath.txt \
+  edu.duke.bartesaghi.micromon.CliKt \
+)
+
+
+echo "Reading config.toml using CLI tool ..."
+
+# get the local and share directories from the config
+localdir=$("${cli[@]}" localdir)
+shareddir=$("${cli[@]}" shareddir)
+
+hpsocketdir="$localdir/host-processor"
+
+
+# process the command
+case "$1" in
+
+  start)
+
+    # make the directories if needed
+    if [ ! -d "$localdir" ] ; then
+      echo "Creating local directory at: $localdir"
+      mkdir -p "$localdir"
+    fi
+
+    logsdir="$localdir/logs"
+    if [ ! -d "$logsdir" ] ; then
+      echo "Creating logs directory at: $logsdir"
+      mkdir -p "$logsdir"
+    fi
+
+    dbdir="$localdir/db"
+    if [ ! -d "$dbdir" ] ; then
+      echo "Creating database directory at: $dbdir"
+      mkdir -p "$dbdir"
+    fi
+
+    if [ ! -d "$shareddir" ] ; then
+      echo "Creating shared directory at: $shareddir"
+      mkdir -p "$shareddir"
+    fi
+
+    # add all the binds from the config file
+    IFS=" " read -r -a configbinds <<< "$("${cli[@]}" binds)"
+    binds+=(--bind "$localdir" --bind "$shareddir" "${configbinds[@]}")
+
+
+    # start the host processor unless explicitly asked not to
+    if [ -z "$PYP_HOSTPROCESSOR_OFF" ]; then
+
+      # get the host processor executable
+      if [ -n "$devpath" ]; then
+        # dev mode, look in the dev folder
+        hpexec="$devpath/run/host-processor"
+        hpoptions=(--log host_processor=trace)
+      else
+        # production mode, look in /usr/bin
+        if [ -x /usr/bin/nextpyp-host-processor ]; then
+          hpexec="/usr/bin/nextpyp-host-processor"
+        else
+          hpexec="./nextpyp-host-processor"
+        fi
+        hpoptions=()
+      fi
+      if [ ! -x "$hpexec" ]; then
+        echo "Host processor executable not found at $hpexec"
+        exit 1
+      fi
+
+      # pick a local folder for socket files that is writable
+      if [ ! -d "$hpsocketdir" ]; then
+        echo "Creating host processor directory at: $hpsocketdir"
+        mkdir -p "$hpsocketdir"
+      fi
+
+      # actually start the host processor
+      "$hpexec" "${hpoptions[@]}" "$hpsocketdir" > "$localdir/logs/hostprocessor" 2>&1 &
+      hppid=$!
+      echo "Host Processor started pid=$hppid"
+
+    fi
+
+
+    echo "Configuring environment ..."
+
+    # configure the environment
+    NEXTPYP_LOCAL=$localdir
+    export NEXTPYP_LOCAL
+    NEXTPYP_HEAPMIB=$("${cli[@]}" heapmib)
+    export NEXTPYP_HEAPMIB
+    NEXTPYP_JMX=$("${cli[@]}" jmx)
+    export NEXTPYP_JMX
+    NEXTPYP_DATABASE_MEMGB=$("${cli[@]}" database_memgb)
+    export NEXTPYP_DATABASE_MEMGB
+    NEXTPYP_OOMDUMP=$("${cli[@]}" oomdump)
+    export NEXTPYP_OOMDUMP
+    NEXTPYP_HOSTPROCESSOR_PID=$hppid
+    export NEXTPYP_HOSTPROCESSOR_PID
+
+
+    # set general args to apptainer
+    apptainerargs=("${binds[@]}" --writable-tmpfs --no-home)
+
+    # The website tries to query the number of available GPUs in standalone mode
+    # so we need to get apptainer to bind in the GPU libraries.
+    # We can just always ask apptainer to do it whether or not Cuda is even available on this host,
+    # but apptainer will show scary warnings in the console if it's not.
+    # Ideally, we'd only turn on --nv if we knew Cuda was available, but detecting that in a shell script
+    # is likely to be imperfect, so just always turn it on and hope no one complains about the apptainer warnings.
+    apptainerargs+=(--nv)
+    echo "NOTE:    If you see warnings immediately below that nv files or libraries can't be found, and you're not using any GPUs, those warnings are safe to ignore."
+
+    # set the container path
+    apptainerargs+=(nextPYP.sif)
+
+
+    # finally, start the website container
+    echo "Starting singularity container ..."
+    if [ "$devmain" == "test" ]; then
+
+      # ok to fail here, keep going so we can cleanup
+      set +e
+
+      # to run tests, don't start an instance, just exec a java command
+      jvmargs=(\
+        -Xmx2G \
+        -Djava.awt.headless=true \
+        -Dlogback.configurationFile=logback-test.xml \
+        @/opt/micromon/bin/classpath.txt \
+      )
+      singularity exec "${apptainerargs[@]}" java "${jvmargs[@]}" edu.duke.bartesaghi.micromon.DevvmKt
+
+      echo "apptainer/JVM exited, cleaning up ..."
+
+      # if there's a host processor running, stop it
+      if [ -n "$hppid" ] ; then
+        kill -s TERM "$hppid"
+        echo "Sent SIGTERM to host processor at pid=$hppid"
+      fi
+
+      echo "Cleanup finished!"
+
+    else
+
+      # start the production website instance
+      singularity instance start "${apptainerargs[@]}" nextPYP
+    fi
+
+    ;;
+
+
+  stop)
+
+    # ok to fail here, keep going so we can cleanup
+    set +e
+
+    # stop the website container
+    singularity instance stop nextPYP
+
+    # stop any running host processors
+    for f in "$hpsocketdir"/host-processor-* ; do
+      # NOTE: if the glob matches nothing, the filename `host-processor-*` will be iterated
+      #       sigh ... shells are so annoying to program
+      if [ -S "$f" ] ; then
+        IFS='-' read -r -a parts <<< "$(basename "$f")"
+        pid=${parts[2]}
+        echo "Found host processor $pid, sending SIGTERM"
+        kill -s TERM "$pid"
+      fi
+    done
+
+    ;;
+
+
+  *)
+    echo "Usage:"
+    echo "   nextpyp <start | stop>"
+    exit 1
+    ;;
+
+esac

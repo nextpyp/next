@@ -5,11 +5,12 @@
 
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
-            <pattern>[%d{ISO8601}] %-5level %logger - %msg%n</pattern>
+            <pattern>[%date{mm:ss.SSS}] %-5level %logger - %msg%n</pattern>
         </encoder>
     </appender>
 
-    <root level="INFO">
+    <!-- show ALL the debug spam in testing mode! -->
+    <root level="TRACE">
         <appender-ref ref="STDOUT"/>
     </root>
 

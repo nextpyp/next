@@ -1,5 +1,7 @@
 package edu.duke.bartesaghi.micromon
 
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import kotlin.math.ceil
 
 
@@ -58,4 +60,25 @@ fun <T> MutableList<T>.setAll(other: List<T>) {
 fun <T> Set<T>.without(value: T): Set<T> =
 	HashSet(this).apply {
 		remove(value)
+	}
+
+
+/** async version of AutoCloseable */
+interface SuspendCloseable {
+
+	suspend fun closeAll()
+
+	suspend fun close() = withContext(NonCancellable) {
+		// NOTE: a canceled coroutine won't resume past an await point, but we might have suspend
+		//       cleanup functions in here, so use NonCancelable to make sure cleanup finishes
+		closeAll()
+	}
+}
+
+
+suspend fun <T:SuspendCloseable,R> T.use(block: suspend (T) -> R): R =
+	try {
+		block(this)
+	} finally {
+		close()
 	}

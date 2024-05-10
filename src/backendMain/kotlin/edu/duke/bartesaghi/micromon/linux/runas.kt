@@ -1,6 +1,7 @@
 package edu.duke.bartesaghi.micromon.linux
 
 import edu.duke.bartesaghi.micromon.*
+import edu.duke.bartesaghi.micromon.linux.hostprocessor.HostProcessor
 import java.nio.file.Path
 import kotlin.io.path.div
 
@@ -15,7 +16,7 @@ sealed interface Runas {
 			val path = (dir / "runas-$username")
 
 			// find the uid
-			val uid = HostProcessor.uid(username)
+			val uid = Backend.hostProcessor.uid(username)
 				?: return@f Failure(path, listOf("Unknown username: $username"))
 
 			// find the user-specific runas executable
@@ -29,7 +30,7 @@ sealed interface Runas {
 
 			// the file should be owned by the given username
 			if (stat.uid != uid) {
-				val fileUsername = HostProcessor.tryUsername(stat.uid)
+				val fileUsername = Backend.hostProcessor.username(stat.uid)
 				failures.add("File permissions: Should be owned by $username, not $fileUsername")
 			}
 
@@ -59,10 +60,10 @@ sealed interface Runas {
 
 			// and the file should be owned by any group among this user's groups
 			val websiteUid = Filesystem.getUid()
-			val websiteGids = HostProcessor.gids(websiteUid)
+			val websiteGids = Backend.hostProcessor.gids(websiteUid)
 			if (websiteGids == null || stat.gid !in websiteGids) {
-				val micromonUsername = HostProcessor.tryUsername(websiteUid)
-				val fileGroupname = HostProcessor.tryGroupname(stat.gid)
+				val micromonUsername = Backend.hostProcessor.username(websiteUid)
+				val fileGroupname = Backend.hostProcessor.groupname(stat.gid)
 				failures.add("File permissions: website user $micromonUsername is not a member of group $fileGroupname")
 			}
 
@@ -78,17 +79,34 @@ sealed interface Runas {
 		val path: Path
 	) : Runas {
 
-		fun cmd(cmd: String, args: List<String> = emptyList()): ProcessStreamer =
-			ProcessBuilder()
-				.command(listOf(path.toString(), "--", cmd) + args)
-				.stream()
-				.waitFor()
+		private fun args(cmd: String, args: List<String>): List<String> =
+			listOf("--", cmd) + args
 
-		/* TODO
-		fun jvm(): RunasJvm {
-			// TODO
-		}
-		*/
+		suspend fun exec(
+			cmd: String,
+			args: List<String> = emptyList(),
+			dir: Path? = null
+		): HostProcessor.Process =
+			Backend.hostProcessor.exec(
+				path.toString(),
+				args(cmd, args),
+				dir
+			)
+
+		suspend fun execStream(
+			cmd: String,
+			args: List<String> = emptyList(),
+			dir: Path? = null,
+			stdin: Boolean = false
+		): HostProcessor.StreamingProcess =
+			Backend.hostProcessor.execStream(
+				path.toString(),
+				args(cmd, args),
+				dir,
+				stdin = stdin,
+				stdout = true,
+				stderr = true
+			)
 	}
 
 	class Failure(

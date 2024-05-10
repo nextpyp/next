@@ -45,7 +45,3 @@ IncludeCmd: no
 	# Those logs show up at: <config.toml:web.localDir>/logs/init.log
 	cd /opt/micromon
 	/opt/micromon/init.sh
-
-%apprun cli
-	cd /opt/micromon
-	/opt/micromon/bin/cli.sh $@

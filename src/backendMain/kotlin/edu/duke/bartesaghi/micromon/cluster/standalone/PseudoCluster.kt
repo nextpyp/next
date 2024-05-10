@@ -5,8 +5,7 @@ import edu.duke.bartesaghi.micromon.cluster.Cluster
 import edu.duke.bartesaghi.micromon.cluster.ClusterJob
 import edu.duke.bartesaghi.micromon.cluster.Commands
 import edu.duke.bartesaghi.micromon.cluster.slurm.Gres
-import edu.duke.bartesaghi.micromon.linux.HostProcessor
-import edu.duke.bartesaghi.micromon.linux.Posix
+import edu.duke.bartesaghi.micromon.linux.hostprocessor.HostProcessor
 import edu.duke.bartesaghi.micromon.services.ClusterJobResultType
 import edu.duke.bartesaghi.micromon.services.ClusterMode
 import edu.duke.bartesaghi.micromon.services.ClusterQueues
@@ -122,9 +121,9 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 			// if the first task was started, then we're not waiting
 			val firstTask = tasks.first()
 			if (firstTask.started) {
-				val pid = firstTask.pid
-				return if (pid != null) {
-					"The job is running under PID $pid"
+				val process = firstTask.process
+				return if (process != null) {
+					"The job is running under PID ${process.pid}"
 				} else {
 					"The job has been submitted and should start running soon"
 				}
@@ -150,7 +149,7 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 			val job: Job get() = this@Job
 
 			var started: Boolean = false
-			var pid: Long? = null
+			var process: HostProcessor.Process? = null
 			var finished: Boolean = false
 			var canceled: Boolean = false
 
@@ -247,7 +246,7 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 				// add the path to the script
 				commands.add(scriptPath.toString())
 
-				pid = HostProcessor.exec(commands.joinToString(" "), outPath)
+				process = Backend.hostProcessor.exec("/bin/sh", commands, outPath)
 			}
 		}
 	}
@@ -559,9 +558,9 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 		// pass three: actually cancel any running tasks
 		for (job in jobs) {
 			for (task in job.tasks) {
-				val pid = task.pid
-				if (!task.finished && pid != null) {
-					HostProcessor.kill(pid)
+				val process = task.process
+				if (!task.finished && process != null) {
+					process.kill()
 					// TODO: do we need to forcibly terminate? after a timeout?
 					// NOTE: the job end signal will be sent by the job process before it exits
 					//       but since we already removed all the tasks and jobs, we should just ignore the signal
@@ -653,7 +652,7 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 										reservation.type.name to reservation.num
 									},
 									reservedGpus = ArrayList(task.reservedGpus),
-									pid = task.pid,
+									pid = task.process?.pid?.toLong(),
 									waitingReason = task.waitingReason(jobs)?.name,
 									finished = task.finished
 								)

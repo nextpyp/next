@@ -33,7 +33,6 @@ import kotlin.io.NoSuchFileException
 import kotlin.io.path.fileSize
 import kotlin.io.path.moveTo
 import kotlin.math.abs
-import kotlin.streams.toList
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.nanoseconds
 import kotlin.time.Duration.Companion.seconds
@@ -638,3 +637,28 @@ suspend inline fun ApplicationCall.respondExceptions(block: () -> Unit) =
 			}
 		}
 	}
+
+
+
+sealed interface Tried<R> {
+	class Return<R>(val value: R) : Tried<R>
+	class Waited<R> : Tried<R>
+}
+
+class TimeoutException(msg: String) : RuntimeException(msg)
+
+inline fun <R> retryLoop(timeoutMs: Long, block: (elapsedMs: () -> Long, timedOut: Boolean) -> Tried<R>): R {
+
+	val start = Instant.now()
+
+	val elapsedMs = {
+		java.time.Duration.between(start, Instant.now()).toMillis()
+	}
+
+	while (true) {
+		when (val tried = block(elapsedMs, elapsedMs() > timeoutMs)) {
+			is Tried.Return -> return tried.value
+			is Tried.Waited -> continue
+		}
+	}
+}
