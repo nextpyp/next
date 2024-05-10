@@ -8,7 +8,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import java.io.FileOutputStream
+import java.io.OutputStream
 import java.net.StandardProtocolFamily
 import java.net.UnixDomainSocketAddress
 import java.nio.channels.AsynchronousCloseException
@@ -17,7 +17,9 @@ import java.nio.channels.SocketChannel
 import java.nio.file.Path
 import java.nio.file.Paths
 import kotlin.coroutines.cancellation.CancellationException
+import kotlin.io.path.fileSize
 import kotlin.io.path.inputStream
+import kotlin.io.path.outputStream
 
 
 class SubprocessServer(
@@ -237,37 +239,74 @@ class SubprocessServer(
 			block(fileWritersByRequestId)
 		}
 
-	private class FileWriter(private val out: FileOutputStream) {
-
-		var t: Throwable? = null
+	private class FileWriter(
+		val path: Path,
+		out: OutputStream
+	) {
 
 		/** keep concurrent requests for the same file write from clashing with each other */
 		val mutex = Mutex()
 
-		suspend fun lock(block: suspend (FileOutputStream) -> Unit) {
-			mutex.withLock {
-				block(out)
+		inner class Inner(val out: OutputStream) {
+			var t: Throwable? = null
+			var nextWriteId: Long = 1
+		}
+		val inner = Inner(out)
+
+		suspend fun lock(writeId: Long, block: suspend (Inner) -> Unit) {
+			// NOTE: Sometimes write requests get executed out of order because request tasks
+			// can essentially race on aquiring this lock, so enforce in-order writes explcitly using write ids
+			retryLoop(10_000) { _, timedOut ->
+
+				val wasInOrder = mutex.withLock {
+					if (writeId == inner.nextWriteId) {
+						try {
+							block(inner)
+							true
+						} finally {
+							inner.nextWriteId += 1
+						}
+					} else {
+						false
+					}
+				}
+
+				if (wasInOrder) {
+					Tried.Return(Unit)
+				} else if (timedOut) {
+					throw TimeoutException("Timed out trying to get lock for file writer, writeId=$writeId")
+				} else {
+					// wait a bit for another task to have a chance at the lock before trying again
+					// NOTE: don't delay() here, even for only a few milliseconds, it's too slow!
+					//       just hit the lock again immediately and let the lock implementation handle the traffic
+					Tried.Waited()
+				}
 			}
 		}
 	}
 
 	private suspend fun dispatchWriteFile(request: Request.WriteFile, responder: Responder) {
+		log.trace("file write request: {}", request)
 		when (request) {
 
 			is Request.WriteFile.Open -> {
 
 				// try to open the file
+				val path = Paths.get(request.path)
 				val out = try {
 					slowIOs {
-						FileOutputStream(request.path)
+						path.outputStream()
 					}
 				} catch (t: Throwable) {
 					responder.send(Response.WriteFile.Fail(t.message ?: ""))
 					return
 				}
 
+				val writer = FileWriter(path, out)
+				log.trace("write open {}", writer.path)
+
 				// save the open file for later
-				fileWriters { it[responder.requestId] = FileWriter(out) }
+				fileWriters { it[responder.requestId] = writer }
 
 				// send the response
 				responder.send(Response.WriteFile.Ok)
@@ -276,49 +315,61 @@ class SubprocessServer(
 			is Request.WriteFile.Chunk -> {
 
 				val writer = fileWriters { it[responder.requestId] }
-					?: return
+					?: run {
+						log.trace("write chunk ${request.writeId} ignored because writer not found")
+						return
+					}
 
-				writer.lock { out ->
+				log.trace("write chunk ${request.writeId} trying to get lock ...")
+				writer.lock(request.writeId) { locked ->
+
 					try {
 						slowIOs {
-							out.write(request.chunk)
+							locked.out.write(request.chunk)
 						}
 					} catch (t: Throwable) {
 						// save the exception for later
-						if (writer.t != null) {
-							writer.t = t
+						if (locked.t != null) {
+							locked.t = t
 						}
 					}
 				}
+				log.trace("write chunk ${request.writeId} finished")
 
 				// no need for a response here, this isn't TCP after all =P
 			}
 
 			is Request.WriteFile.Close -> {
 
-				val writer = fileWriters { it.remove(responder.requestId) }
+				val writer = fileWriters { it[responder.requestId] }
 					?: run {
 						responder.send(Response.WriteFile.Fail("unknown request: ${responder.requestId}"))
 						return
 					}
 
-				// send any pending errors
-				writer.t?.let { t ->
-					responder.send(Response.WriteFile.Fail(t.message ?: ""))
-					return
-				}
-
 				// try to close the file
 				try {
-					writer.lock { out ->
+					log.trace("write close ${request.writeId} trying to get lock ...")
+					writer.lock(request.writeId) { locked ->
+
+						// send any pending errors
+						locked.t?.let { t ->
+							responder.send(Response.WriteFile.Fail(t.message ?: ""))
+							return@lock
+						}
+
 						slowIOs {
-							out.close()
+							locked.out.close()
 						}
 					}
+					log.trace("write close ${request.writeId} finished for ${writer.path}")
 				} catch (t: Throwable) {
 					responder.send(Response.WriteFile.Fail(t.message ?: ""))
 					return
 				}
+
+				// writer is done, can clean it up now
+				fileWriters { it.remove(responder.requestId) }
 
 				// is well
 				responder.send(Response.WriteFile.Ok)

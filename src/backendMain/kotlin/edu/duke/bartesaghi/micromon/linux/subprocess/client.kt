@@ -16,10 +16,10 @@ import java.io.IOException
 import java.net.ConnectException
 import java.net.StandardProtocolFamily
 import java.net.UnixDomainSocketAddress
+import java.nio.channels.AsynchronousCloseException
 import java.nio.channels.SocketChannel
 import java.nio.file.Path
 import java.nio.file.Paths
-import java.time.Duration
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.io.path.div
 import kotlin.math.min
@@ -37,7 +37,7 @@ class SubprocessClient(
 			socketDir: Path,
 			name: String,
 			heapMiB: Int,
-			socketTimeout: Duration
+			socketTimeoutMs: Long
 		): SubprocessClient {
 
 			val log = LoggerFactory.getLogger("SubprocessClient:$name")
@@ -82,53 +82,50 @@ class SubprocessClient(
 
 			// try to connect to the subprocess socket
 			val socket = try {
-				slowIOs {
+				retryLoop(socketTimeoutMs) { elapsedMs, timedOut ->
 
-					// wait for the socket to show up
-					log.debug("waiting for socket file ...")
-					retryLoop(2000) { elapsedMs, timedOut ->
-						if (socketPath.exists()) {
-							Tried.Return(Unit)
-						} else if (timedOut) {
+					suspend fun tryAgainOrTimeout(): Tried<SocketChannel> =
+						if (timedOut) {
 							log.debug("timed out")
-							throw NoSuchElementException("timed out waiting for subprocess socket file")
+							throw TimeoutException("timed out trying to connect")
 						} else {
 							delay(100)
 							log.trace("waited {} ms", elapsedMs())
 							Tried.Waited()
 						}
+
+					// make sure the socket file is visible first
+					if (slowIOs { !socketPath.exists() }) {
+						log.trace("socket file not yet visible")
+						return@retryLoop tryAgainOrTimeout()
 					}
-					log.debug("socket file visible")
 
-					// connect the socket
-					val socket = SocketChannel.open(StandardProtocolFamily.UNIX)
-					socket.configureBlocking(true) // should be blocking by default, but let's be explicit
-
-					retryLoop(2000) { elapsedMs, timedOut ->
-						try {
-							socket.connect(UnixDomainSocketAddress.of(socketPath))
-							Tried.Return(Unit)
-						} catch (ex: ConnectException) {
-							if (ex.message == "Connection refused") {
-								log.debug("connection refused")
-								// sometimes the socket file is visible, but the server isn't quite ready yet
-								// so wait a bit and try again ... but don't wait forever
-								if (timedOut) {
-									log.debug("timed out")
-									throw ConnectException("timed out trying to connect")
-								} else {
-									delay(100)
-									log.trace("waited {} ms", elapsedMs())
-									Tried.Waited()
+					try {
+						Tried.Return(slowIOs {
+							SocketChannel.open(StandardProtocolFamily.UNIX)
+								.apply {
+									configureBlocking(true) // should be blocking by default, but let's be explicit
+									connect(UnixDomainSocketAddress.of(socketPath))
 								}
-							} else {
-								throw ex
-							}
+						})
+					} catch (ex: ConnectException) {
+						if (ex.message == "Connection refused") {
+							log.debug("connection refused")
+							// sometimes the socket file is visible, but the server isn't quite ready yet
+							tryAgainOrTimeout()
+						} else {
+							log.warn("connect() threw ConnectException with an unrecognized message: {} \"{}\"", ex::class.qualifiedName, ex.message)
+							throw ex
 						}
+					} catch (ex: AsynchronousCloseException) {
+						// something closed the socket while we were waiting to connect
+						// still don't know what does this, but we should recover by just retrying until the timeout
+						log.debug("socket closed concurrently while waiting to connect")
+						tryAgainOrTimeout()
+					} catch (t: Throwable) {
+						log.warn("connect() threw an unrecognized error: {} \"{}\"", t::class.qualifiedName, t.message)
+						throw t
 					}
-					log.debug("connected to server")
-
-					socket
 				}
 			} catch (t: Throwable) {
 
@@ -137,6 +134,7 @@ class SubprocessClient(
 
 				throw t
 			}
+			log.debug("connected to server")
 
 			return SubprocessClient(log, subproc, socket)
 		}
@@ -315,24 +313,28 @@ class SubprocessClient(
 
 	suspend fun writeFile(path: Path): FileWriter {
 		val responder = request(Request.WriteFile.Open(path.toString()))
+		var nextWriteId = 1L
 		return when (val openResponse = responder.recv<Response.WriteFile>()) {
 			is Response.WriteFile.Fail -> throw IOException(openResponse.reason)
 			is Response.WriteFile.Ok -> object : FileWriter {
 
 				override suspend fun write(buf: ByteArray) {
+					log.trace("file write {} bytes", buf.size) // TEMP
 
 					// send the buffer in 32 KiB chunks, since using larger chunks than that seems to be pretty slow
 					var start = 0
 					while (start < buf.size) {
 						val remaining = buf.size - start
 						val size = min(remaining, 32*1024) // 32 KiB
-						responder.send(Request.WriteFile.Chunk(buf.copyOfRange(start, start + size)))
+						responder.send(Request.WriteFile.Chunk(nextWriteId, buf.copyOfRange(start, start + size)))
+						nextWriteId += 1
 						start += size
 					}
 				}
 
 				override suspend fun closeAll() {
-					responder.send(Request.WriteFile.Close)
+					log.trace("file write close") // TEMP
+					responder.send(Request.WriteFile.Close(nextWriteId))
 					when (val closeResponse = responder.recv<Response.WriteFile>()) {
 						is Response.WriteFile.Fail -> throw IOException(closeResponse.reason)
 						is Response.WriteFile.Ok -> Unit // all is well

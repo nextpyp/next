@@ -42,13 +42,13 @@ sealed class Request {
 		data class Open(val path: String) : WriteFile()
 
 		@Serializable
-		class Chunk(val chunk: ByteArray) : WriteFile() {
+		class Chunk(val writeId: Long, val chunk: ByteArray) : WriteFile() {
 			override fun toString(): String =
-				"Chunk(${chunk.size} bytes)"
+				"Chunk($writeId, ${chunk.size} bytes)"
 				// don't try to write out all the bytes like the default implementation does
 		}
 
 		@Serializable
-		object Close : WriteFile()
+		data class Close(val writeId: Long) : WriteFile()
 	}
 }

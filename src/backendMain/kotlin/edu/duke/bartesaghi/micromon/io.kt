@@ -645,6 +645,8 @@ sealed interface Tried<R> {
 	class Waited<R> : Tried<R>
 }
 
+class TimeoutException(msg: String) : RuntimeException(msg)
+
 inline fun <R> retryLoop(timeoutMs: Long, block: (elapsedMs: () -> Long, timedOut: Boolean) -> Tried<R>): R {
 
 	val start = Instant.now()
