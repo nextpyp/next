@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 gumdrop = { version = "0.8.1", features = ["default_expr"] } # MIT (or Apache-2)
 users = "0.11.0" # MIT
+signal-hook = "0.3.17" # MIT (or Apache-2)

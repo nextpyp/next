@@ -1,8 +1,11 @@
 
-use std::env;
+use std::{env, thread};
 use std::ffi::{OsStr, OsString};
 use std::path::PathBuf;
 use std::process::{Command, ExitCode};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Duration;
 
 use gumdrop::{Options, ParsingStyle};
 
@@ -56,7 +59,7 @@ fn main() -> ExitCode {
 		let args = match result {
 			Ok(a) => a,
 			Err(e) => {
-				println!("Failed to parse arguments: {}", e.to_string());
+				println!("Failed to parse arguments: {}", e);
 				return ExitCode::FAILURE;
 			}
 		};
@@ -116,6 +119,14 @@ fn main() -> ExitCode {
 		println!("running command: {:?} {:?}", cmd_program, cmd_args);
 	}
 
+	// install SIGTERM hook
+	let sigterm = Arc::new(AtomicBool::new(false));
+	let result = signal_hook::flag::register(signal_hook::consts::SIGTERM, sigterm.clone());
+	if let Err(e) = result {
+		println!("Failed to install SIGTERM handler: {}", e);
+		return ExitCode::FAILURE
+	}
+
 	// run the command
 	let result = Command::new(cmd_program)
 		.args(cmd_args)
@@ -123,23 +134,47 @@ fn main() -> ExitCode {
 	let mut process = match result {
 		Ok(p) => p,
 		Err(e) => {
-			println!("Failed to launch command: {}", e.to_string());
+			println!("Failed to launch command: {}", e);
 			return ExitCode::FAILURE;
 		}
 	};
 
 	// wait for it to finish
-	match process.wait() {
-		Ok(exit) => match exit.code() {
-			Some(code) => ExitCode::from(code as u8),
-			None => {
-				println!("Command finished without exit code (maybe it ended by signal?)");
-				ExitCode::FAILURE
+	loop {
+		match process.try_wait() {
+
+			Ok(Some(exit)) => {
+				return match exit.code() {
+					Some(code) => ExitCode::from(code as u8),
+					None => {
+						println!("Command finished without exit code (maybe it ended by signal?)");
+						ExitCode::FAILURE
+					}
+				}
 			}
-		}
-		Err(e) => {
-			println!("Failed to launch command: {}", e.to_string());
-			ExitCode::FAILURE
+
+			Ok(None) => {
+				// command is still running: wait a bit and then check again
+				// unless sigterm was requested, then forward it to the command and keep waiting
+				if sigterm.load(Ordering::Relaxed) {
+					sigterm.store(false, Ordering::Relaxed);
+					println!("SIGTERM: forwarding to command");
+					let result = Command::new("kill")
+						.arg(process.id().to_string())
+						.spawn();
+					if let Err(e) = result {
+						println!("Failed to forward SIGTERM, abandoning the command: {}", e);
+						return ExitCode::FAILURE;
+					}
+				} else {
+					thread::sleep(Duration::from_millis(500));
+				}
+			}
+
+			Err(e) => {
+				println!("Failed to check status of command, abandoning it: {}", e);
+				return ExitCode::FAILURE;
+			}
 		}
 	}
 }

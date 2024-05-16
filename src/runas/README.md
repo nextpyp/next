@@ -37,8 +37,4 @@ modern linux distribution.
 
 ## Testing
 
-To run the test suite, run the following command:
-
-```shell
-cargo test -- --test-threads=1
-```
+This project has no tests to run. Yet?
