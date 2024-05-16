@@ -49,7 +49,8 @@ refine_maxiter = 4
 refine_parfile = 'auto'
 refine_rhref = "8:7:6"
 refine_fboost = true
-refine_priors = true
+refine_priors = false
+refine.fssnr = false
 reconstruct_cutoff = "0"
 
 [blocks.particle_filtering]
