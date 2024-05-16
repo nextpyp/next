@@ -559,7 +559,7 @@ afterEvaluate {
 					(
 						project.tasks["jar"].outputs.files
 						+ collectClasspathLibs("backendRuntimeClasspath")
-					).map { "libs/${it.name}" }
+					).map { "/opt/micromon/libs/${it.name}" }
 				)
 			}
 		}
@@ -586,6 +586,11 @@ afterEvaluate {
 			description = "makes the server runtime image"
 
 			destinationDir = layout.buildDirectory.toFile().resolve("image")
+
+			// copy the main build jar
+			from(project.tasks["jar"].outputs.files) {
+				into("libs")
+			}
 
 			// copy all the dependency jars
 			from(collectClasspathLibs("backendRuntimeClasspath")) {
@@ -1243,6 +1248,47 @@ afterEvaluate {
 			group = "run"
 			description = "Stops and then starts the micromon container inside the running VM"
 			dependsOn("vmContainerStop", "vmContainerRun")
+		}
+
+		create("vmContainerRunProd") {
+			group = "run"
+			description = "Starts the micromon container inside the running VM, in production mode"
+			doLast {
+
+				// make sure the needed files exist
+				val configPath = getConfigPath()
+				checkContainer("nextPYP.sif")
+
+				// run the start script in production mode
+				val vmConfigPath = vmRunDir.resolve(configPath.fileName)
+				vboxrun(vmid, "cd \"$vmRunDir\" && PYP_CONFIG=\"$vmConfigPath\" ./nextpyp start")
+
+				println("""
+					|
+					|
+					|You can access the micromon website at:
+					| http://$vmIp:8080/
+					|
+				""".trimMargin())
+			}
+		}
+
+		create("vmContainerStopProd") {
+			group = "run"
+			description = "Stops the micromon container inside the running VM"
+			doLast {
+
+				// make sure the needed files exist
+				val configPath = getConfigPath()
+
+				val vmConfigPath = vmRunDir.resolve(configPath.fileName)
+
+				// if the container isn't running, Singularity will return an error exit code,
+				// which translates into a gradle exception by default
+				// except, if the container isn't running, we've already won! =D
+				// there's no need to stop it again, so just ignore errors from singularity entirely
+				vboxrun(vmid, "cd \"$vmRunDir\" && PYP_CONFIG=\"$vmConfigPath\" ./nextpyp stop", ignoreExit=true)
+			}
 		}
 
 		create("vmRunTests") {

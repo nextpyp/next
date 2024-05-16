@@ -208,12 +208,14 @@ case "$1" in
         if [ -x /usr/bin/nextpyp-host-processor ]; then
           hpexec="/usr/bin/nextpyp-host-processor"
         else
-          hpexec="./nextpyp-host-processor"
+          hpexec="./host-processor"
         fi
         hpoptions=()
       fi
       if [ ! -x "$hpexec" ]; then
-        echo "Host processor executable not found at $hpexec"
+        echo "Host processor executable not found, tried:"
+        echo "  /usr/bin/nextpyp-host-processor"
+        echo "  ./host-processor"
         exit 1
       fi
 
