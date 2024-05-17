@@ -5,6 +5,7 @@ import edu.duke.bartesaghi.micromon.cluster.Cluster
 import edu.duke.bartesaghi.micromon.cluster.ClusterJob
 import edu.duke.bartesaghi.micromon.cluster.Commands
 import edu.duke.bartesaghi.micromon.cluster.slurm.Gres
+import edu.duke.bartesaghi.micromon.linux.Command
 import edu.duke.bartesaghi.micromon.linux.hostprocessor.HostProcessor
 import edu.duke.bartesaghi.micromon.services.ClusterJobResultType
 import edu.duke.bartesaghi.micromon.services.ClusterMode
@@ -246,7 +247,7 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 				// add the path to the script
 				commands.add(scriptPath.toString())
 
-				process = Backend.hostProcessor.exec("/bin/sh", commands, outPath)
+				process = Backend.hostProcessor.exec(Command("/bin/sh", commands), outPath)
 			}
 		}
 	}

@@ -1,18 +1,19 @@
 package edu.duke.bartesaghi.micromon.linux.subprocess
 
 import edu.duke.bartesaghi.micromon.*
-import edu.duke.bartesaghi.micromon.linux.recvFramedOrNull
-import edu.duke.bartesaghi.micromon.linux.sendFramed
+import edu.duke.bartesaghi.micromon.linux.*
+import edu.duke.bartesaghi.micromon.linux.hostprocessor.HostProcessor
+import edu.duke.bartesaghi.micromon.linux.hostprocessor.Response as HostProcessorResponse
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ClosedSendChannelException
-import kotlinx.coroutines.future.await
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.ByteArrayOutputStream
 import java.io.IOException
+import java.io.PrintStream
 import java.net.ConnectException
 import java.net.StandardProtocolFamily
 import java.net.UnixDomainSocketAddress
@@ -26,17 +27,22 @@ import kotlin.math.min
 
 
 class SubprocessClient(
-	val log: Logger,
-	private val subproc: Process,
+	val name: String,
+	private val log: Logger,
+	private val subproc: HostProcessor.StreamingProcess,
 	private val socket: SocketChannel
 ) : SuspendCloseable {
 
 	companion object {
 
+		private val consoleScope = CoroutineScope(Dispatchers.IO)
+
 		suspend fun start(
 			name: String,
 			heapMiB: Int,
-			socketTimeoutMs: Long
+			socketTimeoutMs: Long,
+			hostProcessor: HostProcessor,
+			runas: Runas.Success? = null
 		): SubprocessClient {
 
 			val log = LoggerFactory.getLogger("SubprocessClient:$name")
@@ -57,21 +63,76 @@ class SubprocessClient(
 				val javaBin = javaHomeDir / "bin" / "java"
 				val classpath = System.getProperty("java.class.path")
 
-				log.debug("Starting subprocess: {}", javaBin)
-
-				ProcessBuilder()
-					.command(
-						javaBin.toString(),
+				// build a command to launch the JVM
+				var cmd = Command(
+					javaBin.toString(),
+					listOf(
 						"-cp", classpath,
 						"-Xmx${heapMiB}m",
 						"-Djava.awt.headless=true", // don't look for any graphics libraries
-						SubprocessServer::class.qualifiedName,
+						SubprocessServer::class.qualifiedName.toString(),
 						name
 					)
-					.redirectInput(ProcessBuilder.Redirect.INHERIT)
-					.redirectOutput(ProcessBuilder.Redirect.INHERIT)
-					.redirectError(ProcessBuilder.Redirect.INHERIT)
-					.start()
+				)
+
+				// wrap it with apptainer
+				cmd = cmd.wrap(
+					"apptainer",
+					listOf("exec")
+						+ Posix.tokenize(System.getenv("NEXTPYP_APPTAINER_ARGS"))
+				)
+
+				// wrap it with runas, if needed
+				if (runas != null) {
+					log.debug("switching to user: {}", runas.username)
+					cmd = runas.wrap(cmd)
+				}
+
+				log.debug("Starting subprocess")
+				log.trace("program: {}\nargs:\n\t{}",
+					cmd.program,
+					cmd.args
+						.joinToString("\n\t") {
+							if (it == classpath) {
+								"(the JVM classpath: omitted because it's ridiculously long)"
+							} else {
+								it
+							}
+						}
+				)
+
+				val subproc = hostProcessor.execStream(
+					cmd,
+					stdout = true,
+					stderr = true
+				)
+
+				// pipe the subprocess' stdout,stderr to this process' stdout,stderr
+				consoleScope.launch {
+
+					fun pipe(chunk: ByteArray, out: PrintStream) {
+						var wroteLine = false
+						chunk.toString(Charsets.UTF_8)
+							.lineSequence()
+							.filter { it.isNotEmpty() || !wroteLine }
+							.forEach {
+								out.println("Subprocess:$name: $it")
+								wroteLine = true
+							}
+					}
+
+					while (true) {
+						when (val event = subproc.recvEvent()) {
+							is HostProcessorResponse.ProcessEvent.Console -> when (event.kind) {
+								HostProcessorResponse.ProcessEvent.ConsoleKind.Stdout -> pipe(event.chunk, System.out)
+								HostProcessorResponse.ProcessEvent.ConsoleKind.Stderr -> pipe(event.chunk, System.err)
+							}
+							is HostProcessorResponse.ProcessEvent.Fin -> break
+						}
+					}
+				}
+
+				subproc
 			}
 
 			// NOTE: the subprocess has started now:
@@ -134,33 +195,31 @@ class SubprocessClient(
 			}
 			log.debug("connected to server")
 
-			return SubprocessClient(log, subproc, socket)
+			return SubprocessClient(name, log, subproc, socket)
 		}
 
-		suspend fun Process.close(log: Logger) {
+		suspend fun HostProcessor.StreamingProcess.close(log: Logger) {
 
+			var isAlive = status()
 			log.debug("cleaning up subprocess, alive? {}", isAlive)
 			if (isAlive) {
 
 				// process still running, send SIGTERM
-				log.debug("sending SIGTERM ...")
-				destroy()
+				log.debug("sending SIGTERM")
+				kill()
 
-				withTimeoutOrNull(2000L) {
-					onExit().await()
-					log.debug("Exited!")
-				} ?: run {
-
-					// didn't exit, send SIGKILL this time
-					log.warn("didn't respond to SIGTERM in time, sending SIGKILL ...")
-					destroyForcibly()
-					withTimeoutOrNull(2000L) {
-						onExit().await()
-						log.debug("Killed!")
-					} ?: run {
-
-						// still didn't exit, nothing else we can do
-						log.warn("didn't respond to SIGKILL, unable to end subprocess!")
+				retryLoop(5_000L) { _, timedOut ->
+					isAlive = status()
+					if (!isAlive) {
+						log.debug("Exited!")
+						Tried.Return(Unit)
+					} else if (timedOut) {
+						log.warn("didn't respond to SIGTERM in time, abandoning process")
+						// TODO: need a SIGKILL?
+						Tried.Return(Unit)
+					} else {
+						delay(100)
+						Tried.Waited()
 					}
 				}
 			}
@@ -291,6 +350,12 @@ class SubprocessClient(
 				responder.recv<Response.Pong>()
 			}
 
+	suspend fun uids(): Response.Uids =
+		request(Request.Uids)
+			.use {
+				it.recv<Response.Uids>()
+			}
+
 	suspend fun readFile(path: Path): ByteArray =
 		request(Request.ReadFile(path.toString()))
 			.use { responder ->
@@ -317,7 +382,6 @@ class SubprocessClient(
 			is Response.WriteFile.Ok -> object : FileWriter {
 
 				override suspend fun write(buf: ByteArray) {
-					log.trace("file write {} bytes", buf.size) // TEMP
 
 					// send the buffer in 32 KiB chunks, since using larger chunks than that seems to be pretty slow
 					var start = 0
@@ -331,7 +395,6 @@ class SubprocessClient(
 				}
 
 				override suspend fun closeAll() {
-					log.trace("file write close") // TEMP
 					responder.send(Request.WriteFile.Close(nextWriteId))
 					when (val closeResponse = responder.recv<Response.WriteFile>()) {
 						is Response.WriteFile.Fail -> throw IOException(closeResponse.reason)

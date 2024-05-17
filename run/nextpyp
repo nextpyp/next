@@ -191,7 +191,8 @@ case "$1" in
     fi
 
     # add all the binds from the config file
-    IFS=" " read -r -a configbinds <<< "$("${cli[@]}" binds)"
+    configbinds=$("${cli[@]}" binds)
+    declare -a configbinds="(${configbinds})"
     binds+=(--bind "$localdir" --bind "$shareddir" "${configbinds[@]}")
 
 
@@ -249,8 +250,8 @@ case "$1" in
     NEXTPYP_HOSTPROCESSOR_PID=$hppid
     export NEXTPYP_HOSTPROCESSOR_PID
 
-
     # set general args to apptainer
+    #printf "\t%s\n" "${binds[@]}" # DEBUG
     apptainerargs=("${binds[@]}" --writable-tmpfs --no-home)
 
     # The website tries to query the number of available GPUs in standalone mode
@@ -265,6 +266,10 @@ case "$1" in
     # set the container path
     apptainerargs+=(nextPYP.sif)
 
+    # pass along all the binds in an environment variable so the container can use them to spawn copies of itself
+    # but be sure to correctly quote paths, since they can contain all kinds of characters
+    NEXTPYP_APPTAINER_ARGS="$(printf "%q " "${apptainerargs[@]}")"
+    export NEXTPYP_APPTAINER_ARGS
 
     # finally, start the website container
     echo "Starting singularity container ..."

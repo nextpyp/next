@@ -33,6 +33,12 @@ sealed class Response {
 	object Pong : Response()
 
 	@Serializable
+	data class Uids(
+		val uid: UInt,
+		val euid: UInt
+	) : Response()
+
+	@Serializable
 	sealed class ReadFile : Response() {
 
 		@Serializable

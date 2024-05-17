@@ -9,7 +9,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import org.slf4j.LoggerFactory
 import java.nio.file.Paths
-import kotlin.io.path.div
 
 
 object Backend {
@@ -56,6 +55,6 @@ object Backend {
 	 */
 	val scope = CoroutineScope(Dispatchers.Default)
 
-	val hostProcessor = HostProcessor(config.web.localDir / "host-processor")
-	val userSubprocesses = UserSubprocesses()
+	val hostProcessor = HostProcessor()
+	val userSubprocesses = UserSubprocesses(hostProcessor)
 }

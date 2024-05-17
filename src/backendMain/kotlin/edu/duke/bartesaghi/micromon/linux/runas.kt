@@ -1,7 +1,9 @@
 package edu.duke.bartesaghi.micromon.linux
 
-import edu.duke.bartesaghi.micromon.*
+import edu.duke.bartesaghi.micromon.Config
+import edu.duke.bartesaghi.micromon.exists
 import edu.duke.bartesaghi.micromon.linux.hostprocessor.HostProcessor
+import edu.duke.bartesaghi.micromon.slowIOs
 import java.nio.file.Path
 import kotlin.io.path.div
 
@@ -10,13 +12,13 @@ sealed interface Runas {
 
 	companion object {
 
-		suspend fun find(username: String): Runas = slowIOs f@{
+		suspend fun find(username: String, hostProcessor: HostProcessor): Runas = slowIOs f@{
 
-			val dir = Backend.config.web.runasDir
+			val dir = Config.instance.web.runasDir
 			val path = (dir / "runas-$username")
 
 			// find the uid
-			val uid = Backend.hostProcessor.uid(username)
+			val uid = hostProcessor.uid(username)
 				?: return@f Failure(path, listOf("Unknown username: $username"))
 
 			// find the user-specific runas executable
@@ -30,7 +32,7 @@ sealed interface Runas {
 
 			// the file should be owned by the given username
 			if (stat.uid != uid) {
-				val fileUsername = Backend.hostProcessor.username(stat.uid)
+				val fileUsername = hostProcessor.username(stat.uid)
 				failures.add("File permissions: Should be owned by $username, not $fileUsername")
 			}
 
@@ -60,10 +62,10 @@ sealed interface Runas {
 
 			// and the file should be owned by any group among this user's groups
 			val websiteUid = Filesystem.getUid()
-			val websiteGids = Backend.hostProcessor.gids(websiteUid)
+			val websiteGids = hostProcessor.gids(websiteUid)
 			if (websiteGids == null || stat.gid !in websiteGids) {
-				val micromonUsername = Backend.hostProcessor.username(websiteUid)
-				val fileGroupname = Backend.hostProcessor.groupname(stat.gid)
+				val micromonUsername = hostProcessor.username(websiteUid)
+				val fileGroupname = hostProcessor.groupname(stat.gid)
 				failures.add("File permissions: website user $micromonUsername is not a member of group $fileGroupname")
 			}
 
@@ -71,42 +73,23 @@ sealed interface Runas {
 				return@f Failure(path, failures)
 			}
 
-			return@f Success(path)
+			return@f Success(username, path)
 		}
+
+		suspend fun findOrThrow(username: String, hostProcessor: HostProcessor): Success =
+			when (val runas = find(username, hostProcessor)) {
+				is Success -> runas
+				is Failure -> throw RunasException(runas)
+			}
 	}
 
 	class Success(
+		val username: String,
 		val path: Path
 	) : Runas {
 
-		private fun args(cmd: String, args: List<String>): List<String> =
-			listOf("--", cmd) + args
-
-		suspend fun exec(
-			cmd: String,
-			args: List<String> = emptyList(),
-			dir: Path? = null
-		): HostProcessor.Process =
-			Backend.hostProcessor.exec(
-				path.toString(),
-				args(cmd, args),
-				dir
-			)
-
-		suspend fun execStream(
-			cmd: String,
-			args: List<String> = emptyList(),
-			dir: Path? = null,
-			stdin: Boolean = false
-		): HostProcessor.StreamingProcess =
-			Backend.hostProcessor.execStream(
-				path.toString(),
-				args(cmd, args),
-				dir,
-				stdin = stdin,
-				stdout = true,
-				stderr = true
-			)
+		fun wrap(cmd: Command): Command =
+			cmd.wrap(path.toString(), listOf("--"))
 	}
 
 	class Failure(
@@ -114,3 +97,9 @@ sealed interface Runas {
 		val reasons: List<String>
 	) : Runas
 }
+
+
+class RunasException(failure: Runas.Failure) : RuntimeException("""
+		|Failed to use runas executable at: ${failure.path}
+		|	${failure.reasons.joinToString("\n\t")}
+	""".trimMargin())

@@ -10,6 +10,7 @@ import edu.duke.bartesaghi.micromon.auth.lookupName
 import edu.duke.bartesaghi.micromon.cluster.Cluster
 import edu.duke.bartesaghi.micromon.cluster.ClusterJob
 import edu.duke.bartesaghi.micromon.cluster.standalone.PseudoCluster
+import edu.duke.bartesaghi.micromon.linux.Command
 import edu.duke.bartesaghi.micromon.linux.Runas
 import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.projects.Project
@@ -355,7 +356,7 @@ actual class AdminService : IAdminService {
 
 	override suspend fun checkRunas(osUsername: String): RunasData = sanitizeExceptions {
 
-		return when (val runas = Runas.find(osUsername)) {
+		return when (val runas = Runas.find(osUsername, Backend.hostProcessor)) {
 
 			is Runas.Success -> RunasData(
 				runas.path.toString(),
@@ -374,10 +375,10 @@ actual class AdminService : IAdminService {
 	
 	override suspend fun runasWhoami(osUsername: String): String = sanitizeExceptions {
 
-		val runas = (Runas.find(osUsername) as? Runas.Success)
+		val runas = (Runas.find(osUsername, Backend.hostProcessor) as? Runas.Success)
 			?: return "Runas not available for $osUsername"
 
-		val run = runas.execStream("whoami")
+		val run = Backend.hostProcessor.execStream(runas.wrap(Command("whoami")))
 			.use { it.run() }
 
 		return if (run.exitCode == 0) {

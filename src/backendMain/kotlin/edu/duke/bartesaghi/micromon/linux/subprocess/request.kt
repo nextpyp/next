@@ -33,6 +33,9 @@ sealed class Request {
 	object Ping : Request()
 
 	@Serializable
+	object Uids : Request()
+
+	@Serializable
 	data class ReadFile(val path: String) : Request()
 
 	@Serializable

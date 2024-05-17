@@ -33,6 +33,9 @@ object Filesystem {
 		// https://man7.org/linux/man-pages/man3/getuid.3p.html
 		external fun getuid(): Int
 
+		// https://man7.org/linux/man-pages/man3/geteuid.3p.html
+		external fun geteuid(): Int
+
 		/* NOTE:
 			User and group query functions are nearly useless inside the container,
 			since the container won't generally know about users and groups on the host OS.
@@ -377,6 +380,10 @@ object Filesystem {
 
 	suspend fun getUid(): UInt = slowIOs {
 		native.getuid().toUInt()
+	}
+
+	suspend fun getEUid(): UInt = slowIOs {
+		native.geteuid().toUInt()
 	}
 }
 

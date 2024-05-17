@@ -1,6 +1,7 @@
 package edu.duke.bartesaghi.micromon.linux
 
 import edu.duke.bartesaghi.micromon.*
+import edu.duke.bartesaghi.micromon.linux.hostprocessor.HostProcessor
 import edu.duke.bartesaghi.micromon.linux.subprocess.SubprocessClient
 import io.kotest.assertions.fail
 import io.kotest.core.annotation.EnabledIf
@@ -21,13 +22,22 @@ class TestSubprocess : DescribeSpec({
 	describe("subprocess") {
 
 		it("ping/pong").config(invocations = testCount) {
-			withSubprocess { client ->
+			withSubprocess { _, client ->
 				client.ping()
 			}
 		}
 
+		it("usernames").config(invocations = testCount) {
+			withSubprocess { hostProcessor, client ->
+				val uids = client.uids()
+				val exp = System.getProperty("user.name")
+				hostProcessor.username(uids.uid).shouldBe(exp)
+				hostProcessor.username(uids.euid).shouldBe(exp)
+			}
+		}
+
 		it("read file, small").config(invocations = testCount) {
-			withSubprocess { client ->
+			withSubprocess { _, client ->
 				TempFile().use { file ->
 
 					// write a small file
@@ -42,7 +52,7 @@ class TestSubprocess : DescribeSpec({
 		}
 
 		it("read file, large").config(invocations = testCount) {
-			withSubprocess { client ->
+			withSubprocess { _, client ->
 				TempFile().use { file ->
 
 					// write a large file with structured, but non-trivial, content
@@ -60,7 +70,7 @@ class TestSubprocess : DescribeSpec({
 		}
 
 		it("write file, small").config(invocations = testCount) {
-			withSubprocess { client ->
+			withSubprocess { _, client ->
 				TempFile().use { file ->
 
 					// write a small file
@@ -77,7 +87,7 @@ class TestSubprocess : DescribeSpec({
 		}
 
 		it("write file, large").config(invocations = testCount) {
-			withSubprocess { client ->
+			withSubprocess { _, client ->
 				TempFile().use { file ->
 
 					// write a large file with structured, but non-trivial, content
@@ -99,13 +109,15 @@ class TestSubprocess : DescribeSpec({
 })
 
 
-suspend fun withSubprocess(block: suspend (SubprocessClient) -> Unit) {
-	SubprocessClient.start("Test", 64, 2000)
-		.use { client ->
-			withTimeoutOrNull(2000) {
-				block(client)
-			} ?: fail("Timed out")
-		}
+suspend fun withSubprocess(block: suspend (HostProcessor, SubprocessClient) -> Unit) {
+	HostProcessor().use { hostProcessor ->
+		SubprocessClient.start("Test", 64, 2000, hostProcessor)
+			.use { client ->
+				withTimeoutOrNull(2000) {
+					block(hostProcessor, client)
+				} ?: fail("Timed out")
+			}
+	}
 }
 
 

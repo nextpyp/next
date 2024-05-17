@@ -1,6 +1,7 @@
 package edu.duke.bartesaghi.micromon.linux.subprocess
 
 import edu.duke.bartesaghi.micromon.*
+import edu.duke.bartesaghi.micromon.linux.Filesystem
 import edu.duke.bartesaghi.micromon.linux.recvFramedOrNull
 import edu.duke.bartesaghi.micromon.linux.sendFramed
 import kotlinx.coroutines.*
@@ -187,12 +188,20 @@ class SubprocessServer(
 	private suspend fun dispatch(request: Request, responder: Responder) =
 		when (request) {
 			is Request.Ping -> dispatchPing(responder)
+			is Request.Uids -> dispatchUids(responder)
 			is Request.ReadFile -> dispatchReadFile(request, responder)
 			is Request.WriteFile -> dispatchWriteFile(request, responder)
 		}
 
 	private suspend fun dispatchPing(responder: Responder) =
 		responder.send(Response.Pong) // easy peasy =D
+
+	private suspend fun dispatchUids(responder: Responder) {
+		responder.send(Response.Uids(
+			Filesystem.getUid(),
+			Filesystem.getEUid()
+		))
+	}
 
 	private suspend fun dispatchReadFile(request: Request.ReadFile, responder: Responder) = slowIOs {
 

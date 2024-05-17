@@ -45,7 +45,7 @@ private fun printBinds() {
 		Config.instance.slurm?.key?.let { add(it) }
 		addAll(Config.instance.web.workflowDirs)
 	}
-	println(paths.joinToString(" ") { "--bind $it" })
+	println(paths.joinToString(" ") { "--bind \"$it\"" })
 }
 
 private fun printHeapMiB() {

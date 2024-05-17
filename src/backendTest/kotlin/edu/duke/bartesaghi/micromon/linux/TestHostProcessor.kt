@@ -31,7 +31,7 @@ class TestHostProcessor : DescribeSpec({
 
 		it("exec") {
 			withHostProcessor { hostProcessor ->
-				val proc = hostProcessor.exec("ls", listOf("-al"))
+				val proc = hostProcessor.exec(Command("ls", listOf("-al")))
 				println("launched process: pid=${proc.pid}")
 				proc.pid.shouldBeGreaterThan(0u)
 			}
@@ -39,7 +39,7 @@ class TestHostProcessor : DescribeSpec({
 
 		it("exec stream fin") {
 			withHostProcessor { hostProcessor ->
-				hostProcessor.execStream("ls", listOf("-al")).use { proc ->
+				hostProcessor.execStream(Command("ls", listOf("-al"))).use { proc ->
 					proc.pid.shouldBeGreaterThan(0u)
 					val event = proc.recv<Response.ProcessEvent.Fin>()
 					event.exitCode.shouldBe(0)
@@ -49,7 +49,7 @@ class TestHostProcessor : DescribeSpec({
 
 		it("exec stream stdout") {
 			withHostProcessor { hostProcessor ->
-				hostProcessor.execStream("echo", listOf("-n", "foo"), stdout=true).use { proc ->
+				hostProcessor.execStream(Command("echo", listOf("-n", "foo")), stdout=true).use { proc ->
 					proc.pid.shouldBeGreaterThan(0u)
 					val console = proc.recv<Response.ProcessEvent.Console>()
 					console.kind.shouldBe(Response.ProcessEvent.ConsoleKind.Stdout)
@@ -62,7 +62,7 @@ class TestHostProcessor : DescribeSpec({
 
 		it("exec stream stderr") {
 			withHostProcessor { hostProcessor ->
-				hostProcessor.execStream("/bin/sh", listOf("-c", "echo -n foo 1>&2"), stderr=true).use { proc ->
+				hostProcessor.execStream(Command("/bin/sh", listOf("-c", "echo -n foo 1>&2")), stderr=true).use { proc ->
 					proc.pid.shouldBeGreaterThan(0u)
 					val console = proc.recv<Response.ProcessEvent.Console>()
 					console.kind.shouldBe(Response.ProcessEvent.ConsoleKind.Stderr)
@@ -75,7 +75,7 @@ class TestHostProcessor : DescribeSpec({
 
 		it("exec stream stdin") {
 			withHostProcessor { hostProcessor ->
-				hostProcessor.execStream("cat", listOf("-"), stdin=true, stdout=true).use { proc ->
+				hostProcessor.execStream(Command("cat", listOf("-")), stdin=true, stdout=true).use { proc ->
 					proc.pid.shouldBeGreaterThan(0u)
 
 					// write to stdin, then close
@@ -93,7 +93,7 @@ class TestHostProcessor : DescribeSpec({
 
 		it("exec dir") {
 			withHostProcessor { hostProcessor ->
-				hostProcessor.execStream("pwd", listOf(), dir=Paths.get("/tmp"), stdout=true).use { proc ->
+				hostProcessor.execStream(Command("pwd", listOf()), dir=Paths.get("/tmp"), stdout=true).use { proc ->
 					val console = proc.recv<Response.ProcessEvent.Console>()
 					console.kind.shouldBe(Response.ProcessEvent.ConsoleKind.Stdout)
 					console.chunk.toString(Charsets.UTF_8).shouldBe("/tmp\n")
@@ -105,8 +105,8 @@ class TestHostProcessor : DescribeSpec({
 
 		it("exec multiplexing") {
 			withHostProcessor { hostProcessor ->
-				hostProcessor.execStream("cat", listOf("-"), stdin=true, stdout=true).use { proc1 ->
-					hostProcessor.execStream("cat", listOf("-"), stdin=true, stdout=true).use { proc2 ->
+				hostProcessor.execStream(Command("cat", listOf("-")), stdin=true, stdout=true).use { proc1 ->
+					hostProcessor.execStream(Command("cat", listOf("-")), stdin=true, stdout=true).use { proc2 ->
 
 						suspend fun echo(proc: HostProcessor.StreamingProcess, msg: String) {
 
@@ -142,7 +142,7 @@ class TestHostProcessor : DescribeSpec({
 			withHostProcessor { hostProcessor ->
 
 				// start a process we can end by closing stdin
-				hostProcessor.execStream("cat", listOf("-"), stdin=true).use { proc ->
+				hostProcessor.execStream(Command("cat", listOf("-")), stdin=true).use { proc ->
 
 					var isRunning = proc.status()
 					isRunning.shouldBe(true)
@@ -161,7 +161,7 @@ class TestHostProcessor : DescribeSpec({
 			withHostProcessor { hostProcessor ->
 
 				// start a process we can end by closing stdin
-				hostProcessor.execStream("cat", listOf("-"), stdin=true).use { proc ->
+				hostProcessor.execStream(Command("cat", listOf("-")), stdin=true).use { proc ->
 
 					var isRunning = proc.status()
 					isRunning.shouldBe(true)

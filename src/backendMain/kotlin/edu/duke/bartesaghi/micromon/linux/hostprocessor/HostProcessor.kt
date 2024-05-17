@@ -1,7 +1,9 @@
 package edu.duke.bartesaghi.micromon.linux.hostprocessor
 
+import edu.duke.bartesaghi.micromon.Config
 import edu.duke.bartesaghi.micromon.use
 import edu.duke.bartesaghi.micromon.SuspendCloseable
+import edu.duke.bartesaghi.micromon.linux.Command
 import edu.duke.bartesaghi.micromon.linux.recvFramedOrNull
 import edu.duke.bartesaghi.micromon.linux.sendFramed
 import edu.duke.bartesaghi.micromon.slowIOs
@@ -24,7 +26,7 @@ private val log = LoggerFactory.getLogger("HostProcessor")
 
 
 class HostProcessor(
-	val socketDir: Path,
+	val socketDir: Path = Config.instance.web.localDir / "host-processor",
 	val pid: Long? = getPidFromEnv()
 ) : SuspendCloseable {
 
@@ -212,18 +214,19 @@ class HostProcessor(
 	/**
 	 * Launch a process
 	 */
-	suspend fun exec(program: String, args: List<String>, dir: Path? = null): Process =
+	suspend fun exec(cmd: Command, dir: Path? = null): Process =
 		connectionOrThrow
 			.request(
 				Request.Exec(
-				program,
-				args,
-				dir?.toString(),
-				streamStdin = false,
-				streamStdout = false,
-				streamStderr = false,
-				streamFin = false
-			))
+					cmd.program,
+					cmd.args,
+					dir?.toString(),
+					streamStdin = false,
+					streamStdout = false,
+					streamStderr = false,
+					streamFin = false
+				)
+			)
 			.use { responder ->
 				val response = responder.recv<Response.Exec>()
 				when (val r = response.response) {
@@ -259,8 +262,7 @@ class HostProcessor(
 	 * Launch a process and stream to and/or from it
 	 */
 	suspend fun execStream(
-		program: String,
-		args: List<String>,
+		cmd: Command,
 		dir: Path? = null,
 		stdin: Boolean = false,
 		stdout: Boolean = false,
@@ -270,14 +272,15 @@ class HostProcessor(
 		val responder = connectionOrThrow
 			.request(
 				Request.Exec(
-				program,
-				args,
-				dir?.toString(),
-				stdin,
-				stdout,
-				stderr,
-				streamFin = true
-			))
+					cmd.program,
+					cmd.args,
+					dir?.toString(),
+					stdin,
+					stdout,
+					stderr,
+					streamFin = true
+				)
+			)
 
 		// handle the launch response
 		when (val response = responder.recv<Response.Exec>().response) {
@@ -324,6 +327,13 @@ class HostProcessor(
 				}
 			}
 		}
+
+		/**
+		 * Disconnects from the running process, but does not terminate it.
+		 * To ask the process to stop, call kill().
+ 		 */
+		override suspend fun close() =
+			super.close()
 	}
 
 	private inner class StreamingProcessImpl(
