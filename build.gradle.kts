@@ -574,8 +574,10 @@ afterEvaluate {
 					layout.buildDirectory.toFile().resolve("classpath.dev.run.txt"),
 					(
 						project.tasks["jar"].outputs.files
+							.map { "/opt/micromon/libs/${it.name}" }
 						+ collectClasspathLibs("backendRuntimeClasspath")
-					).map { it.toString() }
+							.map { it.toString() }
+					)
 				)
 			}
 		}
