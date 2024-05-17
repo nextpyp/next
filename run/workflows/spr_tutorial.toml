@@ -50,7 +50,7 @@ refine_parfile = 'auto'
 refine_rhref = "8:7:6"
 refine_fboost = true
 refine_priors = false
-refine.fssnr = false
+refine_fssnr = false
 reconstruct_cutoff = "0"
 
 [blocks.particle_filtering]
