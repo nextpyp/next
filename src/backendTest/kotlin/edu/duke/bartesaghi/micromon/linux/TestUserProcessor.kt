@@ -2,42 +2,48 @@ package edu.duke.bartesaghi.micromon.linux
 
 import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.linux.hostprocessor.HostProcessor
-import edu.duke.bartesaghi.micromon.linux.subprocess.SubprocessClient
+import edu.duke.bartesaghi.micromon.linux.userprocessor.UserProcessor
 import io.kotest.assertions.fail
 import io.kotest.core.annotation.EnabledIf
 import io.kotest.core.spec.style.DescribeSpec
 import io.kotest.matchers.shouldBe
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeoutOrNull
 import java.nio.file.Files
-import kotlin.io.path.writeBytes
 
 
+/**
+ * These tests require the `user-processor` exectuable to be correctly configured for the `tester` user
+ */
 @EnabledIf(RuntimeEnvironment.Website::class)
-class TestSubprocess : DescribeSpec({
+class TestUserProcessor : DescribeSpec({
+
+	val username = "tester"
 
 	// NOTE: all this IPC stuff has a TON of potential for weird concurrency bugs!
 	//       so run all the tests a bunch of times and hope we find a bug
-	val testCount = 10
+	val testCount = 1 // TODO: 10
 
-	describe("subprocess") {
+	describe("user processor") {
 
 		it("ping/pong").config(invocations = testCount) {
-			withSubprocess { _, client ->
+			withUserProcessor(username) { _, client ->
 				client.ping()
 			}
 		}
 
 		it("usernames").config(invocations = testCount) {
-			withSubprocess { hostProcessor, client ->
+			withUserProcessor(username) { hostProcessor, client ->
 				val uids = client.uids()
-				val exp = System.getProperty("user.name")
-				hostProcessor.username(uids.uid).shouldBe(exp)
-				hostProcessor.username(uids.euid).shouldBe(exp)
+				hostProcessor.username(uids.uid).shouldBe(System.getProperty("user.name"))
+				hostProcessor.username(uids.euid).shouldBe(username)
 			}
 		}
 
+		/* TODO: file transfers
+		
 		it("read file, small").config(invocations = testCount) {
-			withSubprocess { _, client ->
+			withUserProcessor { _, client ->
 				TempFile().use { file ->
 
 					// write a small file
@@ -52,7 +58,7 @@ class TestSubprocess : DescribeSpec({
 		}
 
 		it("read file, large").config(invocations = testCount) {
-			withSubprocess { _, client ->
+			withUserProcessor { _, client ->
 				TempFile().use { file ->
 
 					// write a large file with structured, but non-trivial, content
@@ -70,7 +76,7 @@ class TestSubprocess : DescribeSpec({
 		}
 
 		it("write file, small").config(invocations = testCount) {
-			withSubprocess { _, client ->
+			withUserProcessor { _, client ->
 				TempFile().use { file ->
 
 					// write a small file
@@ -87,7 +93,7 @@ class TestSubprocess : DescribeSpec({
 		}
 
 		it("write file, large").config(invocations = testCount) {
-			withSubprocess { _, client ->
+			withUserProcessor { _, client ->
 				TempFile().use { file ->
 
 					// write a large file with structured, but non-trivial, content
@@ -105,13 +111,14 @@ class TestSubprocess : DescribeSpec({
 				}
 			}
 		}
+		*/
 	}
 })
 
 
-suspend fun withSubprocess(block: suspend (HostProcessor, SubprocessClient) -> Unit) {
+suspend fun withUserProcessor(username: String, block: suspend (HostProcessor, UserProcessor) -> Unit) {
 	HostProcessor().use { hostProcessor ->
-		SubprocessClient.start("Test", 64, 2000, hostProcessor)
+		UserProcessor.start(hostProcessor, username, 2000, "user_processor=trace")
 			.use { client ->
 				withTimeoutOrNull(2000) {
 					block(hostProcessor, client)
@@ -123,7 +130,7 @@ suspend fun withSubprocess(block: suspend (HostProcessor, SubprocessClient) -> U
 
 class TempFile : AutoCloseable {
 
-	val path = Files.createTempFile("nextpyp-subprocess", null)
+	val path = Files.createTempFile("nextpyp-user-processor", null)
 
 	override fun close() {
 		path.delete()

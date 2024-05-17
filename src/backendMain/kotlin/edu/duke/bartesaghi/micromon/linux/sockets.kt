@@ -5,6 +5,7 @@ import java.nio.ByteBuffer
 import java.nio.channels.AsynchronousCloseException
 import java.nio.channels.ClosedChannelException
 import java.nio.channels.SocketChannel
+import java.util.concurrent.atomic.AtomicLong
 
 
 fun SocketChannel.sendFramed(data: ByteArray) {
@@ -78,4 +79,21 @@ fun UInt.toIntOrThrow(): Int {
 		throw IllegalArgumentException("Too large to fit in signed int: $this")
 	}
 	return i
+}
+
+
+class U32Counter(start: UInt = 1u) {
+
+	private val nextVal = AtomicLong(start.toLong())
+
+	fun next(): UInt =
+		nextVal.getAndUpdate { i ->
+			// just in case, roll over to 1 if we overflow a u32
+			if (i >= UInt.MAX_VALUE.toLong()) {
+				1
+			} else {
+				// otherwise, just increment like normal
+				i + 1
+			}
+		}.toUInt()
 }

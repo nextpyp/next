@@ -1346,6 +1346,21 @@ afterEvaluate {
 			}
 		}
 
+		create("vmBuildUserProcessor") {
+			group = "build"
+			description = "Build the user processor in the rustc container"
+			doLast {
+
+				val outDir = vmRustc(Paths.get("src/userProcessor"))
+
+				// copy the executable into the run folder
+				copy {
+					from(outDir.resolve("user-processor"))
+					into(runDir)
+				}
+			}
+		}
+
 		create("vmBuildRunas") {
 			group = "build"
 			description = "Build the runas tool in the rustc container"

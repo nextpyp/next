@@ -15,14 +15,18 @@ case "$1" in
       echo "Required argument: username"
       exit 1
     fi
+    if [ "$username" = "root" ]; then
+      echo "Root is not an allowed user"
+      exit 1
+    fi
 
-    # get the groupname of the original runas executable
+    # get the groupname of the original user-processor executable
     # (it's the pyp group)
-    groupname=$(stat -c "%G" runas)
+    groupname=$(stat -c "%G" user-processor)
 
-    # create the runas executable for this user
-    exec="runas-$username"
-    cp runas "$exec"
+    # create the user-processor executable for this user
+    exec="user-processor-$username"
+    cp user-processor "$exec"
 
     # the runas executable should be owned by the target user,
     # but in the group used by nextpyp
@@ -49,13 +53,17 @@ case "$1" in
       echo "Required argument: username"
       exit 1
     fi
+    if [ "$username" = "root" ]; then
+      echo "Root is not an allowed user"
+      exit 1
+    fi
 
     # remove the runas-username executable, if any
-    exec=runas-$username
+    exec=user-processor-$username
     if [ -f "$exec" ]; then
       rm "$exec"
     else
-      echo "No runas executable found for user $username"
+      echo "No user-processor executable found for user $username"
       exit 1
     fi
 
@@ -64,7 +72,8 @@ case "$1" in
 
   *)
     echo "Usage:"
-    echo "   ./admin-runas <add | remove> <username>"
+    echo "   ./admin-user-processor <add | remove> <username>"
+    echo "Run this script inside of the <nextpyp-local>/user-processor/exec folder"
     exit 1
     ;;
 

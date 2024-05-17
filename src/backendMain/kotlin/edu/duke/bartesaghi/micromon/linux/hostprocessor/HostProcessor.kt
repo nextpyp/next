@@ -4,6 +4,7 @@ import edu.duke.bartesaghi.micromon.Config
 import edu.duke.bartesaghi.micromon.use
 import edu.duke.bartesaghi.micromon.SuspendCloseable
 import edu.duke.bartesaghi.micromon.linux.Command
+import edu.duke.bartesaghi.micromon.linux.U32Counter
 import edu.duke.bartesaghi.micromon.linux.recvFramedOrNull
 import edu.duke.bartesaghi.micromon.linux.sendFramed
 import edu.duke.bartesaghi.micromon.slowIOs
@@ -18,7 +19,6 @@ import java.net.UnixDomainSocketAddress
 import java.nio.BufferUnderflowException
 import java.nio.channels.SocketChannel
 import java.nio.file.Path
-import java.util.concurrent.atomic.AtomicLong
 import kotlin.io.path.div
 
 
@@ -69,7 +69,7 @@ class HostProcessor(
 		// TODO: use some kind of weak map to cleanup responders that have forgotten to close?
 		private val respondersByRequestId = HashMap<UInt,ConnectionResponder>()
 		private val respondersLock = Mutex()
-		private val nextRequestId = AtomicLong(1)
+		private val requestIds = U32Counter()
 
 		private suspend fun <R> responders(block: suspend (HashMap<UInt, ConnectionResponder>) -> R): R =
 			respondersLock.withLock {
@@ -139,25 +139,14 @@ class HostProcessor(
 			receiver.join()
 		}
 
-		private fun makeRequestId(): UInt =
-			nextRequestId.getAndUpdate { i ->
-				// just in case, roll over to 1 if we overflow a u32
-				if (i >= UInt.MAX_VALUE.toLong()) {
-					1
-				} else {
-					// otherwise, just increment like normal
-					i + 1
-				}
-			}.toUInt()
-
 		suspend fun send(request: Request) {
-			val requestId = makeRequestId()
+			val requestId = requestIds.next()
 			requestChannel.send(RequestEnvelope(requestId, request))
 		}
 
 		suspend fun request(request: Request): Responder {
 
-			val requestId = makeRequestId()
+			val requestId = requestIds.next()
 
 			// register a new responder
 			val responder = ConnectionResponder(requestId)

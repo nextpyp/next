@@ -2,7 +2,7 @@ package edu.duke.bartesaghi.micromon.linux
 
 import edu.duke.bartesaghi.micromon.RuntimeEnvironment
 import edu.duke.bartesaghi.micromon.linux.hostprocessor.HostProcessor
-import edu.duke.bartesaghi.micromon.linux.subprocess.UserSubprocesses
+import edu.duke.bartesaghi.micromon.linux.userprocessor.UserProcessors
 import edu.duke.bartesaghi.micromon.use
 import io.kotest.assertions.fail
 import io.kotest.assertions.throwables.shouldThrow
@@ -13,10 +13,10 @@ import kotlinx.coroutines.withTimeoutOrNull
 
 
 /**
- * These tests require the `runas` exectuable to be correctly configured for the `tester` user
+ * These tests require the `user-processor` exectuable to be correctly configured for the `tester` user
  */
 @EnabledIf(RuntimeEnvironment.Website::class)
-class TestUserSubprocesses : DescribeSpec({
+class TestUserProcessors : DescribeSpec({
 
 	val username = "tester"
 
@@ -44,9 +44,9 @@ class TestUserSubprocesses : DescribeSpec({
 })
 
 
-suspend fun withSubprocesses(block: suspend (HostProcessor, UserSubprocesses) -> Unit) {
+suspend fun withSubprocesses(block: suspend (HostProcessor, UserProcessors) -> Unit) {
 	HostProcessor().use { hostProcessor ->
-		UserSubprocesses(hostProcessor).use { subprocesses ->
+		UserProcessors(hostProcessor).use { subprocesses ->
 			withTimeoutOrNull(2000) {
 				block(hostProcessor, subprocesses)
 			} ?: fail("Timed out")

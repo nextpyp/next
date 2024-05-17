@@ -97,14 +97,27 @@ mkdir -p "$sharedDir"
 chown "$username":"$usergroup" "$sharedDir"
 echo "Created shared directory: $sharedDir"
 
-# setup the runas system
-runasDir="$sharedDir/runas"
-mkdir -p "$runasDir"
-mv "$here/runas" "$runasDir/"
-chown "$username":"$usergroup" "$runasDir/runas"
-chmod u=rw,go= "$runasDir/runas" # no one should run the base runas executable
-mv "$here/admin-runas" "$runasDir/"
-chmod u=rwx,go= "$runasDir/admin-runas" # the admin-runas script should be executable tho
+
+# setup the user-processor system
+userProcessorDir="$localDir/user-processors"
+userProcessorExecDir="$userProcessorDir/exec"
+mkdir -p "$userProcessorExecDir"
+mv "$here/user-processor" "$userProcessorExecDir"
+userProcessorExec="$userProcessorExecDir/user-processor"
+chown "$username":"$usergroup" "$userProcessorExec"
+chmod u=rw,go= "$userProcessorExec" # no one should run the base user-processor executable
+mv "$here/admin-user" "$userProcessorExecDir"
+chmod u=rwx,go= "$userProcessorExecDir/admin-user" # the admin script should be executable tho
+
+# create the user-processor sockets folder
+# this folder needs to be world-writable (ugo=rwx) so user-processor instances (running as other users) can create their sockets
+# it also needs setgid (g+s) so socket files belong to the pyp group
+# setting the sticky bit (o+t) also prevents users from deleting each others sockets
+# TODO: use some kind of group here instead? where all the relevant users are a member? would need to expose config option to choose group
+userProcessorSocketsDir="$userProcessorDir/sockets"
+mkdir -p "$userProcessorSocketsDir"
+chmod ugo=rwx,g+s,o+t "$userProcessorSocketsDir"
+
 
 # create the home configuration folder, if needed (needed by apptainer)
 if [ ! -d "$home" ]; then

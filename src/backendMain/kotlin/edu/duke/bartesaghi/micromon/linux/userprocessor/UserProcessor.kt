@@ -1,4 +1,4 @@
-package edu.duke.bartesaghi.micromon.linux.subprocess
+package edu.duke.bartesaghi.micromon.linux.userprocessor
 
 import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.linux.*
@@ -11,8 +11,6 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import java.io.ByteArrayOutputStream
-import java.io.IOException
 import java.io.PrintStream
 import java.net.ConnectException
 import java.net.StandardProtocolFamily
@@ -20,14 +18,17 @@ import java.net.UnixDomainSocketAddress
 import java.nio.channels.AsynchronousCloseException
 import java.nio.channels.SocketChannel
 import java.nio.file.Path
-import java.nio.file.Paths
-import java.util.concurrent.atomic.AtomicLong
 import kotlin.io.path.div
-import kotlin.math.min
 
 
-class SubprocessClient(
-	val name: String,
+class UserProcessorException(path: Path, reasons: List<String>) : RuntimeException("""
+		|Failed to use user-processor executable at: $path
+		|	${reasons.joinToString("\n\t")}
+	""".trimMargin())
+
+
+class UserProcessor(
+	val username: String,
 	private val log: Logger,
 	private val subproc: HostProcessor.StreamingProcess,
 	private val socket: SocketChannel
@@ -37,72 +38,111 @@ class SubprocessClient(
 
 		private val consoleScope = CoroutineScope(Dispatchers.IO)
 
-		suspend fun start(
-			name: String,
-			heapMiB: Int,
-			socketTimeoutMs: Long,
-			hostProcessor: HostProcessor,
-			runas: Runas.Success? = null
-		): SubprocessClient {
+		private val dir = Config.instance.web.localDir / "user-processors"
+		private val execDir = dir / "exec"
+		private val socketDir = dir / "sockets"
 
-			val log = LoggerFactory.getLogger("SubprocessClient:$name")
+		private suspend fun find(hostProcessor: HostProcessor, username: String): Path {
+
+			val path = execDir / "user-processor-$username"
+			val failures = ArrayList<String>()
+
+			// find the uid
+			val uid = hostProcessor.uid(username)
+				?: throw UserProcessorException(path, listOf("Unknown username: $username"))
+
+			// the user should never be root
+			if (uid == 0u) {
+				throw UserProcessorException(path, listOf("Cannot run a user-processor as root"))
+			}
+
+			// find the user-specific runas executable
+			if (!path.exists()) {
+				throw UserProcessorException(path, listOf("File not found: $path"))
+			}
+
+			// check the unix permissions
+			val stat = Filesystem.stat(path)
+
+			// the file should be owned by the given username
+			if (stat.uid != uid) {
+				val fileUsername = hostProcessor.username(stat.uid)
+				failures.add("File permissions: Should be owned by $username, not $fileUsername")
+			}
+
+			// owner should have: setuid
+			if (!stat.isSetUID) {
+				failures.add("File permissions: Should be setuid")
+			}
+
+			// group should have: r-x
+			if (!stat.isGroupRead) {
+				failures.add("File permissions: Group should read")
+			}
+			if (stat.isGroupWrite) {
+				failures.add("File permissions: Group must not write")
+			}
+			if (!stat.isGroupExecute) {
+				failures.add("File permissions: Group should execute")
+			}
+
+			// other should have: r-- or ---
+			if (stat.isOtherWrite) {
+				failures.add("File permissions: Others must not write")
+			}
+			if (stat.isOtherExecute) {
+				failures.add("File permissions: Others must not execute")
+			}
+
+			// and the file should be owned by any group among this user's groups
+			val websiteUid = Filesystem.getUid()
+			val websiteGids = hostProcessor.gids(websiteUid)
+			if (websiteGids == null || stat.gid !in websiteGids) {
+				val micromonUsername = hostProcessor.username(websiteUid)
+				val fileGroupname = hostProcessor.groupname(stat.gid)
+				failures.add("File permissions: website user $micromonUsername is not a member of group $fileGroupname")
+			}
+
+			if (failures.isNotEmpty()) {
+				throw UserProcessorException(path, failures)
+			}
+
+			return path
+		}
+
+		suspend fun start(
+			hostProcessor: HostProcessor,
+			username: String,
+			socketTimeoutMs: Long,
+			tracingLog: String? = null
+		): UserProcessor {
+
+			val log = LoggerFactory.getLogger("UserProcessor:$username")
 
 			// there shouldn't be a socket file just yet, we haven't started the server yet
 			// if there is one, that means a server is already running
-			val socketPath = socketPath(name)
+			val socketPath = socketDir / "user-processor-$username"
 			log.debug("expecting socket file: {}", socketPath)
 			if (socketPath.exists()) {
-				throw IllegalStateException("Subprocess already running with name: $name")
+				// TODO: any way to reconnect to it?
+				//       the server should be re-usable, but how to get the process handle back?
+				throw IllegalStateException("user-procesor already running as: $username")
 			}
 
-			// start a JVM process with the same classpath as this one, but a different entry point
+			// start a user processor via the host processor
 			val subproc = slowIOs {
 
-				// get info about the current JVM
-				val javaHomeDir = Paths.get(System.getProperty("java.home"))
-				val javaBin = javaHomeDir / "bin" / "java"
-				val classpath = System.getProperty("java.class.path")
-
-				// build a command to launch the JVM
-				var cmd = Command(
-					javaBin.toString(),
-					listOf(
-						"-cp", classpath,
-						"-Xmx${heapMiB}m",
-						"-Djava.awt.headless=true", // don't look for any graphics libraries
-						SubprocessServer::class.qualifiedName.toString(),
-						name
-					)
-				)
-
-				// wrap it with apptainer
-				cmd = cmd.wrap(
-					"apptainer",
-					listOf("exec")
-						+ Posix.tokenize(System.getenv("NEXTPYP_APPTAINER_ARGS"))
-				)
-
-				// wrap it with runas, if needed
-				if (runas != null) {
-					log.debug("switching to user: {}", runas.username)
-					cmd = runas.wrap(cmd)
-				}
-
-				log.debug("Starting subprocess")
-				log.trace("program: {}\nargs:\n\t{}",
-					cmd.program,
-					cmd.args
-						.joinToString("\n\t") {
-							if (it == classpath) {
-								"(the JVM classpath: omitted because it's ridiculously long)"
-							} else {
-								it
+				log.debug("Starting user processor")
+				val subproc = hostProcessor.execStream(
+					Command(
+						find(hostProcessor, username).toString(),
+						ArrayList<String>().apply {
+							if (tracingLog != null) {
+								addAll(listOf("--log", tracingLog))
 							}
 						}
-				)
-
-				val subproc = hostProcessor.execStream(
-					cmd,
+					),
+					dir = socketDir,
 					stdout = true,
 					stderr = true
 				)
@@ -116,7 +156,7 @@ class SubprocessClient(
 							.lineSequence()
 							.filter { it.isNotEmpty() || !wroteLine }
 							.forEach {
-								out.println("Subprocess:$name: $it")
+								out.println(it)
 								wroteLine = true
 							}
 					}
@@ -195,7 +235,7 @@ class SubprocessClient(
 			}
 			log.debug("connected to server")
 
-			return SubprocessClient(name, log, subproc, socket)
+			return UserProcessor(username, log, subproc, socket)
 		}
 
 		suspend fun HostProcessor.StreamingProcess.close(log: Logger) {
@@ -230,7 +270,7 @@ class SubprocessClient(
 	// TODO: use some kind of weak map to cleanup responders that have forgotten to close?
 	private val respondersByRequestId = HashMap<Long,Responder>()
 	private val respondersLock = Mutex()
-	private val nextRequestId = AtomicLong(1)
+	private val requestIds = U32Counter()
 
 	private suspend fun <R> responders(block: suspend (HashMap<Long,Responder>) -> R): R =
 		respondersLock.withLock {
@@ -270,7 +310,7 @@ class SubprocessClient(
 					?: break
 
 				// dispatch to a responder
-				val responder = responders { it[response.requestId] }
+				val responder = responders { it[response.requestId.toLong()] }
 				responder?.channel?.send(response.response)
 
 			} catch (ex: ClosedSendChannelException) {
@@ -298,7 +338,7 @@ class SubprocessClient(
 		subproc.close(log)
 	}
 
-	private inner class Responder(private val requestId: Long) : SuspendCloseable {
+	private inner class Responder(private val requestId: UInt) : SuspendCloseable {
 
 		val channel = Channel<Response>(Channel.UNLIMITED)
 
@@ -309,28 +349,17 @@ class SubprocessClient(
 			channel.receive()
 
 		override suspend fun closeAll() {
-			responders { it.remove(requestId) }
+			responders { it.remove(requestId.toLong()) }
 		}
 	}
 
-	private fun makeRequestId(): Long =
-		nextRequestId.getAndUpdate { i ->
-			// just in case, roll over to 1 if we overflow a long
-			if (i >= Long.MAX_VALUE) {
-				1
-			} else {
-				// otherwise, just increment like normal
-				i + 1
-			}
-		}
-
 	private suspend fun request(request: Request): Responder {
 
-		val requestId = makeRequestId()
+		val requestId = requestIds.next()
 
 		// register a new responder
 		val responder = Responder(requestId)
-		responders { it[requestId] = responder }
+		responders { it[requestId.toLong()] = responder }
 
 		requestChannel.send(RequestEnvelope(requestId, request))
 
@@ -345,16 +374,18 @@ class SubprocessClient(
 	}
 
 	suspend fun ping() =
-		request(Request.Ping)
+		request(Request.Ping())
 			.use { responder ->
 				responder.recv<Response.Pong>()
 			}
 
 	suspend fun uids(): Response.Uids =
-		request(Request.Uids)
+		request(Request.Uids())
 			.use {
 				it.recv<Response.Uids>()
 			}
+
+	/* TODO: file transfers
 
 	suspend fun readFile(path: Path): ByteArray =
 		request(Request.ReadFile(path.toString()))
@@ -405,6 +436,7 @@ class SubprocessClient(
 			}
 		}
 	}
+	*/
 }
 
 
