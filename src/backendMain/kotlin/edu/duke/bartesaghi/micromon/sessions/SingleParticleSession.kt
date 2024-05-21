@@ -3,6 +3,7 @@ package edu.duke.bartesaghi.micromon.sessions
 import com.mongodb.client.model.Updates
 import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.cluster.ClusterJob
+import edu.duke.bartesaghi.micromon.cluster.slurm.toSbatchArgs
 import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.mongo.getDocument
 import edu.duke.bartesaghi.micromon.pyp.*
@@ -164,7 +165,8 @@ class SingleParticleSession(
 			owner = idOrThrow,
 			ownerListener = StreampypListener,
 			dir = dir,
-			args = pypArgs.toPypCLI()
+			args = pypArgs.toPypCLI(),
+			launchArgs = pypArgs.toSbatchArgs()
 		)
 
 		// daemon was started, move the args over
