@@ -1327,7 +1327,7 @@ afterEvaluate {
 			val containerCargoHome = "/usr/local/cargo"
 			val binds = "--bind \"$vmCargoRegistryDir\":\"$containerCargoHome/registry\""
 			val vmSifPath = vmDir.resolve("run/rustc.sif")
-			vboxrun(vmid, "cd \"$vmProjectDir\" && apptainer exec $binds \"$vmSifPath\" cargo build --release")
+			vboxrun(vmid, "cd \"$vmProjectDir\" && apptainer exec $binds \"$vmSifPath\" sh -c \"cargo clean && cargo build --release\"")
 
 			// return the out dir
 			return projectDir.resolve("target/release")
