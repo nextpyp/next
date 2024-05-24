@@ -250,6 +250,11 @@ case "$1" in
     export NEXTPYP_OOMDUMP
     NEXTPYP_HOSTPROCESSOR_PID=$hppid
     export NEXTPYP_HOSTPROCESSOR_PID
+    NEXTPYP_LOGS=
+    if [ -n "$devpath" ] ; then
+      NEXTPYP_LOGS=dev
+    fi
+    export NEXTPYP_LOGS
 
     # set general args to apptainer
     #printf "\t%s\n" "${binds[@]}" # DEBUG

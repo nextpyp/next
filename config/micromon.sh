@@ -31,6 +31,10 @@ else
   echo "  Will not perform heap dump on out-of-memory errors"
 fi
 
+if [ -n "$NEXTPYP_LOGS" ]; then
+  jvmargs="$jvmargs -Dlogback.configurationFile=logback-test.xml"
+fi
+
 # turn on headless mode so the JVM doesn't try to look for a display/GPU
 jvmargs="$jvmargs -Djava.awt.headless=true"
 

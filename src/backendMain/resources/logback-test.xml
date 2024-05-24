@@ -14,7 +14,8 @@
         <appender-ref ref="STDOUT"/>
     </root>
 
-    <!-- turn off mongo log spam -->
+    <!-- turn off log spam -->
     <logger name="org.mongodb" level="WARN"/>
+    <logger name="io.netty" level="WARN"/>
 
 </configuration>
