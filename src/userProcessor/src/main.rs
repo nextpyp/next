@@ -105,7 +105,7 @@ fn run(args: Args) -> Result<()> {
 	}
 	let user = users::get_user_by_uid(euid)
 		.context(format!("Failed to lookup username for uid: {}", euid))?;
-	let mut socket_filename = OsString::from("user-processor-");
+	let mut socket_filename = OsString::from(format!("user-processor-{}-", std::process::id()));
 	socket_filename.push(user.name());
 
 	// start a single-threaded tokio runtime

@@ -160,6 +160,7 @@ localdir=$("${cli[@]}" localdir)
 shareddir=$("${cli[@]}" shareddir)
 
 hpsocketdir="$localdir/host-processor"
+upsocketdir="$localdir/user-processors/sockets"
 
 
 # process the command
@@ -322,6 +323,18 @@ case "$1" in
         IFS='-' read -r -a parts <<< "$(basename "$f")"
         pid=${parts[2]}
         echo "Found host processor $pid, sending SIGTERM"
+        kill -s TERM "$pid"
+      fi
+    done
+
+    # stop any running user processors
+    # NOTE: tragically, the JVM can't shut them down, so we'll have to do it here
+    for f in "$upsocketdir"/user-processor-*-* ; do
+      if [ -S "$f" ] ; then
+        IFS='-' read -r -a parts <<< "$(basename "$f")"
+        pid=${parts[2]}
+        username=${parts[3]}
+        echo "Found user processor $pid for $username, sending SIGTERM"
         kill -s TERM "$pid"
       fi
     done

@@ -121,16 +121,6 @@ class UserProcessor(
 
 			val log = LoggerFactory.getLogger("UserProcessor:$username")
 
-			// there shouldn't be a socket file just yet, we haven't started the server yet
-			// if there is one, that means a server is already running
-			val socketPath = socketDir / "user-processor-$username"
-			log.debug("expecting socket file: {}", socketPath)
-			if (socketPath.exists()) {
-				// TODO: any way to reconnect to it?
-				//       the server should be re-usable, but how to get the process handle back?
-				throw IllegalStateException("user-procesor already running as: $username")
-			}
-
 			// start a user processor via the host processor
 			val (path, subproc) = slowIOs {
 
@@ -184,6 +174,8 @@ class UserProcessor(
 
 			// try to connect to the subprocess socket
 			val socket = try {
+				val socketPath = socketDir / "user-processor-${subproc.pid}-$username"
+				log.debug("expecting socket file: {}", socketPath)
 				retryLoop(socketTimeoutMs) { elapsedMs, timedOut ->
 
 					suspend fun tryAgainOrTimeout(): Tried<SocketChannel> =
