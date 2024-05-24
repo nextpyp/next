@@ -153,7 +153,7 @@ actual class ProjectsService : IProjectsService {
 
 		// make the runner and wait for the result, so the jobs monitor populates with the run
 		val runner = JobRunner(project)
-		runner.init(jobIds)
+		runner.init(jobIds, user.id)
 
 		// then start the first job, but don't wait for the result so the UI stays responsive
 		Backend.scope.launch {

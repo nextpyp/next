@@ -91,7 +91,7 @@ class TomographyRelionDataJob(
 		return TomographyRelionDataDisplay(numTiltSeries)
 	}
 
-	override suspend fun launch(runId: Int) {
+	override suspend fun launch(runId: Int, userId: String) {
 
 		// clear caches
 		clearWwwCache()
@@ -116,7 +116,7 @@ class TomographyRelionDataJob(
 		pypArgs.importMode = "TOMO_STAR"
 		pypArgs.importReadStar = true
 
-		Pyp.rlp.launch(runId, pypArgs, "Import Star", "pyp_import")
+		Pyp.rlp.launch(userId, runId, pypArgs, "Import Star", "pyp_import")
 
 		// job was launched, move the args over
 		args.run()

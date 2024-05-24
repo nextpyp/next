@@ -7,7 +7,7 @@ use std::time::Duration;
 
 use anyhow::{bail, Context, Result};
 use gumdrop::Options;
-use tracing::{info, warn};
+use tracing::info;
 
 
 #[derive(Options)]

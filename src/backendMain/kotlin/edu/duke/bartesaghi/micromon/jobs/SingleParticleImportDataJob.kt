@@ -79,7 +79,7 @@ class SingleParticleImportDataJob(
 			Database.particles.countAllParticles(idOrThrow, ParticlesList.PypAutoParticles)
 		)
 
-	override suspend fun launch(runId: Int) {
+	override suspend fun launch(runId: Int, userId: String) {
 
 		// clear caches
 		clearWwwCache()
@@ -103,7 +103,7 @@ class SingleParticleImportDataJob(
 		// set the hidden args
 		pypArgs.dataImport = true
 
-		Pyp.pyp.launch(runId, pypArgs, "Import Single Particle", "pyp_import")
+		Pyp.pyp.launch(userId, runId, pypArgs, "Import Single Particle", "pyp_import")
 
 		// job was launched, move the args over
 		args.run()

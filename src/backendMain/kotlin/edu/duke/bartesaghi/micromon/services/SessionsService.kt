@@ -209,8 +209,8 @@ actual class SessionsService : ISessionsService, Service {
 	}
 
 	override suspend fun start(sessionId: String, daemon: SessionDaemon) = sanitizeExceptions {
-		val session = auth(sessionId, SessionPermission.Write).session
-		session.start(daemon)
+		val authed = auth(sessionId, SessionPermission.Write)
+		authed.session.start(daemon, authed.user.id)
 	}
 
 	override suspend fun restart(sessionId: String, daemon: SessionDaemon) = sanitizeExceptions {
@@ -466,12 +466,12 @@ actual class SessionsService : ISessionsService, Service {
 
 	override suspend fun export(sessionId: String, request: String /* serialized SessionExportRequest */, slurmValues: ArgValuesToml) = sanitizeExceptions {
 
-		val session = auth(sessionId, SessionPermission.Write).session
+		val authed = auth(sessionId, SessionPermission.Write)
 
 		val requestObj = SessionExportRequest.deserialize(request)
 		val slurmArgValues = slurmValues.toArgValues(MicromonArgs.args)
 
-		SessionExport.launch(session, requestObj, slurmArgValues)
+		SessionExport.launch(authed.session, authed.user.id, requestObj, slurmArgValues)
 	}
 
 	override suspend fun cancelExport(exportId: String) = sanitizeExceptions {

@@ -160,7 +160,7 @@ localdir=$("${cli[@]}" localdir)
 shareddir=$("${cli[@]}" shareddir)
 
 hpsocketdir="$localdir/host-processor"
-upsocketdir="$localdir/user-processors/sockets"
+upsocketdir="$localdir/user-processors"
 
 
 # process the command

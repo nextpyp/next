@@ -76,7 +76,7 @@ class SingleParticleMaskingJob(
 			getFinishedBfactor()
 		)
 
-	override suspend fun launch(runId: Int) {
+	override suspend fun launch(runId: Int, userId: String) {
 
 		// clear caches
 		clearWwwCache()
@@ -96,7 +96,7 @@ class SingleParticleMaskingJob(
 		// set the hidden args
 		pypArgs.dataParent = prevJob.dir.toString()
 
-		Pyp.pmk.launch(runId, pypArgs, "Launch", "pyp_launch")
+		Pyp.pmk.launch(userId, runId, pypArgs, "Launch", "pyp_launch")
 
 		// job was launched, move the args over
 		args.run()

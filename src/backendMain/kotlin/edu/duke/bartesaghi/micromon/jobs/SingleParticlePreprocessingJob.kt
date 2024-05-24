@@ -126,7 +126,7 @@ class SingleParticlePreprocessingJob(
 			Database.particles.countAllParticles(idOrThrow, ParticlesList.PypAutoParticles)
 		)
 
-	override suspend fun launch(runId: Int) {
+	override suspend fun launch(runId: Int, userId: String) {
 
 		// clear caches
 		clearWwwCache()
@@ -156,7 +156,7 @@ class SingleParticlePreprocessingJob(
 		// set the hidden args
 		pypArgs.dataMode = "spr"
 
-		Pyp.pyp.launch(runId, pypArgs, "Launch", "pyp_launch")
+		Pyp.pyp.launch(userId, runId, pypArgs, "Launch", "pyp_launch")
 
 		// job was launched, move the args over
 		args.run()

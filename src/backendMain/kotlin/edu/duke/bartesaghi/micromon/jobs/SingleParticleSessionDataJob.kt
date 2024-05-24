@@ -78,7 +78,7 @@ class SingleParticleSessionDataJob(
 			Database.particles.countAllParticles(idOrThrow, ParticlesList.PypAutoParticles)
 		)
 
-	override suspend fun launch(runId: Int) {
+	override suspend fun launch(runId: Int, userId: String) {
 
 		// clear caches
 		clearWwwCache()
@@ -109,7 +109,7 @@ class SingleParticleSessionDataJob(
 		pypArgs.dataParent = session.pypDir(session.newestArgs().pypNamesOrThrow()).toString()
 		pypArgs.dataImport = true
 
-		Pyp.pyp.launch(runId, pypArgs, "Import Single Particle Session", "pyp_import")
+		Pyp.pyp.launch(userId, runId, pypArgs, "Import Single Particle Session", "pyp_import")
 
 		// job was launched, move the args over
 		args.run()

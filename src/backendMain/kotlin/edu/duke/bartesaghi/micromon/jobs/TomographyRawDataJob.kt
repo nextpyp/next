@@ -89,7 +89,7 @@ class TomographyRawDataJob(
 		return TomographyRawDataDisplay(numTiltSeries)
 	}
 
-	override suspend fun launch(runId: Int) {
+	override suspend fun launch(runId: Int, userId: String) {
 
 		// clear caches
 		clearWwwCache()
@@ -106,7 +106,7 @@ class TomographyRawDataJob(
 		// set the hidden args
 		pypArgs.dataMode = "tomo"
 
-		Pyp.gyp.launch(runId, pypArgs, "Check gain reference", "pyp_gainref")
+		Pyp.gyp.launch(userId, runId, pypArgs, "Check gain reference", "pyp_gainref")
 
 		// job was launched, move the args over
 		args.run()

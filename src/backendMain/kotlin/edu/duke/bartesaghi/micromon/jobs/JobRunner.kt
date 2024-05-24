@@ -28,7 +28,7 @@ class JobRunner(val project: Project) {
 	/**
 	 * Initializes a new run, adds it to the running queue for the project
 	 */
-	suspend fun init(jobIds: List<String>) {
+	suspend fun init(jobIds: List<String>, runningUserId: String) {
 
 		// get the jobs in sorted order for processing
 		val jobs = jobIds
@@ -41,6 +41,7 @@ class JobRunner(val project: Project) {
 			jobs = jobs.map {
 				JobRun(it.idOrThrow, RunStatus.Waiting)
 			},
+			runningUserId = runningUserId,
 			status = RunStatus.Waiting
 		)
 		val runId = project.pushRun(run)
@@ -129,8 +130,10 @@ class JobRunner(val project: Project) {
 		// finally, actually launch the job
 		// but in a try block, since job launches can be very error-prone
 		// and errors can even be caused by user input
+		val runningUserId = run.runningUserId
+			?: project.userId
 		try {
-			job.launch(run.idOrThrow)
+			job.launch(run.idOrThrow, runningUserId)
 		} catch (t: Throwable) {
 
 			Backend.log.error("Job failed to launch", t.cleanupStackTrace())

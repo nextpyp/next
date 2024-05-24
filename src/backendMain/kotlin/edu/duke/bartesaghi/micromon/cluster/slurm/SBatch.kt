@@ -4,6 +4,7 @@ import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.cluster.Cluster
 import edu.duke.bartesaghi.micromon.cluster.ClusterJob
 import edu.duke.bartesaghi.micromon.cluster.Commands
+import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.ClusterJobResultType
 import edu.duke.bartesaghi.micromon.services.ClusterMode
@@ -105,6 +106,7 @@ class SBatch(val config: Config.Slurm) : Cluster {
 	override suspend fun launch(clusterJob: ClusterJob, depIds: List<String>, scriptPath: Path): ClusterJob.LaunchResult? {
 
 		// build the sbatch command and add any args
+		// NOTE: this command is parsed by a shell on the SSH server, so be careful about arugment quoting and injection attacks!
 		val cmd = ArrayList<String>()
 		for (envvar in clusterJob.env) {
 			cmd.add("export ${envvar.name}=${envvar.value};")
@@ -151,6 +153,17 @@ class SBatch(val config: Config.Slurm) : Cluster {
 		}
 
 		cmd.add("\"$scriptPath\"")
+
+		// run the job as the specified OS user, if needed
+		if (clusterJob.userId != null) {
+			val user = Database.users.getUser(clusterJob.userId)
+			if (user?.osUsername != null) {
+				val userProcessor = Backend.userProcessors.get(user.osUsername)
+
+				// prepend the `sbatch` command with a `user-processor run` command
+				cmd.addAll(0, listOf(userProcessor.path.toString(), "run", "/tmp"))
+			}
+		}
 
 		// finalize the command
 		val command = cmd.joinToString(" ")

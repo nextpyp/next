@@ -79,7 +79,7 @@ class TomographyMovieCleaningJob(
 			jobInfoString ?: ""
 		)
 
-	override suspend fun launch(runId: Int) {
+	override suspend fun launch(runId: Int, userId: String) {
 
 		// clear caches
 		clearWwwCache()
@@ -99,7 +99,7 @@ class TomographyMovieCleaningJob(
 		// set the hidden args
 		pypArgs.dataParent = prevJob.dir.toString()
 
-		Pyp.pcl.launch(runId, pypArgs, "Launch", "launch")
+		Pyp.pcl.launch(userId, runId, pypArgs, "Launch", "launch")
 
 		// job was launched, move the args over
 		args.run()

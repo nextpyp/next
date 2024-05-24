@@ -99,8 +99,7 @@ echo "Created shared directory: $sharedDir"
 
 
 # setup the user-processor system
-userProcessorDir="$localDir/user-processors"
-userProcessorExecDir="$userProcessorDir/exec"
+userProcessorExecDir="$sharedDir/user-processors"
 mkdir -p "$userProcessorExecDir"
 mv "$here/user-processor" "$userProcessorExecDir"
 userProcessorExec="$userProcessorExecDir/user-processor"
@@ -114,7 +113,7 @@ chmod u=rwx,go= "$userProcessorExecDir/admin-user" # the admin script should be 
 # it also needs setgid (g+s) so socket files belong to the pyp group
 # setting the sticky bit (o+t) also prevents users from deleting each others sockets
 # TODO: use some kind of group here instead? where all the relevant users are a member? would need to expose config option to choose group
-userProcessorSocketsDir="$userProcessorDir/sockets"
+userProcessorSocketsDir="$localDir/user-processors"
 mkdir -p "$userProcessorSocketsDir"
 chmod ugo=rwx,g+s,o+t "$userProcessorSocketsDir"
 

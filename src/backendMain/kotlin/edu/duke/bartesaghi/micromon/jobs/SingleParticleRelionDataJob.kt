@@ -92,7 +92,7 @@ class SingleParticleRelionDataJob(
 		return SingleParticleRelionDataDisplay(numMovies)
 	}
 
-	override suspend fun launch(runId: Int) {
+	override suspend fun launch(runId: Int, userId: String) {
 
 		// clear caches
 		clearWwwCache()
@@ -118,7 +118,7 @@ class SingleParticleRelionDataJob(
 		pypArgs.importMode = "SPA_STAR"
 		pypArgs.importReadStar = true
 
-		Pyp.rlp.launch(runId, pypArgs, "Import Star", "pyp_import")
+		Pyp.rlp.launch(userId, runId, pypArgs, "Import Star", "pyp_import")
 
 		// job was launched, move the args over
 		args.run()

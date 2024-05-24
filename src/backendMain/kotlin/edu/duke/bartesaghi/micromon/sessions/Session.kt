@@ -254,7 +254,7 @@ sealed class Session(
 	abstract fun argsDiff(): ArgValues
 
 	/** starts one of the daemons */
-	abstract suspend fun start(daemon: SessionDaemon)
+	abstract suspend fun start(daemon: SessionDaemon, userId: String)
 
 	/** restarts one of the daemons */
 	suspend fun restart(daemon: SessionDaemon) {

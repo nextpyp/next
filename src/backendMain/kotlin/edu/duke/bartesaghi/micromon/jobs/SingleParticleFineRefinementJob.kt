@@ -79,7 +79,7 @@ class SingleParticleFineRefinementJob(
 			jobInfoString ?: ""
 		)
 
-	override suspend fun launch(runId: Int) {
+	override suspend fun launch(runId: Int, userId: String) {
 
 		// clear caches
 		clearWwwCache()
@@ -102,7 +102,7 @@ class SingleParticleFineRefinementJob(
 		// pypArgs.refineMode = "1"
 		// pypArgs.reconstructCutoff = "1"
 
-		Pyp.pcl.launch(runId, pypArgs, "Launch", "pyp_launch")
+		Pyp.pcl.launch(userId, runId, pypArgs, "Launch", "pyp_launch")
 
 		// job was launched, move the args over
 		args.run()

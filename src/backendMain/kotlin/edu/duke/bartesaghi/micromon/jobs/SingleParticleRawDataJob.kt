@@ -89,7 +89,7 @@ class SingleParticleRawDataJob(
 		return SingleParticleRawDataDisplay(numMovies)
 	}
 
-	override suspend fun launch(runId: Int) {
+	override suspend fun launch(runId: Int, userId: String) {
 
 		// clear caches
 		clearWwwCache()
@@ -106,7 +106,7 @@ class SingleParticleRawDataJob(
 		// set the hidden args
 		pypArgs.dataMode = "spr"
 
-		Pyp.gyp.launch(runId, pypArgs, "Check gain reference", "pyp_gainref")
+		Pyp.gyp.launch(userId, runId, pypArgs, "Check gain reference", "pyp_gainref")
 
 		// job was launched, move the args over
 		args.run()

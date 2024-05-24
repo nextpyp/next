@@ -40,9 +40,8 @@ class UserProcessor(
 
 		private val consoleScope = CoroutineScope(Dispatchers.IO)
 
-		private val dir = Config.instance.web.localDir / "user-processors"
-		private val execDir = dir / "exec"
-		private val socketDir = dir / "sockets"
+		private val execDir = Config.instance.web.sharedDir / "user-processors"
+		private val socketDir = Config.instance.web.localDir / "user-processors"
 
 		private suspend fun find(hostProcessor: HostProcessor, username: String): Path {
 
@@ -130,6 +129,7 @@ class UserProcessor(
 					Command(
 						path.toString(),
 						ArrayList<String>().apply {
+							add("daemon")
 							if (tracingLog != null) {
 								addAll(listOf("--log", tracingLog))
 							}
