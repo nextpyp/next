@@ -1,7 +1,10 @@
 
+mod util;
+
+
 use std::net::Shutdown;
 use std::os::unix::net::UnixStream;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::process::{Child, Command, ExitStatus};
 use std::{fs, thread};
 use std::time::Duration;
@@ -333,17 +336,9 @@ struct UserProcessor {
 
 impl UserProcessor {
 
-	fn bin_path() -> &'static Path {
-		let bin_path = Path::new(env!("CARGO_BIN_EXE_user-processor"));
-		if !bin_path.exists() {
-			panic!("Target binary not found at: {:?}", bin_path);
-		}
-		bin_path
-	}
-
 	fn help() -> ExitStatus {
-		Command::new(Self::bin_path())
-			.args(["--help"])
+		Command::new(util::bin_path())
+			.args(["--help", "daemon"])
 			.spawn()
 			.expect("Failed to spawn process")
 			.wait()
@@ -357,8 +352,8 @@ impl UserProcessor {
 		fs::create_dir_all(SOCKET_DIR)
 			.unwrap();
 
-		let proc = Command::new(Self::bin_path())
-			.args(["--log", "trace"])
+		let proc = Command::new(util::bin_path())
+			.args(["--log", "trace", "daemon"])
 			.current_dir(SOCKET_DIR)
 			.spawn()
 			.expect("Failed to spawn process");
@@ -372,7 +367,7 @@ impl UserProcessor {
 		let username = users::get_effective_username()
 			.expect("Failed to lookup effective username");
 		PathBuf::from(SOCKET_DIR)
-			.join(format!("user-processor-{}", username.to_string_lossy()))
+			.join(format!("user-processor-{}-{}", self.proc.id(), username.to_string_lossy()))
 	}
 
 	fn connect(&self) -> UnixStream {
