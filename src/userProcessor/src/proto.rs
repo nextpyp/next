@@ -17,12 +17,44 @@ pub enum Request {
 	Ping,
 
 	/// query the uid and euid for this current user
-	Uids
+	Uids,
+
+	ReadFile {
+		path: String
+	},
+
+	WriteFile(WriteFileRequest)
 }
 
 impl Request {
 	const ID_PING: u32 = 1;
 	const ID_UIDS: u32 = 2;
+	const ID_READ_FILE: u32 = 3;
+	const ID_WRITE_FILE: u32 = 4;
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum WriteFileRequest {
+
+	Open {
+		path: String,
+		append: bool
+	},
+
+	Chunk {
+		sequence: u32,
+		data: Vec<u8>
+	},
+
+	Close {
+		sequence: u32
+	}
+}
+
+impl WriteFileRequest {
+	const ID_OPEN: u32 = 1;
+	const ID_CHUNK: u32 = 2;
+	const ID_CLOSE: u32 = 3;
 }
 
 
@@ -42,6 +74,31 @@ impl RequestEnvelope {
 
 			Request::Uids => {
 				out.write_u32::<BigEndian>(Request::ID_UIDS)?;
+			}
+
+			Request::ReadFile { path } => {
+				out.write_u32::<BigEndian>(Request::ID_READ_FILE)?;
+				out.write_utf8(path)?;
+			}
+
+			Request::WriteFile(request) => {
+				out.write_u32::<BigEndian>(Request::ID_WRITE_FILE)?;
+				match request {
+					WriteFileRequest::Open { path, append } => {
+						out.write_u32::<BigEndian>(WriteFileRequest::ID_OPEN)?;
+						out.write_utf8(path)?;
+						out.write_bool(*append)?;
+					}
+					WriteFileRequest::Chunk { sequence, data } => {
+						out.write_u32::<BigEndian>(WriteFileRequest::ID_CHUNK)?;
+						out.write_u32::<BigEndian>(*sequence)?;
+						out.write_bytes(data)?;
+					}
+					WriteFileRequest::Close { sequence } => {
+						out.write_u32::<BigEndian>(WriteFileRequest::ID_CLOSE)?;
+						out.write_u32::<BigEndian>(*sequence)?;
+					}
+				}
 			}
 		}
 
@@ -68,6 +125,31 @@ impl RequestEnvelope {
 				Request::Ping
 			} else if type_id == Request::ID_UIDS {
 				Request::Uids
+			} else if type_id == Request::ID_READ_FILE {
+				Request::ReadFile {
+					path: reader.read_utf8().map_err(|e| (e, Some(request_id)))?
+				}
+			} else if type_id == Request::ID_WRITE_FILE {
+				Request::WriteFile({
+					let write_file_type_id = reader.read_u32::<BigEndian>().map_err(|e| (e.into(), Some(request_id)))?;
+					if write_file_type_id == WriteFileRequest::ID_OPEN {
+						WriteFileRequest::Open {
+							path: reader.read_utf8().map_err(|e| (e, Some(request_id)))?,
+							append: reader.read_bool().map_err(|e| (e, Some(request_id)))?
+						}
+					} else if write_file_type_id == WriteFileRequest::ID_CHUNK {
+						WriteFileRequest::Chunk {
+							sequence: reader.read_u32::<BigEndian>().map_err(|e| (e.into(), Some(request_id)))?,
+							data: reader.read_bytes().map_err(|e| (e, Some(request_id)))?
+						}
+					} else if write_file_type_id == WriteFileRequest::ID_CLOSE {
+						WriteFileRequest::Close {
+							sequence: reader.read_u32::<BigEndian>().map_err(|e| (e.into(), Some(request_id)))?
+						}
+					} else {
+						return Err((anyhow!("Unrecognized write file request type id: {}", write_file_type_id), Some(request_id)));
+					}
+				})
 			} else {
 				return Err((anyhow!("Unrecognized request type id: {}", type_id), Some(request_id)));
 			};
@@ -95,13 +177,52 @@ pub enum Response {
 	Uids {
 		uid: u32,
 		euid: u32
-	}
+	},
+
+	ReadFile(ReadFileResponse),
+	WriteFile(WriteFileResponse)
 }
 
 impl Response {
 	const ID_ERROR: u32 = 1;
 	const ID_PONG: u32 = 2;
 	const ID_UIDS: u32 = 3;
+	const ID_READ_FILE: u32 = 4;
+	const ID_WRITE_FILE: u32 = 5;
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ReadFileResponse {
+
+	Open {
+		bytes: u64
+	},
+
+	Chunk {
+		sequence: u32,
+		data: Vec<u8>
+	},
+
+	Close {
+		sequence: u32
+	}
+}
+
+impl ReadFileResponse {
+	const ID_OPEN: u32 = 1;
+	const ID_CHUNK: u32 = 2;
+	const ID_CLOSE: u32 = 3;
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum WriteFileResponse {
+	Opened,
+	Closed
+}
+
+impl WriteFileResponse {
+	const ID_OPENED: u32 = 1;
+	const ID_CLOSED: u32 = 2;
 }
 
 
@@ -128,6 +249,37 @@ impl ResponseEnvelope {
 				out.write_u32::<BigEndian>(Response::ID_UIDS)?;
 				out.write_u32::<BigEndian>(*uid)?;
 				out.write_u32::<BigEndian>(*euid)?;
+			}
+
+			Response::ReadFile(response) => {
+				out.write_u32::<BigEndian>(Response::ID_READ_FILE)?;
+				match response {
+					ReadFileResponse::Open { bytes } => {
+						out.write_u32::<BigEndian>(ReadFileResponse::ID_OPEN)?;
+						out.write_u64::<BigEndian>(*bytes)?;
+					}
+					ReadFileResponse::Chunk { sequence, data } => {
+						out.write_u32::<BigEndian>(ReadFileResponse::ID_CHUNK)?;
+						out.write_u32::<BigEndian>(*sequence)?;
+						out.write_bytes(data)?;
+					}
+					ReadFileResponse::Close { sequence } => {
+						out.write_u32::<BigEndian>(ReadFileResponse::ID_CLOSE)?;
+						out.write_u32::<BigEndian>(*sequence)?;
+					}
+				}
+			}
+
+			Response::WriteFile(response) => {
+				out.write_u32::<BigEndian>(Response::ID_WRITE_FILE)?;
+				match response {
+					WriteFileResponse::Opened => {
+						out.write_u32::<BigEndian>(WriteFileResponse::ID_OPENED)?;
+					}
+					WriteFileResponse::Closed => {
+						out.write_u32::<BigEndian>(WriteFileResponse::ID_CLOSED)?;
+					}
+				}
 			}
 		}
 
@@ -160,6 +312,37 @@ impl ResponseEnvelope {
 					uid: reader.read_u32::<BigEndian>()?,
 					euid: reader.read_u32::<BigEndian>()?
 				}
+			} else if type_id == Response::ID_READ_FILE {
+				Response::ReadFile({
+					let read_file_type_id = reader.read_u32::<BigEndian>()?;
+					if read_file_type_id == ReadFileResponse::ID_OPEN {
+						ReadFileResponse::Open {
+							bytes: reader.read_u64::<BigEndian>()?
+						}
+					} else if read_file_type_id == ReadFileResponse::ID_CHUNK {
+						ReadFileResponse::Chunk {
+							sequence: reader.read_u32::<BigEndian>()?,
+							data: reader.read_bytes()?
+						}
+					} else if read_file_type_id == ReadFileResponse::ID_CLOSE {
+						ReadFileResponse::Close {
+							sequence: reader.read_u32::<BigEndian>()?
+						}
+					} else {
+						bail!("Unrecognized read file type id: {}", read_file_type_id);
+					}
+				})
+			} else if type_id == Response::ID_WRITE_FILE {
+				Response::WriteFile({
+					let write_file_type_id = reader.read_u32::<BigEndian>()?;
+					if write_file_type_id == WriteFileResponse::ID_OPENED {
+						WriteFileResponse::Opened
+					} else if write_file_type_id == WriteFileResponse::ID_CLOSED {
+						WriteFileResponse::Closed
+					} else {
+						bail!("Unrecognized write file type id: {}", write_file_type_id);
+					}
+				})
 			} else {
 				bail!("Unrecognized response type id: {}", type_id);
 			};
@@ -176,8 +359,10 @@ trait WriteExt {
 	fn write_bool(&mut self, b: bool) -> Result<()>;
 	fn write_bytes(&mut self, bytes: impl AsRef<[u8]>) -> Result<()>;
 	fn write_utf8(&mut self, s: impl AsRef<str>) -> Result<()>;
+	#[allow(unused)]
 	fn write_vec<T,F>(&mut self, v: &Vec<T>, f: F) -> Result<()>
 		where F: Fn(&mut Self, &T) -> Result<()>;
+	#[allow(unused)]
 	fn write_option<T,F>(&mut self, opt: &Option<T>, f: F) -> Result<()>
 		where F: Fn(&mut Self, &T) -> Result<()>;
 }
@@ -261,8 +446,10 @@ trait ReadExt {
 	fn read_bool(&mut self) -> Result<bool>;
 	fn read_bytes(&mut self) -> Result<Vec<u8>>;
 	fn read_utf8(&mut self) -> Result<String>;
+	#[allow(unused)]
 	fn read_vec<T,F>(&mut self, f: F) -> Result<Vec<T>>
 		where F: Fn(&mut Self) -> Result<T>;
+	#[allow(unused)]
 	fn read_option<T,F>(&mut self, f: F) -> Result<Option<T>>
 		where F: Fn(&mut Self) -> Result<T>;
 }
@@ -364,6 +551,22 @@ mod test {
 		assert_roundtrip(Request::Ping);
 
 		assert_roundtrip(Request::Uids);
+
+		assert_roundtrip(Request::ReadFile {
+			path: "foo".to_string()
+		});
+
+		assert_roundtrip(Request::WriteFile(WriteFileRequest::Open {
+			path: "foo".to_string(),
+			append: false
+		}));
+		assert_roundtrip(Request::WriteFile(WriteFileRequest::Chunk {
+			sequence: 5,
+			data: vec![1, 2, 3]
+		}));
+		assert_roundtrip(Request::WriteFile(WriteFileRequest::Close {
+			sequence: 42
+		}));
 	}
 
 
@@ -392,5 +595,16 @@ mod test {
 			uid: 5,
 			euid: 42
 		});
+
+		assert_roundtrip(Response::ReadFile(ReadFileResponse::Open {
+			bytes: 5
+		}));
+		assert_roundtrip(Response::ReadFile(ReadFileResponse::Chunk {
+			sequence: 42,
+			data: vec![1, 2, 3]
+		}));
+		assert_roundtrip(Response::ReadFile(ReadFileResponse::Close {
+			sequence: 7
+		}));
 	}
 }

@@ -1,6 +1,10 @@
 
 use std::{env, fs};
+use std::cell::RefCell;
+use std::collections::HashMap;
 use std::ffi::OsString;
+use std::fs::{File, OpenOptions};
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::rc::Rc;
@@ -8,17 +12,17 @@ use std::time::Duration;
 use std::os::unix::fs::PermissionsExt;
 
 use anyhow::{bail, Context, Result};
+use async_trait::async_trait;
 use gumdrop::Options;
 use tokio::net::{UnixListener, UnixStream};
 use tokio::net::unix::OwnedWriteHalf;
 use tokio::signal::unix::{signal, SignalKind};
-use tokio::sync::Mutex;
 use tokio::task::LocalSet;
-use tracing::{debug, error, error_span, info, Instrument, trace, warn};
+use tracing::{debug, error_span, info, Instrument, trace, warn};
 
 use user_processor::framing::{AsyncReadFramed, AsyncWriteFramed};
 use user_processor::logging::{self, ResultExt};
-use user_processor::proto::{Request, RequestEnvelope, Response, ResponseEnvelope};
+use user_processor::proto::{ReadFileResponse, Request, RequestEnvelope, Response, ResponseEnvelope, WriteFileRequest, WriteFileResponse};
 
 
 #[derive(Options)]
@@ -218,9 +222,10 @@ async fn drive_connection(socket: UnixStream) {
 
 	// split the socket into read and write halves so we can operate them concurrently
 	let (mut socket_read, socket_write) = socket.into_split();
-	let socket_write = Rc::new(Mutex::new(socket_write));
+	let socket_write = Rc::new(RefCell::new(socket_write));
 
 	let mut next_request_id: u64 = 1;
+	let file_writers = Rc::new(RefCell::new(HashMap::<u32,Rc<RefCell<FileWriter>>>::new()));
 
 	loop {
 
@@ -253,6 +258,7 @@ async fn drive_connection(socket: UnixStream) {
 		// process the request in a task, so other requests on this connection can happen concurrently
 		tokio::task::spawn_local({
 			let socket_write = socket_write.clone();
+			let file_writers = file_writers.clone();
 			async move {
 
 				trace!("started");
@@ -290,6 +296,14 @@ async fn drive_connection(socket: UnixStream) {
 
 					Request::Uids =>
 						dispatch_uids(socket_write, request.id)
+							.await,
+
+					Request::ReadFile { path } =>
+						dispatch_read_file(socket_write, request.id, path)
+							.await,
+
+					Request::WriteFile(file_write_request) =>
+						dispatch_write_file(socket_write, request.id, file_writers.clone(), file_write_request)
 							.await
 				}
 
@@ -300,7 +314,7 @@ async fn drive_connection(socket: UnixStream) {
 }
 
 
-async fn write_response(socket: &Mutex<OwnedWriteHalf>, request_id: u32, response: Response) -> Result<(),()> {
+async fn write_response(socket: &RefCell<OwnedWriteHalf>, request_id: u32, response: Response) -> Result<(),()> {
 
 	// encode the response
 	let msg = ResponseEnvelope {
@@ -312,8 +326,7 @@ async fn write_response(socket: &Mutex<OwnedWriteHalf>, request_id: u32, respons
 		.warn_err()?;
 
 	// send it over the socket
-	socket.lock()
-		.await
+	socket.borrow_mut()
 		.write_framed(msg)
 		.await
 		.context("Failed to write response")
@@ -323,8 +336,66 @@ async fn write_response(socket: &Mutex<OwnedWriteHalf>, request_id: u32, respons
 }
 
 
+#[async_trait(?Send)]
+trait OrRespondError<T,E> {
+	async fn or_respond_error<F>(self, socket: &RefCell<OwnedWriteHalf>, request_id: u32, f: F) -> Option<T>
+		where
+			F: FnOnce(E) -> String;
+}
+
+#[async_trait(?Send)]
+impl<T,E> OrRespondError<T,E> for Result<T,E> {
+
+	async fn or_respond_error<F>(self, socket: &RefCell<OwnedWriteHalf>, request_id: u32, f: F) -> Option<T>
+		where
+			F: FnOnce(E) -> String
+	{
+		match self {
+
+			Ok(v) => Some(v),
+
+			Err(e) => {
+				let reason = f(e);
+				warn!("Error response: {}", reason);
+				let response = Response::Error {
+					reason
+				};
+				write_response(&socket, request_id, response)
+					.await
+					.ok();
+				None
+			}
+		}
+	}
+}
+
+#[async_trait(?Send)]
+impl<T> OrRespondError<T,()> for Option<T> {
+
+	async fn or_respond_error<F>(self, socket: &RefCell<OwnedWriteHalf>, request_id: u32, f: F) -> Option<T>
+		where
+			F: FnOnce(()) -> String
+	{
+		match self {
+
+			Some(v) => Some(v),
+
+			None => {
+				let response = Response::Error {
+					reason: f(())
+				};
+				write_response(&socket, request_id, response)
+					.await
+					.ok();
+				None
+			}
+		}
+	}
+}
+
+
 #[tracing::instrument(skip_all, level = 5, name = "Ping")]
-async fn dispatch_ping(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32) {
+async fn dispatch_ping(socket: Rc<RefCell<OwnedWriteHalf>>, request_id: u32) {
 
 	trace!("Request");
 
@@ -336,7 +407,7 @@ async fn dispatch_ping(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32) {
 
 
 #[tracing::instrument(skip_all, level = 5, name = "Uids")]
-async fn dispatch_uids(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32) {
+async fn dispatch_uids(socket: Rc<RefCell<OwnedWriteHalf>>, request_id: u32) {
 
 	trace!("Request");
 
@@ -348,4 +419,205 @@ async fn dispatch_uids(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32) {
 	write_response(&socket, request_id, response)
 		.await
 		.ok();
+}
+
+
+#[tracing::instrument(skip_all, level = 5, name = "ReadFile")]
+async fn dispatch_read_file(socket: Rc<RefCell<OwnedWriteHalf>>, request_id: u32, path: String) {
+
+	trace!(path, "Request");
+
+	// try to open the file for reading
+	let Some(mut file) = File::open(&path)
+		.or_respond_error(&socket, request_id, |e| format!("Failed to open file {}: {}", path, e))
+		.await
+		else { return };
+
+	// try to get the file size
+	let Some(metadata) = file.metadata()
+		.or_respond_error(&socket, request_id, |e| format!("Failed to read metadata for file {}: {}", path, e))
+		.await
+		else { return };
+
+	// file open! send the first response
+	let response = Response::ReadFile(ReadFileResponse::Open {
+		bytes: metadata.len()
+	});
+	let Ok(_) = write_response(&socket, request_id, response)
+		.await
+		else { return };
+
+	// read the file in chunks
+	let mut buf = [0u8; 4*1024];
+	let mut sequence: u32 = 0;
+	loop {
+
+		// read the next chunk
+		sequence += 1;
+		let Some(bytes_read) = file.read(&mut buf)
+			.or_respond_error(&socket, request_id, |e| format!("Failed to read chunk {}: {}", sequence, e))
+			.await
+			else { return };
+		if bytes_read == 0 {
+			break;
+		}
+
+		// send the chunk back
+		let response = Response::ReadFile(ReadFileResponse::Chunk {
+			sequence,
+			data: buf[0 .. bytes_read].to_vec()
+		});
+		let Ok(_) = write_response(&socket, request_id, response)
+			.await
+			else { return };
+	}
+
+	// all done, send the close response
+	let response = Response::ReadFile(ReadFileResponse::Close {
+		sequence
+	});
+	write_response(&socket, request_id, response)
+		.await
+		.ok();
+}
+
+
+#[derive(Debug)]
+struct FileWriter {
+	file: File,
+	sequence: u32,
+	error: Option<String>
+}
+
+impl FileWriter {
+
+	async fn resequence(s: &Rc<RefCell<Self>>, sequence: u32) {
+
+		// wait for the riqht sequence
+		while sequence < s.borrow().sequence {
+			// NOTE: don't hold a borrow across the await, that could lead to a deadlock
+			tokio::task::yield_now()
+				.await;
+		}
+
+		// increment the sequence counter for next time
+		let mut s = s.borrow_mut();
+		s.sequence += 1;
+	}
+}
+
+
+#[tracing::instrument(skip_all, level = 5, name = "WriteFile")]
+async fn dispatch_write_file(
+	socket: Rc<RefCell<OwnedWriteHalf>>,
+	request_id: u32,
+	file_writers: Rc<RefCell<HashMap<u32,Rc<RefCell<FileWriter>>>>>,
+	request: WriteFileRequest
+) {
+
+	match request {
+
+		WriteFileRequest::Open { path, append } => {
+
+			trace!(path, append, "Open");
+
+			// try to open the file for writing
+			let Some(file) = OpenOptions::new()
+				.create(true)
+				.write(true)
+				.append(append)
+				.open(&path)
+				.or_respond_error(&socket, request_id, |e| format!("Failed to open file {}: {}", path, e))
+				.await
+				else { return };
+
+			// make a new file writer attached to the request id
+			let file_writer = FileWriter {
+				file,
+				sequence: 1,
+				error: None
+			};
+			file_writers
+				.borrow_mut()
+				.insert(request_id, Rc::new(RefCell::new(file_writer)));
+
+			// send the opened response
+			let response = Response::WriteFile(WriteFileResponse::Opened);
+			write_response(&socket, request_id, response)
+				.await
+				.ok();
+		}
+
+		WriteFileRequest::Chunk { sequence, data } => {
+
+			trace!(sequence, "Chunk");
+
+			// get the file writer
+			let Some(file_writer) = file_writers.borrow()
+				.get(&request_id)
+				.map(|w| w.clone())
+				else { return };
+
+			// sometimes async tasks can get processesed out of sequence, so explicitly re-sequence here
+			FileWriter::resequence(&file_writer, sequence)
+				.await;
+
+			if file_writer.borrow().error.is_some() {
+				// already had an error, stop writing
+				return;
+			}
+
+			// write to the file, but save the first error (if any) for later
+			let result = file_writer.borrow_mut().file.write(data.as_ref());
+			if let Err(e) = result {
+				file_writer.borrow_mut().error = Some(e.to_string());
+			}
+
+			// no need to respond to the clent ... what is this, TCP?
+		}
+
+		WriteFileRequest::Close { sequence } => {
+
+			trace!(sequence, "Close");
+
+			// get the file writer
+			let Some(file_writer) = file_writers.borrow_mut()
+				.remove(&request_id)
+				.or_respond_error(&socket, request_id, |()| "No file open for writing".to_string())
+				.await
+				else { return };
+
+			// sometimes async tasks can get processesed out of sequence, so explicitly re-sequence here
+			FileWriter::resequence(&file_writer, sequence)
+				.await;
+
+			// we should have exclusive owneship over the writer now
+			let Some(mut file_writer) = Rc::into_inner(file_writer)
+				.map(|s| s.into_inner())
+				.or_respond_error(&socket, request_id, |()| "File write tasks not finished yet: this is a bug in UserProcessor".to_string())
+				.await
+				else { return };
+
+			// check for any errors during previous writes
+			match file_writer.error.take() {
+
+				Some(err) => {
+					let response = Response::Error { reason: err };
+					write_response(&socket, request_id, response)
+						.await
+						.ok();
+				}
+
+				None => {
+					// all is well, send the closed response
+					let response = Response::WriteFile(WriteFileResponse::Closed);
+					write_response(&socket, request_id, response)
+						.await
+						.ok();
+				}
+			}
+
+			// NOTE: dropping file_writer here will close the file
+		}
+	}
 }

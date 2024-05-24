@@ -14,6 +14,15 @@ fun DataInput.readU32(): UInt =
 	readInt().toUInt()
 
 
+fun DataOutput.writeU64(i: ULong) =
+	// NOTE: writeLong() is big-endian
+	writeLong(i.toLong())
+
+fun DataInput.readU64(): ULong =
+	// NOTE: readLong() is big-endian
+	readLong().toULong()
+
+
 fun DataOutput.writeBytes(b: ByteArray) {
 	writeU32(b.size.toUInt())
 	write(b)

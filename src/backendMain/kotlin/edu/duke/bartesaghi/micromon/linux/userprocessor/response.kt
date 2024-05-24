@@ -1,9 +1,6 @@
 package edu.duke.bartesaghi.micromon.linux.userprocessor
 
-import edu.duke.bartesaghi.micromon.linux.hostprocessor.readU32
-import edu.duke.bartesaghi.micromon.linux.hostprocessor.readUtf8
-import edu.duke.bartesaghi.micromon.linux.hostprocessor.writeU32
-import edu.duke.bartesaghi.micromon.linux.hostprocessor.writeUtf8
+import edu.duke.bartesaghi.micromon.linux.hostprocessor.*
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.DataInputStream
@@ -12,24 +9,120 @@ import java.io.DataOutputStream
 
 sealed interface Response {
 
-	class Error(val reason: String) : Response {
+	data class Error(val reason: String) : Response {
 		companion object {
 			const val ID: UInt = 1u
 		}
 	}
 
-	class Pong : Response {
-		companion object {
-			const val ID: UInt = 2u
-		}
+	object Pong : Response {
+		const val ID: UInt = 2u
 	}
 
-	class Uids(val uid: UInt, val euid: UInt) : Response {
+	data class Uids(val uid: UInt, val euid: UInt) : Response {
 		companion object {
 			const val ID: UInt = 3u
 		}
 	}
+
+	data class ReadFile(val response: Response) : Response {
+		companion object {
+			const val ID: UInt = 4u
+		}
+
+		sealed interface Response
+
+		data class Open(
+			val bytes: ULong
+		) : Response {
+			companion object {
+				const val ID: UInt = 1u
+			}
+		}
+
+		class Chunk(
+			val sequence: UInt,
+			val data: ByteArray
+		) : Response {
+			companion object {
+				const val ID: UInt = 2u
+			}
+
+			// override toString(), since the default impl doesn't write anything useful
+			override fun toString(): String =
+				"Chunk[sequence=$sequence, data=${data.size} bytes]"
+
+			// because arrays in the JVM are old and dumb =(
+			override fun equals(other: Any?): Boolean =
+				other is Chunk
+					&& other.sequence == this.sequence
+					&& other.data.contentEquals(this.data)
+
+			override fun hashCode(): Int {
+				var result = sequence.hashCode()
+				result = 31*result + data.contentHashCode()
+				return result
+			}
+		}
+
+		data class Close(
+			val sequence: UInt
+		) : Response {
+			companion object {
+				const val ID: UInt = 3u
+			}
+		}
+	}
+
+	data class WriteFile(val response: Response) : Response {
+		companion object {
+			const val ID: UInt = 5u
+		}
+
+		sealed interface Response
+
+		object Opened : Response {
+			const val ID: UInt = 1u
+		}
+
+		object Closed : Response {
+			const val ID: UInt = 2u
+		}
+	}
 }
+
+fun Response.ReadFile.Response.into(): Response =
+	Response.ReadFile(this)
+
+fun Response.WriteFile.Response.into(): Response =
+	Response.WriteFile(this)
+
+
+
+inline fun <reified T:Response> Response.cast(): T {
+	return when (this) {
+		is Response.Error -> throw ErrorResponseException(reason)
+		is T -> this // ok
+		else -> throw UnexpectedResponseException(toString())
+	}
+}
+
+inline fun <reified T:Response.ReadFile.Response> Response.ReadFile.Response.cast(): T {
+	return when (this) {
+		is T -> this // ok
+		else -> throw UnexpectedResponseException(toString())
+	}
+}
+
+inline fun <reified T:Response.WriteFile.Response> Response.WriteFile.Response.cast(): T {
+	return when (this) {
+		is T -> this // ok
+		else -> throw UnexpectedResponseException(toString())
+	}
+}
+
+class UnexpectedResponseException(val response: String) : RuntimeException("Unexpected response: $response")
+class ErrorResponseException(val reason: String) : RuntimeException("Server error: $reason")
 
 
 class ResponseEnvelope(
@@ -61,6 +154,42 @@ class ResponseEnvelope(
 				out.writeU32(response.uid)
 				out.writeU32(response.euid)
 			}
+
+			is Response.ReadFile -> {
+				out.writeU32(Response.ReadFile.ID)
+				when (val response = response.response) {
+
+					is Response.ReadFile.Open -> {
+						out.writeU32(Response.ReadFile.Open.ID)
+						out.writeU64(response.bytes)
+					}
+
+					is Response.ReadFile.Chunk -> {
+						out.writeU32(Response.ReadFile.Chunk.ID)
+						out.writeU32(response.sequence)
+						out.writeBytes(response.data)
+					}
+
+					is Response.ReadFile.Close -> {
+						out.writeU32(Response.ReadFile.Close.ID)
+						out.writeU32(response.sequence)
+					}
+				}
+			}
+
+			is Response.WriteFile -> {
+				out.writeU32(Response.WriteFile.ID)
+				when (response.response) {
+
+					is Response.WriteFile.Opened -> {
+						out.writeU32(Response.WriteFile.Opened.ID)
+					}
+
+					is Response.WriteFile.Closed -> {
+						out.writeU32(Response.WriteFile.Closed.ID)
+					}
+				}
+			}
 		}
 
 		return bos.toByteArray()
@@ -81,12 +210,40 @@ class ResponseEnvelope(
 					reason = input.readUtf8()
 				)
 
-				Response.Pong.ID -> Response.Pong()
+				Response.Pong.ID -> Response.Pong
 
 				Response.Uids.ID -> Response.Uids(
 					uid = input.readU32(),
 					euid = input.readU32()
 				)
+
+				Response.ReadFile.ID -> Response.ReadFile(run {
+					when (val readFileResponseTypeId = input.readU32()) {
+
+						Response.ReadFile.Open.ID -> Response.ReadFile.Open(
+							bytes = input.readU64()
+						)
+
+						Response.ReadFile.Chunk.ID -> Response.ReadFile.Chunk(
+							sequence = input.readU32(),
+							data = input.readBytes()
+						)
+
+						Response.ReadFile.Close.ID -> Response.ReadFile.Close(
+							sequence = input.readU32()
+						)
+
+						else -> throw NoSuchElementException("unrecognized read file response type id: $readFileResponseTypeId")
+					}
+				})
+
+				Response.WriteFile.ID -> Response.WriteFile(run {
+					when (val writeFileResponseTypeId = input.readU32()) {
+						Response.WriteFile.Opened.ID -> Response.WriteFile.Opened
+						Response.WriteFile.Closed.ID -> Response.WriteFile.Closed
+						else -> throw NoSuchElementException("unrecognized write file response type id: $writeFileResponseTypeId")
+					}
+				})
 
 				else -> throw NoSuchElementException("unrecognized response type: $responseTypeId")
 			}

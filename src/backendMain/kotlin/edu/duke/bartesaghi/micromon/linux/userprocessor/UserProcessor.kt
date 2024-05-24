@@ -19,6 +19,7 @@ import java.nio.channels.AsynchronousCloseException
 import java.nio.channels.SocketChannel
 import java.nio.file.Path
 import kotlin.io.path.div
+import kotlin.math.min
 
 
 class UserProcessorException(path: Path, reasons: List<String>) : RuntimeException("""
@@ -345,7 +346,7 @@ class UserProcessor(
 		suspend fun send(request: Request) =
 			requestChannel.send(RequestEnvelope(requestId, request))
 
-		suspend fun recvResponse(): Response =
+		suspend fun recv(): Response =
 			channel.receive()
 
 		override suspend fun closeAll() {
@@ -366,78 +367,118 @@ class UserProcessor(
 		return responder
 	}
 
-	private suspend inline fun <reified T:Response> Responder.recv(): T {
-		return when (val response = recvResponse()) {
-			is T -> response // ok
-			else -> throw UnexpectedResponseException(response)
-		}
-	}
-
 	suspend fun ping() =
-		request(Request.Ping())
+		request(Request.Ping)
 			.use { responder ->
-				responder.recv<Response.Pong>()
+				responder.recv().cast<Response.Pong>()
 			}
 
 	suspend fun uids(): Response.Uids =
-		request(Request.Uids())
+		request(Request.Uids)
 			.use {
-				it.recv<Response.Uids>()
+				it.recv().cast<Response.Uids>()
 			}
-
-	/* TODO: file transfers
 
 	suspend fun readFile(path: Path): ByteArray =
 		request(Request.ReadFile(path.toString()))
 			.use { responder ->
-				val buf = ByteArrayOutputStream()
-				while (true) {
-					when (val response = responder.recv<Response.ReadFile>()) {
-						is Response.ReadFile.Fail -> throw IOException(response.reason)
-						is Response.ReadFile.Chunk -> buf.write(response.chunk)
-						is Response.ReadFile.Eof -> break
+
+				// wait for the open
+				val open = responder.recv()
+					.cast<Response.ReadFile>()
+					.response
+					.cast<Response.ReadFile.Open>()
+
+				// allocate a buffer for the file
+				val buf = ByteArray(run {
+					val i = open.bytes.toInt()
+					if (i.toULong() != open.bytes) {
+						throw UnsupportedOperationException("file too large to read: ${open.bytes} bytes")
 					}
+					i
+				})
+
+				// make sure the chunks come in the correct sequence
+				// TODO: do we need to re-order?
+				var sequence = 1u
+				fun checkSequence(obs: UInt) {
+					if (obs != sequence) {
+						throw IllegalStateException("Expected sequence $sequence, but got $obs")
+					}
+					sequence += 1u
 				}
-				buf.toByteArray()
+
+				// read in all the chunks
+				var bytesRead = 0
+				while (bytesRead < buf.size) {
+					val chunk = responder.recv()
+						.cast<Response.ReadFile>()
+						.response
+						.cast<Response.ReadFile.Chunk>()
+					checkSequence(chunk.sequence)
+					chunk.data.copyInto(buf, bytesRead)
+					bytesRead += chunk.data.size
+				}
+
+				// wait for close
+				val close = responder.recv()
+					.cast<Response.ReadFile>()
+					.response
+					.cast<Response.ReadFile.Close>()
+				checkSequence(close.sequence)
+
+				buf
 			}
 
 	interface FileWriter : SuspendCloseable {
-		suspend fun write(buf: ByteArray)
+		/** writes a single chunk */
+		suspend fun write(chunk: ByteArray)
+		/** writes the whole buffer using efficiently-sized chunks */
+		suspend fun writeAll(buf: ByteArray)
 	}
 
-	suspend fun writeFile(path: Path): FileWriter {
-		val responder = request(Request.WriteFile.Open(path.toString()))
-		var nextWriteId = 1L
-		return when (val openResponse = responder.recv<Response.WriteFile>()) {
-			is Response.WriteFile.Fail -> throw IOException(openResponse.reason)
-			is Response.WriteFile.Ok -> object : FileWriter {
+	suspend fun writeFile(path: Path, append: Boolean = false): FileWriter {
 
-				override suspend fun write(buf: ByteArray) {
+		// open the file
+		val responder = request(Request.WriteFile.Open(path.toString(), append).into())
+		responder.recv()
+			.cast<Response.WriteFile>()
+			.response
+			.cast<Response.WriteFile.Opened>()
 
-					// send the buffer in 32 KiB chunks, since using larger chunks than that seems to be pretty slow
-					var start = 0
-					while (start < buf.size) {
-						val remaining = buf.size - start
-						val size = min(remaining, 32*1024) // 32 KiB
-						responder.send(Request.WriteFile.Chunk(nextWriteId, buf.copyOfRange(start, start + size)))
-						nextWriteId += 1
-						start += size
-					}
+		// send back a writer object
+		var sequence = 1u
+		return object : FileWriter {
+
+			override suspend fun write(chunk: ByteArray) {
+				responder.send(Request.WriteFile.Chunk(sequence, chunk).into())
+				sequence += 1u
+				// NOTE: no response expected here
+			}
+
+			override suspend fun writeAll(buf: ByteArray) {
+
+				// send the buffer in 32 KiB chunks, since using larger chunks than that seems to be pretty slow
+				var start = 0
+				while (start < buf.size) {
+					val remaining = buf.size - start
+					val size = min(remaining, 32*1024) // 32 KiB
+					write(buf.copyOfRange(start, start + size))
+					start += size
 				}
+			}
 
-				override suspend fun closeAll() {
-					responder.send(Request.WriteFile.Close(nextWriteId))
-					when (val closeResponse = responder.recv<Response.WriteFile>()) {
-						is Response.WriteFile.Fail -> throw IOException(closeResponse.reason)
-						is Response.WriteFile.Ok -> Unit // all is well
-					}
+			override suspend fun closeAll() {
+				try {
+					responder.send(Request.WriteFile.Close(sequence).into())
+					responder.recv()
+						.cast<Response.WriteFile>()
+						.response
+						.cast<Response.WriteFile.Closed>()
+				} finally {
 					responder.close()
 				}
 			}
 		}
 	}
-	*/
 }
-
-
-class UnexpectedResponseException(val response: Response) : RuntimeException("Unexpected response: $response")

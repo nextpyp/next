@@ -32,6 +32,7 @@ import java.util.concurrent.TimeUnit
 import kotlin.io.NoSuchFileException
 import kotlin.io.path.fileSize
 import kotlin.io.path.moveTo
+import kotlin.io.path.setPosixFilePermissions
 import kotlin.math.abs
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.nanoseconds
@@ -231,16 +232,20 @@ fun Path.readBytes() = toFile().readBytes()
 fun Path.writeString(str: String) = toFile().writeText(str)
 // TODO: make async read/write functions that run on IO thread pool?
 
-fun Path.makeExecutable() {
-	Files.setPosixFilePermissions(
-		this,
-		Files.getPosixFilePermissions(this).apply {
-			add(PosixFilePermission.OWNER_EXECUTE)
-			add(PosixFilePermission.GROUP_EXECUTE)
-			add(PosixFilePermission.OTHERS_EXECUTE)
-		}
-	)
+
+fun Path.editPermissions(editor: MutableSet<PosixFilePermission>.() -> Unit) {
+	val permissions = Files.getPosixFilePermissions(this)
+		.toMutableSet()
+	permissions.editor()
+	Files.setPosixFilePermissions(this, permissions)
 }
+
+fun Path.makeExecutable() =
+	editPermissions {
+		add(PosixFilePermission.OWNER_EXECUTE)
+		add(PosixFilePermission.GROUP_EXECUTE)
+		add(PosixFilePermission.OTHERS_EXECUTE)
+	}
 
 fun Path.ctime(): Instant? =
 	takeIf { exists() }

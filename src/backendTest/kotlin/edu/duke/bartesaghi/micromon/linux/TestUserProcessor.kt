@@ -2,14 +2,15 @@ package edu.duke.bartesaghi.micromon.linux
 
 import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.linux.hostprocessor.HostProcessor
-import edu.duke.bartesaghi.micromon.linux.userprocessor.UserProcessor
+import edu.duke.bartesaghi.micromon.linux.userprocessor.*
 import io.kotest.assertions.fail
 import io.kotest.core.annotation.EnabledIf
 import io.kotest.core.spec.style.DescribeSpec
 import io.kotest.matchers.shouldBe
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeoutOrNull
 import java.nio.file.Files
+import java.nio.file.attribute.PosixFilePermission
+import kotlin.io.path.writeBytes
 
 
 /**
@@ -18,11 +19,56 @@ import java.nio.file.Files
 @EnabledIf(RuntimeEnvironment.Website::class)
 class TestUserProcessor : DescribeSpec({
 
+	describe("protocol") {
+
+		it("request") {
+
+			fun roundtrip(request: Request) {
+				val src = RequestEnvelope(5u, request)
+				val dst = RequestEnvelope.decode(src.encode())
+				dst.requestId.shouldBe(src.requestId)
+				dst.request.shouldBe(src.request)
+			}
+
+			roundtrip(Request.Ping)
+
+			roundtrip(Request.Uids)
+
+			roundtrip(Request.ReadFile("path"))
+
+			roundtrip(Request.WriteFile.Open("path", true).into())
+			roundtrip(Request.WriteFile.Chunk(5u, byteArrayOf(1, 2, 3)).into())
+			roundtrip(Request.WriteFile.Close(42u).into())
+		}
+
+		it("response") {
+
+			fun roundtrip(response: Response) {
+				val src = ResponseEnvelope(5u, response)
+				val dst = ResponseEnvelope.decode(src.encode())
+				dst.requestId.shouldBe(src.requestId)
+				dst.response.shouldBe(src.response)
+			}
+
+			roundtrip(Response.Pong)
+
+			roundtrip(Response.Uids(5u, 42u))
+
+			roundtrip(Response.ReadFile.Open(5u).into())
+			roundtrip(Response.ReadFile.Chunk(5u, byteArrayOf(1, 2, 3)).into())
+			roundtrip(Response.ReadFile.Close(42u).into())
+
+			roundtrip(Response.WriteFile.Opened.into())
+			roundtrip(Response.WriteFile.Closed.into())
+		}
+	}
+
+
 	val username = "tester"
 
 	// NOTE: all this IPC stuff has a TON of potential for weird concurrency bugs!
 	//       so run all the tests a bunch of times and hope we find a bug
-	val testCount = 1 // TODO: 10
+	val testCount = 10
 
 	describe("user processor") {
 
@@ -40,15 +86,17 @@ class TestUserProcessor : DescribeSpec({
 			}
 		}
 
-		/* TODO: file transfers
-		
 		it("read file, small").config(invocations = testCount) {
-			withUserProcessor { _, client ->
+			withUserProcessor(username) { _, client ->
 				TempFile().use { file ->
 
 					// write a small file
 					val msg = "hello"
 					file.path.writeString(msg)
+					file.path.editPermissions {
+						add(PosixFilePermission.GROUP_READ)
+						add(PosixFilePermission.OTHERS_READ)
+					}
 
 					// read it
 					val buf = client.readFile(file.path)
@@ -58,7 +106,7 @@ class TestUserProcessor : DescribeSpec({
 		}
 
 		it("read file, large").config(invocations = testCount) {
-			withUserProcessor { _, client ->
+			withUserProcessor(username) { _, client ->
 				TempFile().use { file ->
 
 					// write a large file with structured, but non-trivial, content
@@ -67,6 +115,10 @@ class TestUserProcessor : DescribeSpec({
 						content[i] = i.toUByte().toByte()
 					}
 					file.path.writeBytes(content)
+					file.path.editPermissions {
+						add(PosixFilePermission.GROUP_READ)
+						add(PosixFilePermission.OTHERS_READ)
+					}
 
 					// read it
 					val buf = client.readFile(file.path)
@@ -76,8 +128,13 @@ class TestUserProcessor : DescribeSpec({
 		}
 
 		it("write file, small").config(invocations = testCount) {
-			withUserProcessor { _, client ->
+			withUserProcessor(username) { _, client ->
 				TempFile().use { file ->
+
+					file.path.editPermissions {
+						add(PosixFilePermission.GROUP_WRITE)
+						add(PosixFilePermission.OTHERS_WRITE)
+					}
 
 					// write a small file
 					val msg = "hello"
@@ -93,8 +150,13 @@ class TestUserProcessor : DescribeSpec({
 		}
 
 		it("write file, large").config(invocations = testCount) {
-			withUserProcessor { _, client ->
+			withUserProcessor(username) { _, client ->
 				TempFile().use { file ->
+
+					file.path.editPermissions {
+						add(PosixFilePermission.GROUP_WRITE)
+						add(PosixFilePermission.OTHERS_WRITE)
+					}
 
 					// write a large file with structured, but non-trivial, content
 					val content = ByteArray(16*1024*1024 - 16)
@@ -111,7 +173,6 @@ class TestUserProcessor : DescribeSpec({
 				}
 			}
 		}
-		*/
 	}
 })
 
