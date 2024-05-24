@@ -123,8 +123,10 @@ println("NextPYP version: $version")
 // figure out if we're building a development build or not, so we can optimize the task dependencies
 val isDevBuildTask = gradle.startParameter.taskNames.any { it in listOf(
 	"vmContainerRun",
+	"vmContainerStop",
 	"vmContainerRerun",
 	"containerRun",
+	"containerStop",
 	"containerRerun"
 ) }
 
