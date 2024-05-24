@@ -148,8 +148,7 @@ class Config(toml: String) {
 		val workflowDirs: List<Path>,
 		val demo: Boolean,
 		val maxProjectsPerUser: Int?,
-		val minPasswordLength: Int,
-		val runasDir: Path
+		val minPasswordLength: Int
 	) {
 
 		data class Filesystem(
@@ -260,10 +259,7 @@ class Config(toml: String) {
 				} ?: emptyList(),
 				demo = getBoolean("demo") ?: false,
 				maxProjectsPerUser = getInt("maxProjectsPerUser"),
-				minPasswordLength = getInt("minPasswordLength") ?: 12,
-				runasDir = getString("runasDir")
-					?.toPath()
-					?: (sharedDir / "runas")
+				minPasswordLength = getInt("minPasswordLength") ?: 12
 			)
 		}
 	}
@@ -321,8 +317,6 @@ class Config(toml: String) {
 			|   OOM heap dumps:  ${web.oomdump}
 			|    workflow dirs:  ${web.workflowDirs.joinToString("\n$indent")}
 			|        demo mode:  ${web.demo}
-			|        runas dir:  ${web.runasDir}
-			|
 		""".trimMargin())
 	}.toString()
 }

@@ -22,13 +22,14 @@ import kotlin.io.path.div
 import kotlin.math.min
 
 
-class UserProcessorException(path: Path, reasons: List<String>) : RuntimeException("""
+class UserProcessorException(val path: Path, val problems: List<String>) : RuntimeException("""
 		|Failed to use user-processor executable at: $path
-		|	${reasons.joinToString("\n\t")}
+		|	${problems.joinToString("\n\t")}
 	""".trimMargin())
 
 
 class UserProcessor(
+	val path: Path,
 	val username: String,
 	private val log: Logger,
 	private val subproc: HostProcessor.StreamingProcess,
@@ -131,12 +132,13 @@ class UserProcessor(
 			}
 
 			// start a user processor via the host processor
-			val subproc = slowIOs {
+			val (path, subproc) = slowIOs {
 
 				log.debug("Starting user processor")
+				val path = find(hostProcessor, username)
 				val subproc = hostProcessor.execStream(
 					Command(
-						find(hostProcessor, username).toString(),
+						path.toString(),
 						ArrayList<String>().apply {
 							if (tracingLog != null) {
 								addAll(listOf("--log", tracingLog))
@@ -173,7 +175,7 @@ class UserProcessor(
 					}
 				}
 
-				subproc
+				path to subproc
 			}
 
 			// NOTE: the subprocess has started now:
@@ -236,7 +238,7 @@ class UserProcessor(
 			}
 			log.debug("connected to server")
 
-			return UserProcessor(username, log, subproc, socket)
+			return UserProcessor(path, username, log, subproc, socket)
 		}
 
 		suspend fun HostProcessor.StreamingProcess.close(log: Logger) {

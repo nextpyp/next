@@ -10,8 +10,7 @@ import edu.duke.bartesaghi.micromon.auth.lookupName
 import edu.duke.bartesaghi.micromon.cluster.Cluster
 import edu.duke.bartesaghi.micromon.cluster.ClusterJob
 import edu.duke.bartesaghi.micromon.cluster.standalone.PseudoCluster
-import edu.duke.bartesaghi.micromon.linux.Command
-import edu.duke.bartesaghi.micromon.linux.Runas
+import edu.duke.bartesaghi.micromon.linux.userprocessor.UserProcessorException
 import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.projects.Project
 import edu.duke.bartesaghi.micromon.pyp.Pyp
@@ -354,38 +353,37 @@ actual class AdminService : IAdminService {
 		)
 	}
 
-	override suspend fun checkRunas(osUsername: String): RunasData = sanitizeExceptions {
+	override suspend fun checkUserProcessor(osUsername: String): UserProcessorCheck = sanitizeExceptions {
 
-		return when (val runas = Runas.find(osUsername, Backend.hostProcessor)) {
-
-			is Runas.Success -> RunasData(
-				runas.path.toString(),
-				true,
-				emptyList()
-			)
-
-			is Runas.Failure -> RunasData(
-				runas.path.toString(),
-				false,
-				runas.reasons
-			)
-
+		val userProcessor = try {
+			Backend.userProcessors.get(osUsername)
+		} catch (ex: UserProcessorException) {
+			return UserProcessorCheck.failure(ex.path.toString(), ex.problems)
 		}
-	}
-	
-	override suspend fun runasWhoami(osUsername: String): String = sanitizeExceptions {
 
-		val runas = (Runas.find(osUsername, Backend.hostProcessor) as? Runas.Success)
-			?: return "Runas not available for $osUsername"
-
-		val run = Backend.hostProcessor.execStream(runas.wrap(Command("whoami")))
-			.use { it.run() }
-
-		return if (run.exitCode == 0) {
-			run.console
-		} else {
-			"(whoami failed with exit code: ${run.exitCode})\n${run.console}"
+		val uids = try {
+			userProcessor.uids()
+		} catch (t: Throwable) {
+			return UserProcessorCheck.failure(userProcessor.path.toString(), listOf(
+				"Failed to query UIDs: ${t.message ?: "(no error message)"}"
+			))
 		}
+
+		// look up the username, very carefully
+		val username = try {
+			Backend.hostProcessor.username(uids.euid)
+		} catch (t: Throwable) {
+			return UserProcessorCheck.failure(userProcessor.path.toString(), listOf(
+				"Failed to lookup username from UID ${uids.euid}"
+			))
+		}
+		if (username == null) {
+			return UserProcessorCheck.failure(userProcessor.path.toString(), listOf(
+				"Effective user (UID=${uids.euid}) has no username"
+			))
+		}
+
+		return UserProcessorCheck.success(userProcessor.path.toString(), username)
 	}
 
 

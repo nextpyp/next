@@ -56,5 +56,5 @@ object Backend {
 	val scope = CoroutineScope(Dispatchers.Default)
 
 	val hostProcessor = HostProcessor()
-	val userSubprocesses = UserProcessors(hostProcessor)
+	val userProcessors = UserProcessors(hostProcessor)
 }

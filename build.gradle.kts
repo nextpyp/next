@@ -1365,21 +1365,6 @@ afterEvaluate {
 			}
 		}
 
-		create("vmBuildRunas") {
-			group = "build"
-			description = "Build the runas tool in the rustc container"
-			doLast {
-
-				val outDir = vmRustc(Paths.get("src/runas"))
-
-				// copy the executable into the run folder
-				copy {
-					from(outDir.resolve("runas"))
-					into(runDir)
-				}
-			}
-		}
-
 		create("generateBuildSources") {
 			group = "build"
 			description = "generates source files derived from build data"

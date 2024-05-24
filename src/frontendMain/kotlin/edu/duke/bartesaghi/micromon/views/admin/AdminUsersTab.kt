@@ -5,8 +5,8 @@ import edu.duke.bartesaghi.micromon.components.TabulatorProxy
 import edu.duke.bartesaghi.micromon.components.forms.copyToClipboard
 import edu.duke.bartesaghi.micromon.components.forms.enabled
 import edu.duke.bartesaghi.micromon.services.AdminInfo
-import edu.duke.bartesaghi.micromon.services.RunasData
 import edu.duke.bartesaghi.micromon.services.Services
+import edu.duke.bartesaghi.micromon.services.UserProcessorCheck
 import io.kvision.core.Container
 import io.kvision.core.onEvent
 import io.kvision.form.check.checkBox
@@ -454,17 +454,13 @@ class RunasInfo : Div(classes = setOf("runas-info")) {
 			update()
 		}
 
-	private var runas: RunasData? = null
+	private var check: UserProcessorCheck? = null
 	private var checking: String? = null
 	private var checkError: Throwable? = null
-	private var runningWhoami: String? = null
-	private var whoamiResult: String? = null
-	private var whoamiError: Throwable? = null
 
 	private val elem = Div(classes = setOf("main"))
 
 	private val checkButton = Button("Check", icon = "fas fa-user-cog")
-	private val whoamiButton = Button("Whoami")
 
 	init {
 
@@ -481,14 +477,6 @@ class RunasInfo : Div(classes = setOf("runas-info")) {
 			}
 		}
 
-		whoamiButton.onClick e@{
-			val username = username
-				?: return@e
-			AppScope.launch {
-				whoami(username)
-			}
-		}
-
 		update()
 	}
 
@@ -500,9 +488,7 @@ class RunasInfo : Div(classes = setOf("runas-info")) {
 		val checking = checking
 		val checkError = checkError
 		val username = username
-		val runas = runas
-		val runningWhoami = runningWhoami
-		val whoamiResult = whoamiResult
+		val check = check
 
 		checkButton.enabled = username != null
 
@@ -517,57 +503,41 @@ class RunasInfo : Div(classes = setOf("runas-info")) {
 
 		} else if (username != null) {
 
-			if (runas != null) {
+			if (check != null) {
 
 				elem.div {
 					iconStyled("far fa-file", classes = setOf("icon"))
-					span(runas.path)
+					span(check.path)
 				}
 
-				if (runas.ok) {
+				if (check.username != null) {
 
 					elem.div(classes = setOf("success-message")) {
 						iconStyled("fas fa-check", classes = setOf("icon"))
-						span("runas executable available")
+						span("user processor executable available")
 					}
 
-					if (runningWhoami != null) {
-						elem.loading("Running `whoami` as $username ...")
-					} else if (whoamiResult != null) {
-
-						// the whoami result will have some log spam from runas in it,
-						// so look at the last line for the whoami output
-						val whoamiUser = whoamiResult.lines()
-							.last { it.isNotBlank() }
-							.trim()
-						if (whoamiUser == username) {
-							elem.div(classes = setOf("success-message")) {
-								iconStyled("fas fa-check", classes = setOf("icon"))
-								span("Success: $whoamiUser")
-							}
-						} else {
-							elem.div(classes = setOf("error-message")) {
-								iconStyled("fas fa-exclamation-triangle", classes = setOf("icon"))
-								span("Failure: whoami=\"$whoamiUser\", expected=\"$username\"")
-								div {
-									tag(TAG.PRE, whoamiResult)
-								}
-							}
+					if (check.username == username) {
+						elem.div(classes = setOf("success-message")) {
+							iconStyled("fas fa-check", classes = setOf("icon"))
+							span("Success: whoami=\"${check.username}\"")
 						}
 					} else {
-						elem.add(whoamiButton)
-						elem.span(" Test runas with `whoami`", classes = setOf("empty"))
+						elem.div(classes = setOf("error-message")) {
+							iconStyled("fas fa-exclamation-triangle", classes = setOf("icon"))
+							span("Failure: whoami=\"${check.username}\", expected=\"$username\"")
+						}
 					}
 
-				} else {
+				} else if (check.problems != null) {
 
 					elem.div(classes = setOf("error-message")) {
 						div {
 							iconStyled("fas fa-exclamation-triangle", classes = setOf("icon"))
-							span("runas executable not available:")
+							span("host processor executable not available:")
 						}
 						ul {
-							for (problem in runas.problems) {
+							for (problem in check.problems) {
 								li {
 									span(problem)
 								}
@@ -577,7 +547,7 @@ class RunasInfo : Div(classes = setOf("runas-info")) {
 				}
 
 			} else {
-				elem.span("Ready to check runas executable", classes = setOf("empty"))
+				elem.span("Ready to check user processor executable", classes = setOf("empty"))
 			}
 
 		} else {
@@ -589,35 +559,15 @@ class RunasInfo : Div(classes = setOf("runas-info")) {
 
 		checking = username
 		checkError = null
-		runas = null
-		whoamiError = null
-		whoamiResult = null
+		check = null
 		update()
 
 		try {
-			runas = Services.admin.checkRunas(username)
+			check = Services.admin.checkUserProcessor(username)
 		} catch (t: Throwable) {
 			checkError = t
 		} finally {
 			checking = null
-		}
-
-		update()
-	}
-
-	suspend fun whoami(username: String) {
-
-		runningWhoami = username
-		whoamiError = null
-		whoamiResult = null
-		update()
-
-		try {
-			whoamiResult = Services.admin.runasWhoami(username)
-		} catch (t: Throwable) {
-			whoamiError = t
-		} finally {
-			runningWhoami = null
 		}
 
 		update()

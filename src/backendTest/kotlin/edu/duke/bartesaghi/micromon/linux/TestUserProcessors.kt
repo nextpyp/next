@@ -2,6 +2,7 @@ package edu.duke.bartesaghi.micromon.linux
 
 import edu.duke.bartesaghi.micromon.RuntimeEnvironment
 import edu.duke.bartesaghi.micromon.linux.hostprocessor.HostProcessor
+import edu.duke.bartesaghi.micromon.linux.userprocessor.UserProcessorException
 import edu.duke.bartesaghi.micromon.linux.userprocessor.UserProcessors
 import edu.duke.bartesaghi.micromon.use
 import io.kotest.assertions.fail
@@ -20,11 +21,11 @@ class TestUserProcessors : DescribeSpec({
 
 	val username = "tester"
 
-	describe("user subprocesses") {
+	describe("user processors") {
 
-		it("no runas") {
+		it("no exec") {
 			withSubprocesses { _, subprocesses ->
-				shouldThrow<RunasException> {
+				shouldThrow<UserProcessorException> {
 					subprocesses.get("not configured for runas") // probably
 				}
 			}
@@ -35,7 +36,6 @@ class TestUserProcessors : DescribeSpec({
 				val uids = subprocesses
 					.get(username)
 					.uids()
-				println("uids: $uids") // TEMP
 				hostProcessor.username(uids.uid).shouldBe(System.getProperty("user.name"))
 				hostProcessor.username(uids.euid).shouldBe(username)
 			}

@@ -58,11 +58,8 @@ interface IAdminService {
 	@KVBindingRoute("admin/perf")
 	suspend fun perf(): PerfData
 
-	@KVBindingRoute("admin/runas/check")
-	suspend fun checkRunas(osUsername: String): RunasData
-
-	@KVBindingRoute("admin/runas/whoami")
-	suspend fun runasWhoami(osUsername: String): String
+	@KVBindingRoute("admin/userProcessor/check")
+	suspend fun checkUserProcessor(osUsername: String): UserProcessorCheck
 }
 
 
@@ -263,9 +260,19 @@ data class PerfData(
 
 
 @Serializable
-data class RunasData(
+data class UserProcessorCheck(
 	/** in the real filesystem, ie, outside the container */
 	val path: String,
-	val ok: Boolean,
-	val problems: List<String>
-)
+	val username: String?,
+	val problems: List<String>?
+) {
+
+	companion object {
+
+		fun failure(path: String, problems: List<String>) =
+			UserProcessorCheck(path, null, problems)
+
+		fun success(path: String, username: String) =
+			UserProcessorCheck(path, username, null)
+	}
+}
