@@ -59,8 +59,15 @@ fn main() -> ExitCode {
 }
 
 
-#[tracing::instrument(skip_all, level = 5, name = "UserProcessor")]
+#[tracing::instrument(skip_all, level = 5, name = "UserProcessor", fields(u))]
 fn run(args: Args) -> Result<()> {
+
+	// get the effective username, for the log
+	let uid_effective = users::get_effective_uid();
+	let username_effective = users::get_user_by_uid(uid_effective)
+		.map(|user| user.name().to_string_lossy().to_string())
+		.unwrap_or("(unknown)".to_string());
+	tracing::Span::current().record("u", &username_effective);
 
 	if !args.quiet {
 
@@ -77,11 +84,7 @@ fn run(args: Args) -> Result<()> {
 
 		// show the current user
 		let uid_current = users::get_current_uid();
-		let uid_effective = users::get_effective_uid();
 		let username_current = users::get_user_by_uid(uid_current)
-			.map(|user| user.name().to_string_lossy().to_string())
-			.unwrap_or("(unknown)".to_string());
-		let username_effective = users::get_user_by_uid(uid_effective)
 			.map(|user| user.name().to_string_lossy().to_string())
 			.unwrap_or("(unknown)".to_string());
 		if uid_current == uid_effective {

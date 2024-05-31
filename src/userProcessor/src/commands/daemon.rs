@@ -3,9 +3,9 @@ use std::fs;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ffi::OsString;
-use std::fs::{File, OpenOptions};
+use std::fs::{File, OpenOptions, Permissions};
 use std::io::{Read, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::time::Duration;
 use std::os::unix::fs::PermissionsExt;
@@ -21,19 +21,22 @@ use tracing::{debug, error_span, info, Instrument, trace, warn};
 
 use crate::framing::{AsyncReadFramed, AsyncWriteFramed};
 use crate::logging::ResultExt;
-use crate::proto::{ReadFileResponse, Request, RequestEnvelope, Response, ResponseEnvelope, WriteFileRequest, WriteFileResponse};
+use crate::proto::{ChmodRequest, ReadFileResponse, Request, RequestEnvelope, Response, ResponseEnvelope, WriteFileRequest, WriteFileResponse};
 
 
 #[derive(Options)]
 pub struct Args {
-	// nothing needed here, but the struct itself is still required by gumdrop
+
+	/// Path to the socket folder
+	#[options(free)]
+	socket_dir: Option<String>
 }
 
 
-pub fn run(quiet: bool, _args: Args) -> Result<()> {
+pub fn run(quiet: bool, args: Args) -> Result<()> {
 
 	if !quiet {
-		// print the cwd, so we can tell if we're in the correct socket folder or not
+		// print the cwd, so we can tell if we're in the correct folder or not
 		match Path::new(".").canonicalize() {
 			Ok(cwd) => info!("Started in folder: {}", cwd.to_string_lossy()),
 			Err(e) => warn!("Failed to get cwd: {}", e)
@@ -50,6 +53,12 @@ pub fn run(quiet: bool, _args: Args) -> Result<()> {
 	let mut socket_filename = OsString::from(format!("user-processor-{}-", std::process::id()));
 	socket_filename.push(user.name());
 
+	// build the full socket path based on the given socket dir, if any
+	let socket_path = match args.socket_dir {
+		Some(socket_dir) => PathBuf::from(socket_dir),
+		None => PathBuf::new()
+	}.join(socket_filename);
+
 	// start a single-threaded tokio runtime
 	let result = tokio::runtime::Builder::new_current_thread()
 		.enable_io()
@@ -59,7 +68,7 @@ pub fn run(quiet: bool, _args: Args) -> Result<()> {
 		.log_err();
 	if let Ok(runtime) = result {
 
-		let socket_filename = socket_filename.clone();
+		let socket_path = socket_path.clone();
 
 		debug!("Async runtime started");
 
@@ -71,15 +80,15 @@ pub fn run(quiet: bool, _args: Args) -> Result<()> {
 					// start listening on the socket
 					// NOTE: create the socket in the current folder
 					//       the website should have already started this process in the correct socket folder for user processors
-					let socket = UnixListener::bind(&socket_filename)
-						.context(format!("Failed to open unix socket at: {}", socket_filename.to_string_lossy()))?;
-					info!("Opened socket: {}", socket_filename.to_string_lossy());
+					let socket = UnixListener::bind(&socket_path)
+						.context(format!("Failed to open unix socket at: {}", socket_path.to_string_lossy()))?;
+					info!("Opened socket: {}", socket_path.to_string_lossy());
 
 					// WARNING: Now that we're listening on the socket, don't exit this function without cleaning it up.
 					//          That means no ? operator or any other kind of early returns until cleanup.
 
 					// explicitly set the socket as group readable/writable so the website can use it
-					let mut result = fs::set_permissions(&socket_filename, fs::Permissions::from_mode(0o770))
+					let mut result = fs::set_permissions(&socket_path, fs::Permissions::from_mode(0o770))
 						.context("Failed to set file permisisons on socket");
 					if let Ok(_) = result {
 
@@ -89,9 +98,9 @@ pub fn run(quiet: bool, _args: Args) -> Result<()> {
 					};
 
 					// try to cleanup the socket file
-					info!("Removing socket file: {}", socket_filename.to_string_lossy());
-					fs::remove_file(&socket_filename)
-						.context(format!("Failed to remove socket file: {}", socket_filename.to_string_lossy()))
+					info!("Removing socket file: {}", socket_path.to_string_lossy());
+					fs::remove_file(&socket_path)
+						.context(format!("Failed to remove socket file: {}", socket_path.to_string_lossy()))
 						.warn_err()
 						.ok();
 
@@ -246,6 +255,14 @@ async fn drive_connection(socket: UnixStream) {
 
 					Request::WriteFile(file_write_request) =>
 						dispatch_write_file(socket_write, request.id, file_writers.clone(), file_write_request)
+							.await,
+
+					Request::Chmod(chmod_request) =>
+						dispatch_chmod(socket_write, request.id, chmod_request)
+							.await,
+
+					Request::DeleteFile { path } =>
+						dispatch_delete_file(socket_write, request.id, path)
 							.await
 				}
 
@@ -469,7 +486,7 @@ async fn dispatch_write_file(
 				.write(true)
 				.append(append)
 				.open(&path)
-				.or_respond_error(&socket, request_id, |e| format!("Failed to open file {}: {}", path, e))
+				.or_respond_error(&socket, request_id, |e| format!("Failed to create file for writing {}: {}", path, e))
 				.await
 				else { return };
 
@@ -562,4 +579,54 @@ async fn dispatch_write_file(
 			// NOTE: dropping file_writer here will close the file
 		}
 	}
+}
+
+
+#[tracing::instrument(skip_all, level = 5, name = "Chmod")]
+async fn dispatch_chmod(socket: Rc<RefCell<OwnedWriteHalf>>, request_id: u32, request: ChmodRequest) {
+
+	trace!(path = request.path, ops = request.ops_to_string(), "Request");
+
+	let Some(meta) = fs::metadata(&request.path)
+		.or_respond_error(&socket, request_id, |e| format!("Failed to read file permissions: {}", e))
+		.await
+		else { return };
+	let mut mode = meta.permissions().mode();
+
+	// change perms via the POSIX mode
+	for op in request.ops {
+		for bit in op.bits {
+			let pos = bit.pos();
+			match op.value {
+				false => mode &= !(1 << pos),
+				true => mode |= 1 << pos
+			}
+		}
+	}
+
+	let Some(()) = fs::set_permissions(&request.path, Permissions::from_mode(mode))
+		.or_respond_error(&socket, request_id, |e| format!("Failed to write file permissions: {}", e))
+		.await
+		else { return };
+
+	write_response(&socket, request_id, Response::Chmod)
+		.await
+		.ok();
+}
+
+
+
+#[tracing::instrument(skip_all, level = 5, name = "DeleteFile")]
+async fn dispatch_delete_file(socket: Rc<RefCell<OwnedWriteHalf>>, request_id: u32, path: String) {
+
+	trace!(path, "Request");
+
+	let Some(()) = fs::remove_file(&path)
+		.or_respond_error(&socket, request_id, |e| format!("Failed to delete file: {}", e))
+		.await
+		else { return };
+
+	write_response(&socket, request_id, Response::DeleteFile)
+		.await
+		.ok();
 }

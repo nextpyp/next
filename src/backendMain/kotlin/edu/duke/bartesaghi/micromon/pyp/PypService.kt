@@ -10,6 +10,7 @@ import edu.duke.bartesaghi.micromon.cluster.CommandsGrid
 import edu.duke.bartesaghi.micromon.cluster.CommandsScript
 import edu.duke.bartesaghi.micromon.files.*
 import edu.duke.bartesaghi.micromon.jobs.*
+import edu.duke.bartesaghi.micromon.linux.EnvVar
 import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.services.*
 import edu.duke.bartesaghi.micromon.sessions.Session
@@ -133,7 +134,7 @@ object PypService {
 			env = params.getArrayOrThrow("env").let { vars ->
 				vars.indices().map { i ->
 					val (name, value) = vars.getStringsOrThrow(i, "env[$i]")
-					ClusterJob.EnvVar(name, value)
+					EnvVar(name, value)
 				}
 			},
 			args = params.getStrings("args") ?: emptyList(),

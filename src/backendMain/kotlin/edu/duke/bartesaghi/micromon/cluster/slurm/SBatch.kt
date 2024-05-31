@@ -4,7 +4,9 @@ import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.cluster.Cluster
 import edu.duke.bartesaghi.micromon.cluster.ClusterJob
 import edu.duke.bartesaghi.micromon.cluster.Commands
-import edu.duke.bartesaghi.micromon.mongo.Database
+import edu.duke.bartesaghi.micromon.linux.Command
+import edu.duke.bartesaghi.micromon.linux.userprocessor.deleteAs
+import edu.duke.bartesaghi.micromon.linux.userprocessor.readStringAs
 import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.ClusterJobResultType
 import edu.duke.bartesaghi.micromon.services.ClusterMode
@@ -73,59 +75,19 @@ class SBatch(val config: Config.Slurm) : Cluster {
 		// sbatch will validate the dependency ids, so we don't have to do it here
 	}
 
-	override suspend fun makeFoldersAndWriteFiles(folders: List<Path>, files: List<Cluster.FileInfo>) {
-
-		// short circuit, just in case
-		if (folders.isEmpty() && files.isEmpty()) {
-			return
-		}
-
-		sshPool.connection {
-
-			// make folders
-			for (path in folders) {
-				mkdirs(path)
-			}
-
-			// upload files
-			sftp {
-				for (file in files) {
-					uploadText(file.path, file.text)
-				}
-			}
-
-			// set executable
-			for (file in files) {
-				if (file.executable) {
-					makeExecutable(file.path)
-				}
-			}
-		}
-	}
-
-	override suspend fun launch(clusterJob: ClusterJob, depIds: List<String>, scriptPath: Path): ClusterJob.LaunchResult? {
+	override suspend fun launch(clusterJob: ClusterJob, username: String?, depIds: List<String>, scriptPath: Path): ClusterJob.LaunchResult? {
 
 		// build the sbatch command and add any args
-		// NOTE: this command is parsed by a shell on the SSH server, so be careful about arugment quoting and injection attacks!
-		val cmd = ArrayList<String>()
-		for (envvar in clusterJob.env) {
-			cmd.add("export ${envvar.name}=${envvar.value};")
-		}
-		cmd.addAll(listOf(
-			config.cmdSbatch,
-			"--output=\"${clusterJob.outPathMask()}\""
-		))
+		// NOTE: argument sanitization is handled by Command.toSafeShellString(), so we don't need to double-sanitize each argument here
+		var sbatch = Command(config.cmdSbatch)
 
-		// WARNING: we're just copying raw command-line args verbatim from pyp's input into our shell commands!
-		// There's not really any way we can sanitize them here without knowing anything about them, so we
-		// have to just trust that pyp isn't sending us injection attacks.
-		cmd.addAll(clusterJob.args
-			// empty args break sbatch somehow, so filter them out
-			.filter { it.isNotEmpty() }
-		)
+		sbatch.args.add("--output=${clusterJob.outPathMask()}")
+
+		// add all the arguments from the job submission
+		sbatch.args.addAll(clusterJob.args)
 
 		if (depIds.isNotEmpty()) {
-			cmd.add("--dependency=afterany:${depIds.joinToString(",")}")
+			sbatch.args.add("--dependency=afterany:${depIds.joinToString(",")}")
 		}
 
 		// use the default cpu queue, if none was specified in the args
@@ -136,7 +98,7 @@ class SBatch(val config: Config.Slurm) : Cluster {
 		if (partition == null) {
 			// that is, if any default queue exists
 			config.queues.firstOrNull()
-				?.let { cmd.add("--partition=\"${it.sanitizeQuotedArg()}\"") }
+				?.let { sbatch.args.add("--partition=$it") }
 		}
 
 		// render the array arguments
@@ -144,29 +106,27 @@ class SBatch(val config: Config.Slurm) : Cluster {
 			val bundleInfo = clusterJob.commands.bundleSize
 				?.let { "%$it" }
 				?: ""
-			cmd.add("--array=1-$arraySize$bundleInfo")
+			sbatch.args.add("--array=1-$arraySize$bundleInfo")
 		}
 
 		// set the job name, if any
 		clusterJob.clusterName?.let {
-			cmd.add("--job-name=\"${it.sanitizeQuotedArg()}\"")
+			sbatch.args.add("--job-name=$it")
 		}
 
-		cmd.add("\"$scriptPath\"")
+		sbatch.args.add("$scriptPath")
 
 		// run the job as the specified OS user, if needed
-		if (clusterJob.userId != null) {
-			val user = Database.users.getUser(clusterJob.userId)
-			if (user?.osUsername != null) {
-				val userProcessor = Backend.userProcessors.get(user.osUsername)
-
-				// prepend the `sbatch` command with a `user-processor run` command
-				cmd.addAll(0, listOf(userProcessor.path.toString(), "run", "/tmp"))
-			}
+		if (username != null) {
+			sbatch = Backend.userProcessors.get(username).wrap(sbatch)
 		}
 
-		// finalize the command
-		val command = cmd.joinToString(" ")
+		// add environment vars from the job submission
+		sbatch.envvars.addAll(clusterJob.env)
+
+		// render the command into something suitable for a remote shell,
+		// ie, with proper argument quoting to avoid injection attacks
+		val sbatchCmd = sbatch.toShellSafeString()
 
 		// call sbatch on the SLURM host and wait for the job to submit
 		val result = sshPool
@@ -178,7 +138,7 @@ class SBatch(val config: Config.Slurm) : Cluster {
 					null
 				} else {
 					// submit the command to the login node
-					exec(command)
+					exec(sbatchCmd)
 				}
 			}
 			?: return null
@@ -190,12 +150,12 @@ class SBatch(val config: Config.Slurm) : Cluster {
 			?.split(" ")
 			?.last()
 			?.toLongOrNull()
-			?: throw ClusterJob.LaunchFailedException("unable to read job id from sbatch output", result.console, command)
+			?: throw ClusterJob.LaunchFailedException("unable to read job id from sbatch output", result.console, sbatchCmd)
 
 		return ClusterJob.LaunchResult(
 			sbatchId,
 			result.console.joinToString("\n"),
-			command
+			sbatchCmd
 		)
 	}
 
@@ -224,20 +184,17 @@ class SBatch(val config: Config.Slurm) : Cluster {
 		}
 	}
 
-	override suspend fun jobResult(clusterJob: ClusterJob, arrayIndex: Int?): ClusterJob.Result {
+	override suspend fun jobResult(clusterJob: ClusterJob, username: String?, arrayIndex: Int?): ClusterJob.Result {
 
 		// read the job output and cleanup the log file
 		val outPath = clusterJob.outPath(arrayIndex)
 		val out: String? = try {
-			sshPool.connection {
-				sftp {
-					val out = downloadText(outPath)
-					delete(outPath)
-					out
-				}
-			}
-		} catch (ex: NoRemoteFileException) {
-			// the remote log didn't exist... probably the process just didn't write to stdout or stderr?
+			val out = outPath.readStringAs(username)
+			outPath.deleteAs(username)
+			out
+		} catch (t: Throwable) {
+			Backend.log.warn("Failed to retrieve cluster job output log file from: $outPath", t)
+			// maybe it doesn't exist? probably the process just didn't write to stdout or stderr?
 			// or maybe there's some kind of network delay and we just can't see the log file yet?
 			// TODO: wait a bit and try to download the log file again?
 			null
@@ -263,26 +220,6 @@ class SBatch(val config: Config.Slurm) : Cluster {
 			ClusterJob.Result(ClusterJobResultType.Success, out)
 		}
 	}
-
-	override suspend fun deleteFiles(files: List<Path>) {
-
-		// short circuit, just in case
-		if (files.isEmpty()) {
-			return
-		}
-
-		sshPool.connection {
-			sftp {
-				for (path in files) {
-					try {
-						delete(path)
-					} catch (ex: NoRemoteFileException) {
-						// delete failed, oh well I guess
-					}
-				}
-			}
-		}
-	}
 }
 
 
@@ -290,8 +227,9 @@ fun ArgValues.toSbatchArgs(): List<String> =
 	ArrayList<String>().apply {
 		add("--cpus-per-task=$slurmLaunchCpus")
 		add("--mem=${slurmLaunchMemory}G")
-		add("--time=\"${slurmLaunchWalltime.sanitizeQuotedArg()}\"") // user-defined string, needs sanitization!!
-		slurmLaunchQueue?.let { add("--partition=\"${it.sanitizeQuotedArg()}\"") } // defined by administrators, but could potentially be overridden by users, needs sanitization!
-		slurmLaunchAccount?.let { add("--account=\"${it.sanitizeQuotedArg()}\"") } // user-defined string, needs sanitization!!
-		slurmLaunchGres?.let { add("--gres=\"${it.sanitizeQuotedArg()}\"") } // user-defined string, needs sanitization!!
+		add("--time=$slurmLaunchWalltime")
+		slurmLaunchQueue?.let { add("--partition=$it") }
+		slurmLaunchAccount?.let { add("--account=$it") }
+		slurmLaunchGres?.let { add("--gres=$it") }
 	}
+	// NOTE: argument sanitization is handled by the job submitter, so we don't need to double-sanitize each argument here

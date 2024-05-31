@@ -6,19 +6,20 @@ import edu.duke.bartesaghi.micromon.cluster.ClusterJob
 import edu.duke.bartesaghi.micromon.cluster.Commands
 import edu.duke.bartesaghi.micromon.cluster.slurm.Gres
 import edu.duke.bartesaghi.micromon.linux.Command
+import edu.duke.bartesaghi.micromon.linux.EnvVar
 import edu.duke.bartesaghi.micromon.linux.hostprocessor.HostProcessor
+import edu.duke.bartesaghi.micromon.linux.userprocessor.deleteAs
+import edu.duke.bartesaghi.micromon.linux.userprocessor.readStringAs
 import edu.duke.bartesaghi.micromon.services.ClusterJobResultType
 import edu.duke.bartesaghi.micromon.services.ClusterMode
 import edu.duke.bartesaghi.micromon.services.ClusterQueues
 import edu.duke.bartesaghi.micromon.services.StandaloneData
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import java.io.IOException
 import java.nio.file.Path
 import java.time.Instant
 import java.util.*
 import kotlin.collections.HashMap
-import kotlin.io.path.isRegularFile
 import kotlin.math.absoluteValue
 import kotlin.random.Random
 
@@ -33,6 +34,7 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 	private inner class Job(
 		val jobId: Long,
 		val clusterJob: ClusterJob,
+		val username: String?,
 		val depIds: List<String>,
 		val scriptPath: Path
 	) {
@@ -215,39 +217,39 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 
 				started = true
 
-				val commands = ArrayList<String>()
+				// make a command to run the shell script
+				var cmd = Command("/bin/sh", scriptPath.toString())
 
 				// emulate the SLURM environment variables
 				// they're used in a ton of places in pyp
-				commands.add("SLURM_SUBMIT_DIR=${clusterJob.dir}")
-				commands.add("SLURM_JOB_ID=${job.jobId}")
+				cmd.envvars.add(EnvVar("SLURM_SUBMIT_DIR", "$clusterJob"))
+				cmd.envvars.add(EnvVar("SLURM_JOB_ID", "${job.jobId}"))
 				if (arrayId != null) {
-					commands.add("SLURM_ARRAY_JOB_ID=${job.jobId}")
-					commands.add("SLURM_ARRAY_TASK_ID=$arrayId")
+					cmd.envvars.add(EnvVar("SLURM_ARRAY_JOB_ID", "${job.jobId}"))
+					cmd.envvars.add(EnvVar("SLURM_ARRAY_TASK_ID", "$arrayId"))
 				}
 				if (numCpus != null) {
-					commands.add("SLURM_CPUS_PER_TASK=$numCpus")
+					cmd.envvars.add(EnvVar("SLURM_CPUS_PER_TASK", "$numCpus"))
 				}
 				if (memGiB != null) {
-					commands.add("SBATCH_MEM_PER_NODE=${memGiB}G")
+					cmd.envvars.add(EnvVar("SBATCH_MEM_PER_NODE", "${memGiB}G"))
 				}
 				if (numGpus != null) {
-					commands.add("SBATCH_GRES=gpu:$numGpus")
+					cmd.envvars.add(EnvVar("SBATCH_GRES", "gpu:$numGpus"))
 
 					// also restrict the Cuda devices
 					// https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#env-vars
-					commands.add("CUDA_VISIBLE_DEVICES=${reservedGpus.joinToString(",")}")
+					cmd.envvars.add(EnvVar("CUDA_VISIBLE_DEVICES", reservedGpus.joinToString(",")))
 				}
 
 				// add the job environment variables
-				for (envvar in clusterJob.env) {
-					commands.add("${envvar.name}=${envvar.value}")
+				cmd.envvars.addAll(clusterJob.env)
+
+				job.username?.let { username ->
+					cmd = Backend.userProcessors.get(username).wrap(cmd)
 				}
 
-				// add the path to the script
-				commands.add(scriptPath.toString())
-
-				process = Backend.hostProcessor.exec(Command("/bin/sh", commands), outPath)
+				process = Backend.hostProcessor.exec(cmd, outPath)
 			}
 		}
 	}
@@ -492,30 +494,16 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 		}
 	}
 
-	override suspend fun makeFoldersAndWriteFiles(folders: List<Path>, files: List<Cluster.FileInfo>) {
-
-		// just write to the local filesystem
-		for (folder in folders) {
-			folder.createDirsIfNeeded()
-		}
-
-		for (file in files) {
-			file.path.writeString(file.text)
-			if (file.executable) {
-				file.path.makeExecutable()
-			}
-		}
-	}
-
 	override suspend fun launch(
 		clusterJob: ClusterJob,
+		username: String?,
 		depIds: List<String>,
 		scriptPath: Path
 	): ClusterJob.LaunchResult {
 
 		// create the job, and start it, if possible
 		val job = jobs.use { jobs ->
-			val job = Job(jobs.nextId(), clusterJob, depIds, scriptPath)
+			val job = Job(jobs.nextId(), clusterJob, username, depIds, scriptPath)
 			jobs.add(job)
 			jobs.maybeStartTasks()
 			return@use job
@@ -573,13 +561,18 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 		this.jobs.use { it.maybeStartTasks() }
 	}
 
-	override suspend fun jobResult(clusterJob: ClusterJob, arrayIndex: Int?): ClusterJob.Result {
+	override suspend fun jobResult(clusterJob: ClusterJob, username: String?, arrayIndex: Int?): ClusterJob.Result {
 
 		// try to read the output file and delete it
 		val outPath = clusterJob.outPath(arrayIndex)
-		val out = outPath
-			.takeIf { it.isRegularFile() }
-			?.let { path -> path.readString().also { path.delete() } }
+		val out: String? = try {
+			val out = outPath.readStringAs(username)
+			outPath.deleteAs(username)
+			out
+		} catch (t: Throwable) {
+			Backend.log.warn("Failed to retrieve cluster job output log file from: $outPath", t)
+			null
+		}
 
 		// find the job and task, if possible
 		val job = clusterJob.findJob()
@@ -601,19 +594,6 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 			false -> ClusterJobResultType.Success
 		}
 		return ClusterJob.Result(result, out)
-	}
-
-	override suspend fun deleteFiles(files: List<Path>) {
-
-		// just use the local filesystem
-		for (file in files) {
-			try {
-				file.delete()
-			} catch (ex: IOException) {
-				// easily recoverable error, just log it and move on to the next file
-				Backend.log.warn("failed to delete file: $file", ex)
-			}
-		}
 	}
 
 	suspend fun state(): StandaloneData =

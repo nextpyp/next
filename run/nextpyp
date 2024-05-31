@@ -160,7 +160,7 @@ localdir=$("${cli[@]}" localdir)
 shareddir=$("${cli[@]}" shareddir)
 
 hpsocketdir="$localdir/host-processor"
-upsocketdir="$localdir/user-processors"
+upsocketdir="$shareddir/user-processors/sockets"
 
 
 # process the command
@@ -168,28 +168,34 @@ case "$1" in
 
   start)
 
-    # make the directories if needed
+    # make sure the base directories exist
     if [ ! -d "$localdir" ] ; then
-      echo "Creating local directory at: $localdir"
-      mkdir -p "$localdir"
+      echo "Local dir does not exist, but it should have been created during installation"
+      exit 1
     fi
-
-    logsdir="$localdir/logs"
-    if [ ! -d "$logsdir" ] ; then
-      echo "Creating logs directory at: $logsdir"
-      mkdir -p "$logsdir"
-    fi
-
-    dbdir="$localdir/db"
-    if [ ! -d "$dbdir" ] ; then
-      echo "Creating database directory at: $dbdir"
-      mkdir -p "$dbdir"
-    fi
-
     if [ ! -d "$shareddir" ] ; then
-      echo "Creating shared directory at: $shareddir"
-      mkdir -p "$shareddir"
+      echo "Shared dir does not exist, but it should have been created during installation"
+      exit 1
     fi
+
+    # the shared folder needs to have other-exec permissions all the way up to /
+    pushd "$shareddir" > /dev/null
+    while true; do
+      otherperms=$(stat --format=%A . | cut -c 10)
+      groupperms=$(stat --format=%A . | cut -c 7)
+      #echo "Check shared perms: $(pwd) => $perms"
+      if [ "$otherperms" == '-' ] || [ "$groupperms" == '-' ]; then
+        echo "Folder $(pwd) (and all parents of the shared folder) must have group and other execute permissions"
+        popd > /dev/null
+        namei -l "$shareddir"
+        exit 1
+      fi
+      cd ..
+      if [ "$(pwd)" == "/" ]; then
+        break
+      fi
+    done
+    popd > /dev/null
 
     # add all the binds from the config file
     configbinds=$("${cli[@]}" binds)

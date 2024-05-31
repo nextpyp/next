@@ -89,6 +89,14 @@ sealed interface Response {
 			const val ID: UInt = 2u
 		}
 	}
+
+	object Chmod : Response {
+		const val ID: UInt = 6u
+	}
+
+	object DeleteFile : Response {
+		const val ID: UInt = 7u
+	}
 }
 
 fun Response.ReadFile.Response.into(): Response =
@@ -190,6 +198,14 @@ class ResponseEnvelope(
 					}
 				}
 			}
+
+			is Response.Chmod -> {
+				out.writeU32(Response.Chmod.ID)
+			}
+
+			is Response.DeleteFile -> {
+				out.writeU32(Response.DeleteFile.ID)
+			}
 		}
 
 		return bos.toByteArray()
@@ -244,6 +260,10 @@ class ResponseEnvelope(
 						else -> throw NoSuchElementException("unrecognized write file response type id: $writeFileResponseTypeId")
 					}
 				})
+
+				Response.Chmod.ID -> Response.Chmod
+
+				Response.DeleteFile.ID -> Response.DeleteFile
 
 				else -> throw NoSuchElementException("unrecognized response type: $responseTypeId")
 			}

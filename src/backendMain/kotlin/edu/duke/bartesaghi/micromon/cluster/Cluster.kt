@@ -3,19 +3,19 @@ package edu.duke.bartesaghi.micromon.cluster
 import com.mongodb.client.model.Updates
 import com.mongodb.client.model.Updates.push
 import com.mongodb.client.model.Updates.set
-import edu.duke.bartesaghi.micromon.Backend
-import edu.duke.bartesaghi.micromon.Config
-import edu.duke.bartesaghi.micromon.JsonRpc
-import edu.duke.bartesaghi.micromon.cleanupStackTrace
+import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.cluster.slurm.SBatch
 import edu.duke.bartesaghi.micromon.cluster.standalone.PseudoCluster
+import edu.duke.bartesaghi.micromon.linux.userprocessor.deleteAs
+import edu.duke.bartesaghi.micromon.linux.userprocessor.editPermissionsAs
+import edu.duke.bartesaghi.micromon.linux.userprocessor.writeStringAs
 import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.services.ClusterJobResultType
 import edu.duke.bartesaghi.micromon.services.ClusterMode
 import edu.duke.bartesaghi.micromon.services.ClusterQueues
 import edu.duke.bartesaghi.micromon.services.StreamLog
-import kotlinx.coroutines.launch
 import java.nio.file.Path
+import java.nio.file.attribute.PosixFilePermission
 import java.time.Instant
 
 
@@ -39,23 +39,13 @@ interface Cluster {
 	 */
 	fun validateDependency(depId: String)
 
-	data class FileInfo(
-		val path: Path,
-		val text: String,
-		val executable: Boolean = false
-	)
-
-	suspend fun makeFoldersAndWriteFiles(folders: List<Path>, files: List<FileInfo>)
-
-	suspend fun launch(clusterJob: ClusterJob, depIds: List<String>, scriptPath: Path): ClusterJob.LaunchResult?
+	suspend fun launch(clusterJob: ClusterJob, username: String?, depIds: List<String>, scriptPath: Path): ClusterJob.LaunchResult?
 
 	suspend fun waitingReason(launchResult: ClusterJob.LaunchResult): String?
 
 	suspend fun cancel(clusterJobs: List<ClusterJob>)
 
-	suspend fun jobResult(clusterJob: ClusterJob, arrayIndex: Int?): ClusterJob.Result
-
-	suspend fun deleteFiles(files: List<Path>)
+	suspend fun jobResult(clusterJob: ClusterJob, username: String?, arrayIndex: Int?): ClusterJob.Result
 
 
 	companion object {
@@ -159,6 +149,10 @@ interface Cluster {
 
 		private suspend fun submitFragile(clusterJob: ClusterJob): String? {
 
+			// get the submission user, if any
+			val user = clusterJob.userId
+				?.let { Database.users.getUser(it) }
+
 			// create the cluster job id
 			if (clusterJob.id != null) {
 				throw IllegalStateException("job already submitted")
@@ -221,43 +215,34 @@ interface Cluster {
 				instance.validateDependency(depId)
 			}
 
-			// create the script files
-			val commands = clusterJob.commands.render(clusterJob, instance.commandsConfig)
-			val scriptFile = FileInfo(
-				path = clusterJob.batchPath(),
-				text = """
-					|#!/bin/bash
-					|
-					|export NEXTPYP_WEBHOST="${Backend.config.web.webhost}"
-					|export NEXTPYP_TOKEN="${JsonRpc.token}"
-					|export NEXTPYP_WEBID="$clusterJobId"
-					|
-					|# cd into any non-home folder before running any singularity commands.
-					|# For some weird reason, singularity behaves differently when run from the home folder.
-					|# Sometimes it will ignore the --no-home flag and bind the home folder anyway.
-					|# Since pyp can be incredibly destructive to folders it runs in,
-					|# we never *ever* want pyp to have access to the home folder.
-					|cd /tmp || exit 1
-					|
-					|${Container.Pyp.cmdWebrpc("slurm_started")}
-					|trap "${Container.Pyp.cmdWebrpc("slurm_ended", "--exit=\\$?").replace("\"", "\\\"")}" exit
-					|
-					|${commands.commands.joinToString("\n")}
-				""".trimMargin(),
-				executable = true
-			)
-
-			// write the scripts and create any necessary folders
-			instance.makeFoldersAndWriteFiles(
-				folders = listOf(
-					scriptFile.path.parent,
-					clusterJob.outPathMask().parent
-				),
-				files = listOf(scriptFile) + commands.files
-			)
+			// write the script files
+			val scriptPath = clusterJob.batchPath()
+			val commands = clusterJob.commands.render(clusterJob, user?.osUsername, instance.commandsConfig)
+			scriptPath.writeStringAs(user?.osUsername, """
+				|#!/bin/bash
+				|
+				|export NEXTPYP_WEBHOST="${Backend.config.web.webhost}"
+				|export NEXTPYP_TOKEN="${JsonRpc.token}"
+				|export NEXTPYP_WEBID="$clusterJobId"
+				|
+				|# cd into any non-home folder before running any singularity commands.
+				|# For some weird reason, singularity behaves differently when run from the home folder.
+				|# Sometimes it will ignore the --no-home flag and bind the home folder anyway.
+				|# Since pyp can be incredibly destructive to folders it runs in,
+				|# we never *ever* want pyp to have access to the home folder.
+				|cd /tmp || exit 1
+				|
+				|${Container.Pyp.cmdWebrpc("slurm_started")}
+				|trap "${Container.Pyp.cmdWebrpc("slurm_ended", "--exit=\\$?").replace("\"", "\\\"")}" exit
+				|
+				|${commands.joinToString("\n")}
+			""".trimMargin())
+			scriptPath.editPermissionsAs(user?.osUsername) {
+				add(PosixFilePermission.OWNER_EXECUTE)
+			}
 
 			// try to launch the job on the cluster
-			val launchResult = instance.launch(clusterJob, depIds, scriptFile.path)
+			val launchResult = instance.launch(clusterJob, user?.osUsername, depIds, scriptPath)
 				?: return null
 
 			// launch succeeded, update the database with the launch result
@@ -319,10 +304,14 @@ interface Cluster {
 			// DEBUG
 			//println("Cluster.ended() ${clusterJob.webName}(${clusterJob.id}), $arrayId, exitCode=$exitCode")
 
+			// get the submission user, if any
+			val user = clusterJob.userId
+				?.let { Database.users.getUser(it) }
+
 			// read the job output and cleanup
 			// NOTE: this involves potentially slow operations (like SSH)
 			//       so do it before updating the database state
-			val result = instance.jobResult(clusterJob, arrayId)
+			val result = instance.jobResult(clusterJob, user?.osUsername, arrayId)
 				// then apply any failure signals to the cluster job result
 				.applyExitCode(exitCode)
 				.applyFailures(clusterJob, arrayId)
@@ -395,8 +384,11 @@ interface Cluster {
 				}
 
 				// cleanup remote files, eventually
-				Backend.scope.launch {
-					instance.deleteFiles(listOf(clusterJob.batchPath()) + clusterJob.commands.filesToDelete(clusterJob))
+				slowIOs {
+					clusterJob.batchPath().deleteAs(user?.osUsername)
+					for (file in clusterJob.commands.filesToDelete(clusterJob)) {
+						file.deleteAs(user?.osUsername)
+					}
 				}
 
 				// does this have an owner that's listening?

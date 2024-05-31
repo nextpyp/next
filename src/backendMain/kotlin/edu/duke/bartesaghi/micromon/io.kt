@@ -166,15 +166,6 @@ private fun String.pypSafeFileName(): String =
 
 
 /**
- * Convert user-defined inputs into values that are safe to insert into command-line arguments.
- * eg, for --arg="<value>", the <value> should not be able to break out of the quoted argument
- * and do injection-type attacks
- */
-fun String.sanitizeQuotedArg(): String =
-	replace("\"", "\\\"")
-
-
-/**
  * IO operations can run really slowly (especially on NFS filesystems),
  * so always run slow IO operations on the IO thread pool to keep request threads from blocking
  */
@@ -233,19 +224,25 @@ fun Path.writeString(str: String) = toFile().writeText(str)
 // TODO: make async read/write functions that run on IO thread pool?
 
 
-fun Path.editPermissions(editor: MutableSet<PosixFilePermission>.() -> Unit) {
+interface PosixPermissionsEditor {
+	fun add(perm: PosixFilePermission)
+	fun del(perm: PosixFilePermission)
+}
+
+fun Path.editPermissions(editor: PosixPermissionsEditor.() -> Unit) {
 	val permissions = Files.getPosixFilePermissions(this)
 		.toMutableSet()
-	permissions.editor()
+	object : PosixPermissionsEditor {
+		override fun add(perm: PosixFilePermission) {
+			permissions.add(perm)
+		}
+		override fun del(perm: PosixFilePermission) {
+			permissions.remove(perm)
+		}
+	}.editor()
 	Files.setPosixFilePermissions(this, permissions)
 }
 
-fun Path.makeExecutable() =
-	editPermissions {
-		add(PosixFilePermission.OWNER_EXECUTE)
-		add(PosixFilePermission.GROUP_EXECUTE)
-		add(PosixFilePermission.OTHERS_EXECUTE)
-	}
 
 fun Path.ctime(): Instant? =
 	takeIf { exists() }

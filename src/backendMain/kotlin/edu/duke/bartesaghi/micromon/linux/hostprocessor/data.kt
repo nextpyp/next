@@ -5,6 +5,13 @@ import java.io.DataInput
 import java.io.DataOutput
 
 
+fun DataOutput.writeU8(i: UByte) =
+	writeByte(i.toInt())
+
+fun DataInput.readU8(): UByte =
+	readByte().toUByte()
+
+
 fun DataOutput.writeU32(i: UInt) =
 	// NOTE: writeInt() is big-endian
 	writeInt(i.toInt())

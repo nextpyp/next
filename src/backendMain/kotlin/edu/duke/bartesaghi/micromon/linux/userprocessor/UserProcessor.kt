@@ -19,6 +19,7 @@ import java.nio.channels.AsynchronousCloseException
 import java.nio.channels.SocketChannel
 import java.nio.file.Path
 import kotlin.io.path.div
+import kotlin.io.path.relativeTo
 import kotlin.math.min
 
 
@@ -40,8 +41,9 @@ class UserProcessor(
 
 		private val consoleScope = CoroutineScope(Dispatchers.IO)
 
-		private val execDir = Config.instance.web.sharedDir / "user-processors"
-		private val socketDir = Config.instance.web.localDir / "user-processors"
+		private val dir = Config.instance.web.sharedDir / "user-processors"
+		private val execDir = dir / "exec"
+		private val socketDir = dir / "sockets"
 
 		private suspend fun find(hostProcessor: HostProcessor, username: String): Path {
 
@@ -129,13 +131,14 @@ class UserProcessor(
 					Command(
 						path.toString(),
 						ArrayList<String>().apply {
-							add("daemon")
 							if (tracingLog != null) {
 								addAll(listOf("--log", tracingLog))
 							}
+							add("daemon")
+							add(socketDir.toString())
 						}
 					),
-					dir = socketDir,
+					dir = Config.instance.web.sharedDir,
 					stdout = true,
 					stderr = true
 				)
@@ -475,4 +478,21 @@ class UserProcessor(
 			}
 		}
 	}
+
+	suspend fun chmod(path: Path, ops: List<Request.Chmod.Op>) {
+		request(Request.Chmod(path.toString(), ops))
+			.use { responder ->
+				responder.recv().cast<Response.Chmod>()
+			}
+	}
+
+	suspend fun deleteFile(path: Path) {
+		request(Request.DeleteFile(path.toString()))
+			.use { responder ->
+				responder.recv().cast<Response.DeleteFile>()
+			}
+	}
+
+	fun wrap(cmd: Command): Command =
+		cmd.wrap(path.toString(), listOf("run", "/tmp"))
 }

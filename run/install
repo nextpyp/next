@@ -86,36 +86,113 @@ wget $wgetopts -O "$workflowDir/tomo_tutorial.toml" "$workflowWww/tomo_tutorial.
 wget $wgetopts -O "$workflowDir/class_tutorial.toml" "$workflowWww/class_tutorial.toml"
 chmod -R ugo+r "$workflowDir"/*
 
-# create initial directories
+# create initial directories and set up permissions
+
 localDir="$here/local"
-mkdir -p "$localDir"
-chown "$username":"$usergroup" "$localDir"
-echo "Created local directory: $localDir"
+if [ ! -d "$localDir" ] ; then
+  mkdir -p "$localDir"
+  chown "$username":"$usergroup" "$localDir"
+  echo "Created local folder: $localDir"
+else
+  echo "Using existing local folder: $localDir"
+fi
 
 sharedDir="$here/shared"
-mkdir -p "$sharedDir"
-chown "$username":"$usergroup" "$sharedDir"
-echo "Created shared directory: $sharedDir"
+if [ ! -d "$sharedDir" ] ; then
+  mkdir -p "$sharedDir"
+  chown "$username":"$usergroup" "$sharedDir"
+  # the shared folder needs to be visible to all other users, so all the subfolders are available to user-processors
+  chmod ugo+rx "$sharedDir"
+  echo "Created shared folder: $sharedDir"
+else
+  echo "Using existing shared folder: $sharedDir"
+fi
 
+logsDir="$localDir/logs"
+if [ ! -d "$logsDir" ] ; then
+  mkdir "$logsDir"
+  echo "Created logs folder: $logsDir"
+else
+  echo "Using existing logs folder: $logsDir"
+fi
+
+dbDir="$localDir/db"
+if [ ! -d "$dbDir" ] ; then
+  mkdir "$dbDir"
+  echo "Created database folde: $dbDir"
+else
+  echo "Using existing database folder: $dbDir"
+fi
+
+batchDir="$sharedDir/batch"
+if [ ! -d "$batchDir" ] ; then
+  mkdir "$batchDir"
+  # the batch folder needs to be writable to all the other users, so treat it like a tmp folder
+  chmod ugo=rwx,+t "$batchDir"
+  echo "Created batch folder: $batchDir"
+else
+  echo "Using existing batch folder: $batchDir"
+fi
+
+jlogDir="$sharedDir/log"
+if [ ! -d "$jlogDir" ] ; then
+  mkdir "$jlogDir"
+  # the job log folder needs to be writable to all the other users, so treat it like a tmp folder
+  chmod ugo=rwx,+t "$jlogDir"
+  echo "Created job log folder: $jlogDir"
+else
+  echo "Using existing job log folder: $jlogDir"
+fi
+
+# TODO: user/group folders?
 
 # setup the user-processor system
-userProcessorExecDir="$sharedDir/user-processors"
-mkdir -p "$userProcessorExecDir"
-mv "$here/user-processor" "$userProcessorExecDir"
-userProcessorExec="$userProcessorExecDir/user-processor"
-chown "$username":"$usergroup" "$userProcessorExec"
-chmod u=rw,go= "$userProcessorExec" # no one should run the base user-processor executable
-mv "$here/admin-user" "$userProcessorExecDir"
-chmod u=rwx,go= "$userProcessorExecDir/admin-user" # the admin script should be executable tho
+# NOTE: everything has to go into the shared folder
+#       (even the pipes, which will still work on an NFS mount when accessed from the same machine)
+#       so we can start the user processor exec with cwd=shared to get access to all the necessary files
+#       without giving all the parent directories the other-exec permission
+userProcessorDir="$sharedDir/user-processors"
+if [ ! -d "$userProcessorDir" ] ; then
+  mkdir "$userProcessorExecDir"
+  chmod ugo+rx "$userProcessorDir"
+  echo "Created user processors folder: $userProcessorDir"
+else
+  ehco "Using existing user processors folder: $userProcessorDir"
+fi
+
+# set up the folder for the user-processor executables
+userProcessorExecDir="$userProcessorDir/exec"
+if [ ! -d "$userProcessorExecDir" ] ; then
+  mkdir "$userProcessorExecDir"
+  chmod ugo+rx "$userProcessorExecDir"
+  echo "Created user processor exec dir: $userProcessorExecDir"
+
+  # make the base executable (no one should be able to run it though)
+  mv "$here/user-processor" "$userProcessorExecDir"
+  userProcessorExec="$userProcessorExecDir/user-processor"
+  chown "$username":"$usergroup" "$userProcessorExec"
+  chmod u=rw,go= "$userProcessorExec"
+
+  # copy in the admin script too
+  mv "$here/admin-user" "$userProcessorExecDir"
+  chmod u=rwx,go= "$userProcessorExecDir/admin-user"
+
+else
+  echo "Using existing user processor exec dir: $userProcessorExecDir"
+fi
 
 # create the user-processor sockets folder
-# this folder needs to be world-writable (ugo=rwx) so user-processor instances (running as other users) can create their sockets
-# it also needs setgid (g+s) so socket files belong to the pyp group
-# setting the sticky bit (o+t) also prevents users from deleting each others sockets
-# TODO: use some kind of group here instead? where all the relevant users are a member? would need to expose config option to choose group
-userProcessorSocketsDir="$localDir/user-processors"
-mkdir -p "$userProcessorSocketsDir"
-chmod ugo=rwx,g+s,o+t "$userProcessorSocketsDir"
+userProcessorSocketsDir="$userProcessorDir/sockets"
+if [ ! -d "$userProcessorSocketsDir" ] ; then
+  mkdir "$userProcessorSocketsDir"
+  # this folder needs to be world-writable (ugo=rwx) so user-processor instances (running as other users) can create their sockets
+  # it also needs setgid (g+s) so socket files belong to the pyp group
+  # setting the sticky bit (+t) also prevents users from deleting each others sockets
+  chmod ugo=rwx,g+s,+t "$userProcessorSocketsDir"
+  echo "Created user processor sockets folder: $userProcessorSocketsDir"
+else
+  echo "Using existing user processor sockets folder: $userProcessorSocketsDir"
+fi
 
 
 # create the home configuration folder, if needed (needed by apptainer)

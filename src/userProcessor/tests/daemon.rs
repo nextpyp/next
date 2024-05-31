@@ -7,6 +7,7 @@ use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
 use std::process::{Child, Command, ExitStatus};
 use std::{fs, thread};
+use std::os::unix::fs::PermissionsExt;
 use std::time::Duration;
 
 use galvanic_assert::{assert_that, matchers::*};
@@ -16,7 +17,7 @@ use tracing::debug;
 
 use user_processor::framing::{ReadFramed, WriteFramed};
 use user_processor::logging;
-use user_processor::proto::{ReadFileResponse, Request, RequestEnvelope, Response, ResponseEnvelope, WriteFileRequest, WriteFileResponse};
+use user_processor::proto::{ChmodBit, ChmodOp, ChmodRequest, ReadFileResponse, Request, RequestEnvelope, Response, ResponseEnvelope, WriteFileRequest, WriteFileResponse};
 
 
 // NOTE: these tests need `cargo test ... -- --test-threads=1` for the log to make sense
@@ -327,6 +328,120 @@ fn write_file_large() {
 		.unwrap();
 }
 
+
+#[test]
+fn chmod() {
+	let _logging = logging::init_test();
+
+	// write a file we can modify
+	let path = PathBuf::from(SOCKET_DIR).join("chmod_test");
+	fs::remove_file(&path)
+		.ok();
+	fs::write(&path, "hello".to_string())
+		.unwrap();
+
+	let mode = || {
+		let mode = fs::metadata(&path)
+			.unwrap()
+			.permissions()
+			.mode();
+		// mask down to the low-order bits covered by chmod,
+		// since the higher bits contain other data, like file type
+		return mode & 0o7777;
+	};
+	assert_that!(&mode(), eq(0o0664));
+
+	let user_processor = UserProcessor::start();
+	let mut socket = user_processor.connect();
+
+	let mut chmod = |operations: Vec<ChmodOp>| {
+		let response = request(&mut socket, 5, Request::Chmod(ChmodRequest {
+			path: path.to_string_lossy().to_string(),
+			ops: operations
+		}));
+		assert_that!(&response, eq(Response::Chmod));
+	};
+
+	chmod(vec![]);
+	assert_that!(&mode(), eq(0o0664));
+
+	// make the file world-everything (briefly)
+	chmod(vec![
+		ChmodOp {
+			value: true,
+			bits: vec![ChmodBit::OtherExecute, ChmodBit::OtherWrite]
+		}
+	]);
+	assert_that!(&mode(), eq(0o0667));
+
+	// lock out world access
+	chmod(vec![
+		ChmodOp {
+			value: false,
+			bits: vec![ChmodBit::OtherExecute, ChmodBit::OtherWrite, ChmodBit::OtherRead]
+		}
+	]);
+	assert_that!(&mode(), eq(0o0660));
+
+	// lock out group access
+	chmod(vec![
+		ChmodOp {
+			value: false,
+			bits: vec![ChmodBit::GroupRead, ChmodBit::GroupWrite]
+		}
+	]);
+	assert_that!(&mode(), eq(0o0600));
+
+	// put it all back the way it was
+	chmod(vec![
+		ChmodOp {
+			value: true,
+			bits: vec![ChmodBit::GroupRead, ChmodBit::GroupWrite]
+		},
+		ChmodOp {
+			value: true,
+			bits: vec![ChmodBit::OtherRead]
+		}
+	]);
+	assert_that!(&mode(), eq(0o0664));
+
+
+	user_processor.disconnect(socket);
+	user_processor.stop();
+	fs::remove_file(&path)
+		.unwrap();
+}
+
+
+
+#[test]
+fn delete_file() {
+	let _logging = logging::init_test();
+
+	// write a file we can delete
+	let path = PathBuf::from(SOCKET_DIR).join("delete_file_test");
+	fs::remove_file(&path)
+		.ok();
+	fs::write(&path, "hello".to_string())
+		.unwrap();
+
+	assert_that!(&path.exists(), eq(true));
+
+	let user_processor = UserProcessor::start();
+	let mut socket = user_processor.connect();
+
+	let response = request(&mut socket, 5, Request::DeleteFile {
+		path: path.to_string_lossy().to_string()
+	});
+	assert_that!(&response, eq(Response::DeleteFile));
+
+	assert_that!(&path.exists(), eq(false));
+
+	user_processor.disconnect(socket);
+	user_processor.stop();
+}
+
+
 const SOCKET_DIR: &str = "/tmp/nextpyp-sockets";
 
 
@@ -353,8 +468,8 @@ impl UserProcessor {
 			.unwrap();
 
 		let proc = Command::new(util::bin_path())
-			.args(["--log", "trace", "daemon"])
-			.current_dir(SOCKET_DIR)
+			.args(["--log", "trace", "daemon", SOCKET_DIR])
+			.current_dir("/tmp")
 			.spawn()
 			.expect("Failed to spawn process");
 

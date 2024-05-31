@@ -2,6 +2,7 @@ package edu.duke.bartesaghi.micromon.cluster
 
 import com.mongodb.client.model.Updates.*
 import edu.duke.bartesaghi.micromon.*
+import edu.duke.bartesaghi.micromon.linux.EnvVar
 import edu.duke.bartesaghi.micromon.linux.Posix
 import edu.duke.bartesaghi.micromon.mongo.*
 import edu.duke.bartesaghi.micromon.services.ClusterJobLaunchResultData
@@ -368,14 +369,6 @@ class ClusterJob(
 		suspend fun onStartArray(ownerId: String?, dbid: String, arrayId: Int, numStarted: Int) {}
 		suspend fun onEndArray(ownerId: String?, dbid: String, arrayId: Int, numEnded: Int, numCanceled: Int, numFailed: Int) {}
 		suspend fun onEnd(ownerId: String?, dbid: String, resultType: ClusterJobResultType) {}
-	}
-
-	data class EnvVar(
-		val name: String,
-		val value: String
-	) {
-
-		fun toList() = listOf(name, value)
 	}
 
 

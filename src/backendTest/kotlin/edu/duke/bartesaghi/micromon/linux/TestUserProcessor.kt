@@ -6,10 +6,13 @@ import edu.duke.bartesaghi.micromon.linux.userprocessor.*
 import io.kotest.assertions.fail
 import io.kotest.core.annotation.EnabledIf
 import io.kotest.core.spec.style.DescribeSpec
+import io.kotest.matchers.collections.shouldContainExactlyInAnyOrder
 import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.withTimeoutOrNull
 import java.nio.file.Files
+import java.nio.file.Paths
 import java.nio.file.attribute.PosixFilePermission
+import kotlin.io.path.getPosixFilePermissions
 import kotlin.io.path.writeBytes
 
 
@@ -39,6 +42,32 @@ class TestUserProcessor : DescribeSpec({
 			roundtrip(Request.WriteFile.Open("path", true).into())
 			roundtrip(Request.WriteFile.Chunk(5u, byteArrayOf(1, 2, 3)).into())
 			roundtrip(Request.WriteFile.Close(42u).into())
+
+			roundtrip(Request.Chmod("path", listOf()))
+			roundtrip(Request.Chmod("path", listOf(
+				Request.Chmod.Op(true, listOf(
+					Request.Chmod.Bit.OtherExecute,
+					Request.Chmod.Bit.OtherWrite,
+					Request.Chmod.Bit.OtherRead,
+				)),
+				Request.Chmod.Op(false, listOf(
+					Request.Chmod.Bit.GroupExecute,
+					Request.Chmod.Bit.GroupWrite,
+					Request.Chmod.Bit.GroupRead,
+				)),
+				Request.Chmod.Op(true, listOf(
+					Request.Chmod.Bit.UserExecute,
+					Request.Chmod.Bit.UserWrite,
+					Request.Chmod.Bit.UserRead,
+				)),
+				Request.Chmod.Op(false, listOf(
+					Request.Chmod.Bit.SetUid,
+					Request.Chmod.Bit.SetGid,
+					Request.Chmod.Bit.Sticky,
+				))
+			)))
+
+			roundtrip(Request.DeleteFile("path"))
 		}
 
 		it("response") {
@@ -60,6 +89,10 @@ class TestUserProcessor : DescribeSpec({
 
 			roundtrip(Response.WriteFile.Opened.into())
 			roundtrip(Response.WriteFile.Closed.into())
+
+			roundtrip(Response.Chmod)
+
+			roundtrip(Response.DeleteFile)
 		}
 	}
 
@@ -170,6 +203,79 @@ class TestUserProcessor : DescribeSpec({
 
 					// read it
 					file.path.readBytes().shouldBe(content)
+				}
+			}
+		}
+
+		it("delete file").config(invocations = testCount) {
+			withUserProcessor(username) { _, client ->
+
+				// NOTE: can't use TempFile here, since the tester user can't delete it
+				val path = Paths.get("/tmp/nextpyp-user-processor-delete-file-test")
+
+				// so just write a file as the user
+				client.writeFile(path).use { writer ->
+					writer.writeAll(byteArrayOf(1, 2, 3))
+				}
+
+				path.exists().shouldBe(true)
+
+				client.deleteFile(path)
+
+				path.exists().shouldBe(false)
+			}
+		}
+
+		it("chmod").config(invocations = testCount) {
+			withUserProcessor(username) { _, client ->
+
+				// NOTE: can't use TempFile here, since the tester user can't chmod it
+				val path = Paths.get("/tmp/nextpyp-user-processor-chmod-test")
+
+				// so just write a file as the user
+				client.writeFile(path).use { writer ->
+					writer.writeAll(byteArrayOf(1, 2, 3))
+				}
+
+				try {
+					path.getPosixFilePermissions().shouldContainExactlyInAnyOrder(
+						PosixFilePermission.OWNER_READ,
+						PosixFilePermission.OWNER_WRITE,
+						PosixFilePermission.GROUP_READ
+					)
+
+					client.chmod(path, listOf(
+						Request.Chmod.Op(true, listOf(
+							Request.Chmod.Bit.GroupWrite
+						))
+					))
+
+					path.getPosixFilePermissions().shouldContainExactlyInAnyOrder(
+						PosixFilePermission.OWNER_READ,
+						PosixFilePermission.OWNER_WRITE,
+						PosixFilePermission.GROUP_READ,
+						PosixFilePermission.GROUP_WRITE
+					)
+
+					client.chmod(path, listOf(
+						Request.Chmod.Op(false, listOf(
+							Request.Chmod.Bit.GroupRead,
+							Request.Chmod.Bit.GroupWrite,
+						)),
+						Request.Chmod.Op(true, listOf(
+							Request.Chmod.Bit.OtherRead,
+							Request.Chmod.Bit.OtherWrite,
+						))
+					))
+
+					path.getPosixFilePermissions().shouldContainExactlyInAnyOrder(
+						PosixFilePermission.OWNER_READ,
+						PosixFilePermission.OWNER_WRITE,
+						PosixFilePermission.OTHERS_READ,
+						PosixFilePermission.OTHERS_WRITE
+					)
+				} finally {
+					client.deleteFile(path)
 				}
 			}
 		}

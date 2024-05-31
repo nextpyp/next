@@ -21,7 +21,7 @@ class UserProcessors(val hostProcessor: HostProcessor) : SuspendCloseable {
 			return block(processorsByUsername)
 		}
 
-	suspend fun get(username: String, tracingLog: String? = null): UserProcessor =
+	suspend fun get(username: String): UserProcessor =
 		withProcessors f@{ processors ->
 
 			// if a subprocess is already running, return that
@@ -30,6 +30,12 @@ class UserProcessors(val hostProcessor: HostProcessor) : SuspendCloseable {
 
 			// otherwise, start a new user processor
 			log.debug("starting new subprocess for user: {}", username)
+			val tracingLog =
+				if (System.getenv("NEXTPYP_LOGS") == "dev") {
+					"user_processor=debug"
+				} else {
+					null
+				}
 			val processor = UserProcessor.start(hostProcessor, username, 10_000, tracingLog)
 			processorsByUsername[username] = processor
 

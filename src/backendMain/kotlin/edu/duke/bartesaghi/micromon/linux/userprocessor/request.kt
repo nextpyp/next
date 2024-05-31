@@ -74,6 +74,46 @@ sealed interface Request {
 			}
 		}
 	}
+
+	data class Chmod(val path: String, val ops: List<Op>) : Request {
+		companion object {
+			const val ID: UInt = 5u
+		}
+
+		data class Op(
+			val value: Boolean,
+			val bits: List<Bit>
+		)
+
+		enum class Bit(val pos: UByte) {
+
+			OtherExecute(0u),
+			OtherWrite(1u),
+			OtherRead(2u),
+			GroupExecute(3u),
+			GroupWrite(4u),
+			GroupRead(5u),
+			UserExecute(6u),
+			UserWrite(7u),
+			UserRead(8u),
+			Sticky(9u),
+			SetGid(10u),
+			SetUid(11u);
+
+			companion object {
+				operator fun get(pos: UByte): Bit =
+					values()
+						.firstOrNull { it.pos == pos }
+						?: throw NoSuchElementException("unrecognized Chmod bit pos: $pos")
+			}
+		}
+	}
+
+	data class DeleteFile(val path: String) : Request {
+		companion object {
+			const val ID: UInt = 6u
+		}
+	}
 }
 
 fun Request.WriteFile.Request.into(): Request =
@@ -129,6 +169,22 @@ class RequestEnvelope(
 					}
 				}
 			}
+
+			is Request.Chmod -> {
+				out.writeU32(Request.Chmod.ID)
+				out.writeUtf8(request.path)
+				out.writeArray(request.ops) { op ->
+					out.writeBoolean(op.value)
+					out.writeArray(op.bits) { bit ->
+						out.writeU8(bit.pos)
+					}
+				}
+			}
+
+			is Request.DeleteFile -> {
+				out.writeU32(Request.DeleteFile.ID)
+				out.writeUtf8(request.path)
+			}
 		}
 
 		return bos.toByteArray()
@@ -172,6 +228,22 @@ class RequestEnvelope(
 						else -> throw NoSuchElementException("unrecognized write file type id: $writeFileResponseTypeId")
 					}
 				})
+
+				Request.Chmod.ID -> Request.Chmod(
+					path = input.readUtf8(),
+					ops = input.readArray {
+						Request.Chmod.Op(
+							value = input.readBoolean(),
+							bits = input.readArray {
+								Request.Chmod.Bit[input.readU8()]
+							}
+						)
+					}
+				)
+
+				Request.DeleteFile.ID -> Request.DeleteFile(
+					path = input.readUtf8()
+				)
 
 				else -> throw NoSuchElementException("unrecognized response type id: $typeId")
 			}

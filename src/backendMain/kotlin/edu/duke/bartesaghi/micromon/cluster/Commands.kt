@@ -2,11 +2,14 @@ package edu.duke.bartesaghi.micromon.cluster
 
 import edu.duke.bartesaghi.micromon.Backend
 import edu.duke.bartesaghi.micromon.cluster.slurm.Gres
-import edu.duke.bartesaghi.micromon.linux.Posix
+import edu.duke.bartesaghi.micromon.createDirsIfNeeded
+import edu.duke.bartesaghi.micromon.linux.userprocessor.editPermissionsAs
+import edu.duke.bartesaghi.micromon.linux.userprocessor.writeStringAs
 import edu.duke.bartesaghi.micromon.mongo.getListOfStrings
 import edu.duke.bartesaghi.micromon.substringAfterFirst
 import org.bson.Document
 import java.nio.file.Path
+import java.nio.file.attribute.PosixFilePermission
 
 
 sealed interface Commands {
@@ -46,12 +49,7 @@ sealed interface Commands {
 		val reserved: String = ""
 	)
 
-	data class Rendered(
-		val commands: List<String>,
-		val files: List<Cluster.FileInfo>
-	)
-
-	fun render(job: ClusterJob, config: Config): Rendered
+	suspend fun render(job: ClusterJob, username: String?, config: Config): List<String>
 
 	fun filesToDelete(job: ClusterJob): List<Path> =
 		listOf(batchPath(job))
@@ -128,23 +126,24 @@ class CommandsScript(
 	override fun representativeCommand(): String =
 		commands.firstOrNull() ?: ""
 
-	override fun render(job: ClusterJob, config: Commands.Config): Commands.Rendered {
+	override suspend fun render(job: ClusterJob, username: String?, config: Commands.Config): List<String> {
 
 		// write the commands into a batch script
-		val batchFile = Cluster.FileInfo(
-			path = batchPath(job),
-			text = StringBuilder().apply {
+		val batchPath = batchPath(job)
+		batchPath.parent.createDirsIfNeeded()
+		batchPath.writeStringAs(username, StringBuilder().apply {
 
-				appendLine(batchHeader(job))
+			appendLine(batchHeader(job))
 
-				// just write all the commands in sequence
-				for (command in this@CommandsScript.commands) {
-					appendLine(command)
-				}
+			// just write all the commands in sequence
+			for (command in this@CommandsScript.commands) {
+				appendLine(command)
+			}
 
-			}.toString(),
-			executable = true
-		)
+		}.toString())
+		batchPath.editPermissionsAs(username) {
+			add(PosixFilePermission.OWNER_EXECUTE)
+		}
 
 		val commands = ArrayList<String>()
 
@@ -158,9 +157,9 @@ class CommandsScript(
 		}
 
 		// apply the wraps to the script
-		commands.add("\"${batchFile.path}\"".wrap(singularitiWrapper))
+		commands.add("\"${batchPath}\"".wrap(singularitiWrapper))
 
-		return Commands.Rendered(commands, listOf(batchFile))
+		return commands
 	}
 }
 
@@ -196,7 +195,7 @@ class CommandsGrid(
 	override fun representativeCommand(): String =
 		commands.firstOrNull()?.firstOrNull() ?: ""
 
-	override fun render(job: ClusterJob, config: Commands.Config): Commands.Rendered {
+	override suspend fun render(job: ClusterJob, username: String?, config: Commands.Config): List<String> {
 
 		val commands = ArrayList<String>()
 
@@ -210,30 +209,31 @@ class CommandsGrid(
 		}
 
 		// write the commands into a batch script
-		val batchFile = Cluster.FileInfo(
-			path = batchPath(job),
-			text = StringBuilder().apply {
+		val batchPath = batchPath(job)
+		batchPath.parent.createDirsIfNeeded()
+		batchPath.writeStringAs(username, StringBuilder().apply {
 
-				appendLine(batchHeader(job))
+			appendLine(batchHeader(job))
 
-				for ((groupi, group) in this@CommandsGrid.commands.withIndex()) {
-					val arrayId = groupi + 1
-					appendLine("if [ \"\$SLURM_ARRAY_TASK_ID\" -eq \"$arrayId\" ]; then")
-					for (command in group) {
-						append('\t')
-						appendLine(command.wrap(singularityWrapper))
-					}
-					appendLine("fi")
+			for ((groupi, group) in this@CommandsGrid.commands.withIndex()) {
+				val arrayId = groupi + 1
+				appendLine("if [ \"\$SLURM_ARRAY_TASK_ID\" -eq \"$arrayId\" ]; then")
+				for (command in group) {
+					append('\t')
+					appendLine(command.wrap(singularityWrapper))
 				}
+				appendLine("fi")
+			}
 
-			}.toString(),
-			executable = true
-		)
+		}.toString())
+		batchPath.editPermissionsAs(username) {
+			add(PosixFilePermission.OWNER_EXECUTE)
+		}
 
 		// run the script without any wrappers
-		commands.add("\"${batchFile.path}\"")
+		commands.add("\"${batchPath}\"")
 
-		return Commands.Rendered(commands, listOf(batchFile))
+		return commands
 	}
 }
 

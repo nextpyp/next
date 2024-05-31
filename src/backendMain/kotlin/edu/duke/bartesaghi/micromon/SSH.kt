@@ -1,9 +1,7 @@
 package edu.duke.bartesaghi.micromon
 
 import com.jcraft.jsch.*
-import java.io.IOException
 import java.io.InputStream
-import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.LinkedBlockingDeque
@@ -28,19 +26,6 @@ object SSH {
 		 * IMPORTANT: user inputs should be sanitized to prevent exploits!!!
 		 */
 		fun execOrThrow(cmd: String): ExecResult
-
-		fun <R> sftp(block: SFTP.() -> R): R
-
-		fun mkdirs(remote: Path) {
-			exec("mkdir -p \"$remote\"")
-		}
-
-		/**
-		 * Essentially `chmod +x`
-		 */
-		fun makeExecutable(remote: Path) {
-			exec("chmod +x \"$remote\"")
-		}
 	}
 
 	data class ExecResult(
@@ -51,33 +36,8 @@ object SSH {
 		val exitCode: Int
 	)
 
-	interface SFTP {
-
-		/**
-		 * Copy a local file to the remote host.
-		 */
-		fun upload(local: Path, remote: Path)
-
-		/**
-		 * Write a text file to the remote host.
-		 */
-		fun uploadText(remote: Path, text: String)
-
-		/**
-		 * Copy a file from the remote host to the local filesystem.
-		 */
-		fun download(remote: Path, local: Path)
-
-		/**
-		 * Read a text file from the remote host.
-		 */
-		fun downloadText(remote: Path): String
-
-		/**
-		 * Delete a file from the remote host.
-		 */
-		fun delete(remote: Path)
-	}
+	// NOTE: SFTP isn't implemented (or turned off) on some SSH daemons, so we shouldn't use it
+	//       it may also be causing some performance bottlenecks, but it's hard to be sure about that
 }
 
 class SSHPool(val config: SshPoolConfig) {
@@ -108,69 +68,6 @@ class SSHPool(val config: SshPoolConfig) {
 			}
 		}
 }
-
-
-/**
- * SftpExceptions have a bug where they don't show the error code in the error message,
- * so translate them into a more useful error message instead.
- */
-fun SftpException.translate(vararg args: Pair<String,Any>): Exception {
-
-	return when (id) {
-
-		ChannelSftp.SSH_FX_NO_SUCH_FILE -> NoRemoteFileException(args.joinToString(", ") { (k,v) -> "$k=$v" })
-
-		else -> IOException("""
-			|SFTP Error:
-			|    id:  $id = ${id.toSftpErrorMsg()}
-			|   msg:  $message
-			|  args:  ${args.joinToString("\n         ") { (k,v) -> "$k = $v" }}
-		""".trimMargin())
-	}
-}
-
-/**
- * https://winscp.net/eng/docs/sftp_codes
- */
-fun Int.toSftpErrorMsg(): String =
-	when (this) {
-		0 -> "OK: Indicates successful completion of the operation."
-		1 -> "EOF: An attempt to read past the end-of-file was made; or, there are no more directory entries to return."
-		2 -> "No such file 	A reference was made to a file which does not exist."
-		3 -> "Permission denied: The user does not have sufficient permissions to perform the operation."
-		4 -> "Failure: An error occurred, but no specific error code exists to describe the failure. This error message should always have meaningful text in the error message field."
-		5 -> "Bad message: A badly formatted packet or other SFTP protocol incompatibility was detected."
-		6 -> "No connection: There is no connection to the server. This error may be used locally, but must not be return by a server."
-		7 -> "Connection lost: The connection to the server was lost. This error may be used locally, but must not be return by a server."
-		8 -> "Operation unsupported: An attempted operation could not be completed by the server because the server does not support the operation. It may be returned by the server if the server does not implement an operation."
-		9 -> "Invalid handle: The handle value was invalid."
-		10 -> "No such path: The file path does not exist or is invalid."
-		11 -> "File already exists: The file already exists."
-		12 -> "Write protect: The file is on read-only media, or the media is write protected."
-		13 -> "No media: The requested operation cannot be completed because there is no media available in the drive."
-		14 -> "No space on file-system: The requested operation cannot be completed because there is insufficient free space on the filesystem."
-		15 -> "Quota exceeded: The operation cannot be completed because it would exceed the user’s storage quota."
-		16 -> "Unknown principal: A principal referenced by the request (either the owner, group, or who field of an ACL), was unknown."
-		17 -> "Lock conflict: The file could not be opened because it is locked by another process."
-		18 -> "Directory not empty: The directory is not empty."
-		19 -> "Not a directory: The specified file is not a directory."
-		20 -> "Invalid filename: The filename is not valid."
-		21 -> "Link loop: Too many symbolic links encountered or, an SSH_FXF_NOFOLLOW open encountered a symbolic link as the final component"
-		22 -> "Cannot delete: The file cannot be deleted. One possible reason is that the advisory read-only attribute-bit is set."
-		23 -> "Invalid parameter: One of the parameters was out of range, or the parameters specified cannot be used together."
-		24 -> "File is a directory: The specified file was a directory in a context where a directory cannot be used."
-		25 -> "Range lock conflict: A read or write operation failed because another process’s mandatory byte-range lock overlaps with the request."
-		26 -> "Range lock refused: A request for a byte range lock was refused."
-		27 -> "Delete pending: An operation was attempted on a file for which a delete operation is pending."
-		28 -> "File corrupt: The file is corrupt; an filesystem integrity check should be run."
-		29 -> "Owner invalid: The principal specified can not be assigned as an owner of a file."
-		30 -> "Group invalid: The principal specified can not be assigned as the primary group of a file."
-		31 -> "No matching byte range lock: The requested operation could not be completed because the specified byte range lock has not been granted."
-		else -> "(Unknown)"
-	}
-
-class NoRemoteFileException(val args: String)
-	: RuntimeException("Remote file did not exist:\n\t$args")
 
 
 class SSHConnection(
@@ -331,80 +228,6 @@ class SSHConnection(
 		}
 		return result
 	}
-
-	override fun <R> sftp(block: SSH.SFTP.() -> R): R = session {
-		val channel = openChannel("sftp") as ChannelSftp
-		channel.connect()
-		try {
-			return@session SFTP(channel).block()
-		} finally {
-			channel.disconnect()
-		}
-	}
-
-	class SFTP(private val channel: ChannelSftp) : SSH.SFTP {
-
-		override fun upload(local: Path, remote: Path) {
-			try {
-				Files.newInputStream(local).use {
-					channel.put(it, remote.toString())
-				}
-			} catch (ex: SftpException) {
-				throw ex.translate(
-					"local" to local,
-					"remote" to remote
-				)
-			}
-		}
-
-		override fun uploadText(remote: Path, text: String) {
-			try {
-				channel.put(remote.toString()).writer(Charsets.UTF_8).use {
-					it.write(text)
-				}
-			} catch (ex: SftpException) {
-				throw ex.translate(
-					"remote" to remote
-				)
-			}
-		}
-
-		override fun download(remote: Path, local: Path) {
-			try {
-				Files.newOutputStream(local).use {
-					channel.get(remote.toString(), it)
-				}
-			} catch (ex: SftpException) {
-				throw ex.translate(
-					"remote" to remote,
-					"local" to local
-				)
-			}
-		}
-
-		override fun downloadText(remote: Path): String {
-			try {
-				channel.get(remote.toString()).reader(Charsets.UTF_8).use {
-					return it.readText()
-				}
-			} catch (ex: SftpException) {
-				throw ex.translate(
-					"remote" to remote
-				)
-			}
-		}
-
-		override fun delete(remote: Path) {
-			try {
-				channel.rm(remote.toString())
-			} catch (ex: SftpException) {
-				when (val ex2 = ex.translate("remote" to remote)) {
-					is NoRemoteFileException -> Unit // ignore missing files, we're trying to delete them after all
-					else -> throw ex2
-				}
-			}
-		}
-	}
 }
 
 
@@ -414,8 +237,8 @@ class ConsoleReader(stdout: InputStream, stderr: InputStream) {
 	val err = ConcurrentLinkedQueue<String>()
 	val combined = ConcurrentLinkedQueue<String>()
 
-	val threadOut = streamReader("SSH Exec Out", stdout, out, combined)
-	val threadErr = streamReader("SSH Exec Err", stderr, err, combined)
+	private val threadOut = streamReader("SSH Exec Out", stdout, out, combined)
+	private val threadErr = streamReader("SSH Exec Err", stderr, err, combined)
 
 	fun waitForFinish() {
 		threadOut.join()

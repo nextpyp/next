@@ -1,6 +1,8 @@
 package edu.duke.bartesaghi.micromon.cluster
 
 import edu.duke.bartesaghi.micromon.*
+import edu.duke.bartesaghi.micromon.linux.userprocessor.deleteAs
+import edu.duke.bartesaghi.micromon.linux.userprocessor.readStringAs
 import edu.duke.bartesaghi.micromon.services.ClusterJobResultType
 import edu.duke.bartesaghi.micromon.services.ClusterMode
 import edu.duke.bartesaghi.micromon.services.ClusterQueues
@@ -30,8 +32,6 @@ class LoadTestingCluster : Cluster {
 	override val queues: ClusterQueues =
 		ClusterQueues(emptyList(), emptyList())
 
-	private val sshPool = SSHPool(Backend.config.slurm!!.sshPoolConfig)
-
 	override fun validate(job: ClusterJob) {
 		// whatever, it's fine
 	}
@@ -40,37 +40,7 @@ class LoadTestingCluster : Cluster {
 		// whatever, it's fine
 	}
 
-	override suspend fun makeFoldersAndWriteFiles(folders: List<Path>, files: List<Cluster.FileInfo>) {
-
-		// short circuit, just in case
-		if (folders.isEmpty() && files.isEmpty()) {
-			return
-		}
-
-		sshPool.connection {
-
-			// make folders
-			for (path in folders) {
-				mkdirs(path)
-			}
-
-			// upload files
-			sftp {
-				for (file in files) {
-					uploadText(file.path, file.text)
-				}
-			}
-
-			// set executable
-			for (file in files) {
-				if (file.executable) {
-					makeExecutable(file.path)
-				}
-			}
-		}
-	}
-
-	override suspend fun launch(clusterJob: ClusterJob, depIds: List<String>, scriptPath: Path): ClusterJob.LaunchResult {
+	override suspend fun launch(clusterJob: ClusterJob, username: String?, depIds: List<String>, scriptPath: Path): ClusterJob.LaunchResult {
 
 		val clusterJobId = clusterJob.idOrThrow
 
@@ -142,63 +112,13 @@ class LoadTestingCluster : Cluster {
 		// nope
 	}
 
-	override suspend fun jobResult(clusterJob: ClusterJob, arrayIndex: Int?): ClusterJob.Result {
+	override suspend fun jobResult(clusterJob: ClusterJob, username: String?, arrayIndex: Int?): ClusterJob.Result {
 
 		// read the job output and cleanup the log file
 		val outPath = clusterJob.outPath(arrayIndex)
-		val out: String? = try {
-			sshPool.connection {
-				sftp {
-					val out = downloadText(outPath)
-					delete(outPath)
-					out
-				}
-			}
-		} catch (ex: NoRemoteFileException) {
-			// the remote log didn't exist... probably the process just didn't write to stdout or stderr?
-			// or maybe there's some kind of network delay and we just can't see the log file yet?
-			// TODO: wait a bit and try to download the log file again?
-			null
-		}
+		val out = outPath.readStringAs(username)
+		outPath.deleteAs(username)
 
-		// determine the job result
-		// NOTE: when SLURM terminates a job, a line like this gets written to the output:
-		//slurmstepd-mathpad: error: *** JOB 13 ON mathpad CANCELLED AT 2020-07-16T11:37:37 DUE TO TIME LIMIT ***
-		//slurmstepd-mathpad: error: *** JOB 17 ON mathpad CANCELLED AT 2020-07-16T16:56:04 ***
-		//slurmstepd: error: *** JOB 937 ON localhost CANCELLED AT 2022-11-17T14:56:35 ***
-		val cancelPattern = Regex("slurmstepd(-\\w+)?: error: \\*\\*\\* JOB \\d+ ON \\w+ CANCELLED AT [0-9-:T]+ (.*) ?\\*\\*\\*")
-		val cancelMatch = out
-			?.lines()
-			?.firstNotNullOfOrNull { cancelPattern.matchEntire(it) }
-		// there wouldn't be more than one cancel line in the output, right?
-
-		return if (cancelMatch != null) {
-			val reason = cancelMatch
-				.groupValues
-				.getOrNull(2)
-			ClusterJob.Result(ClusterJobResultType.Canceled, out, reason)
-		} else {
-			ClusterJob.Result(ClusterJobResultType.Success, out)
-		}
-	}
-
-	override suspend fun deleteFiles(files: List<Path>) {
-
-		// short circuit, just in case
-		if (files.isEmpty()) {
-			return
-		}
-
-		sshPool.connection {
-			sftp {
-				for (path in files) {
-					try {
-						delete(path)
-					} catch (ex: NoRemoteFileException) {
-						// delete failed, oh well I guess
-					}
-				}
-			}
-		}
+		return ClusterJob.Result(ClusterJobResultType.Success, out)
 	}
 }

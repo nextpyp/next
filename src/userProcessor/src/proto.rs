@@ -23,7 +23,12 @@ pub enum Request {
 		path: String
 	},
 
-	WriteFile(WriteFileRequest)
+	WriteFile(WriteFileRequest),
+	Chmod(ChmodRequest),
+
+	DeleteFile {
+		path: String
+	}
 }
 
 impl Request {
@@ -31,6 +36,8 @@ impl Request {
 	const ID_UIDS: u32 = 2;
 	const ID_READ_FILE: u32 = 3;
 	const ID_WRITE_FILE: u32 = 4;
+	const ID_CHMOD: u32 = 5;
+	const ID_DELETE_FILE: u32 = 6;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -55,6 +62,110 @@ impl WriteFileRequest {
 	const ID_OPEN: u32 = 1;
 	const ID_CHUNK: u32 = 2;
 	const ID_CLOSE: u32 = 3;
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ChmodRequest {
+	pub path: String,
+	pub ops: Vec<ChmodOp>
+}
+
+impl ChmodRequest {
+
+	pub fn ops_to_string(&self) -> String {
+		let mut out = String::new();
+		for (i, op) in self.ops.iter().enumerate() {
+			if i > 0 {
+				out.push_str(", ");
+			}
+			out.push(match op.value {
+				true => '+',
+				false => '-'
+			});
+			out.push('[');
+			for (j, bit) in op.bits.iter().enumerate() {
+				if j > 0 {
+					out.push(',');
+				}
+				out.push_str(match bit {
+					ChmodBit::OtherExecute => "ox",
+					ChmodBit::OtherWrite => "ow",
+					ChmodBit::OtherRead => "or",
+					ChmodBit::GroupExecute => "gx",
+					ChmodBit::GroupWrite => "gw",
+					ChmodBit::GroupRead => "gr",
+					ChmodBit::UserExecute => "ux",
+					ChmodBit::UserWrite => "uw",
+					ChmodBit::UserRead => "ur",
+					ChmodBit::Sticky => "t",
+					ChmodBit::SetGid => "us",
+					ChmodBit::SetUid => "gs"
+				});
+			}
+			out.push(']');
+		}
+		out
+	}
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ChmodOp {
+	pub value: bool,
+	pub bits: Vec<ChmodBit>
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ChmodBit {
+	OtherExecute,
+	OtherWrite,
+	OtherRead,
+	GroupExecute,
+	GroupWrite,
+	GroupRead,
+	UserExecute,
+	UserWrite,
+	UserRead,
+	Sticky,
+	SetGid,
+	SetUid
+}
+
+impl ChmodBit {
+
+	pub fn pos(&self) -> u8 {
+		match self {
+			ChmodBit::OtherExecute => 0,
+			ChmodBit::OtherWrite => 1,
+			ChmodBit::OtherRead => 2,
+			ChmodBit::GroupExecute => 3,
+			ChmodBit::GroupWrite => 4,
+			ChmodBit::GroupRead => 5,
+			ChmodBit::UserExecute => 6,
+			ChmodBit::UserWrite => 7,
+			ChmodBit::UserRead => 8,
+			ChmodBit::Sticky => 9,
+			ChmodBit::SetGid => 10,
+			ChmodBit::SetUid => 11
+		}
+	}
+
+	pub fn from(pos: u8) -> Result<Self> {
+		match pos {
+			0 => Ok(ChmodBit::OtherExecute),
+			1 => Ok(ChmodBit::OtherWrite),
+			2 => Ok(ChmodBit::OtherRead),
+			3 => Ok(ChmodBit::GroupExecute),
+			4 => Ok(ChmodBit::GroupWrite),
+			5 => Ok(ChmodBit::GroupRead),
+			6 => Ok(ChmodBit::UserExecute),
+			7 => Ok(ChmodBit::UserWrite),
+			8 => Ok(ChmodBit::UserRead),
+			9 => Ok(ChmodBit::Sticky),
+			10 => Ok(ChmodBit::SetGid),
+			11 => Ok(ChmodBit::SetUid),
+			_ => bail!("unrecognized chmod bit pos: {}", pos)
+		}
+	}
 }
 
 
@@ -99,6 +210,24 @@ impl RequestEnvelope {
 						out.write_u32::<BigEndian>(*sequence)?;
 					}
 				}
+			}
+
+			Request::Chmod(request) => {
+				out.write_u32::<BigEndian>(Request::ID_CHMOD)?;
+				out.write_utf8(&request.path)?;
+				out.write_vec(&request.ops, |out, op| {
+					out.write_bool(op.value)?;
+					out.write_vec(&op.bits, |out, bit| {
+						out.write_u8(bit.pos())?;
+						Ok(())
+					})?;
+					Ok(())
+				})?;
+			}
+
+			Request::DeleteFile { path } => {
+				out.write_u32::<BigEndian>(Request::ID_DELETE_FILE)?;
+				out.write_utf8(path)?;
 			}
 		}
 
@@ -150,6 +279,23 @@ impl RequestEnvelope {
 						return Err((anyhow!("Unrecognized write file request type id: {}", write_file_type_id), Some(request_id)));
 					}
 				})
+			} else if type_id == Request::ID_CHMOD {
+				Request::Chmod(ChmodRequest {
+					path: reader.read_utf8().map_err(|e| (e, Some(request_id)))?,
+					ops: reader.read_vec(|reader| {
+						Ok(ChmodOp {
+							value: reader.read_bool()?,
+							bits: reader.read_vec(|reader| {
+								let pos = reader.read_u8()?;
+								ChmodBit::from(pos)
+							})?
+						})
+					}).map_err(|e| (e.into(), Some(request_id)))?,
+				})
+			} else if type_id == Request::ID_DELETE_FILE {
+				Request::DeleteFile {
+					path: reader.read_utf8().map_err(|e| (e.into(), Some(request_id)))?
+				}
 			} else {
 				return Err((anyhow!("Unrecognized request type id: {}", type_id), Some(request_id)));
 			};
@@ -180,7 +326,9 @@ pub enum Response {
 	},
 
 	ReadFile(ReadFileResponse),
-	WriteFile(WriteFileResponse)
+	WriteFile(WriteFileResponse),
+	Chmod,
+	DeleteFile
 }
 
 impl Response {
@@ -189,6 +337,8 @@ impl Response {
 	const ID_UIDS: u32 = 3;
 	const ID_READ_FILE: u32 = 4;
 	const ID_WRITE_FILE: u32 = 5;
+	const ID_CHMOD: u32 = 6;
+	const ID_DELETE_FILE: u32 = 7;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -281,6 +431,14 @@ impl ResponseEnvelope {
 					}
 				}
 			}
+
+			Response::Chmod => {
+				out.write_u32::<BigEndian>(Response::ID_CHMOD)?;
+			}
+
+			Response::DeleteFile => {
+				out.write_u32::<BigEndian>(Response::ID_DELETE_FILE)?;
+			}
 		}
 
 		Ok(out)
@@ -343,6 +501,10 @@ impl ResponseEnvelope {
 						bail!("Unrecognized write file type id: {}", write_file_type_id);
 					}
 				})
+			} else if type_id == Response::ID_CHMOD {
+				Response::Chmod
+			} else if type_id == Response::ID_DELETE_FILE {
+				Response::DeleteFile
 			} else {
 				bail!("Unrecognized response type id: {}", type_id);
 			};
@@ -567,6 +729,36 @@ mod test {
 		assert_roundtrip(Request::WriteFile(WriteFileRequest::Close {
 			sequence: 42
 		}));
+
+		assert_roundtrip(Request::Chmod(ChmodRequest {
+			path: "foo".to_string(),
+			ops: vec![]
+		}));
+		assert_roundtrip(Request::Chmod(ChmodRequest {
+			path: "foo".to_string(),
+			ops: vec![
+				ChmodOp {
+					value: true,
+					bits: vec![ChmodBit::OtherExecute, ChmodBit::OtherWrite, ChmodBit::OtherRead]
+				},
+				ChmodOp {
+					value: false,
+					bits: vec![ChmodBit::GroupExecute, ChmodBit::GroupWrite, ChmodBit::GroupRead]
+				},
+				ChmodOp {
+					value: true,
+					bits: vec![ChmodBit::UserExecute, ChmodBit::UserWrite, ChmodBit::UserRead]
+				},
+				ChmodOp {
+					value: false,
+					bits: vec![ChmodBit::SetUid, ChmodBit::SetGid, ChmodBit::Sticky]
+				}
+			]
+		}));
+
+		assert_roundtrip(Request::DeleteFile {
+			path: "foo".to_string()
+		});
 	}
 
 
@@ -606,5 +798,9 @@ mod test {
 		assert_roundtrip(Response::ReadFile(ReadFileResponse::Close {
 			sequence: 7
 		}));
+
+		assert_roundtrip(Response::Chmod);
+
+		assert_roundtrip(Response::DeleteFile);
 	}
 }
