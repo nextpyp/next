@@ -1,5 +1,5 @@
 
-use std::fs;
+use std::{fs, io};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ffi::OsString;
@@ -370,10 +370,27 @@ async fn dispatch_uids(socket: Rc<RefCell<OwnedWriteHalf>>, request_id: u32) {
 
 	trace!("Request");
 
+	let mut uid: libc::uid_t = 0;
+	let mut euid: libc::uid_t = 0;
+	let mut suid: libc::uid_t = 0;
+	match unsafe { libc::getresuid(&mut uid, &mut euid, &mut suid) } {
+		0 => (), // ok,
+		_ => {
+			let response = Response::Error {
+				reason: format!("Failed to call getresuid(): {}", io::Error::last_os_error())
+			};
+			write_response(&socket, request_id, response)
+				.await
+				.ok();
+			return;
+		}
+	}
+
 	// respond with the current uids
 	let response = Response::Uids {
-		uid: users::get_current_uid(),
-		euid: users::get_effective_uid()
+		uid,
+		euid,
+		suid
 	};
 	write_response(&socket, request_id, response)
 		.await

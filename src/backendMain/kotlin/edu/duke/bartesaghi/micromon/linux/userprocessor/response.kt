@@ -19,7 +19,7 @@ sealed interface Response {
 		const val ID: UInt = 2u
 	}
 
-	data class Uids(val uid: UInt, val euid: UInt) : Response {
+	data class Uids(val uid: UInt, val euid: UInt, val suid: UInt) : Response {
 		companion object {
 			const val ID: UInt = 3u
 		}
@@ -230,7 +230,8 @@ class ResponseEnvelope(
 
 				Response.Uids.ID -> Response.Uids(
 					uid = input.readU32(),
-					euid = input.readU32()
+					euid = input.readU32(),
+					suid = input.readU32()
 				)
 
 				Response.ReadFile.ID -> Response.ReadFile(run {

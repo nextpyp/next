@@ -322,7 +322,8 @@ pub enum Response {
 	Pong,
 	Uids {
 		uid: u32,
-		euid: u32
+		euid: u32,
+		suid: u32
 	},
 
 	ReadFile(ReadFileResponse),
@@ -395,10 +396,11 @@ impl ResponseEnvelope {
 				out.write_u32::<BigEndian>(Response::ID_PONG)?;
 			}
 
-			Response::Uids { uid, euid } => {
+			Response::Uids { uid, euid, suid } => {
 				out.write_u32::<BigEndian>(Response::ID_UIDS)?;
 				out.write_u32::<BigEndian>(*uid)?;
 				out.write_u32::<BigEndian>(*euid)?;
+				out.write_u32::<BigEndian>(*suid)?;
 			}
 
 			Response::ReadFile(response) => {
@@ -468,7 +470,8 @@ impl ResponseEnvelope {
 			} else if type_id == Response::ID_UIDS {
 				Response::Uids {
 					uid: reader.read_u32::<BigEndian>()?,
-					euid: reader.read_u32::<BigEndian>()?
+					euid: reader.read_u32::<BigEndian>()?,
+					suid: reader.read_u32::<BigEndian>()?
 				}
 			} else if type_id == Response::ID_READ_FILE {
 				Response::ReadFile({
@@ -785,7 +788,8 @@ mod test {
 
 		assert_roundtrip(Response::Uids {
 			uid: 5,
-			euid: 42
+			euid: 42,
+			suid: 7
 		});
 
 		assert_roundtrip(Response::ReadFile(ReadFileResponse::Open {

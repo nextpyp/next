@@ -71,7 +71,8 @@ fn uids() {
 	let response = request(&mut socket, 5, Request::Uids);
 	assert_that!(&response, eq(Response::Uids {
 		uid: users::get_current_uid(),
-		euid: users::get_effective_uid()
+		euid: users::get_effective_uid(),
+		suid: users::get_current_uid(),
 	}));
 
 	user_processor.disconnect(socket);
@@ -84,6 +85,8 @@ fn read_file() {
 	let _logging = logging::init_test();
 
 	// write a file we can read
+	fs::create_dir_all(SOCKET_DIR)
+		.ok();
 	let path = PathBuf::from(SOCKET_DIR).join("read_file_test");
 	fs::write(&path, "hello".to_string())
 		.unwrap();
@@ -126,6 +129,8 @@ fn read_file_large() {
 	for i in 0 .. content.capacity() {
 		content.push(i as u8);
 	}
+	fs::create_dir_all(SOCKET_DIR)
+		.ok();
 	let path = PathBuf::from(SOCKET_DIR).join("read_file_large_test");
 	fs::write(&path, &content)
 		.unwrap();
@@ -176,6 +181,8 @@ fn write_file() {
 	let user_processor = UserProcessor::start();
 	let mut socket = user_processor.connect();
 
+	fs::create_dir_all(SOCKET_DIR)
+		.ok();
 	let path = PathBuf::from(SOCKET_DIR).join("write_file_test");
 	let request_id = 5;
 	let response = request(&mut socket, request_id, Request::WriteFile(WriteFileRequest::Open {
@@ -217,6 +224,8 @@ fn write_file_append() {
 	let user_processor = UserProcessor::start();
 	let mut socket = user_processor.connect();
 
+	fs::create_dir_all(SOCKET_DIR)
+		.ok();
 	let path = PathBuf::from(SOCKET_DIR).join("write_file_append_test");
 
 	// create a new file
@@ -278,6 +287,8 @@ fn write_file_large() {
 	let user_processor = UserProcessor::start();
 	let mut socket = user_processor.connect();
 
+	fs::create_dir_all(SOCKET_DIR)
+		.ok();
 	let path = PathBuf::from(SOCKET_DIR).join("write_file_large_test");
 	let request_id = 5;
 	let response = request(&mut socket, request_id, Request::WriteFile(WriteFileRequest::Open {
@@ -334,6 +345,8 @@ fn chmod() {
 	let _logging = logging::init_test();
 
 	// write a file we can modify
+	fs::create_dir_all(SOCKET_DIR)
+		.ok();
 	let path = PathBuf::from(SOCKET_DIR).join("chmod_test");
 	fs::remove_file(&path)
 		.ok();
@@ -419,6 +432,8 @@ fn delete_file() {
 	let _logging = logging::init_test();
 
 	// write a file we can delete
+	fs::create_dir_all(SOCKET_DIR)
+		.ok();
 	let path = PathBuf::from(SOCKET_DIR).join("delete_file_test");
 	fs::remove_file(&path)
 		.ok();

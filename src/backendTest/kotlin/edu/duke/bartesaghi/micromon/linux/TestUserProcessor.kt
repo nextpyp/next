@@ -81,7 +81,7 @@ class TestUserProcessor : DescribeSpec({
 
 			roundtrip(Response.Pong)
 
-			roundtrip(Response.Uids(5u, 42u))
+			roundtrip(Response.Uids(5u, 42u, 7u))
 
 			roundtrip(Response.ReadFile.Open(5u).into())
 			roundtrip(Response.ReadFile.Chunk(5u, byteArrayOf(1, 2, 3)).into())

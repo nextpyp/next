@@ -26,7 +26,7 @@ class TestUserProcessors : DescribeSpec({
 		it("no exec") {
 			withSubprocesses { _, subprocesses ->
 				shouldThrow<UserProcessorException> {
-					subprocesses.get("not configured for runas") // probably
+					subprocesses.get("not configured for user-processor") // probably
 				}
 			}
 		}
@@ -36,8 +36,9 @@ class TestUserProcessors : DescribeSpec({
 				val uids = subprocesses
 					.get(username)
 					.uids()
-				hostProcessor.username(uids.uid).shouldBe(System.getProperty("user.name"))
+				hostProcessor.username(uids.uid).shouldBe(username)
 				hostProcessor.username(uids.euid).shouldBe(username)
+				hostProcessor.username(uids.suid).shouldBe(System.getProperty("user.name"))
 			}
 		}
 	}

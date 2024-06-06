@@ -1,5 +1,5 @@
 
-use std::env;
+use std::{env, io};
 use std::path::PathBuf;
 use std::process::ExitCode;
 
@@ -63,6 +63,7 @@ fn main() -> ExitCode {
 fn run(args: Args) -> Result<()> {
 
 	// get the effective username, for the log
+	let uid_current = users::get_current_uid();
 	let uid_effective = users::get_effective_uid();
 	let username_effective = users::get_user_by_uid(uid_effective)
 		.map(|user| user.name().to_string_lossy().to_string())
@@ -83,7 +84,6 @@ fn run(args: Args) -> Result<()> {
 			.context("Failed to query executable name")?;
 
 		// show the current user
-		let uid_current = users::get_current_uid();
 		let username_current = users::get_user_by_uid(uid_current)
 			.map(|user| user.name().to_string_lossy().to_string())
 			.unwrap_or("(unknown)".to_string());
@@ -92,6 +92,18 @@ fn run(args: Args) -> Result<()> {
 		} else {
 			info!("{} started as {}:{}, but acting as {}:{}", user_processor_name, uid_current, username_current, uid_effective, username_effective);
 		}
+	}
+
+	// set the UID to match the EUID, to keep from confusing other programs
+	// but also save the original UID so we don't lose all trace of the service account
+	// as an unpriviledged process, we're only allowed to set UID to itself or EUID, but nothing else
+	// NOTE: man setreuid says we can send -1 to leave an id unchanged,
+	//       but since the rust wrapper function uses u32 for uid_t,
+	//       we'll just have to encode the -1 ourselves as a 4-byte bitstring of all 1s, ie the max unsigned value
+	match unsafe { libc::setresuid(uid_effective, libc::uid_t::MAX, uid_current) } {
+		0 => (), // ok
+		_ => Err(io::Error::last_os_error())
+			.context("Failed to call setresuid()")?
 	}
 
 	match args.cmd {
