@@ -493,6 +493,20 @@ class UserProcessor(
 			}
 	}
 
+	suspend fun createFolder(path: Path) {
+		request(Request.CreateFolder(path.toString()))
+			.use { responder ->
+				responder.recv().cast<Response.CreateFolder>()
+			}
+	}
+
+	suspend fun deleteFolder(path: Path) {
+		request(Request.DeleteFolder(path.toString()))
+			.use { responder ->
+				responder.recv().cast<Response.DeleteFolder>()
+			}
+	}
+
 	fun wrap(cmd: Command): Command =
 		cmd.wrap(path.toString(), listOf("run", "/tmp"))
 }

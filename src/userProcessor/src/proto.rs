@@ -28,6 +28,13 @@ pub enum Request {
 
 	DeleteFile {
 		path: String
+	},
+
+	CreateFolder {
+		path: String
+	},
+	DeleteFolder {
+		path: String
 	}
 }
 
@@ -38,6 +45,8 @@ impl Request {
 	const ID_WRITE_FILE: u32 = 4;
 	const ID_CHMOD: u32 = 5;
 	const ID_DELETE_FILE: u32 = 6;
+	const ID_CREATE_FOLDER: u32 = 7;
+	const ID_DELETE_FOLDER: u32 = 8;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -229,6 +238,16 @@ impl RequestEnvelope {
 				out.write_u32::<BigEndian>(Request::ID_DELETE_FILE)?;
 				out.write_utf8(path)?;
 			}
+
+			Request::CreateFolder { path } => {
+				out.write_u32::<BigEndian>(Request::ID_CREATE_FOLDER)?;
+				out.write_utf8(path)?;
+			}
+
+			Request::DeleteFolder { path } => {
+				out.write_u32::<BigEndian>(Request::ID_DELETE_FOLDER)?;
+				out.write_utf8(path)?;
+			}
 		}
 
 		Ok(out)
@@ -296,6 +315,14 @@ impl RequestEnvelope {
 				Request::DeleteFile {
 					path: reader.read_utf8().map_err(|e| (e.into(), Some(request_id)))?
 				}
+			} else if type_id == Request::ID_CREATE_FOLDER {
+				Request::CreateFolder {
+					path: reader.read_utf8().map_err(|e| (e.into(), Some(request_id)))?
+				}
+			} else if type_id == Request::ID_DELETE_FOLDER {
+				Request::DeleteFolder {
+					path: reader.read_utf8().map_err(|e| (e.into(), Some(request_id)))?
+				}
 			} else {
 				return Err((anyhow!("Unrecognized request type id: {}", type_id), Some(request_id)));
 			};
@@ -329,7 +356,9 @@ pub enum Response {
 	ReadFile(ReadFileResponse),
 	WriteFile(WriteFileResponse),
 	Chmod,
-	DeleteFile
+	DeleteFile,
+	CreateFolder,
+	DeleteFolder
 }
 
 impl Response {
@@ -340,6 +369,8 @@ impl Response {
 	const ID_WRITE_FILE: u32 = 5;
 	const ID_CHMOD: u32 = 6;
 	const ID_DELETE_FILE: u32 = 7;
+	const ID_CREATE_FOLDER: u32 = 8;
+	const ID_DELETE_FOLDER: u32 = 9;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -441,6 +472,14 @@ impl ResponseEnvelope {
 			Response::DeleteFile => {
 				out.write_u32::<BigEndian>(Response::ID_DELETE_FILE)?;
 			}
+
+			Response::CreateFolder => {
+				out.write_u32::<BigEndian>(Response::ID_CREATE_FOLDER)?;
+			}
+
+			Response::DeleteFolder => {
+				out.write_u32::<BigEndian>(Response::ID_DELETE_FOLDER)?;
+			}
 		}
 
 		Ok(out)
@@ -508,6 +547,10 @@ impl ResponseEnvelope {
 				Response::Chmod
 			} else if type_id == Response::ID_DELETE_FILE {
 				Response::DeleteFile
+			} else if type_id == Response::ID_CREATE_FOLDER {
+				Response::CreateFolder
+			} else if type_id == Response::ID_DELETE_FOLDER {
+				Response::DeleteFolder
 			} else {
 				bail!("Unrecognized response type id: {}", type_id);
 			};
@@ -762,6 +805,14 @@ mod test {
 		assert_roundtrip(Request::DeleteFile {
 			path: "foo".to_string()
 		});
+
+		assert_roundtrip(Request::CreateFolder {
+			path: "foo".to_string()
+		});
+
+		assert_roundtrip(Request::DeleteFolder {
+			path: "foo".to_string()
+		});
 	}
 
 
@@ -806,5 +857,9 @@ mod test {
 		assert_roundtrip(Response::Chmod);
 
 		assert_roundtrip(Response::DeleteFile);
+
+		assert_roundtrip(Response::CreateFolder);
+
+		assert_roundtrip(Response::DeleteFolder);
 	}
 }

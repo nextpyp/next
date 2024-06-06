@@ -263,6 +263,14 @@ async fn drive_connection(socket: UnixStream) {
 
 					Request::DeleteFile { path } =>
 						dispatch_delete_file(socket_write, request.id, path)
+							.await,
+
+					Request::CreateFolder { path } =>
+						dispatch_create_folder(socket_write, request.id, path)
+							.await,
+
+					Request::DeleteFolder { path } =>
+						dispatch_delete_folder(socket_write, request.id, path)
 							.await
 				}
 
@@ -368,7 +376,7 @@ async fn dispatch_ping(socket: Rc<RefCell<OwnedWriteHalf>>, request_id: u32) {
 #[tracing::instrument(skip_all, level = 5, name = "Uids")]
 async fn dispatch_uids(socket: Rc<RefCell<OwnedWriteHalf>>, request_id: u32) {
 
-	trace!("Request");
+	debug!("Request");
 
 	let mut uid: libc::uid_t = 0;
 	let mut euid: libc::uid_t = 0;
@@ -401,7 +409,7 @@ async fn dispatch_uids(socket: Rc<RefCell<OwnedWriteHalf>>, request_id: u32) {
 #[tracing::instrument(skip_all, level = 5, name = "ReadFile")]
 async fn dispatch_read_file(socket: Rc<RefCell<OwnedWriteHalf>>, request_id: u32, path: String) {
 
-	trace!(path, "Request");
+	debug!(path, "Request");
 
 	// try to open the file for reading
 	let Some(mut file) = File::open(&path)
@@ -495,7 +503,7 @@ async fn dispatch_write_file(
 
 		WriteFileRequest::Open { path, append } => {
 
-			trace!(path, append, "Open");
+			debug!(path, append, "Open");
 
 			// try to open the file for writing
 			let Some(file) = OpenOptions::new()
@@ -602,7 +610,7 @@ async fn dispatch_write_file(
 #[tracing::instrument(skip_all, level = 5, name = "Chmod")]
 async fn dispatch_chmod(socket: Rc<RefCell<OwnedWriteHalf>>, request_id: u32, request: ChmodRequest) {
 
-	trace!(path = request.path, ops = request.ops_to_string(), "Request");
+	debug!(path = request.path, ops = request.ops_to_string(), "Request");
 
 	let Some(meta) = fs::metadata(&request.path)
 		.or_respond_error(&socket, request_id, |e| format!("Failed to read file permissions: {}", e))
@@ -632,11 +640,10 @@ async fn dispatch_chmod(socket: Rc<RefCell<OwnedWriteHalf>>, request_id: u32, re
 }
 
 
-
 #[tracing::instrument(skip_all, level = 5, name = "DeleteFile")]
 async fn dispatch_delete_file(socket: Rc<RefCell<OwnedWriteHalf>>, request_id: u32, path: String) {
 
-	trace!(path, "Request");
+	debug!(path, "Request");
 
 	let Some(()) = fs::remove_file(&path)
 		.or_respond_error(&socket, request_id, |e| format!("Failed to delete file: {}", e))
@@ -644,6 +651,38 @@ async fn dispatch_delete_file(socket: Rc<RefCell<OwnedWriteHalf>>, request_id: u
 		else { return };
 
 	write_response(&socket, request_id, Response::DeleteFile)
+		.await
+		.ok();
+}
+
+
+#[tracing::instrument(skip_all, level = 5, name = "CreateFolder")]
+async fn dispatch_create_folder(socket: Rc<RefCell<OwnedWriteHalf>>, request_id: u32, path: String) {
+
+	debug!(path, "Request");
+
+	let Some(()) = fs::create_dir_all(path)
+		.or_respond_error(&socket, request_id, |e| format!("Failed to create folder: {}", e))
+		.await
+		else { return };
+
+	write_response(&socket, request_id, Response::CreateFolder)
+		.await
+		.ok();
+}
+
+
+#[tracing::instrument(skip_all, level = 5, name = "DeleteFolder")]
+async fn dispatch_delete_folder(socket: Rc<RefCell<OwnedWriteHalf>>, request_id: u32, path: String) {
+
+	debug!(path, "Request");
+
+	let Some(()) = fs::remove_dir_all(path)
+		.or_respond_error(&socket, request_id, |e| format!("Failed to delete folder: {}", e))
+		.await
+		else { return };
+
+	write_response(&socket, request_id, Response::DeleteFolder)
 		.await
 		.ok();
 }

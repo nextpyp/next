@@ -97,6 +97,14 @@ sealed interface Response {
 	object DeleteFile : Response {
 		const val ID: UInt = 7u
 	}
+
+	object CreateFolder : Response {
+		const val ID: UInt = 8u
+	}
+
+	object DeleteFolder : Response {
+		const val ID: UInt = 9u
+	}
 }
 
 fun Response.ReadFile.Response.into(): Response =
@@ -161,6 +169,7 @@ class ResponseEnvelope(
 				out.writeU32(Response.Uids.ID)
 				out.writeU32(response.uid)
 				out.writeU32(response.euid)
+				out.writeU32(response.suid)
 			}
 
 			is Response.ReadFile -> {
@@ -205,6 +214,14 @@ class ResponseEnvelope(
 
 			is Response.DeleteFile -> {
 				out.writeU32(Response.DeleteFile.ID)
+			}
+
+			is Response.CreateFolder -> {
+				out.writeU32(Response.CreateFolder.ID)
+			}
+
+			is Response.DeleteFolder -> {
+				out.writeU32(Response.DeleteFolder.ID)
 			}
 		}
 
@@ -265,6 +282,10 @@ class ResponseEnvelope(
 				Response.Chmod.ID -> Response.Chmod
 
 				Response.DeleteFile.ID -> Response.DeleteFile
+
+				Response.CreateFolder.ID -> Response.CreateFolder
+
+				Response.DeleteFolder.ID -> Response.DeleteFolder
 
 				else -> throw NoSuchElementException("unrecognized response type: $responseTypeId")
 			}

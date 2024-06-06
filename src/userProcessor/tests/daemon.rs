@@ -426,7 +426,6 @@ fn chmod() {
 }
 
 
-
 #[test]
 fn delete_file() {
 	let _logging = logging::init_test();
@@ -456,6 +455,66 @@ fn delete_file() {
 	user_processor.stop();
 }
 
+
+#[test]
+fn create_folder() {
+	let _logging = logging::init_test();
+
+	fs::create_dir_all(SOCKET_DIR)
+		.ok();
+	let path = PathBuf::from(SOCKET_DIR).join("create_folder_test");
+	fs::remove_dir_all(&path)
+		.ok();
+
+	assert_that!(&path.exists(), eq(false));
+
+	let user_processor = UserProcessor::start();
+	let mut socket = user_processor.connect();
+
+	let response = request(&mut socket, 5, Request::CreateFolder {
+		path: path.to_string_lossy().to_string()
+	});
+	assert_that!(&response, eq(Response::CreateFolder));
+
+	assert_that!(&path.exists(), eq(true));
+
+	// cleanup
+	fs::remove_dir(&path)
+		.unwrap();
+
+	assert_that!(&path.exists(), eq(false));
+
+	user_processor.disconnect(socket);
+	user_processor.stop();
+}
+
+
+#[test]
+fn delete_folder() {
+	let _logging = logging::init_test();
+
+	// create a folder we can delete, put stuff in it too
+	let path = PathBuf::from(SOCKET_DIR).join("create_folder_test");
+	fs::create_dir_all(&path)
+		.ok();
+	fs::write(path.join("file"), "hello")
+		.unwrap();
+
+	assert_that!(&path.exists(), eq(true));
+
+	let user_processor = UserProcessor::start();
+	let mut socket = user_processor.connect();
+
+	let response = request(&mut socket, 5, Request::DeleteFolder {
+		path: path.to_string_lossy().to_string()
+	});
+	assert_that!(&response, eq(Response::DeleteFolder));
+
+	assert_that!(&path.exists(), eq(false));
+
+	user_processor.disconnect(socket);
+	user_processor.stop();
+}
 
 const SOCKET_DIR: &str = "/tmp/nextpyp-sockets";
 

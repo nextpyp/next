@@ -68,6 +68,8 @@ class TestUserProcessor : DescribeSpec({
 			)))
 
 			roundtrip(Request.DeleteFile("path"))
+			roundtrip(Request.CreateFolder("path"))
+			roundtrip(Request.DeleteFolder("path"))
 		}
 
 		it("response") {
@@ -93,6 +95,8 @@ class TestUserProcessor : DescribeSpec({
 			roundtrip(Response.Chmod)
 
 			roundtrip(Response.DeleteFile)
+			roundtrip(Response.CreateFolder)
+			roundtrip(Response.DeleteFolder)
 		}
 	}
 
@@ -114,8 +118,9 @@ class TestUserProcessor : DescribeSpec({
 		it("usernames").config(invocations = testCount) {
 			withUserProcessor(username) { hostProcessor, client ->
 				val uids = client.uids()
-				hostProcessor.username(uids.uid).shouldBe(System.getProperty("user.name"))
+				hostProcessor.username(uids.uid).shouldBe(username)
 				hostProcessor.username(uids.euid).shouldBe(username)
+				hostProcessor.username(uids.suid).shouldBe(System.getProperty("user.name"))
 			}
 		}
 
@@ -277,6 +282,29 @@ class TestUserProcessor : DescribeSpec({
 				} finally {
 					client.deleteFile(path)
 				}
+			}
+		}
+
+		it("create,delete folder").config(invocations = testCount) {
+			withUserProcessor(username) { _, client ->
+
+				val path = Paths.get("/tmp/nextpyp-user-processor-folder-test")
+
+				path.exists().shouldBe(false)
+
+				client.createFolder(path)
+
+				path.exists().shouldBe(true)
+
+				// put some files in there too
+				client.writeFile(path.resolve("file"))
+					.use { writer ->
+						writer.writeAll(byteArrayOf(1, 2, 3))
+					}
+
+				client.deleteFolder(path)
+
+				path.exists().shouldBe(false)
 			}
 		}
 	}
