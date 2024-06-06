@@ -326,6 +326,20 @@ case "$1" in
     # stop the website container
     singularity instance stop nextPYP
 
+    # stop any running user processors
+    # NOTE: tragically, the JVM can't shut them down, so we'll have to do it here
+    #       also, we need to stop them before stopping the host-processor
+    #       otherwise, the user-processor will panic because stdout gets closed when the host-procesor exits
+    for f in "$upsocketdir"/user-processor-*-* ; do
+      if [ -S "$f" ] ; then
+        IFS='-' read -r -a parts <<< "$(basename "$f")"
+        pid=${parts[2]}
+        username=${parts[3]}
+        echo "Found user processor $pid for $username, sending SIGTERM"
+        kill -s TERM "$pid"
+      fi
+    done
+
     # stop any running host processors
     for f in "$hpsocketdir"/host-processor-* ; do
       # NOTE: if the glob matches nothing, the filename `host-processor-*` will be iterated
@@ -334,18 +348,6 @@ case "$1" in
         IFS='-' read -r -a parts <<< "$(basename "$f")"
         pid=${parts[2]}
         echo "Found host processor $pid, sending SIGTERM"
-        kill -s TERM "$pid"
-      fi
-    done
-
-    # stop any running user processors
-    # NOTE: tragically, the JVM can't shut them down, so we'll have to do it here
-    for f in "$upsocketdir"/user-processor-*-* ; do
-      if [ -S "$f" ] ; then
-        IFS='-' read -r -a parts <<< "$(basename "$f")"
-        pid=${parts[2]}
-        username=${parts[3]}
-        echo "Found user processor $pid for $username, sending SIGTERM"
         kill -s TERM "$pid"
       fi
     done
