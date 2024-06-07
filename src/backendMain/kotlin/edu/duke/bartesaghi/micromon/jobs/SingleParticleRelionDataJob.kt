@@ -2,6 +2,7 @@ package edu.duke.bartesaghi.micromon.jobs
 
 import com.mongodb.client.model.Updates
 import edu.duke.bartesaghi.micromon.Backend
+import edu.duke.bartesaghi.micromon.User
 import edu.duke.bartesaghi.micromon.globCountOrNull
 import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.mongo.getDocument
@@ -92,17 +93,17 @@ class SingleParticleRelionDataJob(
 		return SingleParticleRelionDataDisplay(numMovies)
 	}
 
-	override suspend fun launch(runId: Int, userId: String) {
+	override suspend fun launch(runningUser: User, runId: Int) {
 
 		// clear caches
-		clearWwwCache()
+		wwwDir.recreate(runningUser.osUsername)
 
 		val newestArgs = args.newestOrThrow().args
 
 		// if we've picked some particles, write those out to pyp
 		newestArgs.particlesName
 			?.let { Database.particleLists.get(idOrThrow, it) }
-			?.let { ParticlesJobs.writeSingleParticle(idOrThrow, dir, it) }
+			?.let { ParticlesJobs.writeSingleParticle(runningUser, idOrThrow, dir, it) }
 
 		// build the args for PYP
 		val pypArgs = ArgValues(Backend.pypArgs)
@@ -118,7 +119,7 @@ class SingleParticleRelionDataJob(
 		pypArgs.importMode = "SPA_STAR"
 		pypArgs.importReadStar = true
 
-		Pyp.rlp.launch(userId, runId, pypArgs, "Import Star", "pyp_import")
+		Pyp.rlp.launch(runningUser, runId, pypArgs, "Import Star", "pyp_import")
 
 		// job was launched, move the args over
 		args.run()

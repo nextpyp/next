@@ -4,13 +4,14 @@ import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.auth.authOrThrow
 import edu.duke.bartesaghi.micromon.cluster.ClusterJob
 import edu.duke.bartesaghi.micromon.files.Speeds
+import edu.duke.bartesaghi.micromon.linux.userprocessor.WebCacheDir
+import edu.duke.bartesaghi.micromon.linux.userprocessor.createDirsIfNeededAs
 import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.*
 import io.kvision.remote.ServiceException
 import org.bson.Document
 import org.bson.conversions.Bson
-import java.nio.file.Files
 import java.nio.file.Path
 import java.time.Instant
 import java.util.ArrayList
@@ -115,7 +116,7 @@ sealed class Session(
 	 * Create a new session in the database.
 	 * Throws an error if this session has already been created
 	 */
-	fun create() {
+	suspend fun create(user: User) {
 
 		if (id != null) {
 			throw IllegalStateException("session has already been created")
@@ -131,7 +132,8 @@ sealed class Session(
 		this.sessionNumber = number
 
 		// create the session folder, if needed
-		dir.createDirsIfNeeded()
+		dir.createDirsIfNeededAs(user.osUsername)
+		wwwDir.createIfNeeded(user.osUsername)
 		LinkTree.sessionCreated(this, Database.groups.getOrThrow(newestArgs().groupId))
 	}
 
@@ -196,19 +198,8 @@ sealed class Session(
 	fun pypDir(names: PypNames): Path =
 		pypDir(this, names)
 
-	val wwwDir: Path get() =
-		dir / "www"
-
-	val wwwDirOrCreate: Path get() =
-		wwwDir.apply {
-			if (!exists()) {
-				Files.createDirectories(this)
-			}
-		}
-
-	fun clearWwwCache() {
-		wwwDir.deleteDirRecursively()
-	}
+	val wwwDir: WebCacheDir get() =
+		WebCacheDir(dir / "www")
 
 	abstract fun newestArgs(): SessionArgs
 

@@ -32,7 +32,6 @@ import java.util.concurrent.TimeUnit
 import kotlin.io.NoSuchFileException
 import kotlin.io.path.fileSize
 import kotlin.io.path.moveTo
-import kotlin.io.path.setPosixFilePermissions
 import kotlin.math.abs
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.nanoseconds
@@ -212,11 +211,6 @@ fun Path.deleteDirRecursivelyAsync() {
 	}
 }
 
-fun Path.mustExist(msg: String? = null) = apply {
-	if (!exists()) {
-		throw NoSuchFileException(toFile(), reason = msg)
-	}
-}
 
 fun Path.readString() = toFile().readText()
 fun Path.readBytes() = toFile().readBytes()

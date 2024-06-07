@@ -111,6 +111,7 @@ fi
 logsDir="$localDir/logs"
 if [ ! -d "$logsDir" ] ; then
   mkdir "$logsDir"
+  chown "$username":"$usergroup" "$logsDir"
   echo "Created logs folder: $logsDir"
 else
   echo "Using existing logs folder: $logsDir"
@@ -119,6 +120,7 @@ fi
 dbDir="$localDir/db"
 if [ ! -d "$dbDir" ] ; then
   mkdir "$dbDir"
+  chown "$username":"$usergroup" "$dbDir"
   echo "Created database folde: $dbDir"
 else
   echo "Using existing database folder: $dbDir"
@@ -127,6 +129,7 @@ fi
 batchDir="$sharedDir/batch"
 if [ ! -d "$batchDir" ] ; then
   mkdir "$batchDir"
+  chown "$username":"$usergroup" "$batchDir"
   # the batch folder needs to be writable to all the other users, so treat it like a tmp folder
   chmod ugo=rwx,+t "$batchDir"
   echo "Created batch folder: $batchDir"
@@ -137,6 +140,7 @@ fi
 jlogDir="$sharedDir/log"
 if [ ! -d "$jlogDir" ] ; then
   mkdir "$jlogDir"
+  chown "$username":"$usergroup" "$jlogDir"
   # the job log folder needs to be writable to all the other users, so treat it like a tmp folder
   chmod ugo=rwx,+t "$jlogDir"
   echo "Created job log folder: $jlogDir"
@@ -144,7 +148,19 @@ else
   echo "Using existing job log folder: $jlogDir"
 fi
 
-# TODO: user/group folders?
+usersDir="$sharedDir/users"
+if [ ! -d "$usersDir" ] ; then
+  mkdir "$usersDir"
+  chown "$username":"$usergroup" "$usersDir"
+  # the users folder needs to be writable to all the other users, so treat it like a tmp folder
+  # also use the setgid bit, so user folders keep the service account group
+  chmod ugo=rwx,g+s,+t "$usersDir"
+  echo "Created users folder: $usersDir"
+else
+  echo "Using existing users folder: $usersDir"
+fi
+
+# TODO: session folders?
 
 # setup the user-processor system
 # NOTE: everything has to go into the shared folder

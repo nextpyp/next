@@ -334,7 +334,7 @@ actual class SessionsService : ISessionsService, Service {
 	}
 
 
-	fun readImage(sessionId: String, dataId: String, size: ImageSize): ByteArray {
+	suspend fun readImage(sessionId: String, dataId: String, size: ImageSize): ByteArray {
 
 		val session = auth(sessionId, SessionPermission.Read).session
 
@@ -378,7 +378,7 @@ actual class SessionsService : ISessionsService, Service {
 			.toOption()
 	}
 
-	fun getCtffindImage(sessionId: String, dataId: String, size: ImageSize): ByteArray {
+	suspend fun getCtffindImage(sessionId: String, dataId: String, size: ImageSize): ByteArray {
 
 		val session = auth(sessionId, SessionPermission.Read).session
 
@@ -404,7 +404,7 @@ actual class SessionsService : ISessionsService, Service {
 			?: "(no log for ${session.type} data $dataId)"
 	}
 
-	fun readTwoDClassesImage(sessionId: String, twoDClassesId: String, size: ImageSize): ByteArray {
+	suspend fun readTwoDClassesImage(sessionId: String, twoDClassesId: String, size: ImageSize): ByteArray {
 		val session = auth(sessionId, SessionPermission.Read).session
 		return when (session) {
 			is SingleParticleSession -> TwoDClasses.get(sessionId, twoDClassesId)
@@ -471,7 +471,7 @@ actual class SessionsService : ISessionsService, Service {
 		val requestObj = SessionExportRequest.deserialize(request)
 		val slurmArgValues = slurmValues.toArgValues(MicromonArgs.args)
 
-		SessionExport.launch(authed.session, authed.user.id, requestObj, slurmArgValues)
+		SessionExport.launch(authed.user, authed.session, requestObj, slurmArgValues)
 	}
 
 	override suspend fun cancelExport(exportId: String) = sanitizeExceptions {

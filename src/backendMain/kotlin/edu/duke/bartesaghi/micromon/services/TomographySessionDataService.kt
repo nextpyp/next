@@ -17,15 +17,14 @@ actual class TomographySessionDataService : ITomographySessionDataService, Servi
 	override suspend fun import(userId: String, projectId: String, sessionId: String): TomographySessionDataData = sanitizeExceptions {
 
 		// authenticate the user for this project and session
-		call.authOrThrow().apply {
-			authProjectOrThrow(ProjectPermission.Write, userId, projectId)
-			authSessionForReadOrThrow(sessionId)
-		}
+		val user = call.authOrThrow()
+		user.authProjectOrThrow(ProjectPermission.Write, userId, projectId)
+		user.authSessionForReadOrThrow(sessionId)
 
 		// make the job
 		val job = TomographySessionDataJob(userId, projectId)
 		job.args.next = TomographySessionDataArgs(sessionId,"", null)
-		job.create()
+		job.create(user)
 
 		return job.data()
 	}

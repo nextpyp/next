@@ -15,14 +15,14 @@ actual class TomographyPreprocessingService : ITomographyPreprocessingService, S
 
 	override suspend fun addNode(userId: String, projectId: String, inTiltSeries: CommonJobData.DataId, args: TomographyPreprocessingArgs): TomographyPreprocessingData = sanitizeExceptions {
 
-		call.authOrThrow()
-			.authProjectOrThrow(ProjectPermission.Write, userId, projectId)
+		val user = call.authOrThrow()
+		user.authProjectOrThrow(ProjectPermission.Write, userId, projectId)
 
 		// make the job
 		val job = TomographyPreprocessingJob(userId, projectId)
 		job.args.next = args
 		job.inTiltSeries = inTiltSeries
-		job.create()
+		job.create(user)
 
 		return job.data()
 	}

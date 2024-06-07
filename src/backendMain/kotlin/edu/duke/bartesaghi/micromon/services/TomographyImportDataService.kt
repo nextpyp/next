@@ -55,8 +55,8 @@ actual class TomographyImportDataService : ITomographyImportDataService, Service
 	override suspend fun import(userId: String, projectId: String, args: TomographyImportDataArgs): TomographyImportDataData = sanitizeExceptions {
 
 		// authenticate the user for this project
-		call.authOrThrow()
-			.authProjectOrThrow(ProjectPermission.Write, userId, projectId)
+		val user = call.authOrThrow()
+		user.authProjectOrThrow(ProjectPermission.Write, userId, projectId)
 
 		// TODO: access control list check for this user on this dir
 		//args.tiltSeriesDir
@@ -64,7 +64,7 @@ actual class TomographyImportDataService : ITomographyImportDataService, Service
 		// make the job
 		val job = TomographyImportDataJob(userId, projectId)
 		job.args.next = args
-		job.create()
+		job.create(user)
 
 		return job.data()
 	}
@@ -94,7 +94,7 @@ actual class TomographyImportDataService : ITomographyImportDataService, Service
 		return TomographyImportDataJob.args().toJson()
 	}
 
-	fun getImage(jobId: String, size: ImageSize): ByteArray {
+	suspend fun getImage(jobId: String, size: ImageSize): ByteArray {
 
 		val job = jobId.authJob(ProjectPermission.Read).job
 

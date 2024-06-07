@@ -2,7 +2,9 @@ package edu.duke.bartesaghi.micromon.jobs
 
 import com.mongodb.client.model.Updates
 import edu.duke.bartesaghi.micromon.Backend
-import edu.duke.bartesaghi.micromon.createDirsIfNeeded
+import edu.duke.bartesaghi.micromon.User
+import edu.duke.bartesaghi.micromon.linux.userprocessor.createDirsIfNeededAs
+import edu.duke.bartesaghi.micromon.linux.userprocessor.writeStringAs
 import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.mongo.getDocument
 import edu.duke.bartesaghi.micromon.nodes.SingleParticleCoarseRefinementNodeConfig
@@ -11,7 +13,6 @@ import edu.duke.bartesaghi.micromon.projects.RepresentativeImage
 import edu.duke.bartesaghi.micromon.projects.RepresentativeImageType
 import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.*
-import edu.duke.bartesaghi.micromon.writeString
 import org.bson.Document
 import org.bson.conversions.Bson
 import kotlin.io.path.div
@@ -84,10 +85,10 @@ class SingleParticleCoarseRefinementJob(
 			jobInfoString ?: ""
 		)
 
-	override suspend fun launch(runId: Int, userId: String) {
+	override suspend fun launch(runningUser: User, runId: Int) {
 
 		// clear caches
-		clearWwwCache()
+		wwwDir.recreate(runningUser.osUsername)
 
 		val preprocessingJob = inRefinement?.resolveJob<Job>() ?: throw IllegalStateException("no refinement input configured")
 
@@ -98,10 +99,10 @@ class SingleParticleCoarseRefinementJob(
 			if (filter != null) {
 
 				// write out the micrographs file to the job folder before starting pyp
-				val dir = dir.createDirsIfNeeded()
+				val dir = dir.createDirsIfNeededAs(runningUser.osUsername)
 				val file = dir / "${dir.fileName}.micrographs"
 				val micrographIds = preprocessingJob.resolveFilter(filter)
-				file.writeString(micrographIds.joinToString("\n"))
+				file.writeStringAs(runningUser.osUsername, micrographIds.joinToString("\n"))
 			}
 		}
 
@@ -118,7 +119,7 @@ class SingleParticleCoarseRefinementJob(
 		pypArgs.dataParent = preprocessingJob.dir.toString()
 		pypArgs.extractFmt = "frealign"
 		
-		Pyp.csp.launch(userId, runId, pypArgs, "Launch", "pyp_launch")
+		Pyp.csp.launch(runningUser, runId, pypArgs, "Launch", "pyp_launch")
 
 		// job was launched, move the args over
 		args.run()

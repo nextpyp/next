@@ -15,14 +15,14 @@ actual class SingleParticlePreprocessingService : ISingleParticlePreprocessingSe
 
 	override suspend fun addNode(userId: String, projectId: String, inMovies: CommonJobData.DataId, args: SingleParticlePreprocessingArgs): SingleParticlePreprocessingData = sanitizeExceptions {
 
-		call.authOrThrow()
-			.authProjectOrThrow(ProjectPermission.Write, userId, projectId)
+		val user = call.authOrThrow()
+		user.authProjectOrThrow(ProjectPermission.Write, userId, projectId)
 
 		// make the job
 		val job = SingleParticlePreprocessingJob(userId, projectId)
 		job.args.next = args
 		job.inMovies = inMovies
-		job.create()
+		job.create(user)
 
 		return job.data()
 	}

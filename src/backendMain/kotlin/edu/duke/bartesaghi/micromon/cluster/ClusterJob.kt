@@ -509,8 +509,16 @@ class ClusterJob(
 		}
 		val ownerListeners = OwnerListeners()
 
-		private val sharedDir = Backend.config.web.sharedDir
-		private val batchDir = sharedDir.resolve("batch")
-		private val logDir = sharedDir.resolve("log")
+		/**
+		 * This dir should be created by the install process.
+		 * We should never need to create it from the website process.
+		 */
+		val batchDir = Config.instance.web.sharedDir.resolve("batch")
+
+		/**
+		 * This dir should be created by the install process.
+		 * We should never need to create it from the website process.
+		 */
+		val logDir = Config.instance.web.sharedDir.resolve("log")
 	}
 }

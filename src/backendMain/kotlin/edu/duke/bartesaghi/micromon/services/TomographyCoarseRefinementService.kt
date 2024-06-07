@@ -15,14 +15,14 @@ actual class TomographyCoarseRefinementService : ITomographyCoarseRefinementServ
 
 	override suspend fun addNode(userId: String, projectId: String, inMovieRefinement: CommonJobData.DataId, args: TomographyCoarseRefinementArgs): TomographyCoarseRefinementData = sanitizeExceptions {
 
-		call.authOrThrow()
-			.authProjectOrThrow(ProjectPermission.Write, userId, projectId)
+		val user = call.authOrThrow()
+		user.authProjectOrThrow(ProjectPermission.Write, userId, projectId)
 
 		// make the job
 		val job = TomographyCoarseRefinementJob(userId, projectId)
 		job.args.next = args
 		job.inMovieRefinement = inMovieRefinement
-		job.create()
+		job.create(user)
 
 		return job.data()
 	}

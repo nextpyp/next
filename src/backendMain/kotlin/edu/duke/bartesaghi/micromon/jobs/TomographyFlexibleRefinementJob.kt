@@ -2,6 +2,7 @@ package edu.duke.bartesaghi.micromon.jobs
 
 import com.mongodb.client.model.Updates
 import edu.duke.bartesaghi.micromon.Backend
+import edu.duke.bartesaghi.micromon.User
 import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.mongo.getDocument
 import edu.duke.bartesaghi.micromon.nodes.TomographyFlexibleRefinementNodeConfig
@@ -79,10 +80,10 @@ class TomographyFlexibleRefinementJob(
 			jobInfoString ?: ""
 		)
 
-	override suspend fun launch(runId: Int, userId: String) {
+	override suspend fun launch(runningUser: User, runId: Int) {
 
 		// clear caches
-		clearWwwCache()
+		wwwDir.recreate(runningUser.osUsername)
 
 		// get the input jobs
 		val prevJob = inMovieRefinements?.resolveJob<Job>() ?: throw IllegalStateException("no movie refinements input configured")
@@ -100,7 +101,7 @@ class TomographyFlexibleRefinementJob(
 		pypArgs.dataParent = prevJob.dir.toString()
 		pypArgs.extractFmt = "frealign_local"
 
-		Pyp.csp.launch(userId, runId, pypArgs, "Launch", "pyp_launch")
+		Pyp.csp.launch(runningUser, runId, pypArgs, "Launch", "pyp_launch")
 
 		// job was launched, move the args over
 		args.run()

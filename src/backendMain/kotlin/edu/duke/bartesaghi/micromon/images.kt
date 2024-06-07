@@ -1,5 +1,6 @@
 package edu.duke.bartesaghi.micromon
 
+import edu.duke.bartesaghi.micromon.linux.userprocessor.WebCacheDir
 import edu.duke.bartesaghi.micromon.services.ImageSize
 import java.awt.geom.AffineTransform
 import java.awt.image.AffineTransformOp
@@ -21,13 +22,29 @@ enum class ImageType(val mimeType: String, val extension: String) {
 
 data class ImageCacheInfo(
 	/** where the cached image should be kept */
-	val dir: Path,
+	val dir: WebCacheDir,
 	/** a unique identifier for the image file, among all the images that might be cached in the same folder */
 	val key: String
 ) {
 
-	fun path(type: ImageType, size: ImageSize): Path =
-		dir / "$key.${size.id}.${type.extension}"
+	inner class File(type: ImageType, size: ImageSize) {
+
+		val name = "$key.${size.id}.${type.extension}"
+		val path = dir.path / name
+
+		fun exists(): Boolean =
+			path.exists()
+
+		suspend fun read(): ByteArray =
+			slowIOs {
+				path.readBytes()
+			}
+
+		suspend fun write(content: ByteArray) =
+			slowIOs {
+				path.writeBytes(content)
+			}
+	}
 }
 
 
@@ -35,7 +52,7 @@ data class ImageCacheInfo(
  * Returns the image as a byte array, resizing to the desired size.
  * Can cache the resized image if required.
  */
-fun ImageSize.readResize(
+suspend fun ImageSize.readResize(
 	path: Path,
 	type: ImageType,
 	cacheInfo: ImageCacheInfo? = null,
@@ -43,9 +60,11 @@ fun ImageSize.readResize(
 ): ByteArray? {
 
 	// if we're caching, and we already have the cached image, use that
-	val cachePath = cacheInfo?.path(type, this)
-	if (cachePath?.exists() == true) {
-		return cachePath.readBytes()
+	val cacheFile = cacheInfo?.File(type, this)
+	if (cacheFile != null) {
+		if (cacheFile.exists()) {
+			return cacheFile.read()
+		}
 	}
 
 	// cache miss, check for the source image
@@ -58,9 +77,11 @@ fun ImageSize.readResize(
 		.takeIf { it.hasNext() }
 		?.next()
 		?: throw UnsupportedOperationException("ImageIO doesn't know how to read $type image at $path")
-	var image = FileImageInputStream(path.toFile()).use {
-		reader.input = it
-		reader.read(0)
+	var image = slowIOs {
+		FileImageInputStream(path.toFile()).use {
+			reader.input = it
+			reader.read(0)
+		}
 	}
 
 	// apply the image transformer if needed
@@ -74,10 +95,7 @@ fun ImageSize.readResize(
 		.write(type)
 
 	// if we're caching, save the file
-	if (cachePath != null) {
-		cachePath.parent.createDirsIfNeeded()
-		cachePath.writeBytes(resized)
-	}
+	cacheFile?.write(resized)
 
 	return resized
 }

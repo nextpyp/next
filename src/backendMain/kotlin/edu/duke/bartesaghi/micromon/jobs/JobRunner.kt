@@ -130,10 +130,16 @@ class JobRunner(val project: Project) {
 		// finally, actually launch the job
 		// but in a try block, since job launches can be very error-prone
 		// and errors can even be caused by user input
-		val runningUserId = run.runningUserId
-			?: project.userId
 		try {
-			job.launch(run.idOrThrow, runningUserId)
+
+			// get the running user
+			val runningUserId = run.runningUserId
+				?: project.userId
+			val runningUser = Database.users.getUser(runningUserId)
+				?: throw NoSuchElementException("Skipping job run: no user found for $runningUserId")
+
+			job.launch(runningUser, run.idOrThrow)
+
 		} catch (t: Throwable) {
 
 			Backend.log.error("Job failed to launch", t.cleanupStackTrace())

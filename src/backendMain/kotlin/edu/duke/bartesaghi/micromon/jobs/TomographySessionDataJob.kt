@@ -2,6 +2,7 @@ package edu.duke.bartesaghi.micromon.jobs
 
 import com.mongodb.client.model.Updates
 import edu.duke.bartesaghi.micromon.Backend
+import edu.duke.bartesaghi.micromon.User
 import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.mongo.getDocument
 import edu.duke.bartesaghi.micromon.nodes.TomographySessionDataNodeConfig
@@ -78,16 +79,16 @@ class TomographySessionDataJob(
 			Database.particles.countAllParticles(idOrThrow, ParticlesList.PypAutoParticles)
 		)
 
-	override suspend fun launch(runId: Int, userId: String) {
+	override suspend fun launch(runningUser: User, runId: Int) {
 
 		// clear caches
-		clearWwwCache()
+		wwwDir.recreate(runningUser.osUsername)
 
 		val newestArgs = args.newestOrThrow().args
 
 		// write out particles, if needed
 		val argValues = newestArgs.values.toArgValues(Backend.pypArgs)
-		ParticlesJobs.writeTomography(idOrThrow, dir, argValues, newestArgs.particlesName)
+		ParticlesJobs.writeTomography(runningUser, idOrThrow, dir, argValues, newestArgs.particlesName)
 
 		// build the args for PYP
 		val pypArgs = ArgValues(Backend.pypArgs)
@@ -108,7 +109,7 @@ class TomographySessionDataJob(
 		pypArgs.dataParent = session.pypDir(session.newestArgs().pypNamesOrThrow()).toString()
 		pypArgs.dataImport = true
 
-		Pyp.pyp.launch(userId, runId, pypArgs, "Import Tomography Session", "pyp_import")
+		Pyp.pyp.launch(runningUser, runId, pypArgs, "Import Tomography Session", "pyp_import")
 
 		// job was launched, move the args over
 		args.run()

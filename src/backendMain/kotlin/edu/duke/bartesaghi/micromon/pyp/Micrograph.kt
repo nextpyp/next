@@ -3,6 +3,7 @@ package edu.duke.bartesaghi.micromon.pyp
 import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.files.*
 import edu.duke.bartesaghi.micromon.jobs.Job
+import edu.duke.bartesaghi.micromon.linux.userprocessor.WebCacheDir
 import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.mongo.getDocument
 import edu.duke.bartesaghi.micromon.services.*
@@ -12,8 +13,6 @@ import org.bson.Document
 import java.nio.file.Path
 import java.time.Instant
 import kotlin.io.path.div
-import kotlin.math.ceil
-import kotlin.math.max
 
 
 /**
@@ -36,6 +35,11 @@ class Micrograph(doc: Document) {
 
 		fun <R> getAll(jobId: String, block: (Sequence<Micrograph>) -> R): R =
 			Database.micrographs.getAll(jobId) {
+				block(it.map { Micrograph(it) })
+			}
+
+		suspend fun <R> getAllAsync(jobId: String, block: suspend (Sequence<Micrograph>) -> R): R =
+			Database.micrographs.getAllAsync(jobId) {
 				block(it.map { Micrograph(it) })
 			}
 
@@ -91,7 +95,7 @@ class Micrograph(doc: Document) {
 	 *
 	 * Resized WebP images are created from the raw pyp output image.
 	 */
-	private fun readImage(dir: Path, wwwDir: Path, size: ImageSize): ByteArray {
+	private suspend fun readImage(dir: Path, wwwDir: WebCacheDir, size: ImageSize): ByteArray {
 
 		val rawPath = pypOutputImage(dir, micrographId)
 		val cacheInfo = ImageCacheInfo(wwwDir, "micrograph-box.$micrographId")
@@ -103,16 +107,16 @@ class Micrograph(doc: Document) {
 			//   but most browsers seem to render the placeholder image correctly anyway
 	}
 
-	fun readImage(job: Job, size: ImageSize): ByteArray =
+	suspend fun readImage(job: Job, size: ImageSize): ByteArray =
 		readImage(job.dir, job.wwwDir, size)
 
-	fun readImage(session: Session, size: ImageSize): ByteArray =
+	suspend fun readImage(session: Session, size: ImageSize): ByteArray =
 		readImage(session.pypDir(session.newestArgs().pypNamesOrThrow()), session.wwwDir, size)
 
 	/**
 	 * Returns a WebP image of the 2D CTF image
 	 */
-	private fun readCtffindImage(dir: Path, wwwDir: Path, size: ImageSize): ByteArray {
+	private suspend fun readCtffindImage(dir: Path, wwwDir: WebCacheDir, size: ImageSize): ByteArray {
 
 		val srcPath = dir / "webp" / "${micrographId}_ctffit.webp"
 		val cacheInfo = ImageCacheInfo(wwwDir, "micrograph-ctffit.$micrographId")
@@ -122,10 +126,10 @@ class Micrograph(doc: Document) {
 			?: Resources.placeholderJpg(size)
 	}
 
-	fun readCtffindImage(job: Job, size: ImageSize): ByteArray =
+	suspend fun readCtffindImage(job: Job, size: ImageSize): ByteArray =
 		readCtffindImage(job.dir, job.wwwDir, size)
 
-	fun readCtffindImage(session: Session, size: ImageSize): ByteArray =
+	suspend fun readCtffindImage(session: Session, size: ImageSize): ByteArray =
 		readCtffindImage(session.pypDir(session.newestArgs().pypNamesOrThrow()), session.wwwDir, size)
 
 	fun getMetadata() =

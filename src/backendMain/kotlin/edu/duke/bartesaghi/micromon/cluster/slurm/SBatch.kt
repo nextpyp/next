@@ -145,7 +145,9 @@ class SBatch(val config: Config.Slurm) : Cluster {
 
 		// get the job id from sbatch stdout
 		val sbatchId = result.console
-			.getOrNull(0)
+			.lastOrNull()
+			// NOTE: the user-processor can add messages before the sbatch output,
+			//       so just look at the last line of the console output
 			?.takeIf { it.startsWith("Submitted batch job ") }
 			?.split(" ")
 			?.last()

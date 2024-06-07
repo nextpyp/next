@@ -2,7 +2,6 @@ package edu.duke.bartesaghi.micromon.cluster
 
 import edu.duke.bartesaghi.micromon.Backend
 import edu.duke.bartesaghi.micromon.cluster.slurm.Gres
-import edu.duke.bartesaghi.micromon.createDirsIfNeeded
 import edu.duke.bartesaghi.micromon.linux.userprocessor.editPermissionsAs
 import edu.duke.bartesaghi.micromon.linux.userprocessor.writeStringAs
 import edu.duke.bartesaghi.micromon.mongo.getListOfStrings
@@ -72,10 +71,8 @@ sealed interface Commands {
 }
 
 
-private val batchDir = Backend.config.web.sharedDir.resolve("batch")
-
 private fun Commands.batchPath(job: ClusterJob) =
-	batchDir.resolve("commands-$id-${job.idOrThrow}.sh")
+	ClusterJob.batchDir.resolve("commands-$id-${job.idOrThrow}.sh")
 
 private fun batchHeader(job: ClusterJob): String =
 	"""
@@ -130,7 +127,6 @@ class CommandsScript(
 
 		// write the commands into a batch script
 		val batchPath = batchPath(job)
-		batchPath.parent.createDirsIfNeeded()
 		batchPath.writeStringAs(username, StringBuilder().apply {
 
 			appendLine(batchHeader(job))
@@ -210,7 +206,6 @@ class CommandsGrid(
 
 		// write the commands into a batch script
 		val batchPath = batchPath(job)
-		batchPath.parent.createDirsIfNeeded()
 		batchPath.writeStringAs(username, StringBuilder().apply {
 
 			appendLine(batchHeader(job))

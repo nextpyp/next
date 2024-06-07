@@ -20,9 +20,6 @@ import kotlinx.coroutines.launch
 import java.time.Instant
 
 
-private object CreateLock
-
-
 actual class ProjectsService : IProjectsService {
 
 	@Inject
@@ -87,11 +84,7 @@ actual class ProjectsService : IProjectsService {
 				}
 			}
 
-		val project = synchronized(CreateLock) {
-			// NOTE: synchronize all project creations so we don't get data races if anything weird happens,
-			//       like a user creating two projects at the exact same time somehow
-			// NOTE: we could use database transactions to accomplish the same goal here, but this is
-			//       much much simpler and the marginally higher performance of transactions is totally unnecessary
+		val project = Database.transaction {
 
 			// make sure a project with that name doesn't already exist
 			val projectId = Project.makeId(name)
@@ -114,10 +107,10 @@ actual class ProjectsService : IProjectsService {
 				projectNumber = projectNumber,
 				name = name,
 				created = Instant.now()
-			).apply {
-				create()
-			}
+			)
 		}
+
+		project.create(user)
 
 		return project.toData(user)
 	}
@@ -133,7 +126,7 @@ actual class ProjectsService : IProjectsService {
 			throw ServiceException("Project is currently running and can't be deleted. Stop the all project runs before deleting the project.")
 		}
 
-		project.delete()
+		project.delete(user)
 	}
 
 	override suspend fun get(userId: String, projectId: String): ProjectData = sanitizeExceptions {
@@ -219,7 +212,7 @@ actual class ProjectsService : IProjectsService {
 			// authenticate the user for this job
 			val job = user.authJobOrThrow(ProjectPermission.Write, jobId)
 
-			job.delete()
+			job.delete(user)
 		}
 	}
 
@@ -314,8 +307,8 @@ actual class ProjectsService : IProjectsService {
 
 		if (deleteFilesAndData) {
 			job.wipeData()
-			job.deleteFiles()
-			job.createFolder()
+			job.deleteFiles(user)
+			job.createFolder(user)
 		}
 
 		Unit

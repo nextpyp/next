@@ -15,14 +15,14 @@ actual class SingleParticleFineRefinementService : ISingleParticleFineRefinement
 
 	override suspend fun addNode(userId: String, projectId: String, inRefinements: CommonJobData.DataId, args: SingleParticleFineRefinementArgs): SingleParticleFineRefinementData = sanitizeExceptions {
 
-		call.authOrThrow()
-			.authProjectOrThrow(ProjectPermission.Write, userId, projectId)
+		val user = call.authOrThrow()
+		user.authProjectOrThrow(ProjectPermission.Write, userId, projectId)
 
 		// make the job
 		val job = SingleParticleFineRefinementJob(userId, projectId)
 		job.args.next = args
 		job.inRefinements = inRefinements
-		job.create()
+		job.create(user)
 
 		return job.data()
 	}

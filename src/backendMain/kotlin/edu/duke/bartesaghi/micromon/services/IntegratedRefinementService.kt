@@ -261,7 +261,7 @@ actual class IntegratedRefinementService : IIntegratedRefinementService, Service
 	private val Job.mapsDir: Path get() =
 		dir / "frealign" / "maps"
 
-	fun getFypImage(jobId: String, classNum: Int, iteration: Int, size: ImageSize): ByteArray {
+	suspend fun getFypImage(jobId: String, classNum: Int, iteration: Int, size: ImageSize): ByteArray {
 		val job = jobId.authJob(ProjectPermission.Read).job
 		val path = job.mapsDir / "${Reconstruction.filenameFragment(job, classNum, iteration)}_fyp.png"
 		val cacheInfo = ImageCacheInfo(job.wwwDir, "fyp-${Reconstruction.filenameFragment(job, classNum, iteration)}")
@@ -269,7 +269,7 @@ actual class IntegratedRefinementService : IIntegratedRefinementService, Service
 			?: throw FileNotFoundException(path.toString())
 	}
 
-	fun getMapImage(jobId: String, classNum: Int, iteration: Int, size: ImageSize): ByteArray {
+	suspend fun getMapImage(jobId: String, classNum: Int, iteration: Int, size: ImageSize): ByteArray {
 		val job = jobId.authJob(ProjectPermission.Read).job
 		val path = job.mapsDir / "${Reconstruction.filenameFragment(job, classNum, iteration)}_map.webp"
 		val cacheInfo = ImageCacheInfo(job.wwwDir, "map-${Reconstruction.filenameFragment(job, classNum, iteration)}")
@@ -305,7 +305,7 @@ actual class IntegratedRefinementService : IIntegratedRefinementService, Service
 		return filename to path.readBytes()
 	}
 
-	fun getParticlesImage(jobId: String, dataId: String, size: ImageSize): ByteArray {
+	suspend fun getParticlesImage(jobId: String, dataId: String, size: ImageSize): ByteArray {
 		val job = jobId.authJob(ProjectPermission.Read).job
 		val path = job.dir / "csp" / "${dataId}_local.webp"
 		val cacheInfo = ImageCacheInfo(job.wwwDir, "particles-$dataId")

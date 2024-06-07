@@ -295,7 +295,7 @@ actual class JobsService : IJobsService, Service {
 		return getTiltSeriesOrThrow(jobId, tiltSeriesId).getMetadata()
 	}
 
-	fun getImage(jobId: String, dataId: String, size: ImageSize): ByteArray {
+	suspend fun getImage(jobId: String, dataId: String, size: ImageSize): ByteArray {
 
 		val job = jobId.authJob(ProjectPermission.Read).job
 
@@ -337,7 +337,7 @@ actual class JobsService : IJobsService, Service {
 			}
 	}
 
-	fun getCtffindImage(jobId: String, dataId: String, size: ImageSize): ByteArray {
+	suspend fun getCtffindImage(jobId: String, dataId: String, size: ImageSize): ByteArray {
 
 		val job = jobId.authJob(ProjectPermission.Read).job
 
@@ -388,7 +388,7 @@ actual class JobsService : IJobsService, Service {
 		return getTiltSeriesOrThrow(jobId, tiltSeriesId).getSidesTiltSeriesImage(job.dir)
 	}
 
-	fun getGainCorrectedImage(jobId: String, size: ImageSize): ByteArray {
+	suspend fun getGainCorrectedImage(jobId: String, size: ImageSize): ByteArray {
 
 		val job = jobId.authJob(ProjectPermission.Read).job
 

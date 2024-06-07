@@ -3,6 +3,7 @@ package edu.duke.bartesaghi.micromon.pyp
 import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.files.*
 import edu.duke.bartesaghi.micromon.jobs.Job
+import edu.duke.bartesaghi.micromon.linux.userprocessor.WebCacheDir
 import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.mongo.getDocument
 import edu.duke.bartesaghi.micromon.services.*
@@ -28,6 +29,11 @@ class TiltSeries(private val doc: Document) {
 
 		fun <R> getAll(jobId: String, block: (Sequence<TiltSeries>) -> R): R =
 			Database.tiltSeries.getAll(jobId) {
+				block(it.map { TiltSeries(it) })
+			}
+
+		suspend fun <R> getAllAsync(jobId: String, block: suspend (Sequence<TiltSeries>) -> R): R =
+			Database.tiltSeries.getAllAsync(jobId) {
 				block(it.map { TiltSeries(it) })
 			}
 
@@ -94,7 +100,7 @@ class TiltSeries(private val doc: Document) {
 	 *
 	 * Resized WebP images are created from the raw pyp output image.
 	 */
-	private fun readImage(dir: Path, wwwDir: Path, size: ImageSize): ByteArray {
+	private suspend fun readImage(dir: Path, wwwDir: WebCacheDir, size: ImageSize): ByteArray {
 
 		val rawPath = pypOutputImage(dir, tiltSeriesId)
 		val cacheInfo = ImageCacheInfo(wwwDir, "tilt-series-box.$tiltSeriesId")
@@ -106,10 +112,10 @@ class TiltSeries(private val doc: Document) {
 			//   but most browsers seem to render the placeholder image correctly anyway
 	}
 
-	fun readImage(job: Job, size: ImageSize): ByteArray =
+	suspend fun readImage(job: Job, size: ImageSize): ByteArray =
 		readImage(job.dir, job.wwwDir, size)
 
-	fun readImage(session: Session, size: ImageSize): ByteArray =
+	suspend fun readImage(session: Session, size: ImageSize): ByteArray =
 		readImage(session.pypDir(session.newestArgs().pypNamesOrThrow()), session.wwwDir, size)
 
 
@@ -119,7 +125,7 @@ class TiltSeries(private val doc: Document) {
 	 * The raw 2D CTF image is a montage of the whole tilt series,
 	 * so this function returns a central tile from the montage.
 	 */
-	private fun readCtffindImage(dir: Path, wwwDir: Path, size: ImageSize): ByteArray {
+	private suspend fun readCtffindImage(dir: Path, wwwDir: WebCacheDir, size: ImageSize): ByteArray {
 
 		val srcPath = dir / "webp" / "${tiltSeriesId}_2D_ctftilt.webp"
 		val cacheInfo = ImageCacheInfo(wwwDir, "tiltseries-2Dctffit.cropped.2.$tiltSeriesId")
@@ -147,10 +153,10 @@ class TiltSeries(private val doc: Document) {
 			?: Resources.placeholderJpg(size)
 	}
 
-	fun readCtffindImage(job: Job, size: ImageSize): ByteArray =
+	suspend fun readCtffindImage(job: Job, size: ImageSize): ByteArray =
 		readCtffindImage(job.dir, job.wwwDir, size)
 
-	fun readCtffindImage(session: Session, size: ImageSize): ByteArray =
+	suspend fun readCtffindImage(session: Session, size: ImageSize): ByteArray =
 		readCtffindImage(session.pypDir(session.newestArgs().pypNamesOrThrow()), session.wwwDir, size)
 
 	fun getMetadata() =

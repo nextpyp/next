@@ -4,6 +4,7 @@ import com.mongodb.client.model.Updates.set
 import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.cluster.ClusterJob
 import edu.duke.bartesaghi.micromon.cluster.slurm.toSbatchArgs
+import edu.duke.bartesaghi.micromon.linux.userprocessor.createDirsIfNeededAs
 import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.pyp.ArgValues
 import edu.duke.bartesaghi.micromon.pyp.Pyp
@@ -45,7 +46,7 @@ class SessionExport(
 			}
 		}
 
-		suspend fun launch(session: Session, userId: String, request: SessionExportRequest, slurmArgValues: ArgValues) {
+		suspend fun launch(user: User, session: Session, request: SessionExportRequest, slurmArgValues: ArgValues) {
 
 			// create the export
 			val export = SessionExport(session.idOrThrow, request)
@@ -63,7 +64,7 @@ class SessionExport(
 			}
 
 			// create the export folder
-			export.dir.createDirsIfNeeded()
+			export.dir.createDirsIfNeededAs(user.osUsername)
 
 			// run the request-specific prep
 			request.handler.prep(session, export)
@@ -78,7 +79,7 @@ class SessionExport(
 
 			// launch the cluster job
 			val clusterJob = Pyp.pex.launch(
-				userId = userId,
+				userId = user.id,
 				webName = "Export ${request::class.simpleName}",
 				clusterName = "pyp_export",
 				owner = export.idOrThrow,

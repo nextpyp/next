@@ -8,6 +8,8 @@ import edu.duke.bartesaghi.micromon.jobs.Job
 import edu.duke.bartesaghi.micromon.jobs.JobOwner
 import edu.duke.bartesaghi.micromon.jobs.ProjectRun
 import edu.duke.bartesaghi.micromon.LinkTree
+import edu.duke.bartesaghi.micromon.linux.userprocessor.createDirsIfNeededAs
+import edu.duke.bartesaghi.micromon.linux.userprocessor.deleteDirRecursivelyAsyncAs
 import edu.duke.bartesaghi.micromon.mongo.*
 import edu.duke.bartesaghi.micromon.services.ProjectData
 import edu.duke.bartesaghi.micromon.services.UserData
@@ -147,7 +149,7 @@ class Project(
 	val dir: Path get() =
 		dir(userId, projectId)
 
-	fun create() {
+	suspend fun create(user: User) {
 
 		// create the database entry
 		Database.projects.create(userId, projectId) {
@@ -157,11 +159,11 @@ class Project(
 		}
 
 		// create the folder
-		dir.createDirsIfNeeded()
+		dir.createDirsIfNeededAs(user.osUsername)
 		LinkTree.projectCreated(this)
 	}
 
-	fun delete() {
+	fun delete(user: User) {
 
 		// delete all related cluster jobs
 		Cluster.deleteAll(getRuns().flatMap { run ->
@@ -182,7 +184,7 @@ class Project(
 		}
 
 		// delete the files and folders, asynchronously
-		dir.deleteDirRecursivelyAsync()
+		dir.deleteDirRecursivelyAsyncAs(user.osUsername)
 		LinkTree.projectDeleted(this)
 	}
 

@@ -1,9 +1,13 @@
 package edu.duke.bartesaghi.micromon.linux.userprocessor
 
 import edu.duke.bartesaghi.micromon.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.nio.file.Path
+import java.nio.file.StandardOpenOption
 import java.nio.file.attribute.PosixFilePermission
 import java.util.HashSet
+import kotlin.io.path.outputStream
 import kotlin.io.path.readBytes
 import kotlin.io.path.writeBytes
 
@@ -93,6 +97,9 @@ suspend fun Path.editPermissionsAs(username: String?, editor: PosixPermissionsEd
 
 		}.editor()
 
+		shipAdds()
+		shipDels()
+
 		Backend.userProcessors.get(username)
 			.chmod(this, ops)
 	} else {
@@ -110,6 +117,106 @@ suspend fun Path.deleteAs(username: String?) {
 	} else {
 		slowIOs {
 			delete()
+		}
+	}
+}
+
+
+suspend fun Path.createDirsIfNeededAs(username: String?): Path {
+	if (username != null) {
+		Backend.userProcessors.get(username)
+			.createFolder(this)
+	} else {
+		slowIOs {
+			createDirsIfNeeded()
+		}
+	}
+	return this
+}
+
+
+suspend fun Path.deleteDirRecursivelyAs(username: String?) {
+	if (username != null) {
+		Backend.userProcessors.get(username)
+			.deleteFolder(this)
+	} else {
+		slowIOs {
+			deleteDirRecursively()
+		}
+	}
+}
+
+
+fun Path.deleteDirRecursivelyAsyncAs(username: String?) {
+	if (username != null) {
+		Backend.scope.launch(Dispatchers.IO) {
+			deleteDirRecursivelyAs(username)
+		}
+	} else {
+		deleteDirRecursivelyAsync()
+	}
+}
+
+
+suspend fun Path.writerAs(username: String?, append: Boolean = false): UserProcessor.FileWriter =
+	if (username != null) {
+		Backend.userProcessors.get(username)
+			.writeFile(this, append)
+	} else {
+		object : UserProcessor.FileWriter {
+
+			private val writer = this@writerAs.outputStream(
+				StandardOpenOption.CREATE,
+				StandardOpenOption.WRITE,
+				if (append) {
+					StandardOpenOption.TRUNCATE_EXISTING
+				} else {
+					StandardOpenOption.APPEND
+				}
+			)
+
+			override suspend fun write(chunk: ByteArray) {
+				slowIOs {
+					writer.write(chunk)
+				}
+			}
+
+			override suspend fun closeAll() {
+				slowIOs {
+					writer.close()
+				}
+			}
+		}
+	}
+
+
+class WebCacheDir(val path: Path) {
+
+	fun exists(): Boolean =
+		path.exists()
+
+	suspend fun createIfNeeded(username: String?): Path {
+		if (!exists()) {
+			create(username)
+		}
+		return path
+	}
+
+	suspend fun create(username: String?) {
+		path.createDirsIfNeededAs(username)
+		path.editPermissionsAs(username) {
+			add(PosixFilePermission.GROUP_READ)
+			add(PosixFilePermission.GROUP_WRITE)
+			add(PosixFilePermission.GROUP_EXECUTE)
+		}
+	}
+
+	suspend fun recreate(username: String?) {
+		if (exists()) {
+			path.deleteDirRecursivelyAs(username)
+		}
+		if (!exists()) {
+			create(username)
 		}
 	}
 }

@@ -12,7 +12,6 @@ import io.ktor.response.*
 import io.ktor.routing.*
 import io.ktor.util.*
 import io.ktor.util.pipeline.*
-import javax.imageio.ImageIO
 import kotlin.io.path.div
 
 
@@ -55,13 +54,13 @@ actual class SingleParticleImportDataService : ISingleParticleImportDataService,
 	override suspend fun import(userId: String, projectId: String, args: SingleParticleImportDataArgs): SingleParticleImportDataData = sanitizeExceptions {
 
 		// authenticate the user for this project and session
-		call.authOrThrow()
-			.authProjectOrThrow(ProjectPermission.Write, userId, projectId)
+		val user = call.authOrThrow()
+		user.authProjectOrThrow(ProjectPermission.Write, userId, projectId)
 		
 		// make the job
 		val job = SingleParticleImportDataJob(userId, projectId)
 		job.args.next = args
-		job.create()
+		job.create(user)
 
 		return job.data()
 	}
@@ -91,7 +90,7 @@ actual class SingleParticleImportDataService : ISingleParticleImportDataService,
 		return SingleParticleImportDataJob.args().toJson()
 	}
 
-	fun getImage(jobId: String, size: ImageSize): ByteArray {
+	suspend fun getImage(jobId: String, size: ImageSize): ByteArray {
 
 		val job = jobId.authJob(ProjectPermission.Write).job
 

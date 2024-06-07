@@ -59,7 +59,7 @@ class TwoDClasses(
 	fun imagePath(session: SingleParticleSession): Path =
 		session.pypDir(session.newestArgs().pypNamesOrThrow()) / "class2d" / "${twoDClassesId}_classes.webp"
 
-	fun readImage(session: SingleParticleSession, size: ImageSize): ByteArray {
+	suspend fun readImage(session: SingleParticleSession, size: ImageSize): ByteArray {
 
 		val path = imagePath(session)
 		val cacheInfo = ImageCacheInfo(session.wwwDir, "two2classes.$twoDClassesId")

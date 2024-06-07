@@ -2,6 +2,7 @@ package edu.duke.bartesaghi.micromon.jobs
 
 import com.mongodb.client.model.Updates
 import edu.duke.bartesaghi.micromon.Backend
+import edu.duke.bartesaghi.micromon.User
 import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.mongo.getDocument
 import edu.duke.bartesaghi.micromon.nodes.SingleParticlePostprocessingNodeConfig
@@ -76,10 +77,10 @@ class SingleParticlePostprocessingJob(
 			getFinishedBfactor()
 		)
 
-	override suspend fun launch(runId: Int, userId: String) {
+	override suspend fun launch(runningUser: User, runId: Int) {
 
 		// clear caches
-		clearWwwCache()
+		wwwDir.recreate(runningUser.osUsername)
 
 		// get the input jobs
 		val prevJob = inRefinements?.resolveJob<Job>() ?: throw IllegalStateException("no refinements input configured")
@@ -96,7 +97,7 @@ class SingleParticlePostprocessingJob(
 		// set the hidden args
 		pypArgs.dataParent = prevJob.dir.toString()
 
-		Pyp.psp.launch(userId, runId, pypArgs, "Launch", "pyp_launch")
+		Pyp.psp.launch(runningUser, runId, pypArgs, "Launch", "pyp_launch")
 
 		// job was launched, move the args over
 		args.run()

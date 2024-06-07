@@ -231,6 +231,11 @@ class Micrographs {
 			block(it)
 		}
 
+	suspend fun <R> getAllAsync(jobId: String, block: suspend (Sequence<Document>) -> R): R =
+		collection.find(filterAll(jobId)).useCursor {
+			block(it)
+		}
+
 	fun count(jobId: String): Long =
 		collection.countDocuments(filterAll(jobId))
 
@@ -372,6 +377,11 @@ class TiltSerieses {
 		}
 
 	fun <R> getAll(jobId: String, block: (Sequence<Document>) -> R): R =
+		collection.find(filterAll(jobId)).useCursor {
+			block(it)
+		}
+
+	suspend fun <R> getAllAsync(jobId: String, block: suspend (Sequence<Document>) -> R): R =
 		collection.find(filterAll(jobId)).useCursor {
 			block(it)
 		}

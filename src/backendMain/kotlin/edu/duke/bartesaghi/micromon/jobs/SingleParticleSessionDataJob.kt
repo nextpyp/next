@@ -2,6 +2,7 @@ package edu.duke.bartesaghi.micromon.jobs
 
 import com.mongodb.client.model.Updates
 import edu.duke.bartesaghi.micromon.Backend
+import edu.duke.bartesaghi.micromon.User
 import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.mongo.getDocument
 import edu.duke.bartesaghi.micromon.nodes.SingleParticleSessionDataNodeConfig
@@ -78,17 +79,17 @@ class SingleParticleSessionDataJob(
 			Database.particles.countAllParticles(idOrThrow, ParticlesList.PypAutoParticles)
 		)
 
-	override suspend fun launch(runId: Int, userId: String) {
+	override suspend fun launch(runningUser: User, runId: Int) {
 
 		// clear caches
-		clearWwwCache()
+		wwwDir.recreate(runningUser.osUsername)
 
 		val newestArgs = args.newestOrThrow().args
 
 		// if we've picked some particles, write those out to pyp
 		newestArgs.particlesName
 			?.let { Database.particleLists.get(idOrThrow, it) }
-			?.let { ParticlesJobs.writeSingleParticle(idOrThrow, dir, it) }
+			?.let { ParticlesJobs.writeSingleParticle(runningUser, idOrThrow, dir, it) }
 
 		// build the args for PYP
 		val pypArgs = ArgValues(Backend.pypArgs)
@@ -109,7 +110,7 @@ class SingleParticleSessionDataJob(
 		pypArgs.dataParent = session.pypDir(session.newestArgs().pypNamesOrThrow()).toString()
 		pypArgs.dataImport = true
 
-		Pyp.pyp.launch(userId, runId, pypArgs, "Import Single Particle Session", "pyp_import")
+		Pyp.pyp.launch(runningUser, runId, pypArgs, "Import Single Particle Session", "pyp_import")
 
 		// job was launched, move the args over
 		args.run()

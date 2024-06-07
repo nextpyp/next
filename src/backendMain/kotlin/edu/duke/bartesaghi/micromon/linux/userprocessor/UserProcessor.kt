@@ -17,6 +17,7 @@ import java.net.StandardProtocolFamily
 import java.net.UnixDomainSocketAddress
 import java.nio.channels.AsynchronousCloseException
 import java.nio.channels.SocketChannel
+import java.nio.charset.Charset
 import java.nio.file.Path
 import kotlin.io.path.div
 import kotlin.io.path.relativeTo
@@ -428,10 +429,28 @@ class UserProcessor(
 			}
 
 	interface FileWriter : SuspendCloseable {
+
 		/** writes a single chunk */
 		suspend fun write(chunk: ByteArray)
+
 		/** writes the whole buffer using efficiently-sized chunks */
-		suspend fun writeAll(buf: ByteArray)
+		suspend fun writeAll(buf: ByteArray) {
+
+			// send the buffer in 32 KiB chunks, since using larger chunks than that seems to be pretty slow
+			var start = 0
+			while (start < buf.size) {
+				val remaining = buf.size - start
+				val size = min(remaining, 32*1024) // 32 KiB
+				write(buf.copyOfRange(start, start + size))
+				start += size
+			}
+		}
+
+		suspend fun write(chunk: String, charset: Charset = Charsets.UTF_8) =
+			write(chunk.toByteArray(charset))
+
+		suspend fun writeAll(str: String, charset: Charset = Charsets.UTF_8) =
+			writeAll(str.toByteArray(charset))
 	}
 
 	suspend fun writeFile(path: Path, append: Boolean = false): FileWriter {
@@ -451,18 +470,6 @@ class UserProcessor(
 				responder.send(Request.WriteFile.Chunk(sequence, chunk).into())
 				sequence += 1u
 				// NOTE: no response expected here
-			}
-
-			override suspend fun writeAll(buf: ByteArray) {
-
-				// send the buffer in 32 KiB chunks, since using larger chunks than that seems to be pretty slow
-				var start = 0
-				while (start < buf.size) {
-					val remaining = buf.size - start
-					val size = min(remaining, 32*1024) // 32 KiB
-					write(buf.copyOfRange(start, start + size))
-					start += size
-				}
 			}
 
 			override suspend fun closeAll() {

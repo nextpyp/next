@@ -2,6 +2,9 @@ package edu.duke.bartesaghi.micromon.jobs
 
 import com.mongodb.client.model.Updates
 import edu.duke.bartesaghi.micromon.*
+import edu.duke.bartesaghi.micromon.linux.userprocessor.createDirsIfNeededAs
+import edu.duke.bartesaghi.micromon.linux.userprocessor.deleteDirRecursivelyAs
+import edu.duke.bartesaghi.micromon.linux.userprocessor.writerAs
 import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.mongo.getDocument
 import edu.duke.bartesaghi.micromon.nodes.TomographyPreprocessingNodeConfig
@@ -128,10 +131,10 @@ class TomographyPreprocessingJob(
 			Database.particles.countAllParticles(idOrThrow, ParticlesList.PypAutoParticles)
 		)
 
-	override suspend fun launch(runId: Int, userId: String) {
+	override suspend fun launch(runningUser: User, runId: Int) {
 
 		// clear caches
-		clearWwwCache()
+		wwwDir.recreate(runningUser.osUsername)
 
 		// get the input raw data job
 		val prevJob = inTiltSeries?.resolveJob<Job>() ?: throw IllegalStateException("no tilt series input configured")
@@ -140,7 +143,7 @@ class TomographyPreprocessingJob(
 
 		// write out particles, if needed
 		val argValues = newestArgs.values.toArgValues(Backend.pypArgs)
-		ParticlesJobs.writeTomography(idOrThrow, dir, argValues, newestArgs.tomolist)
+		ParticlesJobs.writeTomography(runningUser, idOrThrow, dir, argValues, newestArgs.tomolist)
 
 		// write out the tilt exclusions, if needed
 		run {
@@ -149,19 +152,15 @@ class TomographyPreprocessingJob(
 			val suffix = "_exclude_views.next"
 
 			// delete any old files
-			if (dir.exists()) {
-				dir.listFiles()
-					.filter { it.fileName.toString().endsWith(suffix) }
-					.forEach { it.delete() }
-			}
+			dir.deleteDirRecursivelyAs(runningUser.osUsername)
+			dir.createDirsIfNeededAs(runningUser.osUsername)
 
 			// write any new files
 			val exclusionsByTiltSeries = Database.tiltExclusions.getForJob(idOrThrow)
 			if (exclusionsByTiltSeries != null) {
 				for ((tiltSeriesId, exclusionsByTiltIndex) in exclusionsByTiltSeries) {
 					val file = dir / "$tiltSeriesId$suffix"
-					file.parent.createDirsIfNeeded()
-					file.bufferedWriter().use { writer ->
+					file.writerAs(runningUser.osUsername).use { writer ->
 						for ((tiltIndex, isExcluded) in exclusionsByTiltIndex) {
 							if (isExcluded) {
 								writer.write("0\t0\t$tiltIndex\n")
@@ -187,7 +186,7 @@ class TomographyPreprocessingJob(
 		// set the hidden args
 		pypArgs.dataMode = "tomo"
 
-		Pyp.pyp.launch(userId, runId, pypArgs, "Launch", "pyp_launch")
+		Pyp.pyp.launch(runningUser, runId, pypArgs, "Launch", "pyp_launch")
 
 		// job was launched, move the args over
 		args.run()
