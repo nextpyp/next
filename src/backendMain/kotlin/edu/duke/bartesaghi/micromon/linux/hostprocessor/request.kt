@@ -18,13 +18,62 @@ sealed interface Request {
 		val program: String,
 		val args: List<String>,
 		val dir: String?,
-		val streamStdin: Boolean,
-		val streamStdout: Boolean,
-		val streamStderr: Boolean,
+		val stdin: Stdin,
+		val stdout: Stdout,
+		val stderr: Stderr,
 		val streamFin: Boolean
 	) : Request {
 		companion object {
 			const val ID: UInt = 2u
+		}
+
+		sealed interface Stdin {
+
+			object Stream : Stdin {
+				const val ID: UInt = 1u
+			}
+
+			object Ignore : Stdin {
+				const val ID: UInt = 2u
+			}
+		}
+
+		sealed interface Stdout {
+
+			object Stream : Stdout {
+				const val ID: UInt = 1u
+			}
+
+			data class Write(val path: String) : Stdout {
+				companion object {
+					const val ID: UInt = 2u
+				}
+			}
+
+			object Ignore : Stdout {
+				const val ID: UInt = 3u
+			}
+		}
+
+		sealed interface Stderr {
+
+			object Stream : Stderr {
+				const val ID: UInt = 1u
+			}
+
+			data class Write(val path: String) : Stderr {
+				companion object {
+					const val ID: UInt = 2u
+				}
+			}
+
+			object Merge : Stderr {
+				const val ID: UInt = 3u
+			}
+
+			object Ignore : Stderr {
+				const val ID: UInt = 4u
+			}
 		}
 	}
 
@@ -130,9 +179,41 @@ class RequestEnvelope(
 				out.writeOption(request.dir) {
 					out.writeUtf8(it)
 				}
-				out.writeBoolean(request.streamStdin)
-				out.writeBoolean(request.streamStdout)
-				out.writeBoolean(request.streamStderr)
+				when (request.stdin) {
+					Request.Exec.Stdin.Stream -> {
+						out.writeU32(Request.Exec.Stdin.Stream.ID)
+					}
+					Request.Exec.Stdin.Ignore -> {
+						out.writeU32(Request.Exec.Stdin.Ignore.ID)
+					}
+				}
+				when (request.stdout) {
+					Request.Exec.Stdout.Stream -> {
+						out.writeU32(Request.Exec.Stdout.Stream.ID)
+					}
+					is Request.Exec.Stdout.Write -> {
+						out.writeU32(Request.Exec.Stdout.Write.ID)
+						out.writeUtf8(request.stdout.path)
+					}
+					Request.Exec.Stdout.Ignore -> {
+						out.writeU32(Request.Exec.Stdout.Ignore.ID)
+					}
+				}
+				when (request.stderr) {
+					Request.Exec.Stderr.Stream -> {
+						out.writeU32(Request.Exec.Stderr.Stream.ID)
+					}
+					is Request.Exec.Stderr.Write -> {
+						out.writeU32(Request.Exec.Stderr.Write.ID)
+						out.writeUtf8(request.stderr.path)
+					}
+					Request.Exec.Stderr.Merge -> {
+						out.writeU32(Request.Exec.Stderr.Merge.ID)
+					}
+					Request.Exec.Stderr.Ignore -> {
+						out.writeU32(Request.Exec.Stderr.Ignore.ID)
+					}
+				}
 				out.writeBoolean(request.streamFin)
 			}
 
@@ -206,9 +287,28 @@ class RequestEnvelope(
 					dir = input.readOption {
 						input.readUtf8()
 					},
-					streamStdin = input.readBoolean(),
-					streamStdout = input.readBoolean(),
-					streamStderr = input.readBoolean(),
+					stdin = when (val stdinTypeId = input.readU32()) {
+						Request.Exec.Stdin.Stream.ID -> Request.Exec.Stdin.Stream
+						Request.Exec.Stdin.Ignore.ID -> Request.Exec.Stdin.Ignore
+						else -> throw NoSuchElementException("unrecognized exec stdin type id: $stdinTypeId")
+					},
+					stdout = when (val stdoutTypeId = input.readU32()) {
+						Request.Exec.Stdout.Stream.ID -> Request.Exec.Stdout.Stream
+						Request.Exec.Stdout.Write.ID -> Request.Exec.Stdout.Write(
+							path = input.readUtf8()
+						)
+						Request.Exec.Stdout.Ignore.ID -> Request.Exec.Stdout.Ignore
+						else -> throw NoSuchElementException("unrecognized exec stdout type id: $stdoutTypeId")
+					},
+					stderr = when (val stderrTypeId = input.readU32()) {
+						Request.Exec.Stderr.Stream.ID -> Request.Exec.Stderr.Stream
+						Request.Exec.Stderr.Write.ID -> Request.Exec.Stderr.Write(
+							path = input.readUtf8()
+						)
+						Request.Exec.Stderr.Merge.ID -> Request.Exec.Stderr.Merge
+						Request.Exec.Stderr.Ignore.ID -> Request.Exec.Stderr.Ignore
+						else -> throw NoSuchElementException("unrecognized exec stderr type id: $stderrTypeId")
+					},
 					streamFin = input.readBoolean()
 				)
 
@@ -249,7 +349,7 @@ class RequestEnvelope(
 					uid = input.readU32()
 				)
 
-				else -> throw NoSuchElementException("unrecognized response type id: $typeId")
+				else -> throw NoSuchElementException("unrecognized request type id: $typeId")
 			}
 
 			return RequestEnvelope(id, request)

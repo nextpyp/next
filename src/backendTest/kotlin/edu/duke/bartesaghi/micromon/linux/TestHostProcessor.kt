@@ -21,6 +21,8 @@ import kotlin.io.path.div
 @EnabledIf(RuntimeEnvironment.Host::class)
 class TestHostProcessor : DescribeSpec({
 
+	// TODO: test encoding,decoding
+
 	describe("host processor") {
 
 		it("ping/pong") {
@@ -34,6 +36,21 @@ class TestHostProcessor : DescribeSpec({
 				val proc = hostProcessor.exec(Command("ls", "-al"))
 				println("launched process: pid=${proc.pid}")
 				proc.pid.shouldBeGreaterThan(0u)
+			}
+		}
+
+		it("exec out") {
+			withHostProcessor { hostProcessor ->
+				val outPath = Paths.get("/tmp/nextpyp-host-processor-out-test")
+				val proc = hostProcessor.exec(Command("echo", "-n", "hello"), outPath = outPath)
+				println("launched process: pid=${proc.pid}")
+				proc.pid.shouldBeGreaterThan(0u)
+
+				// we don't get a signal when the process finishes, but just wait a bit. ls won't take long
+				delay(500)
+
+				outPath.readString().shouldBe("hello")
+				outPath.delete()
 			}
 		}
 

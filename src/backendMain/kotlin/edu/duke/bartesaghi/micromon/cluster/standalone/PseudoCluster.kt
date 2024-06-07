@@ -249,7 +249,7 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 					cmd = Backend.userProcessors.get(username).wrap(cmd)
 				}
 
-				process = Backend.hostProcessor.exec(cmd, outPath)
+				process = Backend.hostProcessor.exec(cmd, outPath = outPath)
 			}
 		}
 	}

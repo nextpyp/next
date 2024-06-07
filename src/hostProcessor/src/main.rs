@@ -10,6 +10,7 @@ use std::time::Duration;
 use anyhow::{anyhow, bail, Context, Result};
 use display_error_chain::ErrorChainExt;
 use gumdrop::Options;
+use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 use tokio::net::{UnixListener, UnixStream};
 use tokio::net::unix::OwnedWriteHalf;
@@ -25,7 +26,7 @@ use tracing::{debug, error_span, info, Instrument, trace, warn};
 use host_processor::framing::{AsyncReadFramed, AsyncWriteFramed};
 use host_processor::logging::{self, ResultExt};
 use host_processor::processes::Processes;
-use host_processor::proto::{ConsoleKind, ExecRequest, ExecResponse, ProcessEvent, Request, RequestEnvelope, Response, ResponseEnvelope};
+use host_processor::proto::{ConsoleKind, ExecRequest, ExecResponse, ExecStderr, ExecStdin, ExecStdout, ProcessEvent, Request, RequestEnvelope, Response, ResponseEnvelope};
 
 
 #[derive(Options)]
@@ -359,24 +360,60 @@ async fn dispatch_exec(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32, proce
 			.unwrap_or(PathBuf::from("."))
 	};
 
+	// open files for stdout,stderr if needed
+	let mut stdout_file = match &request.stdout {
+		ExecStdout::Write { path } => {
+			match File::create(path).await {
+				Ok(f) => Some(f),
+				Err(e) => {
+					// send back the error
+					write_response(&socket, request_id, Response::Exec(ExecResponse::Failure {
+						reason: format!("Failed to open file for stdout: {}", e.chain())
+					}))
+						.await
+						.ok();
+					return;
+				}
+			}
+		}
+		_ => None
+	};
+	let mut stderr_file = match &request.stderr {
+		ExecStderr::Write { path } => {
+			match File::create(path).await {
+				Ok(f) => Some(f),
+				Err(e) => {
+					// send back the error
+					write_response(&socket, request_id, Response::Exec(ExecResponse::Failure {
+						reason: format!("Failed to open file for stderr: {}", e.chain())
+					}))
+						.await
+						.ok();
+					return;
+				}
+			}
+		}
+		_ => None
+	};
+
 	// spawn the process
 	let response = Command::new(request.program)
 		.args(request.args)
 		.current_dir(dir)
-		.stdin(if request.stream_stdin {
-			Stdio::piped()
-		} else {
-			Stdio::null()
+		.stdin(match &request.stdin {
+			ExecStdin::Stream => Stdio::piped(),
+			ExecStdin::Ignore => Stdio::null()
 		})
-		.stdout(if request.stream_stdout {
-			Stdio::piped()
-		} else {
-			Stdio::null()
+		.stdout(match &request.stdout {
+			ExecStdout::Stream => Stdio::piped(),
+			ExecStdout::Write { .. } => Stdio::piped(),
+			ExecStdout::Ignore => Stdio::null()
 		})
-		.stderr(if request.stream_stderr {
-			Stdio::piped()
-		} else {
-			Stdio::null()
+		.stderr(match &request.stderr {
+			ExecStderr::Stream => Stdio::piped(),
+			ExecStderr::Write { .. } => Stdio::piped(),
+			ExecStderr::Merge => Stdio::piped(),
+			ExecStderr::Ignore => Stdio::null()
 		})
 		.spawn()
 		.context("Failed to spawn process")
@@ -420,30 +457,75 @@ async fn dispatch_exec(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32, proce
 		.ok();
 
 	// stream stdout and/or stderr, if needed
-	if request.stream_stdin && proc.stdin.is_none() {
-		trace!("Streaming stdin");
-	}
 	let mut proc_outputs = StreamMap::<ConsoleKind,Pin<Box<dyn Stream<Item=std::io::Result<Bytes>>>>>::new();
 	if let Some(proc_stdout) = proc.stdout.take() {
-		trace!("Streaming stdout");
 		proc_outputs.insert(ConsoleKind::Stdout, Box::pin(ReaderStream::new(proc_stdout)));
 	}
 	if let Some(proc_stderr) = proc.stderr.take() {
-		trace!("Streaming stderr");
 		proc_outputs.insert(ConsoleKind::Stderr, Box::pin(ReaderStream::new(proc_stderr)));
 	}
 	loop {
 		match proc_outputs.next().await {
 
-			Some((kind, Ok(chunk))) => {
+			Some((ConsoleKind::Stdout, Ok(chunk))) => {
+				match &request.stdout {
 
-				// send back the console chunk
-				let Ok(_) = write_response(&socket, request_id, Response::ProcessEvent(ProcessEvent::Console {
-					kind,
-					chunk: chunk.to_vec()
-				}))
-					.await
-					else { break; };
+					ExecStdout::Stream => {
+						// send back the console chunk
+						let Ok(_) = write_response(&socket, request_id, Response::ProcessEvent(ProcessEvent::Console {
+							kind: ConsoleKind::Stdout,
+							chunk: chunk.to_vec()
+						}))
+							.await
+							else { break; };
+					}
+
+					ExecStdout::Write { .. } => {
+						// write to the stdout file, if any
+						if let Some(file) = &mut stdout_file {
+							let Ok(_) = file.write(&chunk)
+								.await
+								else { break; };
+						}
+					}
+
+					ExecStdout::Ignore => ()
+				}
+			}
+
+			Some((ConsoleKind::Stderr, Ok(chunk))) => {
+				match &request.stderr {
+
+					ExecStderr::Stream => {
+						// send back the console chunk
+						let Ok(_) = write_response(&socket, request_id, Response::ProcessEvent(ProcessEvent::Console {
+							kind: ConsoleKind::Stderr,
+							chunk: chunk.to_vec()
+						}))
+							.await
+							else { break; };
+					}
+
+					ExecStderr::Write { .. } => {
+						// write to the stderr file, if any
+						if let Some(file) = &mut stderr_file {
+							let Ok(_) = file.write(&chunk)
+								.await
+								else { break; };
+						}
+					}
+
+					ExecStderr::Merge { .. } => {
+						// write to the stdout file, if any
+						if let Some(file) = &mut stdout_file {
+							let Ok(_) = file.write(&chunk)
+								.await
+								else { break; };
+						}
+					}
+
+					ExecStderr::Ignore => ()
+				}
 			}
 
 			Some((kind, Err(e))) => {

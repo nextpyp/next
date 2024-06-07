@@ -86,11 +86,56 @@ pub struct ExecRequest {
 	pub program: String,
 	pub args: Vec<String>,
 	pub dir: Option<String>,
-	pub stream_stdin: bool,
-	pub stream_stdout: bool,
-	pub stream_stderr: bool,
+	pub stdin: ExecStdin,
+	pub stdout: ExecStdout,
+	pub stderr: ExecStderr,
 	pub stream_fin: bool
 }
+
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ExecStdin {
+	Stream,
+	Ignore
+}
+
+impl ExecStdin {
+	const ID_STREAM: u32 = 1;
+	const ID_IGNORE: u32 = 2;
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ExecStdout {
+	Stream,
+	Write {
+		path: String
+	},
+	Ignore
+}
+
+impl ExecStdout {
+	const ID_STREAM: u32 = 1;
+	const ID_WRITE: u32 = 2;
+	const ID_DROP: u32 = 3;
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ExecStderr {
+	Stream,
+	Write {
+		path: String
+	},
+	Merge,
+	Ignore
+}
+
+impl ExecStderr {
+	const ID_STREAM: u32 = 1;
+	const ID_WRITE: u32 = 2;
+	const ID_MERGE: u32 = 3;
+	const ID_DROP: u32 = 4;
+}
+
 
 impl RequestEnvelope {
 
@@ -115,9 +160,41 @@ impl RequestEnvelope {
 				out.write_option(&request.dir, |out, item| {
 					out.write_utf8(item)
 				})?;
-				out.write_bool(request.stream_stdin)?;
-				out.write_bool(request.stream_stdout)?;
-				out.write_bool(request.stream_stderr)?;
+				match &request.stdin {
+					ExecStdin::Stream => {
+						out.write_u32::<BigEndian>(ExecStdin::ID_STREAM)?;
+					}
+					ExecStdin::Ignore => {
+						out.write_u32::<BigEndian>(ExecStdin::ID_IGNORE)?;
+					}
+				}
+				match &request.stdout {
+					ExecStdout::Stream => {
+						out.write_u32::<BigEndian>(ExecStdout::ID_STREAM)?;
+					}
+					ExecStdout::Write { path } => {
+						out.write_u32::<BigEndian>(ExecStdout::ID_WRITE)?;
+						out.write_utf8(path)?;
+					}
+					ExecStdout::Ignore => {
+						out.write_u32::<BigEndian>(ExecStdout::ID_DROP)?;
+					}
+				}
+				match &request.stderr {
+					ExecStderr::Stream => {
+						out.write_u32::<BigEndian>(ExecStderr::ID_STREAM)?;
+					}
+					ExecStderr::Write { path } => {
+						out.write_u32::<BigEndian>(ExecStderr::ID_WRITE)?;
+						out.write_utf8(path)?;
+					}
+					ExecStderr::Merge => {
+						out.write_u32::<BigEndian>(ExecStderr::ID_MERGE)?;
+					}
+					ExecStderr::Ignore => {
+						out.write_u32::<BigEndian>(ExecStderr::ID_DROP)?;
+					}
+				}
 				out.write_bool(request.stream_fin)?;
 			}
 
@@ -194,9 +271,52 @@ impl RequestEnvelope {
 					program: reader.read_utf8().map_err(|e| (e, Some(request_id)))?,
 					args: reader.read_vec(|r| r.read_utf8()).map_err(|e| (e, Some(request_id)))?,
 					dir: reader.read_option(|r| r.read_utf8()).map_err(|e| (e, Some(request_id)))?,
-					stream_stdin: reader.read_bool().map_err(|e| (e, Some(request_id)))?,
-					stream_stdout: reader.read_bool().map_err(|e| (e, Some(request_id)))?,
-					stream_stderr: reader.read_bool().map_err(|e| (e, Some(request_id)))?,
+					stdin: {
+						let stdin_type_id = reader.read_u32::<BigEndian>()
+							.context("Failed to read exec stdin type id")
+							.map_err(|e| (e, Some(request_id)))?;
+						if stdin_type_id == ExecStdin::ID_STREAM {
+							ExecStdin::Stream
+						} else if stdin_type_id == ExecStdin::ID_IGNORE {
+							ExecStdin::Ignore
+						} else {
+							return Err((anyhow!("Unrecognized exec stdin type id: {}", stdin_type_id), Some(request_id)));
+						}
+					},
+					stdout: {
+						let stdout_type_id = reader.read_u32::<BigEndian>()
+							.context("Failed to read exec stdout type id")
+							.map_err(|e| (e, Some(request_id)))?;
+						if stdout_type_id == ExecStdout::ID_STREAM {
+							ExecStdout::Stream
+						} else if stdout_type_id == ExecStdout::ID_WRITE {
+							ExecStdout::Write {
+								path: reader.read_utf8().map_err(|e| (e, Some(request_id)))?
+							}
+						} else if stdout_type_id == ExecStdout::ID_DROP {
+							ExecStdout::Ignore
+						} else {
+							return Err((anyhow!("Unrecognized exec stdin type id: {}", stdout_type_id), Some(request_id)));
+						}
+					},
+					stderr: {
+						let stderr_type_id = reader.read_u32::<BigEndian>()
+							.context("Failed to read exec stderr type id")
+							.map_err(|e| (e, Some(request_id)))?;
+						if stderr_type_id == ExecStderr::ID_STREAM {
+							ExecStderr::Stream
+						} else if stderr_type_id == ExecStderr::ID_WRITE {
+							ExecStderr::Write {
+								path: reader.read_utf8().map_err(|e| (e, Some(request_id)))?
+							}
+						} else if stderr_type_id == ExecStderr::ID_MERGE {
+							ExecStderr::Merge
+						} else if stderr_type_id == ExecStderr::ID_DROP {
+							ExecStderr::Ignore
+						} else {
+							return Err((anyhow!("Unrecognized exec stdin type id: {}", stderr_type_id), Some(request_id)));
+						}
+					},
 					stream_fin: reader.read_bool().map_err(|e| (e, Some(request_id)))?
 				})
 			} else if type_id == Request::ID_STATUS {
@@ -743,18 +863,40 @@ mod test {
 			program: "program".to_string(),
 			args: vec!["arg1".to_string(), "arg2".to_string()],
 			dir: None,
-			stream_stdin: false,
-			stream_stdout: true,
-			stream_stderr: false,
+			stdin: ExecStdin::Stream,
+			stdout: ExecStdout::Stream,
+			stderr: ExecStderr::Stream,
 			stream_fin: true
 		}));
 		assert_roundtrip(Request::Exec(ExecRequest {
 			program: "program".to_string(),
 			args: vec![],
 			dir: Some("/path/to/dir".to_string()),
-			stream_stdin: false,
-			stream_stdout: false,
-			stream_stderr: false,
+			stdin: ExecStdin::Ignore,
+			stdout: ExecStdout::Write {
+				path: "file".to_string()
+			},
+			stderr: ExecStderr::Write {
+				path: "file".to_string()
+			},
+			stream_fin: false
+		}));
+		assert_roundtrip(Request::Exec(ExecRequest {
+			program: "program".to_string(),
+			args: vec![],
+			dir: Some("/path/to/dir".to_string()),
+			stdin: ExecStdin::Ignore,
+			stdout: ExecStdout::Stream,
+			stderr: ExecStderr::Merge,
+			stream_fin: false
+		}));
+		assert_roundtrip(Request::Exec(ExecRequest {
+			program: "program".to_string(),
+			args: vec![],
+			dir: Some("/path/to/dir".to_string()),
+			stdin: ExecStdin::Ignore,
+			stdout: ExecStdout::Ignore,
+			stderr: ExecStderr::Ignore,
 			stream_fin: false
 		}));
 

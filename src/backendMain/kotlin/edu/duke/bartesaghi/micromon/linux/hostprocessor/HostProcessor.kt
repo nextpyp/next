@@ -203,16 +203,20 @@ class HostProcessor(
 	/**
 	 * Launch a process
 	 */
-	suspend fun exec(cmd: Command, dir: Path? = null): Process =
+	suspend fun exec(cmd: Command, dir: Path? = null, outPath: Path? = null): Process =
 		connectionOrThrow
 			.request(
 				Request.Exec(
 					cmd.program,
 					cmd.args,
 					dir?.toString(),
-					streamStdin = false,
-					streamStdout = false,
-					streamStderr = false,
+					stdin = Request.Exec.Stdin.Ignore,
+					stdout = outPath
+						?.let { Request.Exec.Stdout.Write(it.toString()) }
+						?: Request.Exec.Stdout.Ignore,
+					stderr = outPath
+						?.let { Request.Exec.Stderr.Merge }
+						?: Request.Exec.Stderr.Ignore,
 					streamFin = false
 				)
 			)
@@ -264,9 +268,9 @@ class HostProcessor(
 					cmd.program,
 					cmd.args,
 					dir?.toString(),
-					stdin,
-					stdout,
-					stderr,
+					if (stdin) Request.Exec.Stdin.Stream else Request.Exec.Stdin.Ignore,
+					if (stdout) Request.Exec.Stdout.Stream else Request.Exec.Stdout.Ignore,
+					if (stderr) Request.Exec.Stderr.Stream else Request.Exec.Stderr.Ignore,
 					streamFin = true
 				)
 			)

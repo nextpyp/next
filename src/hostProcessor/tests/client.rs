@@ -3,7 +3,7 @@ use std::net::Shutdown;
 use std::os::unix::net::UnixStream;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, ExitStatus};
-use std::thread;
+use std::{fs, thread};
 use std::time::Duration;
 
 use galvanic_assert::{assert_that, matchers::*};
@@ -13,7 +13,7 @@ use tracing::debug;
 
 use host_processor::framing::{ReadFramed, WriteFramed};
 use host_processor::logging;
-use host_processor::proto::{ExecRequest, Request, RequestEnvelope, Response, ResponseEnvelope};
+use host_processor::proto::{ExecRequest, ExecStderr, ExecStdin, ExecStdout, Request, RequestEnvelope, Response, ResponseEnvelope};
 
 
 // NOTE: these tests need `cargo test ... -- --test-threads=1` for the log to make sense
@@ -69,9 +69,9 @@ fn exec() {
 		program: "ls".to_string(),
 		args: vec!["-al".to_string()],
 		dir: None,
-		stream_stdin: false,
-		stream_stdout: false,
-		stream_stderr: false,
+		stdin: ExecStdin::Ignore,
+		stdout: ExecStdout::Ignore,
+		stderr: ExecStderr::Ignore,
 		stream_fin: true
 	});
 
@@ -85,7 +85,7 @@ fn exec() {
 
 
 #[test]
-fn exec_stdout() {
+fn exec_stdout_stream() {
 	let _logging = logging::init_test();
 
 	let host_processor = HostProcessor::start();
@@ -96,9 +96,9 @@ fn exec_stdout() {
 		program: "ls".to_string(),
 		args: vec!["-al".to_string()],
 		dir: None,
-		stream_stdin: false,
-		stream_stdout: true,
-		stream_stderr: false,
+		stdin: ExecStdin::Ignore,
+		stdout: ExecStdout::Stream,
+		stderr: ExecStderr::Ignore,
 		stream_fin: true
 	});
 
@@ -114,7 +114,46 @@ fn exec_stdout() {
 
 
 #[test]
-fn exec_stderr() {
+fn exec_stdout_write() {
+	let _logging = logging::init_test();
+
+	let host_processor = HostProcessor::start();
+	let mut socket = host_processor.connect();
+
+	let out_path = PathBuf::from(SOCKET_DIR).join("out");
+
+	// send the exec request
+	let (_pid, request_id) = exec::launch(&mut socket, ExecRequest {
+		program: "echo".to_string(),
+		args: vec!["hello".to_string()],
+		dir: None,
+		stdin: ExecStdin::Ignore,
+		stdout: ExecStdout::Write {
+			path: out_path.to_string_lossy().to_string()
+		},
+		stderr: ExecStderr::Ignore,
+		stream_fin: true
+	});
+
+	// get the stdout
+	let (stdout, stderr, exit_code) = exec::outputs(&mut socket, request_id);
+	assert_that!(&exit_code, eq(Some(0)));
+	assert_that!(&stdout.len(), eq(0));
+	assert_that!(&stderr.len(), eq(0));
+	let out = fs::read_to_string(&out_path)
+		.unwrap();
+	assert_that!(&out.as_str(), eq("hello\n"));
+
+	fs::remove_file(&out_path)
+		.ok();
+
+	host_processor.disconnect(socket);
+	host_processor.stop();
+}
+
+
+#[test]
+fn exec_stderr_stream() {
 	let _logging = logging::init_test();
 
 	let host_processor = HostProcessor::start();
@@ -125,9 +164,9 @@ fn exec_stderr() {
 		program: "ls".to_string(),
 		args: vec!["/nope/probably/not/a/thing/right?".to_string()],
 		dir: None,
-		stream_stdin: false,
-		stream_stdout: false,
-		stream_stderr: true,
+		stdin: ExecStdin::Ignore,
+		stdout: ExecStdout::Ignore,
+		stderr: ExecStderr::Stream,
 		stream_fin: true
 	});
 
@@ -136,6 +175,84 @@ fn exec_stderr() {
 	assert_that!(&exit_code, eq(Some(2)));
 	assert_that!(&stdout.len(), eq(0));
 	assert_that!(&stderr.len(), gt(0));
+
+	host_processor.disconnect(socket);
+	host_processor.stop();
+}
+
+
+#[test]
+fn exec_stderr_write() {
+	let _logging = logging::init_test();
+
+	let host_processor = HostProcessor::start();
+	let mut socket = host_processor.connect();
+
+	let err_path = PathBuf::from(SOCKET_DIR).join("err");
+
+	// send the exec request
+	let (_pid, request_id) = exec::launch(&mut socket, ExecRequest {
+		program: "ls".to_string(),
+		args: vec!["/nope/probably/not/a/thing/right?".to_string()],
+		dir: None,
+		stdin: ExecStdin::Ignore,
+		stdout: ExecStdout::Ignore,
+		stderr: ExecStderr::Write {
+			path: err_path.to_string_lossy().to_string()
+		},
+		stream_fin: true
+	});
+
+	// get the stderr
+	let (stdout, stderr, exit_code) = exec::outputs(&mut socket, request_id);
+	assert_that!(&exit_code, eq(Some(2)));
+	assert_that!(&stdout.len(), eq(0));
+	assert_that!(&stderr.len(), eq(0));
+	let err = fs::read_to_string(&err_path)
+		.unwrap();
+	assert_that!(&err.len(), gt(0));
+
+	fs::remove_file(&err_path)
+		.ok();
+
+	host_processor.disconnect(socket);
+	host_processor.stop();
+}
+
+
+#[test]
+fn exec_stderr_merge() {
+	let _logging = logging::init_test();
+
+	let host_processor = HostProcessor::start();
+	let mut socket = host_processor.connect();
+
+	let out_path = PathBuf::from(SOCKET_DIR).join("out");
+
+	// send the exec request
+	let (_pid, request_id) = exec::launch(&mut socket, ExecRequest {
+		program: "ls".to_string(),
+		args: vec!["/nope/probably/not/a/thing/right?".to_string()],
+		dir: None,
+		stdin: ExecStdin::Ignore,
+		stdout: ExecStdout::Write {
+			path: out_path.to_string_lossy().to_string()
+		},
+		stderr: ExecStderr::Merge,
+		stream_fin: true
+	});
+
+	// get the output
+	let (stdout, stderr, exit_code) = exec::outputs(&mut socket, request_id);
+	assert_that!(&exit_code, eq(Some(2)));
+	assert_that!(&stdout.len(), eq(0));
+	assert_that!(&stderr.len(), eq(0));
+	let out = fs::read_to_string(&out_path)
+		.unwrap();
+	assert_that!(&out.len(), gt(0));
+
+	fs::remove_file(&out_path)
+		.ok();
 
 	host_processor.disconnect(socket);
 	host_processor.stop();
@@ -154,9 +271,9 @@ fn exec_stdin() {
 		program: "cat".to_string(),
 		args: vec!["-".to_string()],
 		dir: None,
-		stream_stdin: true,
-		stream_stdout: true,
-		stream_stderr: true,
+		stdin: ExecStdin::Stream,
+		stdout: ExecStdout::Stream,
+		stderr: ExecStderr::Stream,
 		stream_fin: true
 	});
 
@@ -187,9 +304,9 @@ fn exec_dir() {
 		program: "pwd".to_string(),
 		args: vec![],
 		dir: Some("/tmp".to_string()),
-		stream_stdin: false,
-		stream_stdout: true,
-		stream_stderr: false,
+		stdin: ExecStdin::Ignore,
+		stdout: ExecStdout::Stream,
+		stderr: ExecStderr::Ignore,
 		stream_fin: true
 	});
 
@@ -218,9 +335,9 @@ fn exec_status() {
 		program: "cat".to_string(),
 		args: vec!["-".to_string()],
 		dir: None,
-		stream_stdin: true,
-		stream_stdout: false,
-		stream_stderr: false,
+		stdin: ExecStdin::Stream,
+		stdout: ExecStdout::Ignore,
+		stderr: ExecStderr::Ignore,
 		stream_fin: false
 	});
 
@@ -256,9 +373,9 @@ fn exec_kill() {
 		program: "cat".to_string(),
 		args: vec!["-".to_string()],
 		dir: None,
-		stream_stdin: true,
-		stream_stdout: false,
-		stream_stderr: false,
+		stdin: ExecStdin::Stream,
+		stdout: ExecStdout::Ignore,
+		stderr: ExecStderr::Ignore,
 		stream_fin: false
 	});
 
