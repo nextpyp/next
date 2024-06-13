@@ -1079,6 +1079,7 @@ class ProjectView(val project: ProjectData) : View {
 										for ((k, v) in nodeFlags) {
 											v.value = k == node.jobId
 										}
+										update()
 									}
 								}
 								onEvent {
