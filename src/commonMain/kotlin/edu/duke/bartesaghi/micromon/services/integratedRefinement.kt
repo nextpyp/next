@@ -140,8 +140,10 @@ class Reconstructions {
 		byId[reconstruction.id] = reconstruction
 		byIteration.getOrPut(reconstruction.iteration) { ByIteration(reconstruction.iteration) }
 			.add(reconstruction)
-		_iterations.add(reconstruction.iteration)
-		_iterations.sort()
+		if (reconstruction.iteration !in _iterations) {
+			_iterations.add(reconstruction.iteration)
+			_iterations.sort()
+		}
 	}
 
 	fun maxNumClasses(): Int =
