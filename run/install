@@ -180,7 +180,11 @@ fi
 userProcessorExecDir="$userProcessorDir/exec"
 if [ ! -d "$userProcessorExecDir" ] ; then
   mkdir "$userProcessorExecDir"
-  chmod ugo+rx "$userProcessorExecDir"
+  # this folder needs to be world-writable (ugo=rwx) so user-processor instances (running as other users) can create their executables
+  # (since the local root account might not have write access to the shared folder in eg LDAP environments)
+  # it also needs setgid (g+s) so the service account can run the executables
+  # setting the sticky bit (+t) also prevents users from tampering with each others' executables
+  chmod ugo=rwx,g+s,+t "$userProcessorSocketsDir"
   echo "Created user processor exec dir: $userProcessorExecDir"
 
   # make the base executable (no one should be able to run it though)

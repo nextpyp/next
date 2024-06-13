@@ -4,6 +4,12 @@
 set -e
 
 
+if [ "$(whoami)" != "root" ]; then
+  echo "This utility should be run as root!"
+  exit 1
+fi
+
+
 # process the command
 case "$1" in
 
@@ -20,23 +26,16 @@ case "$1" in
       exit 1
     fi
 
-    # get the groupname of the original user-processor executable
-    # (it's the pyp group)
-    groupname=$(stat -c "%G" user-processor)
+    # make a way to run commands as the target user
+    usdo="sudo -u $username"
 
     # create the user-processor executable for this user
     exec="user-processor-$username"
-    cp user-processor "$exec"
-
-    # the runas executable should be owned by the target user,
-    # but in the group used by nextpyp
-    chown "$username":"$groupname" "$exec"
+    $usdo cp user-processor "$exec"
 
     # only the user should be able to write
-    chmod u+w,go-w "$exec"
-
     # only the user and the group should be able to execute
-    chmod ug+x,o-x "$exec"
+    chmod u=rwx,g=rx,o= "$exec"
 
     # the executable should be setuid
     # NOTE: set this last, so we're sure the executable has the correct permissions before turning on setuid
@@ -58,10 +57,13 @@ case "$1" in
       exit 1
     fi
 
+    # make a way to run commands as the target user
+    usdo="sudo -u $username"
+
     # remove the runas-username executable, if any
     exec=user-processor-$username
     if [ -f "$exec" ]; then
-      rm "$exec"
+      $usdo rm "$exec"
     else
       echo "No user-processor executable found for user $username"
       exit 1
