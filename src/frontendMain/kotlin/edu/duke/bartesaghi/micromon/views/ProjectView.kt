@@ -20,6 +20,7 @@ import edu.duke.bartesaghi.micromon.pyp.Block
 import edu.duke.bartesaghi.micromon.pyp.toArgValues
 import edu.duke.bartesaghi.micromon.services.*
 import io.kvision.core.Container
+import io.kvision.core.Display
 import io.kvision.core.Widget
 import io.kvision.core.onEvent
 import io.kvision.dropdown.ddLink
@@ -1055,8 +1056,10 @@ class ProjectView(val project: ProjectData) : View {
 				fun Container.showNodes(nodes: List<Node>) {
 					div(classes = setOf("nodes-list")) {
 						for (node in nodes.sortedBy { it.baseJob.common.jobNumber }) {
-							div {
+							div(classes = setOf("node-line")) {
+
 								div(classes = setOf("node-entry")) {
+
 									add(nodeFlags.getValue(node.jobId))
 									span(classes = setOf("icon")) {
 										icon(node.type.iconClass)
@@ -1064,6 +1067,26 @@ class ProjectView(val project: ProjectData) : View {
 									span(node.baseJob.numberedName)
 									if (!nodeValid.getValue(node.jobId)) {
 										addCssClass("invalid")
+									}
+								}
+
+								div(classes = setOf("node-spacer"))
+
+								// when the line is hovered, show a button that selects only this node
+								val onlyButton = button("Only", classes = setOf("only")).apply {
+									display = Display.NONE
+									onClick {
+										for ((k, v) in nodeFlags) {
+											v.value = k == node.jobId
+										}
+									}
+								}
+								onEvent {
+									mouseover = {
+										onlyButton.display = Display.INLINEBLOCK
+									}
+									mouseout = {
+										onlyButton.display = Display.NONE
 									}
 								}
 							}

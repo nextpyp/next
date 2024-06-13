@@ -1902,31 +1902,47 @@ div.project-view .websocket-control {
 	padding: 0;
 }
 
+.project-run-popup .node-line {
+	display: flex;
+	flex-direction: row;
+	gap: 10px;
+}
+
 .project-run-popup .nodes-list {
 	margin-left: 20px;
 }
 
-.project-run-popup .nodes-list .node-entry {
+.project-run-popup .nodes-list .node-line .node-entry {
 	display: inline-block;
 	padding-left: 6px;
     padding-right: 6px;
 }
 
-.project-run-popup .nodes-list .node-entry .icon {
+.project-run-popup .nodes-list .node-line .node-entry .icon {
 	display: inline-block;
 	width: 22px;
 	text-align: center;
 	margin-right: 8px;
 }
 
-.project-run-popup .nodes-list .node-entry input {
+.project-run-popup .nodes-list .node-line .node-entry input {
 	margin-right: 10px;
 }
 
-.project-run-popup .nodes-list .invalid {
+.project-run-popup .nodes-list .node-line .node-entry.invalid {
 	outline: solid 1px #f00;
     outline-offset: 1px;
     border-radius: 8px;
+}
+
+.project-run-popup .nodes-list .node-line .node-spacer {
+	flex-grow: 1;
+}
+
+.project-run-popup .nodes-list .node-line button.only {
+	height: 1lh;
+	padding-top: 0;
+	paddint-bottom: 0;
 }
 
 .project-run-popup .validation-message {
