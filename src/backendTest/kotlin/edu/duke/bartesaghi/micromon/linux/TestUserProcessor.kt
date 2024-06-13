@@ -307,6 +307,31 @@ class TestUserProcessor : DescribeSpec({
 				path.exists().shouldBe(false)
 			}
 		}
+
+		it("list folder").config(invocations = testCount) {
+			withUserProcessor(username) { _, client ->
+
+				val path = Paths.get("/tmp/nextpyp-user-processor-list-folder-test")
+
+				// create a folder with some files
+				client.createFolder(path)
+				client.writeFile(path.resolve("file"))
+					.use { writer ->
+						writer.writeAll(byteArrayOf(1, 2, 3))
+					}
+
+				val entries = client.listFolder(path)
+					.toList()
+
+				entries.size.shouldBe(1)
+				entries[0].apply {
+					name.shouldBe("file")
+					kind.shouldBe(FileEntry.Kind.File)
+				}
+
+				client.deleteFolder(path)
+			}
+		}
 	}
 })
 

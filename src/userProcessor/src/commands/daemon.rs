@@ -4,11 +4,11 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ffi::OsString;
 use std::fs::{File, OpenOptions, Permissions};
-use std::io::{Read, Write};
+use std::io::{Cursor, Read, Write};
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::time::Duration;
-use std::os::unix::fs::PermissionsExt;
+use std::os::unix::fs::{FileTypeExt, PermissionsExt};
 
 use anyhow::{bail, Context, Result};
 use async_trait::async_trait;
@@ -21,7 +21,7 @@ use tracing::{debug, error_span, info, Instrument, trace, warn};
 
 use crate::framing::{AsyncReadFramed, AsyncWriteFramed};
 use crate::logging::ResultExt;
-use crate::proto::{ChmodRequest, ReadFileResponse, Request, RequestEnvelope, Response, ResponseEnvelope, WriteFileRequest, WriteFileResponse};
+use crate::proto::{ChmodRequest, DirListWriter, FileEntry, FileKind, ReadFileResponse, Request, RequestEnvelope, Response, ResponseEnvelope, WriteFileRequest, WriteFileResponse};
 
 
 #[derive(Options)]
@@ -271,6 +271,10 @@ async fn drive_connection(socket: UnixStream) {
 
 					Request::DeleteFolder { path } =>
 						dispatch_delete_folder(socket_write, request.id, path)
+							.await,
+
+					Request::ListFolder { path } =>
+						dispatch_list_folder(socket_write, request.id, path)
 							.await
 				}
 
@@ -683,6 +687,105 @@ async fn dispatch_delete_folder(socket: Rc<RefCell<OwnedWriteHalf>>, request_id:
 		else { return };
 
 	write_response(&socket, request_id, Response::DeleteFolder)
+		.await
+		.ok();
+}
+
+
+#[tracing::instrument(skip_all, level = 5, name = "ListFolder")]
+async fn dispatch_list_folder(socket: Rc<RefCell<OwnedWriteHalf>>, request_id: u32, path: String) {
+
+	debug!(path, "Request");
+
+	// read the dir using the Rust stdlib, which is just a thin wrapper around libc
+	// should be fast enough for big NFS folders, right?
+	// TODO: do we need to go to raw kernel interfaces for more speed?? might not be very portable?
+	let mut list_writer = DirListWriter::new();
+	let Some(read) = fs::read_dir(&path)
+		.or_respond_error(&socket, request_id, |e| format!("Failed to read folder: {}: {}", &path, e))
+		.await
+		else { return };
+	for result in read {
+
+		let Some(entry) = result
+			.or_respond_error(&socket, request_id, |e| format!("Failed to read file entry: {}", e))
+			.await
+			else { return };
+
+		let Some(file_type) = entry.file_type()
+			.or_respond_error(&socket, request_id, |e| format!("Failed to read file type: {}", e))
+			.await
+			else { return };
+
+		let entry = FileEntry {
+			name: entry.file_name().to_string_lossy().to_string(),
+			kind:
+				if file_type.is_file() {
+					FileKind::File
+				} else if file_type.is_dir() {
+					FileKind::Dir
+				} else if file_type.is_symlink() {
+					FileKind::Symlink
+				} else if file_type.is_fifo() {
+					FileKind::Fifo
+				} else if file_type.is_socket() {
+					FileKind::Socket
+				} else if file_type.is_block_device() {
+					FileKind::BlockDev
+				} else if file_type.is_char_device() {
+					FileKind::CharDev
+				} else {
+					FileKind::Unknown
+				}
+		};
+		let Some(()) = list_writer.write(&entry)
+			.or_respond_error(&socket, request_id, |e| format!("Failed to write file entry: {}", e))
+			.await
+			else { return };
+	}
+
+	let Some(list) = list_writer.close()
+		.or_respond_error(&socket, request_id, |e| format!("Failed to write list: {}", e))
+		.await
+		else { return };
+	let mut list_reader = Cursor::new(&list);
+
+	// send back the response
+	let response = Response::ReadFile(ReadFileResponse::Open {
+		bytes: list.len() as u64
+	});
+	let Ok(_) = write_response(&socket, request_id, response)
+		.await
+		else { return };
+
+	// read the file in chunks
+	let mut buf = [0u8; 4*1024];
+	let mut sequence: u32 = 0;
+	loop {
+
+		// read the next chunk
+		sequence += 1;
+		let bytes_read = list_reader.read(&mut buf)
+			.unwrap(); // PANIC SAFETY: infallible, we're reading from a cursor to an in-memory buffer
+		if bytes_read == 0 {
+			break;
+		}
+
+		// send the chunk back
+		let response = Response::ReadFile(ReadFileResponse::Chunk {
+			sequence,
+			data: buf[0 .. bytes_read].to_vec()
+		});
+		let Ok(_) = write_response(&socket, request_id, response)
+			.await
+			else { return };
+	}
+
+	// all done, send the close response
+	let response = Response::ReadFile(ReadFileResponse::Close {
+		sequence
+	});
+	write_response(&socket, request_id, response)
 		.await
 		.ok();
 }

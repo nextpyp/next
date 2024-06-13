@@ -36,7 +36,10 @@ enum Command {
 	Daemon(commands::daemon::Args),
 
 	/// Run a command as the user
-	Run(commands::run::Args)
+	Run(commands::run::Args),
+
+	/// Fast directory listing, even on slower networked filesystems
+	Dirlist(commands::dirlist::Args)
 }
 
 
@@ -109,6 +112,7 @@ fn run(args: Args) -> Result<()> {
 	match args.cmd {
 		Some(Command::Daemon(daemon_args)) => commands::daemon::run(args.quiet, daemon_args),
 		Some(Command::Run(run_args)) => commands::run::run(args.quiet, run_args),
+		Some(Command::Dirlist(dirlist_args)) => commands::dirlist::run(args.quiet, dirlist_args),
 		_ => bail!("No command, try one of:\n{}", Args::command_list().unwrap())
 	}
 }

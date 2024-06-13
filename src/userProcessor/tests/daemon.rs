@@ -17,7 +17,7 @@ use tracing::debug;
 
 use user_processor::framing::{ReadFramed, WriteFramed};
 use user_processor::logging;
-use user_processor::proto::{ChmodBit, ChmodOp, ChmodRequest, ReadFileResponse, Request, RequestEnvelope, Response, ResponseEnvelope, WriteFileRequest, WriteFileResponse};
+use user_processor::proto::{ChmodBit, ChmodOp, ChmodRequest, DirListReader, FileEntry, FileKind, ReadFileResponse, Request, RequestEnvelope, Response, ResponseEnvelope, WriteFileRequest, WriteFileResponse};
 
 
 // NOTE: these tests need `cargo test ... -- --test-threads=1` for the log to make sense
@@ -515,6 +515,68 @@ fn delete_folder() {
 	user_processor.disconnect(socket);
 	user_processor.stop();
 }
+
+
+
+#[test]
+fn list_folder() {
+	let _logging = logging::init_test();
+
+	// create a folder we can delete, put stuff in it too
+	let path = PathBuf::from(SOCKET_DIR).join("list_folder_test");
+	fs::create_dir_all(&path)
+		.ok();
+	fs::write(path.join("file"), "hello")
+		.unwrap();
+
+	let user_processor = UserProcessor::start();
+	let mut socket = user_processor.connect();
+
+	let request_id = 5;
+	let response = request(&mut socket, request_id, Request::ListFolder {
+		path: path.to_string_lossy().to_string()
+	});
+	const EXP_SIZE: usize = 10;
+	assert_that!(&response, eq(Response::ReadFile(ReadFileResponse::Open {
+		bytes: EXP_SIZE as u64
+	})));
+
+	// read the incoming chunks
+	let mut buf = Vec::<u8>::with_capacity(EXP_SIZE);
+	let mut exp_sequence = 0;
+	while buf.len() < buf.capacity() {
+		exp_sequence += 1;
+		let response = recv(&mut socket, request_id);
+		let Response::ReadFile(ReadFileResponse::Chunk { sequence, data }) = response
+			else { panic!("unexpected response: {:?}", response) };
+		assert_that!(&sequence, eq(exp_sequence));
+		buf.extend(data);
+	}
+
+	exp_sequence += 1;
+	let response = recv(&mut socket, request_id);
+	assert_that!(&response, eq(Response::ReadFile(ReadFileResponse::Close {
+		sequence: exp_sequence
+	})));
+
+	let entries = DirListReader::from(&buf)
+		.iter()
+		.collect::<Result<Vec<_>,_>>()
+		.unwrap();
+
+	assert_that!(&entries, eq(vec![
+		FileEntry {
+			name: "file".to_string(),
+			kind: FileKind::File
+		}
+	]));
+
+	user_processor.disconnect(socket);
+	user_processor.stop();
+	fs::remove_dir_all(path)
+		.unwrap();
+}
+
 
 const SOCKET_DIR: &str = "/tmp/nextpyp-sockets";
 

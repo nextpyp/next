@@ -126,6 +126,12 @@ sealed interface Request {
 			const val ID: UInt = 8u
 		}
 	}
+
+	data class ListFolder(val path: String) : Request {
+		companion object {
+			const val ID: UInt = 9u
+		}
+	}
 }
 
 fun Request.WriteFile.Request.into(): Request =
@@ -207,6 +213,11 @@ class RequestEnvelope(
 				out.writeU32(Request.DeleteFolder.ID)
 				out.writeUtf8(request.path)
 			}
+
+			is Request.ListFolder -> {
+				out.writeU32(Request.ListFolder.ID)
+				out.writeUtf8(request.path)
+			}
 		}
 
 		return bos.toByteArray()
@@ -272,6 +283,10 @@ class RequestEnvelope(
 				)
 
 				Request.DeleteFolder.ID -> Request.DeleteFolder(
+					path = input.readUtf8()
+				)
+
+				Request.ListFolder.ID -> Request.ListFolder(
 					path = input.readUtf8()
 				)
 

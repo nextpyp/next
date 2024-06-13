@@ -20,7 +20,6 @@ import java.nio.channels.SocketChannel
 import java.nio.charset.Charset
 import java.nio.file.Path
 import kotlin.io.path.div
-import kotlin.io.path.relativeTo
 import kotlin.math.min
 
 
@@ -379,54 +378,56 @@ class UserProcessor(
 
 	suspend fun readFile(path: Path): ByteArray =
 		request(Request.ReadFile(path.toString()))
-			.use { responder ->
+			.use { it.readFile() }
 
-				// wait for the open
-				val open = responder.recv()
-					.cast<Response.ReadFile>()
-					.response
-					.cast<Response.ReadFile.Open>()
+	private suspend fun Responder.readFile(): ByteArray {
 
-				// allocate a buffer for the file
-				val buf = ByteArray(run {
-					val i = open.bytes.toInt()
-					if (i.toULong() != open.bytes) {
-						throw UnsupportedOperationException("file too large to read: ${open.bytes} bytes")
-					}
-					i
-				})
+		// wait for the open
+		val open = recv()
+			.cast<Response.ReadFile>()
+			.response
+			.cast<Response.ReadFile.Open>()
 
-				// make sure the chunks come in the correct sequence
-				// TODO: do we need to re-order?
-				var sequence = 1u
-				fun checkSequence(obs: UInt) {
-					if (obs != sequence) {
-						throw IllegalStateException("Expected sequence $sequence, but got $obs")
-					}
-					sequence += 1u
-				}
-
-				// read in all the chunks
-				var bytesRead = 0
-				while (bytesRead < buf.size) {
-					val chunk = responder.recv()
-						.cast<Response.ReadFile>()
-						.response
-						.cast<Response.ReadFile.Chunk>()
-					checkSequence(chunk.sequence)
-					chunk.data.copyInto(buf, bytesRead)
-					bytesRead += chunk.data.size
-				}
-
-				// wait for close
-				val close = responder.recv()
-					.cast<Response.ReadFile>()
-					.response
-					.cast<Response.ReadFile.Close>()
-				checkSequence(close.sequence)
-
-				buf
+		// allocate a buffer for the file
+		val buf = ByteArray(run {
+			val i = open.bytes.toInt()
+			if (i.toULong() != open.bytes) {
+				throw UnsupportedOperationException("file too large to read: ${open.bytes} bytes")
 			}
+			i
+		})
+
+		// make sure the chunks come in the correct sequence
+		// TODO: do we need to re-order?
+		var sequence = 1u
+		fun checkSequence(obs: UInt) {
+			if (obs != sequence) {
+				throw IllegalStateException("Expected sequence $sequence, but got $obs")
+			}
+			sequence += 1u
+		}
+
+		// read in all the chunks
+		var bytesRead = 0
+		while (bytesRead < buf.size) {
+			val chunk = recv()
+				.cast<Response.ReadFile>()
+				.response
+				.cast<Response.ReadFile.Chunk>()
+			checkSequence(chunk.sequence)
+			chunk.data.copyInto(buf, bytesRead)
+			bytesRead += chunk.data.size
+		}
+
+		// wait for close
+		val close = recv()
+			.cast<Response.ReadFile>()
+			.response
+			.cast<Response.ReadFile.Close>()
+		checkSequence(close.sequence)
+
+		return buf
+	}
 
 	interface FileWriter : SuspendCloseable {
 
@@ -512,6 +513,14 @@ class UserProcessor(
 			.use { responder ->
 				responder.recv().cast<Response.DeleteFolder>()
 			}
+	}
+
+	suspend fun listFolder(path: Path): Sequence<FileEntry> {
+
+		val list = request(Request.ListFolder(path.toString()))
+			.use { it.readFile() }
+
+		return FileEntry.reader(list)
 	}
 
 	fun wrap(cmd: Command): Command =

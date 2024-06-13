@@ -35,6 +35,9 @@ pub enum Request {
 	},
 	DeleteFolder {
 		path: String
+	},
+	ListFolder {
+		path: String
 	}
 }
 
@@ -47,6 +50,7 @@ impl Request {
 	const ID_DELETE_FILE: u32 = 6;
 	const ID_CREATE_FOLDER: u32 = 7;
 	const ID_DELETE_FOLDER: u32 = 8;
+	const ID_LIST_FOLDER: u32 = 9;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -248,6 +252,11 @@ impl RequestEnvelope {
 				out.write_u32::<BigEndian>(Request::ID_DELETE_FOLDER)?;
 				out.write_utf8(path)?;
 			}
+
+			Request::ListFolder { path } => {
+				out.write_u32::<BigEndian>(Request::ID_LIST_FOLDER)?;
+				out.write_utf8(path)?;
+			}
 		}
 
 		Ok(out)
@@ -321,6 +330,10 @@ impl RequestEnvelope {
 				}
 			} else if type_id == Request::ID_DELETE_FOLDER {
 				Request::DeleteFolder {
+					path: reader.read_utf8().map_err(|e| (e.into(), Some(request_id)))?
+				}
+			} else if type_id == Request::ID_LIST_FOLDER {
+				Request::ListFolder {
 					path: reader.read_utf8().map_err(|e| (e.into(), Some(request_id)))?
 				}
 			} else {
@@ -733,6 +746,142 @@ impl<R> ReadExt for R
 }
 
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FileEntry {
+	pub name: String,
+	pub kind: FileKind
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum FileKind {
+	Unknown,
+	File,
+	Dir,
+	Symlink,
+	Fifo,
+	Socket,
+	BlockDev,
+	CharDev
+}
+
+impl FileKind {
+	const ID_UNKNOWN: u8 = 0;
+	const ID_FILE: u8 = 1;
+	const ID_DIR: u8 = 2;
+	const ID_SYMLINK: u8 = 3;
+	const ID_FIFO: u8 = 4;
+	const ID_SOCKET: u8 = 5;
+	const ID_BLOCK_DEV: u8 = 6;
+	const ID_CHAR_DEV: u8 = 7;
+}
+
+const FILES_EOF: u8 = u8::MAX;
+
+
+pub struct DirListWriter {
+	buf: Vec<u8>
+}
+
+impl DirListWriter {
+
+	pub fn new() -> Self {
+		Self {
+			buf: Vec::new()
+		}
+	}
+
+	pub fn write(&mut self, entry: &FileEntry) -> Result<()> {
+		match &entry.kind {
+			FileKind::Unknown => self.buf.write_u8(FileKind::ID_UNKNOWN)?,
+			FileKind::File => self.buf.write_u8(FileKind::ID_FILE)?,
+			FileKind::Dir => self.buf.write_u8(FileKind::ID_DIR)?,
+			FileKind::Symlink => self.buf.write_u8(FileKind::ID_SYMLINK)?,
+			FileKind::Fifo => self.buf.write_u8(FileKind::ID_FIFO)?,
+			FileKind::Socket => self.buf.write_u8(FileKind::ID_SOCKET)?,
+			FileKind::BlockDev => self.buf.write_u8(FileKind::ID_BLOCK_DEV)?,
+			FileKind::CharDev => self.buf.write_u8(FileKind::ID_CHAR_DEV)?,
+		}
+		self.buf.write_utf8(&entry.name)?;
+		Ok(())
+	}
+
+	pub fn close(mut self) -> Result<Vec<u8>> {
+		self.buf.write_u8(FILES_EOF)?;
+		Ok(self.buf)
+	}
+}
+
+
+pub struct DirListReader<T> {
+	buf: T
+}
+
+impl<T> DirListReader<T>
+	where
+		T: AsRef<[u8]>
+{
+	pub fn from(buf: T) -> Self {
+		Self {
+			buf
+		}
+	}
+
+	pub fn iter(&self) -> DirListIter {
+		DirListIter {
+			reader: Cursor::new(self.buf.as_ref())
+		}
+	}
+}
+
+pub struct DirListIter<'a> {
+	reader: Cursor<&'a [u8]>
+}
+
+impl<'a> Iterator for DirListIter<'a> {
+
+	type Item = Result<FileEntry>;
+
+	fn next(&mut self) -> Option<Self::Item> {
+
+		// read the kind (or the EOF marker)
+		let kind_id = match self.reader.read_u8() {
+			Ok(i) => i,
+			Err(e) => return Some(Err(e).context("Failed to read kind_id"))
+		};
+		let kind =
+			if kind_id == FILES_EOF {
+				return None;
+			} else if kind_id == FileKind::ID_FILE {
+				FileKind::File
+			} else if kind_id == FileKind::ID_DIR {
+				FileKind::Dir
+			} else if kind_id == FileKind::ID_SYMLINK {
+				FileKind::Symlink
+			} else if kind_id == FileKind::ID_FIFO {
+				FileKind::Fifo
+			} else if kind_id == FileKind::ID_SOCKET {
+				FileKind::Socket
+			} else if kind_id == FileKind::ID_BLOCK_DEV {
+				FileKind::BlockDev
+			} else if kind_id == FileKind::ID_CHAR_DEV {
+				FileKind::CharDev
+			} else {
+				FileKind::Unknown
+			};
+
+		let name = match self.reader.read_utf8(){
+			Ok(n) => n,
+			Err(e) => return Some(Err(e).context("Failed to read filename"))
+		};
+
+		Some(Ok(FileEntry {
+			name,
+			kind
+		}))
+	}
+}
+
+
 #[cfg(test)]
 mod test {
 
@@ -813,6 +962,10 @@ mod test {
 		assert_roundtrip(Request::DeleteFolder {
 			path: "foo".to_string()
 		});
+
+		assert_roundtrip(Request::ListFolder {
+			path: "foo".to_string()
+		});
 	}
 
 
@@ -861,5 +1014,72 @@ mod test {
 		assert_roundtrip(Response::CreateFolder);
 
 		assert_roundtrip(Response::DeleteFolder);
+	}
+
+
+	#[test]
+	fn dirlist() {
+
+		fn assert_roundtrip(files: &Vec<FileEntry>) {
+
+			let mut writer = DirListWriter::new();
+			for file in files {
+				writer.write(file)
+					.unwrap();
+			}
+			let list = writer.close()
+				.unwrap();
+
+			let files_again = DirListReader::from(list)
+				.iter()
+				.collect::<Result<Vec<_>,_>>()
+				.unwrap();
+
+			assert_that!(&&files_again, eq(files));
+		}
+
+		assert_roundtrip(&vec![]);
+
+		assert_roundtrip(&vec![
+			FileEntry {
+				name: "file".to_string(),
+				kind: FileKind::File
+			}
+		]);
+
+		assert_roundtrip(&vec![
+			FileEntry {
+				name: "unknown".to_string(),
+				kind: FileKind::Unknown
+			},
+			FileEntry {
+				name: "file".to_string(),
+				kind: FileKind::File
+			},
+			FileEntry {
+				name: "dir".to_string(),
+				kind: FileKind::Dir
+			},
+			FileEntry {
+				name: "symlink".to_string(),
+				kind: FileKind::Symlink
+			},
+			FileEntry {
+				name: "fifo".to_string(),
+				kind: FileKind::Fifo
+			},
+			FileEntry {
+				name: "socket".to_string(),
+				kind: FileKind::Socket
+			},
+			FileEntry {
+				name: "block_dev".to_string(),
+				kind: FileKind::BlockDev
+			},
+			FileEntry {
+				name: "char_dev".to_string(),
+				kind: FileKind::CharDev
+			}
+		]);
 	}
 }

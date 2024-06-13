@@ -294,3 +294,48 @@ class ResponseEnvelope(
 		}
 	}
 }
+
+
+data class FileEntry(
+	val name: String,
+	val kind: Kind
+) {
+
+	enum class Kind(val id: UByte) {
+
+		Unknown(0u),
+		File(1u),
+		Dir(2u),
+		Symlink(3u),
+		Fifo(4u),
+		Socket(5u),
+		BlockDev(6u),
+		CharDev(7u);
+
+		companion object {
+
+			operator fun get(id: UByte): Kind =
+				values()
+					.find { it.id == id }
+					?: Unknown
+		}
+	}
+
+	companion object {
+
+		private const val LIST_EOF = UByte.MAX_VALUE
+
+		fun reader(buf: ByteArray): Sequence<FileEntry> {
+			val input = DataInputStream(ByteArrayInputStream(buf))
+			return generateSequence {
+				when (val kindId = input.readU8()) {
+					LIST_EOF -> null
+					else -> FileEntry(
+						name = input.readUtf8(),
+						kind = Kind[kindId]
+					)
+				}
+			}
+		}
+	}
+}
