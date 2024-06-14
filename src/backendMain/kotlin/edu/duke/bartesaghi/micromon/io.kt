@@ -1,6 +1,9 @@
 package edu.duke.bartesaghi.micromon
 
 import edu.duke.bartesaghi.micromon.linux.Filesystem
+import edu.duke.bartesaghi.micromon.linux.userprocessor.Response.Stat
+import edu.duke.bartesaghi.micromon.services.FileBrowserFile
+import edu.duke.bartesaghi.micromon.services.FileBrowserType
 import edu.duke.bartesaghi.micromon.services.FileDownloadData
 import edu.duke.bartesaghi.micromon.services.GlobCount
 import io.ktor.application.*
@@ -31,6 +34,8 @@ import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.TimeUnit
 import kotlin.io.NoSuchFileException
 import kotlin.io.path.fileSize
+import kotlin.io.path.isRegularFile
+import kotlin.io.path.isSymbolicLink
 import kotlin.io.path.moveTo
 import kotlin.math.abs
 import kotlin.time.Duration
@@ -265,6 +270,10 @@ fun Path.listFiles() =
 		emptyList()
 	}
 
+suspend fun Path.listFolderFast(): List<Filesystem.File>? =
+	Filesystem.listFolderFast(toString())
+
+
 /** filename without extension */
 fun Path.baseName() =
 	fileName.toString().substringBeforeLast('.')
@@ -301,30 +310,52 @@ fun Path.toFileDownloadData(): FileDownloadData? =
 	}
 
 
+fun Path.stat(): Stat.Response =
+	when {
+
+		!exists() -> Stat.NotFound
+
+		isSymbolicLink() -> Stat.Symlink(when {
+			isDirectory() -> Stat.Symlink.Dir
+			isRegularFile() -> Stat.Symlink.File(
+				size = fileSize().toULong()
+			)
+			else -> Stat.Symlink.Other
+		})
+
+		isRegularFile() -> Stat.File(
+			size = fileSize().toULong()
+		)
+
+		isDirectory() -> Stat.Dir
+
+		else -> Stat.Other
+	}
+
+
 data class GlobCount(
 	val matches: Int,
 	val total: Int
 )
 
 suspend fun Path.globCount(): GlobCount {
-
-	// split the path into folder and glob
-	val folder = parent.toString()
-	val glob = fileName.toString()
-
 	// query the filesystem for one folder
 	// NOTE: NFS filesystems can very VEEEERY slow!
 	// so use an optimized folder listing function rather than the standard Java one
-	val files = Filesystem.listFolderFast(folder)
-		?: throw ServiceException("File can't be opened as a folder")
+	val files = Filesystem.listFolderFast(parent.toString())
+		?: emptyList()
+	return files.globCount(fileName.toString())
+}
 
-	// do the count
+
+fun List<Filesystem.File>.globCount(glob: String): GlobCount {
 	val matcher = FileSystems.getDefault().getPathMatcher("glob:$glob")
 	return GlobCount(
-		matched = files.count { matcher.matches(Paths.get(it.name)) },
-		total = files.size
+		matched = count { matcher.matches(Paths.get(it.name)) },
+		total = size
 	)
 }
+
 
 suspend fun Path.globCountOrNull(): GlobCount? =
 	try {

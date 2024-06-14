@@ -1,6 +1,10 @@
 package edu.duke.bartesaghi.micromon.linux.userprocessor
 
 import edu.duke.bartesaghi.micromon.*
+import edu.duke.bartesaghi.micromon.linux.Filesystem
+import edu.duke.bartesaghi.micromon.linux.userprocessor.Response.Stat
+import edu.duke.bartesaghi.micromon.services.GlobCount
+import io.kvision.remote.ServiceException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.nio.file.Path
@@ -156,6 +160,57 @@ fun Path.deleteDirRecursivelyAsyncAs(username: String?) {
 		deleteDirRecursivelyAsync()
 	}
 }
+
+
+fun FileEntry.toFile(): Filesystem.File =
+	Filesystem.File(
+		name = name,
+		type = when (kind) {
+			FileEntry.Kind.File -> Filesystem.File.Type.Reg
+			FileEntry.Kind.Dir -> Filesystem.File.Type.Dir
+			FileEntry.Kind.Symlink -> Filesystem.File.Type.Lnk
+			FileEntry.Kind.Fifo -> Filesystem.File.Type.Fifo
+			FileEntry.Kind.Socket -> Filesystem.File.Type.Sock
+			FileEntry.Kind.BlockDev -> Filesystem.File.Type.Blk
+			FileEntry.Kind.CharDev -> Filesystem.File.Type.Chr
+			else -> Filesystem.File.Type.Unknown
+		}
+	)
+
+suspend fun Path.listFolderFastAs(username: String?): List<Filesystem.File>? =
+	if (username != null) {
+		Backend.userProcessors.get(username)
+			.listFolder(this)
+			.map { it.toFile() }
+			.toList()
+	} else {
+		slowIOs {
+			listFolderFast()
+		}
+	}
+
+
+suspend fun Path.statAs(username: String?): Stat.Response =
+	if (username != null) {
+		Backend.userProcessors.get(username)
+			.stat(this)
+	} else {
+		slowIOs {
+			stat()
+		}
+	}
+
+
+suspend fun Path.globCountAs(username: String?): GlobCount =
+	if (username != null) {
+		Backend.userProcessors.get(username)
+			.listFolder(parent)
+			.map { it.toFile() }
+			.toList()
+	} else {
+		Filesystem.listFolderFast(parent.toString())
+			?: emptyList()
+	}.globCount(fileName.toString())
 
 
 suspend fun Path.writerAs(username: String?, append: Boolean = false): UserProcessor.FileWriter =

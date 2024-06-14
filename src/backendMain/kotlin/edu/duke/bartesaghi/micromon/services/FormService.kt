@@ -6,6 +6,10 @@ import edu.duke.bartesaghi.micromon.auth.authOrThrow
 import edu.duke.bartesaghi.micromon.auth.dir
 import edu.duke.bartesaghi.micromon.cluster.Cluster
 import edu.duke.bartesaghi.micromon.linux.Filesystem
+import edu.duke.bartesaghi.micromon.linux.userprocessor.Response.Stat
+import edu.duke.bartesaghi.micromon.linux.userprocessor.globCountAs
+import edu.duke.bartesaghi.micromon.linux.userprocessor.listFolderFastAs
+import edu.duke.bartesaghi.micromon.linux.userprocessor.statAs
 import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.projects.Project
 import io.ktor.application.*
@@ -20,8 +24,6 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.nio.file.*
 import java.nio.file.Paths
-import kotlin.io.path.isRegularFile
-import kotlin.io.path.isSymbolicLink
 
 
 actual class FormService : IFormService, Service {
@@ -60,8 +62,6 @@ actual class FormService : IFormService, Service {
 
 		val out = ArrayList<Path>()
 
-		// TODO: have a real user filesystem permissions system of some kind
-
 		// allow all binds configured by the administrator
 		out.addAll(Backend.config.pyp.binds)
 
@@ -95,7 +95,7 @@ actual class FormService : IFormService, Service {
 		// query the filesystem for one folder
 		// NOTE: NFS filesystems can very VEEEERY slow!
 		// so use an optimized folder listing function rather than the standard Java one
-		var files = Filesystem.listFolderFast(path)
+		var files = Paths.get(path).listFolderFastAs(user.osUsername)
 			?: throw ServiceException("File can't be opened as a folder")
 
 		// post-process the files
@@ -124,30 +124,27 @@ actual class FormService : IFormService, Service {
 		val user = call.authOrThrow()
 		val p = path.allowedOrThrow(user)
 
-		return when {
-
-			!p.exists() -> throw ServiceException("file not found")
-
-			p.isSymbolicLink() -> FileBrowserFile(
+		return when (val stat = p.statAs(user.osUsername)) {
+			Stat.NotFound -> throw ServiceException("file not found")
+			is Stat.File -> FileBrowserFile(
+				type = FileBrowserType.File,
+				size = stat.size.toLong()
+			)
+			Stat.Dir -> FileBrowserFile(FileBrowserType.Folder)
+			is Stat.Symlink -> FileBrowserFile(
 				type = FileBrowserType.Symlink,
-				linkTarget = when {
-					p.isDirectory() -> FileBrowserFile(FileBrowserType.Folder)
-					p.isRegularFile() -> FileBrowserFile(
-						FileBrowserType.File,
-						size = p.size()
+				linkTarget = when (val t = stat.response) {
+					Stat.Symlink.NotFound -> FileBrowserFile(FileBrowserType.Other)
+					// TODO: make a way to represent broken links in the file browser?
+					is Stat.Symlink.File -> FileBrowserFile(
+						type = FileBrowserType.Other,
+						size = t.size.toLong()
 					)
-					else -> FileBrowserFile(FileBrowserType.Other)
+					Stat.Symlink.Dir -> FileBrowserFile(FileBrowserType.Folder)
+					Stat.Symlink.Other -> FileBrowserFile(FileBrowserType.Other)
 				}
 			)
-
-			p.isDirectory() -> FileBrowserFile(FileBrowserType.Folder)
-
-			p.isRegularFile() -> FileBrowserFile(
-				FileBrowserType.File,
-				size = p.size()
-			)
-
-			else -> FileBrowserFile(FileBrowserType.Other)
+			Stat.Other -> FileBrowserFile(FileBrowserType.Other)
 		}
 	}
 
@@ -156,18 +153,11 @@ actual class FormService : IFormService, Service {
 		val user = call.authOrThrow()
 		val p = path.allowedOrThrow(user)
 
-		return p.globCount().let {
+		return p.globCountAs(user.osUsername).let {
 			GlobCount(it.matched, it.total)
 		}
 	}
 
-
-	private fun Path.size(): Long? =
-		try {
-			Files.size(this)
-		} catch (t: Throwable) {
-			null
-		}
 
 	private fun String.allowedOrThrow(user: User): Path {
 		val p = Paths.get(this)
