@@ -523,6 +523,15 @@ class UserProcessor(
 		return FileEntry.reader(list)
 	}
 
+	suspend fun stat(path: Path): Response.Stat.Response =
+		request(Request.Stat(path.toString()))
+			.use { responder ->
+				responder.recv()
+					.cast<Response.Stat>()
+					.response
+					.cast<Response.Stat.Response>()
+			}
+
 	fun wrap(cmd: Command): Command =
 		cmd.wrap(path.toString(), listOf("run", "/tmp"))
 }

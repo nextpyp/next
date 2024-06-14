@@ -7,7 +7,7 @@ use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
 use std::process::{Child, Command, ExitStatus};
 use std::{fs, thread};
-use std::os::unix::fs::PermissionsExt;
+use std::os::unix::fs::{PermissionsExt, symlink};
 use std::time::Duration;
 
 use galvanic_assert::{assert_that, matchers::*};
@@ -17,7 +17,7 @@ use tracing::debug;
 
 use user_processor::framing::{ReadFramed, WriteFramed};
 use user_processor::logging;
-use user_processor::proto::{ChmodBit, ChmodOp, ChmodRequest, DirListReader, FileEntry, FileKind, ReadFileResponse, Request, RequestEnvelope, Response, ResponseEnvelope, WriteFileRequest, WriteFileResponse};
+use user_processor::proto::{ChmodBit, ChmodOp, ChmodRequest, DirListReader, FileEntry, FileKind, ReadFileResponse, Request, RequestEnvelope, Response, ResponseEnvelope, StatResponse, StatSymlinkResponse, WriteFileRequest, WriteFileResponse};
 
 
 // NOTE: these tests need `cargo test ... -- --test-threads=1` for the log to make sense
@@ -494,7 +494,7 @@ fn delete_folder() {
 	let _logging = logging::init_test();
 
 	// create a folder we can delete, put stuff in it too
-	let path = PathBuf::from(SOCKET_DIR).join("create_folder_test");
+	let path = PathBuf::from(SOCKET_DIR).join("delete_folder_test");
 	fs::create_dir_all(&path)
 		.ok();
 	fs::write(path.join("file"), "hello")
@@ -576,6 +576,75 @@ fn list_folder() {
 	fs::remove_dir_all(path)
 		.unwrap();
 }
+
+
+#[test]
+fn stat() {
+	let _logging = logging::init_test();
+
+	// create stuff we can stat
+	let path = PathBuf::from(SOCKET_DIR).join("stat_test");
+	fs::create_dir_all(&path)
+		.ok();
+	fs::write(path.join("file"), "hello")
+		.unwrap();
+	symlink(path.join("file"), path.join("link-file"))
+		.unwrap();
+	symlink(&path, path.join("link-dir"))
+		.unwrap();
+	symlink(path.join("nope"), path.join("link-broken"))
+		.unwrap();
+
+	let user_processor = UserProcessor::start();
+	let mut socket = user_processor.connect();
+
+	// check something that isn't there
+	let response = request(&mut socket, 5, Request::Stat {
+		path: path.join("nope").to_string_lossy().to_string()
+	});
+	assert_that!(&response, eq(Response::Stat(StatResponse::NotFound)));
+
+	// check a file
+	let response = request(&mut socket, 5, Request::Stat {
+		path: path.join("file").to_string_lossy().to_string()
+	});
+	assert_that!(&response, eq(Response::Stat(StatResponse::File {
+		size: 5
+	})));
+
+	// check a folder
+	let response = request(&mut socket, 5, Request::Stat {
+		path: path.to_string_lossy().to_string()
+	});
+	assert_that!(&response, eq(Response::Stat(StatResponse::Dir)));
+
+	// check a symlink to nowhere
+	let response = request(&mut socket, 5, Request::Stat {
+		path: path.join("link-broken").to_string_lossy().to_string()
+	});
+	assert_that!(&response, eq(Response::Stat(StatResponse::Symlink(StatSymlinkResponse::NotFound))));
+
+	// check a symlink to a file
+	let response = request(&mut socket, 5, Request::Stat {
+		path: path.join("link-file").to_string_lossy().to_string()
+	});
+	assert_that!(&response, eq(Response::Stat(StatResponse::Symlink(StatSymlinkResponse::File {
+		size: 5
+	}))));
+
+	// check a symlink to a folder
+	let response = request(&mut socket, 5, Request::Stat {
+		path: path.join("link-dir").to_string_lossy().to_string()
+	});
+	assert_that!(&response, eq(Response::Stat(StatResponse::Symlink(StatSymlinkResponse::Dir))));
+
+
+	user_processor.disconnect(socket);
+	user_processor.stop();
+	fs::remove_dir_all(path)
+		.unwrap();
+}
+
 
 
 const SOCKET_DIR: &str = "/tmp/nextpyp-sockets";

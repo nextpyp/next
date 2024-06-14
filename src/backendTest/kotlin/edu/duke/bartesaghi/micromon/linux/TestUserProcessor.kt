@@ -70,6 +70,7 @@ class TestUserProcessor : DescribeSpec({
 			roundtrip(Request.DeleteFile("path"))
 			roundtrip(Request.CreateFolder("path"))
 			roundtrip(Request.DeleteFolder("path"))
+			roundtrip(Request.Stat("path"))
 		}
 
 		it("response") {
@@ -97,6 +98,15 @@ class TestUserProcessor : DescribeSpec({
 			roundtrip(Response.DeleteFile)
 			roundtrip(Response.CreateFolder)
 			roundtrip(Response.DeleteFolder)
+
+			roundtrip(Response.Stat.NotFound.into())
+			roundtrip(Response.Stat.File(5u).into())
+			roundtrip(Response.Stat.Dir.into())
+			roundtrip(Response.Stat.Symlink(Response.Stat.Symlink.NotFound).into())
+			roundtrip(Response.Stat.Symlink(Response.Stat.Symlink.File(42u)).into())
+			roundtrip(Response.Stat.Symlink(Response.Stat.Symlink.Dir).into())
+			roundtrip(Response.Stat.Symlink(Response.Stat.Symlink.Other).into())
+			roundtrip(Response.Stat.Other.into())
 		}
 	}
 
@@ -330,6 +340,25 @@ class TestUserProcessor : DescribeSpec({
 				}
 
 				client.deleteFolder(path)
+			}
+		}
+
+		it("stat").config(invocations = testCount) {
+			withUserProcessor(username) { _, client ->
+				TempFile().use { file ->
+
+					// make a file we can stat
+					val msg = "hello"
+					file.path.writeString(msg)
+					file.path.editPermissions {
+						add(PosixFilePermission.GROUP_READ)
+						add(PosixFilePermission.OTHERS_READ)
+					}
+
+					// stat it
+					val stat = client.stat(file.path)
+					stat.shouldBe(Response.Stat.File(msg.length.toULong()))
+				}
 			}
 		}
 	}

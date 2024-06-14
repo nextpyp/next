@@ -4,7 +4,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ffi::OsString;
 use std::fs::{File, OpenOptions, Permissions};
-use std::io::{Cursor, Read, Write};
+use std::io::{Cursor, ErrorKind, Read, Write};
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::time::Duration;
@@ -21,7 +21,7 @@ use tracing::{debug, error_span, info, Instrument, trace, warn};
 
 use crate::framing::{AsyncReadFramed, AsyncWriteFramed};
 use crate::logging::ResultExt;
-use crate::proto::{ChmodRequest, DirListWriter, FileEntry, FileKind, ReadFileResponse, Request, RequestEnvelope, Response, ResponseEnvelope, WriteFileRequest, WriteFileResponse};
+use crate::proto::{ChmodRequest, DirListWriter, FileEntry, FileKind, ReadFileResponse, Request, RequestEnvelope, Response, ResponseEnvelope, StatResponse, StatSymlinkResponse, WriteFileRequest, WriteFileResponse};
 
 
 #[derive(Options)]
@@ -275,6 +275,10 @@ async fn drive_connection(socket: UnixStream) {
 
 					Request::ListFolder { path } =>
 						dispatch_list_folder(socket_write, request.id, path)
+							.await,
+
+					Request::Stat { path } =>
+						dispatch_stat(socket_write, request.id, path)
 							.await
 				}
 
@@ -786,6 +790,69 @@ async fn dispatch_list_folder(socket: Rc<RefCell<OwnedWriteHalf>>, request_id: u
 		sequence
 	});
 	write_response(&socket, request_id, response)
+		.await
+		.ok();
+}
+
+
+#[tracing::instrument(skip_all, level = 5, name = "Stat")]
+async fn dispatch_stat(socket: Rc<RefCell<OwnedWriteHalf>>, request_id: u32, path: String) {
+
+	debug!(path, "Request");
+
+	// exists, link(recurse), dir, file(size)
+	let response = match fs::symlink_metadata(&path) {
+
+		// if the path wasn't found, we get an error, so map that back into a NotFound response
+		Err(e) if e.kind() == ErrorKind::NotFound => StatResponse::NotFound,
+
+		// just report other errors
+		Err(e) => {
+			Err::<(),_>(e)
+				.or_respond_error(&socket, request_id, |e| format!("Failed to call lstat: {}", e))
+				.await;
+			return;
+		}
+
+		Ok(lstat) => {
+			if lstat.is_symlink() {
+				StatResponse::Symlink(match fs::metadata(&path) {
+
+					// if the path wasn't found, we get an error, so map that back into a NotFound response
+					Err(e) if e.kind() == ErrorKind::NotFound => StatSymlinkResponse::NotFound,
+
+					// just report other errors
+					Err(e) => {
+						Err::<(),_>(e)
+							.or_respond_error(&socket, request_id, |e| format!("Failed to call lstat: {}", e))
+							.await;
+						return;
+					}
+
+					Ok(stat) =>
+						if stat.is_file() {
+							StatSymlinkResponse::File {
+								size: stat.len()
+							}
+						} else if stat.is_dir() {
+							StatSymlinkResponse::Dir
+						} else {
+							StatSymlinkResponse::Other
+						}
+				})
+			} else if lstat.is_file() {
+				StatResponse::File {
+					size: lstat.len()
+				}
+			} else if lstat.is_dir() {
+				StatResponse::Dir
+			} else {
+				StatResponse::Other
+			}
+		}
+	};
+
+	write_response(&socket, request_id, Response::Stat(response))
 		.await
 		.ok();
 }

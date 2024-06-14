@@ -38,6 +38,10 @@ pub enum Request {
 	},
 	ListFolder {
 		path: String
+	},
+
+	Stat {
+		path: String
 	}
 }
 
@@ -51,6 +55,7 @@ impl Request {
 	const ID_CREATE_FOLDER: u32 = 7;
 	const ID_DELETE_FOLDER: u32 = 8;
 	const ID_LIST_FOLDER: u32 = 9;
+	const ID_STAT: u32 = 10;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -257,6 +262,11 @@ impl RequestEnvelope {
 				out.write_u32::<BigEndian>(Request::ID_LIST_FOLDER)?;
 				out.write_utf8(path)?;
 			}
+
+			Request::Stat { path } => {
+				out.write_u32::<BigEndian>(Request::ID_STAT)?;
+				out.write_utf8(path)?;
+			}
 		}
 
 		Ok(out)
@@ -336,6 +346,10 @@ impl RequestEnvelope {
 				Request::ListFolder {
 					path: reader.read_utf8().map_err(|e| (e.into(), Some(request_id)))?
 				}
+			} else if type_id == Request::ID_STAT {
+				Request::Stat {
+					path: reader.read_utf8().map_err(|e| (e.into(), Some(request_id)))?
+				}
 			} else {
 				return Err((anyhow!("Unrecognized request type id: {}", type_id), Some(request_id)));
 			};
@@ -371,7 +385,9 @@ pub enum Response {
 	Chmod,
 	DeleteFile,
 	CreateFolder,
-	DeleteFolder
+	DeleteFolder,
+
+	Stat(StatResponse)
 }
 
 impl Response {
@@ -384,6 +400,7 @@ impl Response {
 	const ID_DELETE_FILE: u32 = 7;
 	const ID_CREATE_FOLDER: u32 = 8;
 	const ID_DELETE_FOLDER: u32 = 9;
+	const ID_STAT: u32 = 10;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -418,6 +435,42 @@ pub enum WriteFileResponse {
 impl WriteFileResponse {
 	const ID_OPENED: u32 = 1;
 	const ID_CLOSED: u32 = 2;
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum StatResponse {
+	NotFound,
+	File {
+		size: u64
+	},
+	Dir,
+	Symlink(StatSymlinkResponse),
+	Other
+}
+
+impl StatResponse {
+	const ID_NOT_FOUND: u32 = 1;
+	const ID_FILE: u32 = 2;
+	const ID_DIR: u32 = 3;
+	const ID_SYMLINK: u32 = 4;
+	const ID_OTHER: u32 = 5;
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum StatSymlinkResponse {
+	NotFound,
+	File {
+		size: u64
+	},
+	Dir,
+	Other
+}
+
+impl StatSymlinkResponse {
+	const ID_NOT_FOUND: u32 = 1;
+	const ID_FILE: u32 = 2;
+	const ID_DIR: u32 = 3;
+	const ID_OTHER: u32 = 4;
 }
 
 
@@ -493,6 +546,43 @@ impl ResponseEnvelope {
 			Response::DeleteFolder => {
 				out.write_u32::<BigEndian>(Response::ID_DELETE_FOLDER)?;
 			}
+
+			Response::Stat(response) => {
+				out.write_u32::<BigEndian>(Response::ID_STAT)?;
+				match response {
+					StatResponse::NotFound => {
+						out.write_u32::<BigEndian>(StatResponse::ID_NOT_FOUND)?;
+					}
+					StatResponse::File { size } => {
+						out.write_u32::<BigEndian>(StatResponse::ID_FILE)?;
+						out.write_u64::<BigEndian>(*size)?;
+					}
+					StatResponse::Dir => {
+						out.write_u32::<BigEndian>(StatResponse::ID_DIR)?;
+					}
+					StatResponse::Symlink(inner) => {
+						out.write_u32::<BigEndian>(StatResponse::ID_SYMLINK)?;
+						match inner {
+							StatSymlinkResponse::NotFound => {
+								out.write_u32::<BigEndian>(StatSymlinkResponse::ID_NOT_FOUND)?;
+							}
+							StatSymlinkResponse::File { size } => {
+								out.write_u32::<BigEndian>(StatSymlinkResponse::ID_FILE)?;
+								out.write_u64::<BigEndian>(*size)?;
+							}
+							StatSymlinkResponse::Dir => {
+								out.write_u32::<BigEndian>(StatSymlinkResponse::ID_DIR)?;
+							}
+							StatSymlinkResponse::Other => {
+								out.write_u32::<BigEndian>(StatSymlinkResponse::ID_OTHER)?;
+							}
+						}
+					}
+					StatResponse::Other => {
+						out.write_u32::<BigEndian>(StatResponse::ID_OTHER)?;
+					}
+				}
+			}
 		}
 
 		Ok(out)
@@ -564,6 +654,40 @@ impl ResponseEnvelope {
 				Response::CreateFolder
 			} else if type_id == Response::ID_DELETE_FOLDER {
 				Response::DeleteFolder
+			} else if type_id == Response::ID_STAT {
+				Response::Stat({
+					let lstat_type_id = reader.read_u32::<BigEndian>()?;
+					if lstat_type_id == StatResponse::ID_NOT_FOUND {
+						StatResponse::NotFound
+					} else if lstat_type_id == StatResponse::ID_FILE {
+						StatResponse::File {
+							size: reader.read_u64::<BigEndian>()?
+						}
+					} else if lstat_type_id == StatResponse::ID_DIR {
+						StatResponse::Dir
+					} else if lstat_type_id == StatResponse::ID_SYMLINK {
+						StatResponse::Symlink({
+							let stat_type_id = reader.read_u32::<BigEndian>()?;
+							if stat_type_id == StatSymlinkResponse::ID_NOT_FOUND {
+								StatSymlinkResponse::NotFound
+							} else if stat_type_id == StatSymlinkResponse::ID_FILE {
+								StatSymlinkResponse::File {
+									size: reader.read_u64::<BigEndian>()?
+								}
+							} else if stat_type_id == StatSymlinkResponse::ID_DIR {
+								StatSymlinkResponse::Dir
+							} else if stat_type_id == StatSymlinkResponse::ID_OTHER {
+								StatSymlinkResponse::Other
+							} else {
+								bail!("Unrecognized stat type id: {}", stat_type_id);
+							}
+						})
+					} else if lstat_type_id == StatResponse::ID_OTHER {
+						StatResponse::Other
+					} else {
+						bail!("Unrecognized lstat type id: {}", lstat_type_id);
+					}
+				})
 			} else {
 				bail!("Unrecognized response type id: {}", type_id);
 			};
@@ -966,6 +1090,10 @@ mod test {
 		assert_roundtrip(Request::ListFolder {
 			path: "foo".to_string()
 		});
+
+		assert_roundtrip(Request::Stat {
+			path: "foo".to_string()
+		});
 	}
 
 
@@ -1014,6 +1142,19 @@ mod test {
 		assert_roundtrip(Response::CreateFolder);
 
 		assert_roundtrip(Response::DeleteFolder);
+
+		assert_roundtrip(Response::Stat(StatResponse::NotFound));
+		assert_roundtrip(Response::Stat(StatResponse::File {
+			size: 5
+		}));
+		assert_roundtrip(Response::Stat(StatResponse::Dir));
+		assert_roundtrip(Response::Stat(StatResponse::Symlink(StatSymlinkResponse::NotFound)));
+		assert_roundtrip(Response::Stat(StatResponse::Symlink(StatSymlinkResponse::File {
+			size: 42
+		})));
+		assert_roundtrip(Response::Stat(StatResponse::Symlink(StatSymlinkResponse::Dir)));
+		assert_roundtrip(Response::Stat(StatResponse::Symlink(StatSymlinkResponse::Other)));
+		assert_roundtrip(Response::Stat(StatResponse::Other));
 	}
 
 

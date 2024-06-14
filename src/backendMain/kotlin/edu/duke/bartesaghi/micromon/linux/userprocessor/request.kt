@@ -132,6 +132,12 @@ sealed interface Request {
 			const val ID: UInt = 9u
 		}
 	}
+
+	data class Stat(val path: String) : Request {
+		companion object {
+			const val ID: UInt = 10u
+		}
+	}
 }
 
 fun Request.WriteFile.Request.into(): Request =
@@ -218,6 +224,11 @@ class RequestEnvelope(
 				out.writeU32(Request.ListFolder.ID)
 				out.writeUtf8(request.path)
 			}
+
+			is Request.Stat -> {
+				out.writeU32(Request.Stat.ID)
+				out.writeUtf8(request.path)
+			}
 		}
 
 		return bos.toByteArray()
@@ -287,6 +298,10 @@ class RequestEnvelope(
 				)
 
 				Request.ListFolder.ID -> Request.ListFolder(
+					path = input.readUtf8()
+				)
+
+				Request.Stat.ID -> Request.Stat(
 					path = input.readUtf8()
 				)
 

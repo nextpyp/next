@@ -105,6 +105,58 @@ sealed interface Response {
 	object DeleteFolder : Response {
 		const val ID: UInt = 9u
 	}
+
+	data class Stat(val response: Response) : Response {
+		companion object {
+			const val ID: UInt = 10u
+		}
+
+		sealed interface Response
+
+		object NotFound : Response {
+			const val ID: UInt = 1u
+		}
+
+		data class File(val size: ULong) : Response {
+			companion object {
+				const val ID: UInt = 2u
+			}
+		}
+
+		object Dir : Response {
+			const val ID: UInt = 3u
+		}
+
+		data class Symlink(val response: Response) : Response {
+			companion object {
+				const val ID: UInt = 4u
+			}
+
+			sealed interface Response
+
+			object NotFound : Response {
+				const val ID: UInt = 1u
+			}
+
+			data class File(val size: ULong) : Response {
+				companion object {
+					const val ID: UInt = 2u
+				}
+			}
+
+			object Dir : Response {
+				const val ID: UInt = 3u
+			}
+
+			object Other : Response {
+				const val ID: UInt = 4u
+			}
+		}
+
+		object Other : Response {
+			const val ID: UInt = 5u
+		}
+	}
 }
 
 fun Response.ReadFile.Response.into(): Response =
@@ -113,6 +165,8 @@ fun Response.ReadFile.Response.into(): Response =
 fun Response.WriteFile.Response.into(): Response =
 	Response.WriteFile(this)
 
+fun Response.Stat.Response.into(): Response =
+	Response.Stat(this)
 
 
 inline fun <reified T:Response> Response.cast(): T {
@@ -131,6 +185,13 @@ inline fun <reified T:Response.ReadFile.Response> Response.ReadFile.Response.cas
 }
 
 inline fun <reified T:Response.WriteFile.Response> Response.WriteFile.Response.cast(): T {
+	return when (this) {
+		is T -> this // ok
+		else -> throw UnexpectedResponseException(toString())
+	}
+}
+
+inline fun <reified T:Response.Stat.Response> Response.Stat.Response.cast(): T {
 	return when (this) {
 		is T -> this // ok
 		else -> throw UnexpectedResponseException(toString())
@@ -223,6 +284,52 @@ class ResponseEnvelope(
 			is Response.DeleteFolder -> {
 				out.writeU32(Response.DeleteFolder.ID)
 			}
+
+			is Response.Stat -> {
+				out.writeU32(Response.Stat.ID)
+				when (response.response) {
+
+					is Response.Stat.NotFound -> {
+						out.writeU32(Response.Stat.NotFound.ID)
+					}
+
+					is Response.Stat.File -> {
+						out.writeU32(Response.Stat.File.ID)
+						out.writeU64(response.response.size)
+					}
+
+					is Response.Stat.Dir -> {
+						out.writeU32(Response.Stat.Dir.ID)
+					}
+
+					is Response.Stat.Symlink -> {
+						out.writeU32(Response.Stat.Symlink.ID)
+						when (response.response.response) {
+
+							is Response.Stat.Symlink.NotFound -> {
+								out.writeU32(Response.Stat.Symlink.NotFound.ID)
+							}
+
+							is Response.Stat.Symlink.File -> {
+								out.writeU32(Response.Stat.Symlink.File.ID)
+								out.writeU64(response.response.response.size)
+							}
+
+							is Response.Stat.Symlink.Dir -> {
+								out.writeU32(Response.Stat.Symlink.Dir.ID)
+							}
+
+							is Response.Stat.Symlink.Other -> {
+								out.writeU32(Response.Stat.Symlink.Other.ID)
+							}
+						}
+					}
+
+					is Response.Stat.Other -> {
+						out.writeU32(Response.Stat.Other.ID)
+					}
+				}
+			}
 		}
 
 		return bos.toByteArray()
@@ -286,6 +393,29 @@ class ResponseEnvelope(
 				Response.CreateFolder.ID -> Response.CreateFolder
 
 				Response.DeleteFolder.ID -> Response.DeleteFolder
+
+				Response.Stat.ID -> Response.Stat(run {
+					when (val lstatTypeId = input.readU32()) {
+						Response.Stat.NotFound.ID -> Response.Stat.NotFound
+						Response.Stat.File.ID -> Response.Stat.File(
+							size = input.readU64()
+						)
+						Response.Stat.Dir.ID -> Response.Stat.Dir
+						Response.Stat.Symlink.ID -> Response.Stat.Symlink(run {
+							when (val statTypeId = input.readU32()) {
+								Response.Stat.Symlink.NotFound.ID -> Response.Stat.Symlink.NotFound
+								Response.Stat.Symlink.File.ID -> Response.Stat.Symlink.File(
+									size = input.readU64()
+								)
+								Response.Stat.Symlink.Dir.ID -> Response.Stat.Symlink.Dir
+								Response.Stat.Symlink.Other.ID -> Response.Stat.Symlink.Other
+								else -> throw NoSuchElementException("unrecognized stat type: $statTypeId")
+							}
+						})
+						Response.Stat.Other.ID -> Response.Stat.Other
+						else -> throw NoSuchElementException("unrecognized lstat type: $lstatTypeId")
+					}
+				})
 
 				else -> throw NoSuchElementException("unrecognized response type: $responseTypeId")
 			}
