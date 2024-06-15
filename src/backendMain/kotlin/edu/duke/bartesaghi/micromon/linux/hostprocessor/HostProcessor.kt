@@ -1,12 +1,8 @@
 package edu.duke.bartesaghi.micromon.linux.hostprocessor
 
-import edu.duke.bartesaghi.micromon.Config
 import edu.duke.bartesaghi.micromon.use
 import edu.duke.bartesaghi.micromon.SuspendCloseable
-import edu.duke.bartesaghi.micromon.linux.Command
-import edu.duke.bartesaghi.micromon.linux.U32Counter
-import edu.duke.bartesaghi.micromon.linux.recvFramedOrNull
-import edu.duke.bartesaghi.micromon.linux.sendFramed
+import edu.duke.bartesaghi.micromon.linux.*
 import edu.duke.bartesaghi.micromon.slowIOs
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
@@ -26,7 +22,7 @@ private val log = LoggerFactory.getLogger("HostProcessor")
 
 
 class HostProcessor(
-	val socketDir: Path = Config.instance.web.localDir / "host-processor",
+	val socketDir: Path = SOCKDIR,
 	val pid: Long? = getPidFromEnv()
 ) : SuspendCloseable {
 

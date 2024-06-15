@@ -647,7 +647,7 @@ fn stat() {
 
 
 
-const SOCKET_DIR: &str = "/tmp/nextpyp-sockets";
+const SOCKET_DIR: &str = "/tmp/nextpyp-user-processor";
 
 
 struct UserProcessor {
@@ -673,8 +673,8 @@ impl UserProcessor {
 			.unwrap();
 
 		let proc = Command::new(util::bin_path())
-			.args(["--log", "trace", "daemon", SOCKET_DIR])
-			.current_dir("/tmp")
+			.args(["--log", "trace", "daemon"])
+			.current_dir(SOCKET_DIR)
 			.spawn()
 			.expect("Failed to spawn process");
 

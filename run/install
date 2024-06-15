@@ -19,219 +19,216 @@ fi
 # gather info about the local environment
 here=$(pwd)
 
-# get the username
-username=$PYP_USER
-if [ -z "$username" ]; then
-  echo "No PYP_USER set."
-  exit
-fi
 
-# get the usergroup
-usergroup=$PYP_GROUP
-if [ -z "$usergroup" ]; then
-  if getent group "$username"; then
-    usergroup=$username
+mkdirfs() #(path, chmod ops)
+{
+  if [ -d "$1" ]; then
+    $fsdo mkdir -p "$1"
+    if [ -n "$2" ]; then
+      $fsdo chmod "$2" "$1"
+    fi
+    echo "Created folder $1"
   else
-    echo "$username is not a valid group. Choose the pyp group by setting PYP_GROUP"
+    echo "Using exixting folder $1"
+  fi
+}
+
+mkdirswitch() #(path, chmod ops)
+{
+  if [ -d "$1" ]; then
+    # make the folder as root, then change it to the service account
+    mkdir -p "$1"
+    chown "$username":"$groupname" "$1"
+    if [ -n "$2" ]; then
+      chmod "$2" "$1"
+    fi
+    echo "Created folder $1"
+  else
+    echo "Using exixting folder $1"
+  fi
+}
+
+
+# determine what capabilities we have
+whoami=$(whoami)
+if [ "$whoami" = "root" ]; then
+
+  echo "Installing in root mode: Will integrate with OS"
+  oscaps="root"
+
+  # determine filesystem capabilities
+  testfile="$here/__fscaps_test__"
+  if touch "$testfile" ; then
+    # root user can write here
+    rm "$testfile"
+    # create files/folders as root
+    fsdo=
+    mkdirhere=mkdirswitch
+  else
+    # root user can't write here, so create files and folders as the service account instead
+    fsdo="$usdo"
+    mkdirhere=mkdirfs
+    echo "Installing in root shared mode: Will create files/folders as service account"
+  fi
+
+  # get the username for the service account
+  username=$PYP_USER
+  if [ -z "$username" ]; then
+    echo "No PYP_USER set."
     exit
   fi
-fi
 
-if [ "$(whoami)" != "root" ]; then
-  echo "WARNING - This installer should be run as root!"
-  usdo=""
-  bindir="."
-  home=$HOME
-else
+  # get the groupname for the service account
+  groupname=$PYP_GROUP
+  if [ -z "$groupname" ]; then
+    if getent group "$username"; then
+      groupname=$username
+    else
+      echo "$username is not a valid group. Choose the pyp group by setting PYP_GROUP"
+      exit
+    fi
+  fi
+
+  echo "Installing nextPYP $version for service account $username in group $groupname ..."
+
+  # make a way to do things as the service account, like sudo, but user-do
   usdo="sudo -u $username"
-  bindir="/usr/bin/"
+
+  # install binaries to the OS bin dir
+  bindir=/usr/bin
+
+  # get the home folder for the serivce account
   home=$(getent passwd "$SUDO_USER" | cut -d: -f6)
+
+else
+
+  echo "Installing in user mode: Will not integrate with OS"
+  oscaps="user"
+
+  username="$whoami"
+
+  echo "Installing nextPYP $version as current account $username ..."
+
+  usdo=
+  fsdo=
+  mkdirhere=mkdirfs
+
+  # "install" binaries here
+  bindir="$here"
+
+  home="$HOME"
 fi
 
-echo "Installing nextPYP $version for user $username ..."
 
-# download the distribution files
-echo "Downloading installation files ..."
+# configure downloads
 www="https://nextpyp.app/files/pyp/$version"
 wgetopts="-nv"
 # for interactive use, it's helpful to turn on the progress bar to track long downloads
 #wgetopts="$wgetopts --progress=bar"
-wget $wgetopts -O "nextPYP.sif" "$www/nextPYP.sif"
-wget $wgetopts -O "pyp.sif" "$www/pyp.sif"
-wget $wgetopts -O "hostprocessor" "$www/hostprocessor"
-wget $wgetopts -O "runas" "$www/runas"
-wget $wgetopts -O "nextpyp" "$www/nextpyp"
-wget $wgetopts -O "uninstall" "$www/uninstall"
-wget $wgetopts -O "install-rprox" "$www/install-rprox"
-wget $wgetopts -O "admin-runas" "$www/admin-runas"
 
-chmod ugo+r "nextPYP.sif" "pyp.sif" "uninstall" "install-rprox"
+download() #(path, chmod ops)
+{
+  $fsdo wget $wgetopts -O "$1" "$www/$1"
+  if [ -n "$2" ]; then
+    $fsdo chmod "$2" "$1"
+  fi
+}
 
-# NOTE: we don't make the local scripts in $here executable
+# download the distribution files
+echo "Downloading installation files from $www ..."
+download "nextPYP.sif" ugo+r # container files need to be world-readable
+download "pyp.sif" ugo+r
+download "host-processor"
+download "user-processor" u=rw,go=r
+download "nextpyp"
+download "uninstall"
+download "install-rprox"
+
+# NOTE: we don't make the local scripts (eg other installers/uninstallers) in $here executable
 #       instead, the installation instructions ask the user to inspect them first
 #       and then chmod +x later if satisfied
 
-# move the executables into /usr/bin (otherwise SELinux will deny access)
-mv "$here/nextpyp" "$bindir/nextpyp"
-chmod ugo+rx "$bindir/nextpyp"
-mv "$here/hostprocessor" "$bindir/nextpyp-hostprocessor"
-chmod ugo+rx "$bindir/nextpyp-hostprocessor"
 
 # download the workflow files
 workflowDir="$here/workflows"
-workflowWww="$www/workflows"
-mkdir -p "$workflowDir"
-wget $wgetopts -O "$workflowDir/spr_tutorial.toml" "$workflowWww/spr_tutorial.toml"
-wget $wgetopts -O "$workflowDir/tomo_tutorial.toml" "$workflowWww/tomo_tutorial.toml"
-wget $wgetopts -O "$workflowDir/class_tutorial.toml" "$workflowWww/class_tutorial.toml"
-chmod -R ugo+r "$workflowDir"/*
+mkdirfs "$workflowDir" ugo+r
+download "workflows/spr_tutorial.toml" ugo+r
+download "workflows/tomo_tutorial.toml" ugo+r
+download "workflows/class_tutorial.toml" ugo+r
 
-# create initial directories and set up permissions
 
+install() #(filename, dest filename)
+{
+  if [ -n "$2" ]; then
+    dstname="$2"
+  else
+    dstname="$1"
+  fi
+  # move the executables into the binaries dir (eg /usr/bin so SELinux won't deny access)
+  outpath="$bindir/$dstname"
+  mv "$here/$1" "$outpath"
+  chmod u=rwx,go=rx "$outpath"
+}
+
+# install executables
+install "nextpyp"
+install "host-processor" "nextpyp-host-processor"
+
+
+# create initial folders and set up permissions
+
+# make the base folders
 localDir="$here/local"
-if [ ! -d "$localDir" ] ; then
-  mkdir -p "$localDir"
-  chown "$username":"$usergroup" "$localDir"
-  echo "Created local folder: $localDir"
-else
-  echo "Using existing local folder: $localDir"
-fi
-
+mkdirhere "$localDir" g+s
 sharedDir="$here/shared"
-if [ ! -d "$sharedDir" ] ; then
-  mkdir -p "$sharedDir"
-  chown "$username":"$usergroup" "$sharedDir"
-  # the shared folder needs to be visible to all other users, so all the subfolders are available to user-processors
-  chmod ugo+rx "$sharedDir"
-  echo "Created shared folder: $sharedDir"
-else
-  echo "Using existing shared folder: $sharedDir"
-fi
+mkdirhere "$sharedDir" ugo+rx,g+s
 
-logsDir="$localDir/logs"
-if [ ! -d "$logsDir" ] ; then
-  mkdir "$logsDir"
-  chown "$username":"$usergroup" "$logsDir"
-  echo "Created logs folder: $logsDir"
-else
-  echo "Using existing logs folder: $logsDir"
-fi
+# NOTE: The base folders have setgid (g+s) so all files inherit the service account group.
+#       Setgid will propagate automatically to all subfolders when they're created,
+#       so we don't need to re-set it for every folder.
 
-dbDir="$localDir/db"
-if [ ! -d "$dbDir" ] ; then
-  mkdir "$dbDir"
-  chown "$username":"$usergroup" "$dbDir"
-  echo "Created database folde: $dbDir"
-else
-  echo "Using existing database folder: $dbDir"
-fi
+# make the local sub-folders
+mkdirfs "$localDir/logs"
+mkdirfs "$localDir/db"
+mkdirfs "$localDir/sock" ugo=rwx,+t
 
-batchDir="$sharedDir/batch"
-if [ ! -d "$batchDir" ] ; then
-  mkdir "$batchDir"
-  chown "$username":"$usergroup" "$batchDir"
-  # the batch folder needs to be writable to all the other users, so treat it like a tmp folder
-  chmod ugo=rwx,+t "$batchDir"
-  echo "Created batch folder: $batchDir"
-else
-  echo "Using existing batch folder: $batchDir"
-fi
+# make the shared sub-folders
+mkdirfs "$sharedDir/batch" ugo=rwx,+t
+mkdirfs "$sharedDir/log" ugo=rwx,+t
+mkdirfs "$sharedDir/users" ugo=rwx,+t
+mkdirfs "$sharedDir/user-processors" ugo=rwx,+t
+mkdirfs "$sharedDir/sessions" # TODO: how should user-switching work for sessions?
+mkdirfs "$sharedDir/groups"
 
-jlogDir="$sharedDir/log"
-if [ ! -d "$jlogDir" ] ; then
-  mkdir "$jlogDir"
-  chown "$username":"$usergroup" "$jlogDir"
-  # the job log folder needs to be writable to all the other users, so treat it like a tmp folder
-  chmod ugo=rwx,+t "$jlogDir"
-  echo "Created job log folder: $jlogDir"
-else
-  echo "Using existing job log folder: $jlogDir"
-fi
 
-usersDir="$sharedDir/users"
-if [ ! -d "$usersDir" ] ; then
-  mkdir "$usersDir"
-  chown "$username":"$usergroup" "$usersDir"
-  # the users folder needs to be writable to all the other users, so treat it like a tmp folder
-  # also use the setgid bit, so user folders keep the service account group
-  chmod ugo=rwx,g+s,+t "$usersDir"
-  echo "Created users folder: $usersDir"
-else
-  echo "Using existing users folder: $usersDir"
-fi
+# create the home configuration folder, if needed
+if [ "$oscaps" = "root" ]; then
 
-# TODO: session folders?
+  mkdirswitch "$home" u+rwx,go+rx,go-w
+  mkdirswitch "$home/.config"
 
-# setup the user-processor system
-# NOTE: everything has to go into the shared folder
-#       (even the pipes, which will still work on an NFS mount when accessed from the same machine)
-#       so we can start the user processor exec with cwd=shared to get access to all the necessary files
-#       without giving all the parent directories the other-exec permission
-userProcessorDir="$sharedDir/user-processors"
-if [ ! -d "$userProcessorDir" ] ; then
-  mkdir "$userProcessorExecDir"
-  chmod ugo+rx "$userProcessorDir"
-  echo "Created user processors folder: $userProcessorDir"
-else
-  ehco "Using existing user processors folder: $userProcessorDir"
-fi
-
-# set up the folder for the user-processor executables
-userProcessorExecDir="$userProcessorDir/exec"
-if [ ! -d "$userProcessorExecDir" ] ; then
-  mkdir "$userProcessorExecDir"
-  # this folder needs to be world-writable (ugo=rwx) so user-processor instances (running as other users) can create their executables
-  # (since the local root account might not have write access to the shared folder in eg LDAP environments)
-  # it also needs setgid (g+s) so the service account can run the executables
-  # setting the sticky bit (+t) also prevents users from tampering with each others' executables
-  chmod ugo=rwx,g+s,+t "$userProcessorSocketsDir"
-  echo "Created user processor exec dir: $userProcessorExecDir"
-
-  # make the base executable (no one should be able to run it though)
-  mv "$here/user-processor" "$userProcessorExecDir"
-  userProcessorExec="$userProcessorExecDir/user-processor"
-  chown "$username":"$usergroup" "$userProcessorExec"
-  chmod u=rw,go= "$userProcessorExec"
-
-  # copy in the admin script too
-  mv "$here/admin-user" "$userProcessorExecDir"
-  chmod u=rwx,go= "$userProcessorExecDir/admin-user"
+  # make a config folder we can use too
+  configdir="$home/.config/nextpyp"
+  mkdirswitch "$configdir"
 
 else
-  echo "Using existing user processor exec dir: $userProcessorExecDir"
-fi
 
-# create the user-processor sockets folder
-userProcessorSocketsDir="$userProcessorDir/sockets"
-if [ ! -d "$userProcessorSocketsDir" ] ; then
-  mkdir "$userProcessorSocketsDir"
-  # this folder needs to be world-writable (ugo=rwx) so user-processor instances (running as other users) can create their sockets
-  # it also needs setgid (g+s) so socket files belong to the pyp group
-  # setting the sticky bit (+t) also prevents users from deleting each others sockets
-  chmod ugo=rwx,g+s,+t "$userProcessorSocketsDir"
-  echo "Created user processor sockets folder: $userProcessorSocketsDir"
-else
-  echo "Using existing user processor sockets folder: $userProcessorSocketsDir"
+  # make a config folder we can use too
+  configdir="$home/.config/nextpyp"
+  mkdirself "$configdir"
 fi
 
 
-# create the home configuration folder, if needed (needed by apptainer)
-if [ ! -d "$home" ]; then
-  mkdir -p "$home"
-  chown -R "$username":"$usergroup" "$home"
-  chmod u+rwx,go+rx,go-w "$home"
-fi
-if [ ! -d "$home/.config" ]; then
-  $usdo mkdir -p "$home/.config"
-  echo "Created $home/.config directory"
-fi
+# save the installation folder in the config so we can find it again later
+$usdo ln -s "$here" "$home/.config/nextpyp/installdir"
+
 
 # generate the initial configuration
 configPath="$here/config.toml"
 if [ -f "$configPath" ]; then
   echo "Using existing configuration file: $configPath"
 else
-  cat << EOF > "$configPath"
+  $fsdo cat << EOF > "$configPath"
 
 [pyp]
 # path to the PYP container file, from a SLURM compute node's point of view
@@ -265,7 +262,8 @@ fi
 # make sure others can't write to the config file
 chmod o-w "$configPath"
 
-if [ "$(whoami)" = "root" ]; then
+
+if [ "$oscaps" = "root" ]; then
   echo "Installing integrations with systemd ..."
 
   # relevant documentation on systemd:
@@ -285,7 +283,6 @@ Description=$appDaemon
 Type=forking
 Restart=always
 RestartSec=1
-WorkingDirectory=$here
 User=$username
 Environment=PYP_CONFIG=$configPath
 ExecStart=$bindir/nextpyp start
@@ -306,8 +303,8 @@ EOF
 
 else
   echo "WARNING: Since you did not run the installer as root, nextPYP will not start automatically"
-  echo "To start manually, run: PYP_CONFIG=\"$configPath\" \"$bindir/nextpyp\" start"
-  echo "To stop nextPYP, run: PYP_CONFIG=\"$configPath\" \"$bindir/nextpyp\" stop"
+  echo "To start manually, run: PYP_CONFIG=\"$configPath\" \"$here/nextpyp\" start"
+  echo "To stop nextPYP, run: PYP_CONFIG=\"$configPath\" \"$here/nextpyp\" stop"
 fi
 
 echo "Finished installing nextPYP $version"

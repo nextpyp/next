@@ -27,13 +27,7 @@ echo "Using configuration at $configpath"
 export PYP_CONFIG_HOST=$configpath
 
 
-# read the developer arguments, if any
-devpath=$2
-devgradlecache=$3
-devmain=$4
-
-
-# this shell script doesn't know how to parse the TOML file
+# this shell script doesn't know how to parse the TOML config file
 # but the Kotlin code inside the container does
 # so use the container to parse the config file and check for errors
 # but send the directories back here to the shell script for validation
@@ -43,124 +37,174 @@ devmain=$4
 # must bind the config file to a canonical path so it doesn't conflict with any of the bind folders
 binds=(--bind "$configpath":/var/micromon/config.toml)
 
-# handle development binds if needed
-if [ -n "$devpath" ] ; then
-  echo "looking for development files at \"$devpath\" ..."
-
-  if [ -d "$devgradlecache" ] ; then
-    echo "using gradle cache at: \"$devgradlecache\""
-    binds+=(--bind "$devgradlecache")
+addbind() #(host path, container path)
+{
+  if [ -n "$2" ] ; then
+    binds+=(--bind "$1:$2")
   else
-    echo "Error: gradle cache folder not found at \"$devgradlecache\""
+    binds+=(--bind "$1")
+  fi
+}
+
+binddevdir() #(host path, container path, allow missing)
+{
+  if [ -d "$1" ] ; then
+    echo "using development folder at: \"$1\""
+    addbind "$1" "$2"
+  else
+    if [ -z "$3" ] ; then
+      echo "Error: development folder not found at \"$1\""
+      exit 1
+    fi
+  fi
+}
+
+binddevfile() #(host path, container path)
+{
+  if [ -f "$1" ] ; then
+    echo "using development file at: \"$1\""
+    addbind "$1" "$2"
+  else
+    echo "Error: development file not found at \"$1\""
+    exit 1
+  fi
+}
+
+setupdev()
+{
+  devpath=$1
+  devgradlecache=$2
+  devmain=$3
+
+  # handle development binds if needed
+  if [ -n "$devpath" ] ; then
+    echo "looking for development files at \"$devpath\" ..."
+
+    binddevdir "$devgradlecache"
+
+    if [ "$devmain" == "run" ] ; then
+
+      # for the website, bind the libs and start scripts
+      binddevdir "$devpath/build/libs" "/opt/micromon/libs"
+      binddevfile "$devpath/config/init.sh" "/opt/micromon/init.sh"
+      binddevfile "$devpath/config/micromon.sh" "/opt/micromon/bin/micromon.sh"
+
+    elif [ "$devmain" == "test" ] ; then
+
+      # for tests, bind the classes and resource dirs directly
+      binddevdir "$devpath/build/classes/kotlin/backend/main" "/opt/micromon/classes/main"
+      binddevdir "$devpath/build/processedResources/backend/main" "/opt/micromon/resources/main"
+      binddevdir "$devpath/build/classes/kotlin/backend/test" "/opt/micromon/classes/test"
+      binddevdir "$devpath/build/processedResources/backend/test" "/opt/micromon/resources/test" true
+      # this folder ^^ might really not exist, so it missing is not an error
+    fi
+
+    binddevfile "$devpath/build/classpath.dev.$devmain.txt" "/opt/micromon/bin/classpath.txt"
+  fi
+
+  # use the pyp args config too, if it's available
+  binddevfile "$PYP_SRC/config/pyp_config.toml" "/opt/micromon/pyp_config.toml" true
+
+  # pick the host processor executable
+  hpexec="$devpath/run/host-processor"
+  hpoptions=(--log host_processor=trace)
+
+  # turn on extra logging
+  NEXTPYP_LOGS=dev
+
+  # set the "installation" folder to the project's run folder
+  installdir="$devpath/run"
+}
+
+
+setup()
+{
+  # find the installation dir, if not already set by dev setup
+  if [ -z "$installdir" ] ; then
+    configlink="$HOME/.config/nextpyp/installdir"
+    if [ -L "$configlink" ] ; then
+      installdir=$(readlink "$configlink")
+      echo "Found installation folder: $installdir"
+    else
+      echo "Failed to find installation folder: missing configuration symlink: $configlink"
+      exit 1
+    fi
+  fi
+
+  # get the website container
+  container="$installdir/nextPYP.sif"
+  if [ ! -f "$container" ] ; then
+    echo "Website container not found: $container"
     exit 1
   fi
 
-  if [ "$devmain" == "run" ] ; then
+  # build the command to run the CLI
+  cli=(\
+    singularity exec "${binds[@]}" --no-home "$container" \
+    java \
+    -Xmx64M \
+    -Djava.awt.headless=true \
+    -Dlogback.configurationFile=logback-cli.xml \
+    @/opt/micromon/bin/classpath.txt \
+    edu.duke.bartesaghi.micromon.CliKt \
+  )
 
-    # for running the website, bind the libs dir
-    libsdir=$devpath/build/libs
-    if [ -d "$libsdir" ] ; then
-      echo "using libs folder at: \"$libsdir\""
-      binds+=(--bind "$libsdir":/opt/micromon/libs)
-    else
-      echo "Error: libs folder not found at \"$libsdir\""
-      exit 1
-    fi
+  echo "Reading config.toml using CLI tool ..."
 
-    initpath=$devpath/config/init.sh
-    if [ -f "$initpath" ] ; then
-      echo "using init script at: $initpath"
-      binds+=(--bind "$initpath":/opt/micromon/init.sh)
-    else
-      echo "Error: init script not found at \"$initpath\""
-      exit 1
-    fi
+  # get the local and share directories from the config
+  localdir=$("${cli[@]}" localdir)
+  shareddir=$("${cli[@]}" shareddir)
 
-    startpath=$devpath/config/micromon.sh
-    if [ -f "$startpath" ] ; then
-      echo "using JVM start script at: $startpath"
-      binds+=(--bind "$startpath":/opt/micromon/bin/micromon.sh)
-    else
-      echo "Error: JVM start script not found at \"$startpath\""
-      exit 1
-    fi
-
-  elif [ "$devmain" == "test" ] ; then
-
-    # for tests, bind the classes and resource dirs directly
-
-    mainclassesdir=$devpath/build/classes/kotlin/backend/main
-    if [ -d "$mainclassesdir" ] ; then
-      echo "using main classes at: \"$mainclassesdir\""
-      binds+=(--bind "$mainclassesdir":/opt/micromon/classes/main)
-    else
-      echo "Error: main classes folder not found at \"$mainclassesdir\""
-      exit 1
-    fi
-
-    mainresourcesdir=$devpath/build/processedResources/backend/main
-    if [ -d "$mainresourcesdir" ] ; then
-      echo "using main resources at: \"$mainresourcesdir\""
-      binds+=(--bind "$mainresourcesdir":/opt/micromon/resources/main)
-    else
-      echo "Error: main resources folder not found at \"$mainresourcesdir\""
-      exit 1
-    fi
-
-    testclassesdir=$devpath/build/classes/kotlin/backend/test
-    if [ -d "$testclassesdir" ] ; then
-      echo "using test classes at: \"$testclassesdir\""
-      binds+=(--bind "$testclassesdir":/opt/micromon/classes/test)
-    else
-      echo "Error: test classes folder not found at \"$testclassesdir\""
-      exit 1
-    fi
-
-    testresourcesdir=$devpath/build/processedResources/backend/test
-    if [ -d "$testresourcesdir" ] ; then
-      echo "using test resources at: \"$testresourcesdir\""
-      binds+=(--bind "$testresourcesdir":/opt/micromon/resources/test)
-    fi
-    # this folder might really not exist, so it missing is not an error
+  # make sure the base directories exist
+  if [ ! -d "$localdir" ] ; then
+    echo "Local dir does not exist. It should have been created during installation"
+    exit 1
+  fi
+  if [ ! -d "$shareddir" ] ; then
+    echo "Shared dir does not exist. It should have been created during installation"
+    exit 1
   fi
 
-  classpathfile=$devpath/build/classpath.dev.$devmain.txt
-  if [ -f "$classpathfile" ] ; then
-    echo "using classpath file at: \"$classpathfile\""
-    binds+=(--bind "$classpathfile":/opt/micromon/bin/classpath.txt)
-  else
-      echo "Error: classpath file not found at \"$classpathfile\""
-      exit 1
+  addbind "$localdir"
+  addbind "$shareddir"
+
+  sockdir="$localdir/sock"
+
+  # pick the host processor executable, if not already picked by the dev setup
+  if [ -z "$hpexec" ] ; then
+    if [ -x "/usr/bin/nextpyp-host-processor" ]; then
+      hpexec="/usr/bin/nextpyp-host-processor"
+    else
+      hpexec="$installdir/host-processor"
+    fi
+    hpoptions=()
   fi
-fi
-
-# use the pyp args config too, if it's available
-argspath=$PYP_SRC/config/pyp_config.toml
-if [ -f "$argspath" ] ; then
-  echo "using PYP args at: $argspath"
-  binds+=(--bind "$argspath":/opt/micromon/pyp_config.toml)
-fi
-
-# build the command to run the CLI
-cli=(\
-  singularity exec "${binds[@]}" --no-home nextPYP.sif \
-  java \
-  -Xmx64M \
-  -Djava.awt.headless=true \
-  -Dlogback.configurationFile=logback-cli.xml \
-  @/opt/micromon/bin/classpath.txt \
-  edu.duke.bartesaghi.micromon.CliKt \
-)
+}
 
 
-echo "Reading config.toml using CLI tool ..."
+usersetup()
+{
+  if [ "$(whoami)" != "root" ]; then
+    echo "This utility should be run as root!"
+    exit 1
+  fi
 
-# get the local and share directories from the config
-localdir=$("${cli[@]}" localdir)
-shareddir=$("${cli[@]}" shareddir)
+  # get the username
+  username=$1
+  if [ -z "$username" ]; then
+    echo "Required argument: username"
+    exit 1
+  fi
+  if [ "$username" = "root" ]; then
+    echo "Root is not an allowed user"
+    exit 1
+  fi
 
-hpsocketdir="$localdir/host-processor"
-upsocketdir="$shareddir/user-processors/sockets"
+  # make a way to run commands as the target user
+  usdo="sudo -u $username"
+
+  upexec="$shareddir/user-processors/user-processor-$username"
+}
 
 
 # process the command
@@ -168,15 +212,10 @@ case "$1" in
 
   start)
 
-    # make sure the base directories exist
-    if [ ! -d "$localdir" ] ; then
-      echo "Local dir does not exist, but it should have been created during installation"
-      exit 1
-    fi
-    if [ ! -d "$shareddir" ] ; then
-      echo "Shared dir does not exist, but it should have been created during installation"
-      exit 1
-    fi
+    # handle dev arguments, if any
+    setupdev "$2" "$3" "$4"
+
+    setup
 
     # the shared folder needs to have other-exec permissions all the way up to /
     pushd "$shareddir" > /dev/null
@@ -197,48 +236,36 @@ case "$1" in
     done
     popd > /dev/null
 
+
     # add all the binds from the config file
     configbinds=$("${cli[@]}" binds)
     declare -a configbinds="(${configbinds})"
-    binds+=(--bind "$localdir" --bind "$shareddir" "${configbinds[@]}")
+    binds+=("${configbinds[@]}")
 
 
     # start the host processor unless explicitly asked not to
     if [ -z "$PYP_HOSTPROCESSOR_OFF" ]; then
 
-      # get the host processor executable
-      if [ -n "$devpath" ]; then
-        # dev mode, look in the dev folder
-        hpexec="$devpath/run/host-processor"
-        hpoptions=(--log host_processor=trace)
-      else
-        # production mode, look in /usr/bin
-        if [ -x /usr/bin/nextpyp-host-processor ]; then
-          hpexec="/usr/bin/nextpyp-host-processor"
-        else
-          hpexec="./host-processor"
-        fi
-        hpoptions=()
-      fi
       if [ ! -x "$hpexec" ]; then
         echo "Host processor executable not found, tried:"
         echo "  /usr/bin/nextpyp-host-processor"
-        echo "  ./host-processor"
+        echo "  $installdir/host-processor"
         exit 1
       fi
 
-      # pick a local folder for socket files that is writable
-      if [ ! -d "$hpsocketdir" ]; then
-        echo "Creating host processor directory at: $hpsocketdir"
-        mkdir -p "$hpsocketdir"
-      fi
-
-      # actually start the host processor
-      "$hpexec" "${hpoptions[@]}" "$hpsocketdir" > "$localdir/logs/hostprocessor" 2>&1 &
+      pushd "$sockdir"
+      "$hpexec" "${hpoptions[@]}" > "$localdir/logs/hostprocessor" 2>&1 &
       hppid=$!
       echo "Host Processor started pid=$hppid"
+      popd
 
     fi
+
+
+    # bind the local sockets folder to a short path inside the container, since limits
+    #	on socket paths in Linux are *FAR* less than limits on general paths (108 vs 255 bytes)
+    # see: https://man7.org/linux/man-pages/man7/unix.7.html
+    addbind "$sockdir" "/run/nextpyp/sock"
 
 
     echo "Configuring environment ..."
@@ -256,10 +283,6 @@ case "$1" in
     export NEXTPYP_OOMDUMP
     NEXTPYP_HOSTPROCESSOR_PID=$hppid
     export NEXTPYP_HOSTPROCESSOR_PID
-    NEXTPYP_LOGS=
-    if [ -n "$devpath" ] ; then
-      NEXTPYP_LOGS=dev
-    fi
     export NEXTPYP_LOGS
 
     # set general args to apptainer
@@ -276,7 +299,7 @@ case "$1" in
     echo "NOTE:    If you see warnings immediately below that nv files or libraries can't be found, and you're not using any GPUs, those warnings are safe to ignore."
 
     # set the container path
-    apptainerargs+=(nextPYP.sif)
+    apptainerargs+=("$container")
 
     # pass along all the binds in an environment variable so the container can use them to spawn copies of itself
     # but be sure to correctly quote paths, since they can contain all kinds of characters
@@ -320,6 +343,11 @@ case "$1" in
 
   stop)
 
+    # handle dev arguments, if any
+    setupdev "$2" "$3" "$4"
+
+    setup
+
     # ok to fail here, keep going so we can cleanup
     set +e
 
@@ -330,7 +358,7 @@ case "$1" in
     # NOTE: tragically, the JVM can't shut them down, so we'll have to do it here
     #       also, we need to stop them before stopping the host-processor
     #       otherwise, the user-processor will panic because stdout gets closed when the host-procesor exits
-    for f in "$upsocketdir"/user-processor-*-* ; do
+    for f in "$sockdir"/user-processor-*-* ; do
       if [ -S "$f" ] ; then
         IFS='-' read -r -a parts <<< "$(basename "$f")"
         pid=${parts[2]}
@@ -341,7 +369,7 @@ case "$1" in
     done
 
     # stop any running host processors
-    for f in "$hpsocketdir"/host-processor-* ; do
+    for f in "$sockdir"/host-processor-* ; do
       # NOTE: if the glob matches nothing, the filename `host-processor-*` will be iterated
       #       sigh ... shells are so annoying to program
       if [ -S "$f" ] ; then
@@ -355,9 +383,50 @@ case "$1" in
     ;;
 
 
+  user-add)
+
+    setup
+    usersetup "$2"
+
+    # create the user-processor executable for this user
+    $usdo cp "$installdir/user-processor" "$upexec"
+
+    # only the user should be able to write
+    # only the user and the group should be able to execute
+    $usdo chmod u=rwx,g=rx,o= "$upexec"
+
+    # the executable should be setuid
+    # NOTE: set this last, so we're sure the executable has the correct permissions before turning on setuid
+    $usdo chmod u+s "$upexec"
+
+    echo "Added user: $2"
+
+    ;;
+
+
+  user-remove)
+
+    setup
+    usersetup "$2"
+
+    # remove the runas-username executable, if any
+    if [ -f "$upexec" ]; then
+      $usdo rm "$upexec"
+    else
+      echo "No user-processor executable found for user $username"
+      exit 1
+    fi
+
+    echo "Removed user: $2"
+
+    ;;
+
+
   *)
     echo "Usage:"
     echo "   nextpyp <start | stop>"
+    echo "   or"
+    echo "   sudo nextpyp <user-add | user-remove> <username>"
     exit 1
     ;;
 

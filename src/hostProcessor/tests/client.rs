@@ -490,7 +490,7 @@ fn gids() {
 }
 
 
-const SOCKET_DIR: &str = "/tmp/nextpyp-sockets";
+const SOCKET_DIR: &str = "/tmp/nextpyp-host-processor";
 
 
 struct HostProcessor {
@@ -521,7 +521,8 @@ impl HostProcessor {
 		debug!("Starting host processor ...");
 
 		let proc = Command::new(Self::bin_path())
-			.args(["--log", "trace", SOCKET_DIR])
+			.args(["--log", "trace"])
+			.current_dir(SOCKET_DIR)
 			.spawn()
 			.expect("Failed to spawn process");
 

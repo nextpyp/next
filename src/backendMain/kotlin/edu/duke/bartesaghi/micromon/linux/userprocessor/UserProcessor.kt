@@ -41,13 +41,9 @@ class UserProcessor(
 
 		private val consoleScope = CoroutineScope(Dispatchers.IO)
 
-		private val dir = Config.instance.web.sharedDir / "user-processors"
-		private val execDir = dir / "exec"
-		private val socketDir = dir / "sockets"
-
 		private suspend fun find(hostProcessor: HostProcessor, username: String): Path {
 
-			val path = execDir / "user-processor-$username"
+			val path = Config.instance.web.sharedDir / "user-processors" / "user-processor-$username"
 			val failures = ArrayList<String>()
 
 			// find the uid
@@ -135,10 +131,9 @@ class UserProcessor(
 								addAll(listOf("--log", tracingLog))
 							}
 							add("daemon")
-							add(socketDir.toString())
 						}
 					),
-					dir = Config.instance.web.sharedDir,
+					dir = Config.instance.web.localDir / "sock",
 					stdout = true,
 					stderr = true
 				)
@@ -177,7 +172,7 @@ class UserProcessor(
 
 			// try to connect to the subprocess socket
 			val socket = try {
-				val socketPath = socketDir / "user-processor-${subproc.pid}-$username"
+				val socketPath = SOCKDIR / "user-processor-${subproc.pid}-$username"
 				log.debug("expecting socket file: {}", socketPath)
 				retryLoop(socketTimeoutMs) { elapsedMs, timedOut ->
 

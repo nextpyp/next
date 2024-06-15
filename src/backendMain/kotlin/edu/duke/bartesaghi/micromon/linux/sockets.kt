@@ -5,7 +5,11 @@ import java.nio.ByteBuffer
 import java.nio.channels.AsynchronousCloseException
 import java.nio.channels.ClosedChannelException
 import java.nio.channels.SocketChannel
+import java.nio.file.Paths
 import java.util.concurrent.atomic.AtomicLong
+
+
+val SOCKDIR = Paths.get("/run/nextpyp/sock")
 
 
 fun SocketChannel.sendFramed(data: ByteArray) {

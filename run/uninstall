@@ -1,42 +1,110 @@
 #!/bin/sh
 
 
-# the uninstaller should be run as root
-if [ "$(whoami)" != "root" ]; then
-  echo "WARNING - This installer should be run as root"
-  bindir="."
+# determine what capabilities we have
+whoami=$(whoami)
+if [ "$whoami" = "root" ]; then
+
+  echo "Uninstalling in root mode: Will remove OS integrations"
+  oscaps="root"
+
+  # get the username for the service account
+  username=$PYP_USER
+  if [ -z "$username" ]; then
+    echo "No PYP_USER set."
+    exit
+  fi
+
+  # make a way to do things as the service account, like sudo, but user-do
+  usdo="sudo -u $username"
+
+  # get the home folder for the serivce account
+  home=$(getent passwd "$username" | cut -d: -f6)
+
 else
-  bindir="/usr/bin/"
+
+  echo "Uninstalling in user mode: Will not look for OS integrations"
+  oscaps="user"
+
+  username="$whoami"
+  usdo=
+  home="$HOME"
+
+fi
+
+
+# find the installation folder
+configlink="$home/.config/nextpyp/installdir"
+if [ -L "$configlink" ] ; then
+  installdir=$(readlink "$configlink")
+  echo "Found installation folder: $installdir"
+else
+  echo "Failed to find installation folder: missing configuration symlink: $configlink"
+  exit 1
+fi
+
+
+if [ "$oscaps" = "root" ]; then
+
+  # determine filesystem capabilities
+  testfile="$installdir/__fscaps_test__"
+  if touch "$testfile" ; then
+    # root user can write to the installation folder
+    rm "$testfile"
+    # remove files/folders as root
+    fsdo=
+  else
+    # root user can't write to the installation folder,
+    # so remove files and folders as the service account instead
+    fsdo=usdo
+    echo "Uninstalling in root shared mode: Will remove files/folders as service account"
+  fi
+
+  # remove installed binaries from the OS bin dir
+  bindir=/usr/bin
+
+else
+
+  fsdo=
+
+  # remove "installed" binaries from here
+  bindir="$installdir"
+
 fi
 
 
 echo "Uninstalling nextPYP ..."
 
 
-if [ "$(whoami)" = "root" ]; then
-# uninstall systemd integrations
-appDaemon="nextPYP"
-systemctl disable $appDaemon 2> /dev/null
-systemctl stop $appDaemon 2> /dev/null
-rm "/lib/systemd/system/$appDaemon.service" 2> /dev/null
+if [ "$oscaps" = "root" ]; then
 
-# poke systemd to recognize the removal of the daemon
-systemctl daemon-reload
+  # uninstall systemd integrations
+  appDaemon="nextPYP"
+  systemctl disable $appDaemon 2> /dev/null
+  systemctl stop $appDaemon 2> /dev/null
+  rm "/lib/systemd/system/$appDaemon.service" 2> /dev/null
+
+  # poke systemd to recognize the removal of the daemon
+  systemctl daemon-reload
+
 fi
 
-# delete the executables from /usr/bin
+
+# delete the executables from the bin dir
 rm "$bindir/nextpyp" 2> /dev/null
-rm "$bindir/nextpyp-hostprocessor" 2> /dev/null
+rm "$bindir/nextpyp-host-processor" 2> /dev/null
 
-
-# assume the installation folder is the same one this script is in
-here=$(dirname "$0")
 
 # delete the files the installer downloaded
-rm "$here/nextPYP.sif" 2> /dev/null
-rm "$here/pyp.sif" 2> /dev/null
-rm "$here/install-rprox" 2> /dev/null
-rm "$here/uninstall" 2> /dev/null
+$fsdo rm "$installdir/nextPYP.sif" 2> /dev/null
+$fsdo rm "$installdir/pyp.sif" 2> /dev/null
+$fsdo rm "$installdir/user-processor" 2> /dev/null
+$fsdo rm "$installdir/uninstall" 2> /dev/null
+$fsdo rm "$installdir/install-rprox" 2> /dev/null
+
+
+# delete the configs
+$usdo rm -rf "$home/.config/nextpyp"
 
 
 echo "Finished uninstalling nextPYP"

@@ -26,14 +26,11 @@ use crate::proto::{ChmodRequest, DirListWriter, FileEntry, FileKind, ReadFileRes
 
 #[derive(Options)]
 pub struct Args {
-
-	/// Path to the socket folder
-	#[options(free)]
-	socket_dir: Option<String>
+	// no args needed
 }
 
 
-pub fn run(quiet: bool, args: Args) -> Result<()> {
+pub fn run(quiet: bool, _args: Args) -> Result<()> {
 
 	if !quiet {
 		// print the cwd, so we can tell if we're in the correct folder or not
@@ -43,21 +40,23 @@ pub fn run(quiet: bool, args: Args) -> Result<()> {
 		}
 	}
 
-	// get the username and choose the socket filename
+	// get the username
 	let euid = users::get_effective_uid();
 	if euid == 0 {
 		bail!("user-processor is not allowed to run as root");
 	}
 	let user = users::get_user_by_uid(euid)
 		.context(format!("Failed to lookup username for uid: {}", euid))?;
-	let mut socket_filename = OsString::from(format!("user-processor-{}-", std::process::id()));
-	socket_filename.push(user.name());
 
-	// build the full socket path based on the given socket dir, if any
-	let socket_path = match args.socket_dir {
-		Some(socket_dir) => PathBuf::from(socket_dir),
-		None => PathBuf::new()
-	}.join(socket_filename);
+	// build the socket path (in the current folder)
+	// NOTE: use a relative path instead of an absolute path, since limits on socket paths
+	//       in Linux are *FAR* less than limits on general paths (108 vs 255 bytes)
+	//       see: https://man7.org/linux/man-pages/man7/unix.7.html
+	let socket_path = {
+		let mut name = OsString::from(format!("user-processor-{}-", std::process::id()));
+		name.push(user.name());
+		PathBuf::from(name)
+	};
 
 	// start a single-threaded tokio runtime
 	let result = tokio::runtime::Builder::new_current_thread()

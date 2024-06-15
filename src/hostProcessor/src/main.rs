@@ -7,7 +7,7 @@ use std::process::{ExitCode, Stdio};
 use std::rc::Rc;
 use std::time::Duration;
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{anyhow, Context, Result};
 use display_error_chain::ErrorChainExt;
 use gumdrop::Options;
 use tokio::fs::File;
@@ -37,11 +37,7 @@ struct Args {
 
 	/// settings for log output
 	#[options(default = "host_processor=info")]
-	log: String,
-
-	/// folder to write socket files
-	#[options(free, required, parse(try_from_str))]
-	socket_dir: PathBuf
+	log: String
 }
 
 
@@ -55,7 +51,7 @@ fn main() -> ExitCode {
 		.log_err()
 		else { return ExitCode::FAILURE; };
 
-	let Ok(_) = run(args)
+	let Ok(_) = run()
 		.log_err()
 		else { return ExitCode::FAILURE; };
 
@@ -65,26 +61,13 @@ fn main() -> ExitCode {
 
 
 #[tracing::instrument(skip_all, level = 5, name = "HostProcessor")]
-fn run(args: Args) -> Result<()> {
+fn run() -> Result<()> {
 
-	// check for errors with the socket folder
-	let dir_exists = args.socket_dir.try_exists()
-		.context(format!("Failed to check socket folder: {}", args.socket_dir.to_string_lossy()))?;
-	if dir_exists {
-		// see if it's a folder
-		let metadata = fs::metadata(&args.socket_dir)
-			.context(format!("Failed to get metadata for socket folder: {}", args.socket_dir.to_string_lossy()))?;
-		if !metadata.is_dir() {
-			bail!("Socket folder path exists, but is not a folder: {}", args.socket_dir.to_string_lossy());
-		}
-	} else {
-		// try creating it
-		fs::create_dir_all(&args.socket_dir)
-			.context(format!("Failed to create socket folder: {}", args.socket_dir.to_string_lossy()))?;
-	}
-
-	// listen on the socket
-	let socket_file = args.socket_dir.join(format!("host-processor-{}", std::process::id()));
+	// build the socket path (in the current folder)
+	// NOTE: use a relative path instead of an absolute path, since limits on socket paths
+	//       in Linux are *FAR* less than limits on general paths (108 vs 255 bytes)
+	//       see: https://man7.org/linux/man-pages/man7/unix.7.html
+	let socket_path = PathBuf::from(format!("host-processor-{}", std::process::id()));
 
 	// WARNING: Now that we're listening on the socket, don't exit this function without cleaning it up.
 	//          That means no ? operator or any other kind of early returns.
@@ -98,7 +81,7 @@ fn run(args: Args) -> Result<()> {
 		.log_err();
 	if let Ok(runtime) = result {
 
-		let socket_file = socket_file.clone();
+		let socket_path = socket_path.clone();
 
 		debug!("Async runtime started");
 
@@ -107,7 +90,7 @@ fn run(args: Args) -> Result<()> {
 			.block_on(async move {
 				LocalSet::new().run_until(async move {
 
-					event_loop(socket_file).await
+					event_loop(socket_path).await
 
 				}).await
 			}.in_current_span())
@@ -121,9 +104,9 @@ fn run(args: Args) -> Result<()> {
 	}
 
 	// try to cleanup the socket file
-	info!("Removing socket file: {}", socket_file.to_string_lossy());
-	fs::remove_file(&socket_file)
-		.context(format!("Failed to remove socket file: {}", socket_file.to_string_lossy()))
+	info!("Removing socket file: {}", socket_path.to_string_lossy());
+	fs::remove_file(&socket_path)
+		.context(format!("Failed to remove socket file: {}", socket_path.to_string_lossy()))
 		.warn_err()
 		.ok();
 
@@ -131,12 +114,12 @@ fn run(args: Args) -> Result<()> {
 }
 
 
-async fn event_loop(socket_file: PathBuf) -> Result<()> {
+async fn event_loop(socket_path: PathBuf) -> Result<()> {
 
 	// start listening on the socket
-	let socket = UnixListener::bind(&socket_file)
-		.context(format!("Failed to open unix socket at: {}", socket_file.to_string_lossy()))?;
-	info!("Opened socket: {}", socket_file.to_string_lossy());
+	let socket = UnixListener::bind(&socket_path)
+		.context(format!("Failed to open unix socket at: {}", socket_path.to_string_lossy()))?;
+	info!("Opened socket: {}", socket_path.to_string_lossy());
 
 	// init state
 	let processes = Rc::new(Mutex::new(Processes::new()));

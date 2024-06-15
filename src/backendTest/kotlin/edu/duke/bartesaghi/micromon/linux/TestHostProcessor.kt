@@ -15,6 +15,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.concurrent.TimeUnit
+import kotlin.io.path.absolute
 import kotlin.io.path.div
 
 
@@ -235,6 +236,7 @@ suspend fun withHostProcessor(block: suspend (HostProcessor) -> Unit) {
 
 	// pick a socket dir for testing
 	val socketDir = Paths.get("/tmp/nextpyp-host-processor")
+		.createDirsIfNeeded()
 
 	HostProcessorProcess(socketDir).use { process ->
 
@@ -266,11 +268,13 @@ class HostProcessorProcess(socketDir: Path) : SuspendCloseable {
 
 		// start a host processor instance
 		val hpexec = Paths.get("run/host-processor")
+			.absolute()
 		if (!hpexec.exists()) {
 			throw Error("can't find host processor executable at: $hpexec")
 		}
 		val process = ProcessBuilder()
-			.command(hpexec.toString(), "--log", "host_processor=trace", socketDir.toString())
+			.command(hpexec.toString(), "--log", "host_processor=trace")
+			.directory(socketDir.toFile())
 			.redirectOutput(ProcessBuilder.Redirect.INHERIT)
 			.redirectError(ProcessBuilder.Redirect.INHERIT)
 			.start()
