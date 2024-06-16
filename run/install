@@ -217,7 +217,7 @@ else
 
   # make a config folder we can use too
   configdir="$home/.config/nextpyp"
-  mkdirself "$configdir"
+  mkdirfs "$configdir"
 fi
 
 
