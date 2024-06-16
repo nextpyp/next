@@ -166,7 +166,9 @@ install() #(filename, dest filename)
   fi
   # move the executables into the binaries dir (eg /usr/bin so SELinux won't deny access)
   outpath="$bindir/$dstname"
+  if [ "$here/$1" != "$outpath" ]; then
   mv "$here/$1" "$outpath"
+  fi
   chmod u=rwx,go=rx "$outpath"
 }
 
