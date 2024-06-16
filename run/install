@@ -23,13 +23,13 @@ here=$(pwd)
 mkdirfs() #(path, chmod ops)
 {
   if [ -d "$1" ]; then
+    echo "Using exixting folder $1"
+  else
     $fsdo mkdir -p "$1"
     if [ -n "$2" ]; then
       $fsdo chmod "$2" "$1"
     fi
     echo "Created folder $1"
-  else
-    echo "Using exixting folder $1"
   fi
 }
 
