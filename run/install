@@ -181,9 +181,9 @@ install "host-processor" "nextpyp-host-processor"
 
 # make the base folders
 localDir="$here/local"
-mkdirhere "$localDir" g+s
+$mkdirhere "$localDir" g+s
 sharedDir="$here/shared"
-mkdirhere "$sharedDir" ugo+rx,g+s
+$mkdirhere "$sharedDir" ugo+rx,g+s
 
 # NOTE: The base folders have setgid (g+s) so all files inherit the service account group.
 #       Setgid will propagate automatically to all subfolders when they're created,
