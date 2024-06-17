@@ -98,7 +98,7 @@ if [ "$whoami" = "root" ]; then
   bindir=/usr/bin
 
   # get the home folder for the serivce account
-  home=$(getent passwd "$SUDO_USER" | cut -d: -f6)
+  home=$(getent passwd "$username" | cut -d: -f6)
 
 else
 

@@ -117,20 +117,35 @@ setupdev()
 }
 
 
-setup()
+find_install() #(home)
 {
-  # find the installation dir, if not already set by dev setup
-  if [ -z "$installdir" ] ; then
-    configlink="$HOME/.config/nextpyp/installdir"
-    if [ -L "$configlink" ] ; then
-      installdir=$(readlink "$configlink")
-      echo "Found installation folder: $installdir"
-    else
-      echo "Failed to find installation folder: missing configuration symlink: $configlink"
-      exit 1
-    fi
+  # look for the install dir using the config link
+  configlink="$1/.config/nextpyp/installdir"
+  if [ -L "$configlink" ] ; then
+    installdir=$(readlink "$configlink")
+    echo "Found installation folder: $installdir"
+  else
+    echo "Failed to find installation folder: missing configuration symlink: $configlink"
+    exit 1
+  fi
+}
+
+
+find_install_root()
+{
+  # we're root, so we need to find the service account
+  username=$PYP_USER
+  if [ -z "$username" ]; then
+    echo "Set PYP_USER to the service account name."
+    exit
   fi
 
+  find_install "$(getent passwd "$username" | cut -d: -f6)"
+}
+
+
+setup()
+{
   # get the website container
   container="$installdir/nextPYP.sif"
   if [ ! -f "$container" ] ; then
@@ -184,11 +199,6 @@ setup()
 
 usersetup()
 {
-  if [ "$(whoami)" != "root" ]; then
-    echo "This utility should be run as root!"
-    exit 1
-  fi
-
   # get the username
   username=$1
   if [ -z "$username" ]; then
@@ -215,6 +225,9 @@ case "$1" in
     # handle dev arguments, if any
     setupdev "$2" "$3" "$4"
 
+    if [ -z "$installdir" ] ; then
+      find_install "$HOME"
+    fi
     setup
 
     # the shared folder needs to have other-exec permissions all the way up to /
@@ -346,6 +359,9 @@ case "$1" in
     # handle dev arguments, if any
     setupdev "$2" "$3" "$4"
 
+    if [ -z "$installdir" ] ; then
+      find_install "$HOME"
+    fi
     setup
 
     # ok to fail here, keep going so we can cleanup
@@ -385,6 +401,12 @@ case "$1" in
 
   user-add)
 
+    if [ "$(whoami)" != "root" ]; then
+      echo "This utility should be run as root!"
+      exit 1
+    fi
+
+    find_install_root
     setup
     usersetup "$2"
 
@@ -406,6 +428,12 @@ case "$1" in
 
   user-remove)
 
+    if [ "$(whoami)" != "root" ]; then
+      echo "This utility should be run as root!"
+      exit 1
+    fi
+
+    find_install_root
     setup
     usersetup "$2"
 
