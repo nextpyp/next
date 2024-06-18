@@ -100,20 +100,20 @@ setupdev()
     fi
 
     binddevfile "$devpath/build/classpath.dev.$devmain.txt" "/opt/micromon/bin/classpath.txt"
+
+    # use the pyp args config too, if it's available
+    binddevfile "$PYP_SRC/config/pyp_config.toml" "/opt/micromon/pyp_config.toml" true
+
+    # pick the host processor executable
+    hpexec="$devpath/run/host-processor"
+    hpoptions=(--log host_processor=trace)
+
+    # turn on extra logging
+    NEXTPYP_LOGS=dev
+  
+    # set the "installation" folder to the project's run folder
+    installdir="$devpath/run"
   fi
-
-  # use the pyp args config too, if it's available
-  binddevfile "$PYP_SRC/config/pyp_config.toml" "/opt/micromon/pyp_config.toml" true
-
-  # pick the host processor executable
-  hpexec="$devpath/run/host-processor"
-  hpoptions=(--log host_processor=trace)
-
-  # turn on extra logging
-  NEXTPYP_LOGS=dev
-
-  # set the "installation" folder to the project's run folder
-  installdir="$devpath/run"
 }
 
 
