@@ -708,12 +708,15 @@ async fn dispatch_delete_folder(socket: Rc<RefCell<OwnedWriteHalf>>, request_id:
 
 	debug!(path, "Request");
 
-	let Some(()) = fs::remove_dir_all(&path)
-		.or_respond_error(&socket, request_id, |e|
-			format!("Failed to delete folder: {}\n\tpath: {}", e, &path)
-		)
-		.await
-		else { return };
+	let path_buf = PathBuf::from(&path);
+	if path_buf.exists() {
+		let Some(()) = fs::remove_dir_all(&path)
+			.or_respond_error(&socket, request_id, |e|
+				format!("Failed to delete folder: {}\n\tpath: {}", e, &path)
+			)
+			.await
+			else { return };
+	}
 
 	write_response(&socket, request_id, Response::DeleteFolder)
 		.await
