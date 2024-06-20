@@ -428,13 +428,17 @@ async fn dispatch_read_file(socket: Rc<RefCell<OwnedWriteHalf>>, request_id: u32
 
 	// try to open the file for reading
 	let Some(mut file) = File::open(&path)
-		.or_respond_error(&socket, request_id, |e| format!("Failed to open file {}: {}", path, e))
+		.or_respond_error(&socket, request_id, |e|
+			format!("Failed to open file {}\n\tpath: {}", e, &path)
+		)
 		.await
 		else { return };
 
 	// try to get the file size
 	let Some(metadata) = file.metadata()
-		.or_respond_error(&socket, request_id, |e| format!("Failed to read metadata for file {}: {}", path, e))
+		.or_respond_error(&socket, request_id, |e|
+			format!("Failed to read metadata for file {}\n\tpath: {}", e, &path)
+		)
 		.await
 		else { return };
 
@@ -454,7 +458,9 @@ async fn dispatch_read_file(socket: Rc<RefCell<OwnedWriteHalf>>, request_id: u32
 		// read the next chunk
 		sequence += 1;
 		let Some(bytes_read) = file.read(&mut buf)
-			.or_respond_error(&socket, request_id, |e| format!("Failed to read chunk {}: {}", sequence, e))
+			.or_respond_error(&socket, request_id, |e|
+				format!("Failed to read chunk {}: {}\n\tpath: {}", sequence, e, &path)
+			)
 			.await
 			else { return };
 		if bytes_read == 0 {
@@ -526,7 +532,9 @@ async fn dispatch_write_file(
 				.write(true)
 				.append(append)
 				.open(&path)
-				.or_respond_error(&socket, request_id, |e| format!("Failed to create file for writing {}: {}", path, e))
+				.or_respond_error(&socket, request_id, |e|
+					format!("Failed to create file for writing {}\n\tpath: {}", e, &path)
+				)
 				.await
 				else { return };
 
@@ -628,7 +636,9 @@ async fn dispatch_chmod(socket: Rc<RefCell<OwnedWriteHalf>>, request_id: u32, re
 	debug!(path = request.path, ops = request.ops_to_string(), "Request");
 
 	let Some(meta) = fs::metadata(&request.path)
-		.or_respond_error(&socket, request_id, |e| format!("Failed to read file permissions: {}", e))
+		.or_respond_error(&socket, request_id, |e|
+			format!("Failed to read file permissions: {}\n\tpath: {}", e, &request.path)
+		)
 		.await
 		else { return };
 	let mut mode = meta.permissions().mode();
@@ -645,7 +655,9 @@ async fn dispatch_chmod(socket: Rc<RefCell<OwnedWriteHalf>>, request_id: u32, re
 	}
 
 	let Some(()) = fs::set_permissions(&request.path, Permissions::from_mode(mode))
-		.or_respond_error(&socket, request_id, |e| format!("Failed to write file permissions: {}", e))
+		.or_respond_error(&socket, request_id, |e|
+			format!("Failed to write file permissions: {}\n\tpath: {}", e, &request.path)
+		)
 		.await
 		else { return };
 
@@ -661,7 +673,9 @@ async fn dispatch_delete_file(socket: Rc<RefCell<OwnedWriteHalf>>, request_id: u
 	debug!(path, "Request");
 
 	let Some(()) = fs::remove_file(&path)
-		.or_respond_error(&socket, request_id, |e| format!("Failed to delete file: {}", e))
+		.or_respond_error(&socket, request_id, |e|
+			format!("Failed to delete file: {}\n\tpath: {}", e, &path)
+		)
 		.await
 		else { return };
 
@@ -676,8 +690,10 @@ async fn dispatch_create_folder(socket: Rc<RefCell<OwnedWriteHalf>>, request_id:
 
 	debug!(path, "Request");
 
-	let Some(()) = fs::create_dir_all(path)
-		.or_respond_error(&socket, request_id, |e| format!("Failed to create folder: {}", e))
+	let Some(()) = fs::create_dir_all(&path)
+		.or_respond_error(&socket, request_id, |e|
+			format!("Failed to create folder: {}\n\tpath: {}", e, &path)
+		)
 		.await
 		else { return };
 
@@ -692,8 +708,10 @@ async fn dispatch_delete_folder(socket: Rc<RefCell<OwnedWriteHalf>>, request_id:
 
 	debug!(path, "Request");
 
-	let Some(()) = fs::remove_dir_all(path)
-		.or_respond_error(&socket, request_id, |e| format!("Failed to delete folder: {}", e))
+	let Some(()) = fs::remove_dir_all(&path)
+		.or_respond_error(&socket, request_id, |e|
+			format!("Failed to delete folder: {}\n\tpath: {}", e, &path)
+		)
 		.await
 		else { return };
 
@@ -713,7 +731,9 @@ async fn dispatch_list_folder(socket: Rc<RefCell<OwnedWriteHalf>>, request_id: u
 	// TODO: do we need to go to raw kernel interfaces for more speed?? might not be very portable?
 	let mut list_writer = DirListWriter::new();
 	let Some(read) = fs::read_dir(&path)
-		.or_respond_error(&socket, request_id, |e| format!("Failed to read folder: {}: {}", &path, e))
+		.or_respond_error(&socket, request_id, |e|
+			format!("Failed to read folder: {}\n\tpath: {}", e, &path)
+		)
 		.await
 		else { return };
 	for result in read {
@@ -816,7 +836,9 @@ async fn dispatch_stat(socket: Rc<RefCell<OwnedWriteHalf>>, request_id: u32, pat
 		// just report other errors
 		Err(e) => {
 			Err::<(),_>(e)
-				.or_respond_error(&socket, request_id, |e| format!("Failed to call lstat: {}", e))
+				.or_respond_error(&socket, request_id, |e|
+					format!("Failed to call lstat: {}\n\tpath: {}", e, &path)
+				)
 				.await;
 			return;
 		}
@@ -831,7 +853,9 @@ async fn dispatch_stat(socket: Rc<RefCell<OwnedWriteHalf>>, request_id: u32, pat
 					// just report other errors
 					Err(e) => {
 						Err::<(),_>(e)
-							.or_respond_error(&socket, request_id, |e| format!("Failed to call lstat: {}", e))
+							.or_respond_error(&socket, request_id, |e|
+								format!("Failed to call stat: {}\n\tpath: {}", e, &path)
+							)
 							.await;
 						return;
 					}
@@ -871,7 +895,9 @@ async fn dispatch_rename(socket: Rc<RefCell<OwnedWriteHalf>>, request_id: u32, s
 	debug!(src, dst, "Request");
 
 	let Some(()) = fs::rename(&src, &dst)
-		.or_respond_error(&socket, request_id, |e| format!("Failed to rename: {}", e))
+		.or_respond_error(&socket, request_id, |e|
+			format!("Failed to rename: {}\n\tsrc: {}\n\tdst: {}", e, &src, &dst)
+		)
 		.await
 		else { return };
 
@@ -886,18 +912,22 @@ async fn dispatch_symlink(socket: Rc<RefCell<OwnedWriteHalf>>, request_id: u32, 
 
 	debug!(path, link, "Request");
 
-	let path = PathBuf::from(path);
+	let path_buf = PathBuf::from(&path);
 
 	// create the parent folders, if needed
-	if let Some(parent) = path.parent() {
+	if let Some(parent) = path_buf.parent() {
 		let Some(()) = fs::create_dir_all(parent)
-			.or_respond_error(&socket, request_id, |e| format!("Failed to create parent folders of symlink: {}", e))
+			.or_respond_error(&socket, request_id, |e|
+				format!("Failed to create parent folders of symlink: {}\n\tpath: {}\n\tlink: {}", e, &path, &link)
+			)
 			.await
 			else { return };
 	}
 
-	let Some(()) = std::os::unix::fs::symlink(&path, &link)
-		.or_respond_error(&socket, request_id, |e| format!("Failed to symlink: {}", e))
+	let Some(()) = std::os::unix::fs::symlink(&path_buf, &link)
+		.or_respond_error(&socket, request_id, |e|
+			format!("Failed to symlink: {}\n\tpath: {}\n\tlink: {}", e, &path, &link)
+		)
 		.await
 		else { return };
 
