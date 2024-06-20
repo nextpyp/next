@@ -2,8 +2,6 @@ package edu.duke.bartesaghi.micromon
 
 import edu.duke.bartesaghi.micromon.linux.Filesystem
 import edu.duke.bartesaghi.micromon.linux.userprocessor.Response.Stat
-import edu.duke.bartesaghi.micromon.services.FileBrowserFile
-import edu.duke.bartesaghi.micromon.services.FileBrowserType
 import edu.duke.bartesaghi.micromon.services.FileDownloadData
 import edu.duke.bartesaghi.micromon.services.GlobCount
 import io.ktor.application.*
@@ -290,7 +288,7 @@ fun Path.rest(i: Int) =
  * Creates a symlink at `link` with `this` as the target.
  * Creates any necessary parent folders of `link`.
  */
-fun Path.linkTo(link: Path) {
+fun Path.symlink(link: Path) {
 	val target = this
 	link.parent.createDirsIfNeeded()
 	Files.createSymbolicLink(link, target)

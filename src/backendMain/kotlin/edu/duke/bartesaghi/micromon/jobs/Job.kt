@@ -176,7 +176,7 @@ abstract class Job(
 		})
 	}
 
-	fun delete(user: User) {
+	suspend fun delete(user: User) {
 
 		val id = id ?: throw IllegalStateException("job has no id")
 

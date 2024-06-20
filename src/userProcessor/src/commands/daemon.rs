@@ -278,6 +278,14 @@ async fn drive_connection(socket: UnixStream) {
 
 					Request::Stat { path } =>
 						dispatch_stat(socket_write, request.id, path)
+							.await,
+
+					Request::Rename { src, dst } =>
+						dispatch_rename(socket_write, request.id, src, dst)
+							.await,
+
+					Request::Symlink { path, link } =>
+						dispatch_symlink(socket_write, request.id, path, link)
 							.await
 				}
 
@@ -852,6 +860,48 @@ async fn dispatch_stat(socket: Rc<RefCell<OwnedWriteHalf>>, request_id: u32, pat
 	};
 
 	write_response(&socket, request_id, Response::Stat(response))
+		.await
+		.ok();
+}
+
+
+#[tracing::instrument(skip_all, level = 5, name = "Rename")]
+async fn dispatch_rename(socket: Rc<RefCell<OwnedWriteHalf>>, request_id: u32, src: String, dst: String) {
+
+	debug!(src, dst, "Request");
+
+	let Some(()) = fs::rename(&src, &dst)
+		.or_respond_error(&socket, request_id, |e| format!("Failed to rename: {}", e))
+		.await
+		else { return };
+
+	write_response(&socket, request_id, Response::Rename)
+		.await
+		.ok();
+}
+
+
+#[tracing::instrument(skip_all, level = 5, name = "Symlink")]
+async fn dispatch_symlink(socket: Rc<RefCell<OwnedWriteHalf>>, request_id: u32, path: String, link: String) {
+
+	debug!(path, link, "Request");
+
+	let path = PathBuf::from(path);
+
+	// create the parent folders, if needed
+	if let Some(parent) = path.parent() {
+		let Some(()) = fs::create_dir_all(parent)
+			.or_respond_error(&socket, request_id, |e| format!("Failed to create parent folders of symlink: {}", e))
+			.await
+			else { return };
+	}
+
+	let Some(()) = std::os::unix::fs::symlink(&path, &link)
+		.or_respond_error(&socket, request_id, |e| format!("Failed to symlink: {}", e))
+		.await
+		else { return };
+
+	write_response(&socket, request_id, Response::Symlink)
 		.await
 		.ok();
 }

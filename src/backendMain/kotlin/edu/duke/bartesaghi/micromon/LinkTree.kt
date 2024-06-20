@@ -1,6 +1,8 @@
 package edu.duke.bartesaghi.micromon
 
 import edu.duke.bartesaghi.micromon.jobs.Job
+import edu.duke.bartesaghi.micromon.linux.userprocessor.*
+import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.projects.Project
 import edu.duke.bartesaghi.micromon.sessions.Session
 import java.nio.file.Path
@@ -28,10 +30,8 @@ import kotlin.io.path.moveTo
  */
 object LinkTree {
 
-	private val lock = Any()
-
-	val usersDir = Backend.config.web.sharedDir / "users"
-	val groupsDir = Backend.config.web.sharedDir / "groups"
+	private val usersDir = Backend.config.web.sharedDir / "users"
+	private val groupsDir = Backend.config.web.sharedDir / "groups"
 
 
 	private fun userDir(userId: String): Path =
@@ -46,21 +46,22 @@ object LinkTree {
 	private fun projectPath(userId: String, number: Int, name: String): Path =
 		userProjectLinksDir(userId) / projectFilename(number, name)
 
-	fun projectCreated(project: Project) {
+	suspend fun projectCreated(project: Project) {
 
 		// new projects should always have a project number
 		val projectNumber = project.projectNumber
 			?: throw NoSuchElementException("new project has no project number")
 		val projectPath = projectPath(project.userId, projectNumber, project.name)
 
+		// get the owner for this project
+		val user = Database.users.getUser(project.userId)
+
 		// make the filesystem change
-		synchronized(lock) {
-			projectPath.createDirsIfNeeded()
-		}
+		projectPath.createDirsIfNeededAs(user?.osUsername)
 	}
 
 	// NOTE: currently, projects can't be renamed, so we don't need this just yet
-	fun projectRenamed(oldName: String, project: Project) {
+	suspend fun projectRenamed(oldName: String, project: Project) {
 
 		// projects without numbers won't have links, so there's nothing to rename
 		val projectNumber = project.projectNumber
@@ -68,31 +69,31 @@ object LinkTree {
 		val oldPath = projectPath(project.userId, projectNumber, oldName)
 		val newFilename = projectFilename(projectNumber, project.name)
 
+		// get the owner for this project
+		val user = Database.users.getUser(project.userId)
+
 		// make the filesystem change
-		synchronized(lock) {
-			oldPath.rename(newFilename)
-		}
+		oldPath.renameAs(user?.osUsername, newFilename)
 	}
 
-	fun projectDeleted(project: Project) {
+	suspend fun projectDeleted(project: Project) {
 
 		// projects without numbers won't have links, so there's nothing to delete
 		val projectNumber = project.projectNumber
 			?: return
 		val projectPath = projectPath(project.userId, projectNumber, project.name)
 
+		// get the owner for this project
+		val user = Database.users.getUser(project.userId)
+
 		// make the filesystem change
-		synchronized(lock) {
-			if (projectPath.exists()) {
-				projectPath.deleteDirRecursively()
-			}
-		}
+		projectPath.deleteDirRecursivelyAs(user?.osUsername)
 	}
 
 	private fun jobFilename(number: Int, name: String): String =
 		"B$number-$name".sanitizeFileName()
 
-	fun jobCreated(project: Project, job: Job) {
+	suspend fun jobCreated(project: Project, job: Job) {
 
 		// old project may not have a project number, so we can't create job links either
 		val projectNumber = project.projectNumber
@@ -104,31 +105,34 @@ object LinkTree {
 			?: throw NoSuchElementException("new job has no job number")
 		val jobPath = projectPath / jobFilename(jobNumber, job.name)
 
+		// get the owner for this project
+		val user = Database.users.getUser(project.userId)
+
 		// make the filesystem change
-		synchronized(lock) {
-			job.dir.linkTo(jobPath)
-		}
+		job.dir.symlinkAs(user?.osUsername, jobPath)
 	}
 
-	fun jobRenamed(project: Project, oldName: String, job: Job) {
+	suspend fun jobRenamed(project: Project, oldName: String, job: Job) {
 
 		// old project may not have a project number, so we can't create job links either
 		val projectNumber = project.projectNumber
 			?: return
 		val projectPath = projectPath(project.userId, projectNumber, project.name)
 
+		// old job might not have a job number either
 		val jobNumber = job.jobNumber
 			?: return
 		val oldPath = projectPath / jobFilename(jobNumber, oldName)
 		val newFilename = jobFilename(jobNumber, job.name)
 
+		// get the owner for this project
+		val user = Database.users.getUser(project.userId)
+
 		// make the filesystem change
-		synchronized(lock) {
-			oldPath.rename(newFilename)
-		}
+		oldPath.renameAs(user?.osUsername, newFilename)
 	}
 
-	fun jobDeleted(project: Project, job: Job) {
+	suspend fun jobDeleted(project: Project, job: Job) {
 
 		// old project may not have a project number, so we can't create job links either
 		val projectNumber = project.projectNumber
@@ -140,10 +144,11 @@ object LinkTree {
 			?: return
 		val jobPath = projectPath / jobFilename(jobNumber, job.name)
 
+		// get the owner for this project
+		val user = Database.users.getUser(project.userId)
+
 		// make the filesystem change
-		synchronized(lock) {
-			jobPath.deleteIfExists()
-		}
+		jobPath.deleteAs(user?.osUsername)
 	}
 
 	private fun groupFilename(name: String): String =
@@ -161,10 +166,8 @@ object LinkTree {
 		val newFilename = groupFilename(group.name)
 
 		// make the filesystem change, if needed
-		synchronized(lock) {
-			if (oldPath.exists()) {
-				oldPath.rename(newFilename)
-			}
+		if (oldPath.exists()) {
+			oldPath.rename(newFilename)
 		}
 	}
 
@@ -173,10 +176,8 @@ object LinkTree {
 		val groupPath = groupPath(group.name)
 
 		// make the filesystem change
-		synchronized(lock) {
-			if (groupPath.exists()) {
-				groupPath.deleteDirRecursively()
-			}
+		if (groupPath.exists()) {
+			groupPath.deleteDirRecursively()
 		}
 	}
 
@@ -189,9 +190,7 @@ object LinkTree {
 		val newPath = groupPath(group.name) / sessionFilename
 
 		// make the filesystem change
-		synchronized(lock) {
-			session.dir.linkTo(newPath)
-		}
+		session.dir.symlink(newPath)
 	}
 
 	fun sessionEdited(oldGroup: Group?, oldName: String, session: Session, newGroup: Group) {
@@ -205,13 +204,11 @@ object LinkTree {
 		val newPath = groupPath(newGroup.name) / sessionFilename(sessionNumber, session.newestArgs().name)
 
 		// make the filesystem change
-		synchronized(lock) {
-			if (oldPath != null) {
-				newPath.parent.createDirsIfNeeded()
-				oldPath.moveTo(newPath)
-			} else {
-				session.dir.linkTo(newPath)
-			}
+		if (oldPath != null) {
+			newPath.parent.createDirsIfNeeded()
+			oldPath.moveTo(newPath)
+		} else {
+			session.dir.symlink(newPath)
 		}
 	}
 
@@ -223,8 +220,6 @@ object LinkTree {
 		val path = groupPath(group.name) / sessionFilename(sessionNumber, session.newestArgs().name)
 
 		// make the filesystem change
-		synchronized(lock) {
-			path.deleteIfExists()
-		}
+		path.deleteIfExists()
 	}
 }

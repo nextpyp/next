@@ -12,6 +12,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.nio.file.attribute.PosixFilePermission
+import kotlin.io.path.div
 import kotlin.io.path.getPosixFilePermissions
 import kotlin.io.path.writeBytes
 
@@ -71,6 +72,8 @@ class TestUserProcessor : DescribeSpec({
 			roundtrip(Request.CreateFolder("path"))
 			roundtrip(Request.DeleteFolder("path"))
 			roundtrip(Request.Stat("path"))
+			roundtrip(Request.Rename("foo", "bar"))
+			roundtrip(Request.Symlink("cow", "moo"))
 		}
 
 		it("response") {
@@ -107,6 +110,9 @@ class TestUserProcessor : DescribeSpec({
 			roundtrip(Response.Stat.Symlink(Response.Stat.Symlink.Dir).into())
 			roundtrip(Response.Stat.Symlink(Response.Stat.Symlink.Other).into())
 			roundtrip(Response.Stat.Other.into())
+
+			roundtrip(Response.Rename)
+			roundtrip(Response.Symlink)
 		}
 	}
 
@@ -358,6 +364,64 @@ class TestUserProcessor : DescribeSpec({
 					// stat it
 					val stat = client.stat(file.path)
 					stat.shouldBe(Response.Stat.File(msg.length.toULong()))
+				}
+			}
+		}
+
+		it("rename").config(invocations = testCount) {
+			withUserProcessor(username) { _, client ->
+
+				// NOTE: can't use TempFile here, since the tester user can't move it
+				val src = Paths.get("/tmp/nextpyp-user-processor-rename-test")
+				val dst = Paths.get("/tmp/nextpyp-user-processor-renamed")
+
+				// so just write a file as the user
+				client.writeFile(src).use { writer ->
+					writer.writeAll(byteArrayOf(1, 2, 3))
+				}
+
+				src.exists().shouldBe(true)
+				dst.exists().shouldBe(false)
+
+				client.rename(src, dst)
+
+				src.exists().shouldBe(false)
+				dst.exists().shouldBe(true)
+
+				client.deleteFile(dst)
+			}
+		}
+
+		it("symlink").config(invocations = testCount) {
+			withUserProcessor(username) { _, client ->
+				TempFile().use { file ->
+
+					val link = file.path.parent / "linked"
+
+					suspend fun linkExists(): Boolean {
+
+						// NOTE: the simple existence check doesn't work for some reason
+						//       symlinks and multiple file owners are weird I guess
+						//link.exists().shouldBe(true)
+
+						// so do something fancier
+						return file.path.parent.listFolderFast()
+							?.any { it.type == Filesystem.File.Type.Lnk && it.name == link.fileName.toString() }
+							?: false
+					}
+
+					// just in case a failed test didn't cleanup
+					if (linkExists()) {
+						client.deleteFile(link)
+					}
+
+					linkExists().shouldBe(false)
+
+					client.symlink(file.path, link)
+
+					linkExists().shouldBe(true)
+
+					client.deleteFile(link)
 				}
 			}
 		}

@@ -163,7 +163,7 @@ class Project(
 		LinkTree.projectCreated(this)
 	}
 
-	fun delete(user: User) {
+	suspend fun delete(user: User) {
 
 		// delete all related cluster jobs
 		Cluster.deleteAll(getRuns().flatMap { run ->

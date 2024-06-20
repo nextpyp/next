@@ -4,13 +4,13 @@ import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.linux.Filesystem
 import edu.duke.bartesaghi.micromon.linux.userprocessor.Response.Stat
 import edu.duke.bartesaghi.micromon.services.GlobCount
-import io.kvision.remote.ServiceException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption
 import java.nio.file.attribute.PosixFilePermission
 import java.util.HashSet
+import kotlin.io.path.div
 import kotlin.io.path.outputStream
 import kotlin.io.path.readBytes
 import kotlin.io.path.writeBytes
@@ -199,6 +199,30 @@ suspend fun Path.statAs(username: String?): Stat.Response =
 			stat()
 		}
 	}
+
+
+suspend fun Path.renameAs(username: String?, name: String) {
+	if (username != null) {
+		Backend.userProcessors.get(username)
+			.rename(this, parent / name)
+	} else {
+		slowIOs {
+			rename(name)
+		}
+	}
+}
+
+
+suspend fun Path.symlinkAs(username: String?, link: Path) {
+	if (username != null) {
+		Backend.userProcessors.get(username)
+			.symlink(this, link)
+	} else {
+		slowIOs {
+			symlink(link)
+		}
+	}
+}
 
 
 suspend fun Path.globCountAs(username: String?): GlobCount =

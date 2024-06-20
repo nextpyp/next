@@ -527,6 +527,20 @@ class UserProcessor(
 					.cast<Response.Stat.Response>()
 			}
 
+	suspend fun rename(src: Path, dst: Path) {
+		request(Request.Rename(src.toString(), dst.toString()))
+			.use { responder ->
+				responder.recv().cast<Response.Rename>()
+			}
+	}
+
+	suspend fun symlink(src: Path, dst: Path) {
+		request(Request.Symlink(src.toString(), dst.toString()))
+			.use { responder ->
+				responder.recv().cast<Response.Symlink>()
+			}
+	}
+
 	fun wrap(cmd: Command): Command =
 		cmd.wrap(path.toString(), listOf("run", "/tmp"))
 }

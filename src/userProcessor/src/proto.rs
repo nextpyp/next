@@ -42,6 +42,16 @@ pub enum Request {
 
 	Stat {
 		path: String
+	},
+
+	Rename {
+		src: String,
+		dst: String
+	},
+
+	Symlink {
+		path: String,
+		link: String
 	}
 }
 
@@ -56,6 +66,8 @@ impl Request {
 	const ID_DELETE_FOLDER: u32 = 8;
 	const ID_LIST_FOLDER: u32 = 9;
 	const ID_STAT: u32 = 10;
+	const ID_RENAME: u32 = 11;
+	const ID_SYMLINK: u32 = 12;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -267,6 +279,18 @@ impl RequestEnvelope {
 				out.write_u32::<BigEndian>(Request::ID_STAT)?;
 				out.write_utf8(path)?;
 			}
+
+			Request::Rename { src, dst } => {
+				out.write_u32::<BigEndian>(Request::ID_RENAME)?;
+				out.write_utf8(src)?;
+				out.write_utf8(dst)?;
+			}
+
+			Request::Symlink { path, link } => {
+				out.write_u32::<BigEndian>(Request::ID_SYMLINK)?;
+				out.write_utf8(path)?;
+				out.write_utf8(link)?;
+			}
 		}
 
 		Ok(out)
@@ -350,6 +374,16 @@ impl RequestEnvelope {
 				Request::Stat {
 					path: reader.read_utf8().map_err(|e| (e.into(), Some(request_id)))?
 				}
+			} else if type_id == Request::ID_RENAME {
+				Request::Rename {
+					src: reader.read_utf8().map_err(|e| (e.into(), Some(request_id)))?,
+					dst: reader.read_utf8().map_err(|e| (e.into(), Some(request_id)))?
+				}
+			} else if type_id == Request::ID_SYMLINK {
+				Request::Symlink {
+					path: reader.read_utf8().map_err(|e| (e.into(), Some(request_id)))?,
+					link: reader.read_utf8().map_err(|e| (e.into(), Some(request_id)))?
+				}
 			} else {
 				return Err((anyhow!("Unrecognized request type id: {}", type_id), Some(request_id)));
 			};
@@ -387,7 +421,9 @@ pub enum Response {
 	CreateFolder,
 	DeleteFolder,
 
-	Stat(StatResponse)
+	Stat(StatResponse),
+	Rename,
+	Symlink
 }
 
 impl Response {
@@ -401,6 +437,8 @@ impl Response {
 	const ID_CREATE_FOLDER: u32 = 8;
 	const ID_DELETE_FOLDER: u32 = 9;
 	const ID_STAT: u32 = 10;
+	const ID_RENAME: u32 = 11;
+	const ID_SYMLINK: u32 = 12;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -583,6 +621,14 @@ impl ResponseEnvelope {
 					}
 				}
 			}
+
+			Response::Rename => {
+				out.write_u32::<BigEndian>(Response::ID_RENAME)?;
+			}
+
+			Response::Symlink => {
+				out.write_u32::<BigEndian>(Response::ID_SYMLINK)?;
+			}
 		}
 
 		Ok(out)
@@ -688,6 +734,10 @@ impl ResponseEnvelope {
 						bail!("Unrecognized lstat type id: {}", lstat_type_id);
 					}
 				})
+			} else if type_id == Response::ID_RENAME {
+				Response::Rename
+			} else if type_id == Response::ID_SYMLINK {
+				Response::Symlink
 			} else {
 				bail!("Unrecognized response type id: {}", type_id);
 			};
@@ -1094,6 +1144,16 @@ mod test {
 		assert_roundtrip(Request::Stat {
 			path: "foo".to_string()
 		});
+
+		assert_roundtrip(Request::Rename {
+			src: "foo".to_string(),
+			dst: "bar".to_string()
+		});
+
+		assert_roundtrip(Request::Symlink {
+			path: "foo".to_string(),
+			link: "bar".to_string()
+		});
 	}
 
 
@@ -1155,6 +1215,10 @@ mod test {
 		assert_roundtrip(Response::Stat(StatResponse::Symlink(StatSymlinkResponse::Dir)));
 		assert_roundtrip(Response::Stat(StatResponse::Symlink(StatSymlinkResponse::Other)));
 		assert_roundtrip(Response::Stat(StatResponse::Other));
+
+		assert_roundtrip(Response::Rename);
+
+		assert_roundtrip(Response::Symlink);
 	}
 
 

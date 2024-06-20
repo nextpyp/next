@@ -646,6 +646,76 @@ fn stat() {
 }
 
 
+#[test]
+fn rename() {
+	let _logging = logging::init_test();
+
+	// write a file we can rename
+	fs::create_dir_all(SOCKET_DIR)
+		.ok();
+	let path = PathBuf::from(SOCKET_DIR).join("rename_test");
+	fs::remove_file(&path)
+		.ok();
+	fs::write(&path, "hello".to_string())
+		.unwrap();
+	let renamed_path = PathBuf::from(SOCKET_DIR).join("renamed");
+
+	assert_that!(&path.exists(), eq(true));
+
+	let user_processor = UserProcessor::start();
+	let mut socket = user_processor.connect();
+
+	let response = request(&mut socket, 5, Request::Rename {
+		src: path.to_string_lossy().to_string(),
+		dst: renamed_path.file_name().unwrap().to_string_lossy().to_string()
+	});
+	assert_that!(&response, eq(Response::Rename));
+
+	assert_that!(&path.exists(), eq(false));
+	assert_that!(&renamed_path.exists(), eq(true));
+
+	user_processor.disconnect(socket);
+	user_processor.stop();
+	fs::remove_file(renamed_path)
+		.unwrap();
+}
+
+
+#[test]
+fn create_symlink() {
+	let _logging = logging::init_test();
+
+	// write a file we can rename
+	fs::create_dir_all(SOCKET_DIR)
+		.ok();
+	let path = PathBuf::from(SOCKET_DIR).join("symlink_test");
+	fs::remove_file(&path)
+		.ok();
+	fs::write(&path, "hello".to_string())
+		.unwrap();
+	let link = PathBuf::from(SOCKET_DIR).join("linked");
+
+	let user_processor = UserProcessor::start();
+	let mut socket = user_processor.connect();
+
+	assert_that!(&link.exists(), eq(false));
+
+	let response = request(&mut socket, 5, Request::Symlink {
+		path: path.to_string_lossy().to_string(),
+		link: link.to_string_lossy().to_string()
+	});
+	assert_that!(&response, eq(Response::Symlink));
+
+	assert_that!(&link.exists(), eq(true));
+
+	user_processor.disconnect(socket);
+	user_processor.stop();
+	fs::remove_file(path)
+		.unwrap();
+	fs::remove_file(link)
+		.unwrap();
+}
+
 
 const SOCKET_DIR: &str = "/tmp/nextpyp-user-processor";
 

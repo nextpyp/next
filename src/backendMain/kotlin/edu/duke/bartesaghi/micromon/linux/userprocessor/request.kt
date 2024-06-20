@@ -138,6 +138,18 @@ sealed interface Request {
 			const val ID: UInt = 10u
 		}
 	}
+
+	data class Rename(val src: String, val dst: String) : Request {
+		companion object {
+			const val ID: UInt = 11u
+		}
+	}
+
+	data class Symlink(val path: String, val link: String) : Request {
+		companion object {
+			const val ID: UInt = 12u
+		}
+	}
 }
 
 fun Request.WriteFile.Request.into(): Request =
@@ -229,6 +241,18 @@ class RequestEnvelope(
 				out.writeU32(Request.Stat.ID)
 				out.writeUtf8(request.path)
 			}
+
+			is Request.Rename -> {
+				out.writeU32(Request.Rename.ID)
+				out.writeUtf8(request.src)
+				out.writeUtf8(request.dst)
+			}
+
+			is Request.Symlink -> {
+				out.writeU32(Request.Symlink.ID)
+				out.writeUtf8(request.path)
+				out.writeUtf8(request.link)
+			}
 		}
 
 		return bos.toByteArray()
@@ -303,6 +327,16 @@ class RequestEnvelope(
 
 				Request.Stat.ID -> Request.Stat(
 					path = input.readUtf8()
+				)
+
+				Request.Rename.ID -> Request.Rename(
+					src = input.readUtf8(),
+					dst = input.readUtf8()
+				)
+
+				Request.Symlink.ID -> Request.Symlink(
+					path = input.readUtf8(),
+					link = input.readUtf8()
 				)
 
 				else -> throw NoSuchElementException("unrecognized response type id: $typeId")

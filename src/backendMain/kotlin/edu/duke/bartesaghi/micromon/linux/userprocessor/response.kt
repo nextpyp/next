@@ -157,6 +157,14 @@ sealed interface Response {
 			const val ID: UInt = 5u
 		}
 	}
+
+	object Rename : Response {
+		const val ID: UInt = 11u
+	}
+
+	object Symlink : Response {
+		const val ID: UInt = 12u
+	}
 }
 
 fun Response.ReadFile.Response.into(): Response =
@@ -330,6 +338,14 @@ class ResponseEnvelope(
 					}
 				}
 			}
+
+			is Response.Rename -> {
+				out.writeU32(Response.Rename.ID)
+			}
+
+			is Response.Symlink -> {
+				out.writeU32(Response.Symlink.ID)
+			}
 		}
 
 		return bos.toByteArray()
@@ -416,6 +432,10 @@ class ResponseEnvelope(
 						else -> throw NoSuchElementException("unrecognized lstat type: $lstatTypeId")
 					}
 				})
+
+				Response.Rename.ID -> Response.Rename
+
+				Response.Symlink.ID -> Response.Symlink
 
 				else -> throw NoSuchElementException("unrecognized response type: $responseTypeId")
 			}
