@@ -21,7 +21,7 @@ data class Command(
 			envvars
 		)
 
-	fun toShellSafeString(): String {
+	fun toShellSafeString(includeEnvvars: Boolean = true): String {
 		val buf = StringBuilder()
 
 		// add envvars
@@ -48,6 +48,16 @@ data class Command(
 
 		return buf.toString()
 	}
+
+	fun wrapShell(block: (String) -> String): Command =
+		Command(
+			"/bin/sh",
+			ArrayList<String>().also {
+				it.add("-c")
+				it.add(block(toShellSafeString(includeEnvvars = false)))
+			},
+			envvars
+		)
 }
 
 

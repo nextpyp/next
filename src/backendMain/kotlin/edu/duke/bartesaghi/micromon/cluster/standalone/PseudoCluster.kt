@@ -7,6 +7,7 @@ import edu.duke.bartesaghi.micromon.cluster.Commands
 import edu.duke.bartesaghi.micromon.cluster.slurm.Gres
 import edu.duke.bartesaghi.micromon.linux.Command
 import edu.duke.bartesaghi.micromon.linux.EnvVar
+import edu.duke.bartesaghi.micromon.linux.Posix
 import edu.duke.bartesaghi.micromon.linux.hostprocessor.HostProcessor
 import edu.duke.bartesaghi.micromon.linux.userprocessor.deleteAs
 import edu.duke.bartesaghi.micromon.linux.userprocessor.readStringAs
@@ -218,7 +219,10 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 				started = true
 
 				// make a command to run the shell script
-				var cmd = Command("/bin/sh", scriptPath.toString())
+				// NOTE: redirect to the log file here (and not in the host-processor),
+				//       so the log is written as the correct user
+				var cmd = Command(scriptPath.toString())
+					.wrapShell { "$it > ${Posix.quote(outPath.toString())} 2>&1" }
 
 				// emulate the SLURM environment variables
 				// they're used in a ton of places in pyp
@@ -249,7 +253,7 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 					cmd = Backend.userProcessors.get(username).wrap(cmd)
 				}
 
-				process = Backend.hostProcessor.exec(cmd, outPath = outPath)
+				process = Backend.hostProcessor.exec(cmd)
 			}
 		}
 	}
