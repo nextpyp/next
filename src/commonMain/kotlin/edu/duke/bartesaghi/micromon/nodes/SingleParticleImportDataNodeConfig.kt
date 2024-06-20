@@ -1,5 +1,7 @@
 package edu.duke.bartesaghi.micromon.nodes
 
+import edu.duke.bartesaghi.micromon.nodes.NodeConfig.NodeType
+
 
 object SingleParticleImportDataNodeConfig : NodeConfig {
 
@@ -9,6 +11,7 @@ object SingleParticleImportDataNodeConfig : NodeConfig {
 	override val configId = "spr_import"
 	override val name = "Single Particle (from PYP)"
 	override val hasFiles = true
+	override val type = NodeType.SingleParticleRawData
 
 	val refinement = NodeConfig.Data("refinement", NodeConfig.Data.Type.Refinement)
 

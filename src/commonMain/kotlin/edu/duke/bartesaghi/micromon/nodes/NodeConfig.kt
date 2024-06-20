@@ -24,6 +24,15 @@ interface NodeConfig {
 			/** Raw movies from the microscope, at multiple different tilts */
 			TiltSeries("Tilt-series"),
 
+			/** 3D voxel fields constructed from tilt series */
+			Tomograms("Tomograms"),
+
+			/** Virion picking and segmentation */
+			Segmentation("Segmentation"),
+
+			/** Particles picked from tomograms, micrographs, etc */
+			Particles("Particles"),
+
 			/** A single refinement */
 			Refinement("Particles"),
 
@@ -50,6 +59,11 @@ interface NodeConfig {
 		}
 	}
 
+	enum class NodeType {
+		SingleParticleRawData,
+		TomographyRawData
+	}
+
 	/**
 	 * Should be unique over all nodes
 	 */
@@ -63,6 +77,8 @@ interface NodeConfig {
 	val name: String
 	val enabled: Boolean get() = true
 	val hasFiles: Boolean
+	val type: NodeType? get() = null
+	val obsolete: Boolean get() = false
 	val inputs: List<Data>
 	val outputs: List<Data>
 

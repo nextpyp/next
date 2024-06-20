@@ -136,19 +136,19 @@ object RealTimeService {
 			listener.close()
 		}
 
-		routing.webSocket(RealTimeServices.tomographyPreprocessing) handler@{
+		suspend fun DefaultWebSocketServerSession.tomographyPreprocessingService(eventListeners: TomographyPreprocessingJob.Companion.EventListeners) {
 
 			val user = call.authOrThrow()
 
 			// wait to hear which job the user wants
 			val msg = incoming.receiveMessage<RealTimeC2S.ListenToTomographyPreprocessing>(outgoing)
-				?: return@handler
+				?: return
 
 			// authenticate the user for this job
 			val job = user.authJobOrThrow(ProjectPermission.Read, msg.jobId)
 
 			// route messages to the client
-			val listener = TomographyPreprocessingJob.eventListeners.add(job.idOrThrow)
+			val listener = eventListeners.add(job.idOrThrow)
 			listener.onParams = { values ->
 				outgoing.trySendMessage(RealTimeS2C.UpdatedParameters(
 					imagesScale = job.imagesScale(values),
@@ -166,6 +166,14 @@ object RealTimeService {
 			// wait for the connection to close, then cleanup the listeners
 			incoming.waitForClose(outgoing)
 			listener.close()
+		}
+
+		routing.webSocket(RealTimeServices.tomographyPreprocessing) {
+			tomographyPreprocessingService(TomographyPreprocessingJob.eventListeners)
+		}
+
+		routing.webSocket(RealTimeServices.tomographyPurePreprocessing) {
+			tomographyPreprocessingService(TomographyPurePreprocessingJob.eventListeners)
 		}
 
 		routing.webSocket(RealTimeServices.reconstruction) handler@{

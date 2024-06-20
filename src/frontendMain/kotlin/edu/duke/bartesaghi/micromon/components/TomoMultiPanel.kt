@@ -18,7 +18,7 @@ class TomoMultiPanel(
 	val job: JobData,
 	val tiltSerieses: TiltSeriesesData,
 	val tiltSeries: TiltSeriesData,
-	val pickingControls: ProjectParticleControls
+	val pickingControls: ProjectParticleControls? = null
 ): Div(classes = setOf("tomo-multipanel")) {
 
 	private var currentTiltFramesTab: Double? = null
@@ -115,7 +115,7 @@ class TomoMultiPanel(
 		}
 
 		addTab("Reconstruction") { lazyTab ->
-			lazyTab.elem.add(self.pickingControls)
+			self.pickingControls?.let { lazyTab.elem.add(it) }
 			lazyTab.elem.add(self.recDownloadBadge)
 			lazyTab.elem.add(self.particlesImage)
 			lazyTab.elem.add(TomoSideViewImage(self.job.jobId, self.tiltSeries.id))

@@ -27,6 +27,7 @@ import io.kvision.dropdown.ddLink
 import io.kvision.dropdown.dropDown
 import io.kvision.dropdown.header
 import io.kvision.dropdown.separator
+import io.kvision.form.check.CheckBox
 import io.kvision.form.check.CheckBoxInput
 import io.kvision.html.*
 import io.kvision.modal.Confirm
@@ -490,20 +491,20 @@ class ProjectView(val project: ProjectData) : View {
 				val nodes = NodeConfigs.nodes
 					.filter { it.inputs.isEmpty() }
 
+				// TODO: add toggle to show obsolete nodes?
+
 				// show the changed nodes
 				win.h1 {
 					span("Single Particle:")
 					// show a button for each node
-					for (node in nodes) {
-						if (node.name.contains("Particle")){
-							button(node.name, icon = node.clientInfo.type.iconClass).apply {
-								disabled = !node.enabled
-								onClick {
-									win.hide()
+					for (node in nodes.filter { it.type == NodeConfig.NodeType.SingleParticleRawData }) {
+						button(node.name, icon = node.clientInfo.type.iconClass).apply {
+							disabled = !node.enabled
+							onClick {
+								win.hide()
 
-									// show the node's import form
-									node.clientInfo.showImportForm(viewport, diagram, project, null, ::addSourceNode)
-								}
+								// show the node's import form
+								node.clientInfo.showImportForm(viewport, diagram, project, null, ::addSourceNode)
 							}
 						}
 					}
@@ -513,16 +514,14 @@ class ProjectView(val project: ProjectData) : View {
 				win.h1 {
 					span("Tomography:")
 					// show a button for each node
-					for (node in nodes) {
-						if (node.name.contains("Tomography")){
-							button(node.name, icon = node.clientInfo.type.iconClass).apply {
-								disabled = !node.enabled
-								onClick {
-									win.hide()
+					for (node in nodes.filter { it.type == NodeConfig.NodeType.TomographyRawData }) {
+						button(node.name, icon = node.clientInfo.type.iconClass).apply {
+							disabled = !node.enabled
+							onClick {
+								win.hide()
 
-									// show the node's import form
-									node.clientInfo.showImportForm(viewport, diagram, project, null, ::addSourceNode)
-								}
+								// show the node's import form
+								node.clientInfo.showImportForm(viewport, diagram, project, null, ::addSourceNode)
 							}
 						}
 					}
@@ -703,28 +702,56 @@ class ProjectView(val project: ProjectData) : View {
 
 			win.div(classes = setOf("use-data-popup")) {
 
-				// what nodes can use this port?
-				for ((usingNode, usingInputs) in NodeConfigs.findNodesUsing(data)) {
+				fun Container.showNodes(nodes: List<Pair<NodeConfig,List<NodeConfig.Data>>>) {
+					for ((usingNode, usingInputs) in nodes) {
 
-					// just use the first input
-					val input = usingInputs.first()
+						// just use the first input
+						val input = usingInputs.first()
 
-					div(classes = setOf("entry")) {
+						div(classes = setOf("entry")) {
 
-						button(usingNode.name, icon = usingNode.clientInfo.type.iconClass).apply {
-							disabled = !usingNode.enabled
-							onClick {
-								win.close()
-								showUseDataForm(node, data, input, usingNode)
+							button(usingNode.name, icon = usingNode.clientInfo.type.iconClass).apply {
+								disabled = !usingNode.enabled
+								onClick {
+									win.close()
+									showUseDataForm(node, data, input, usingNode)
+								}
+							}
+
+							// show a short description
+							div(classes = setOf("description")) {
+								content = blocksByConfigId[usingNode.configId]?.description
+									?: "(no description)"
 							}
 						}
-
-						// show a short description
-						div(classes = setOf("description")) {
-							content = blocksByConfigId[usingNode.configId]?.description
-								?: "(no description)"
-						}
 					}
+				}
+
+				// what nodes can use this port?
+				val (obsoleteNodes, currentNodes) = NodeConfigs.findNodesUsing(data)
+					.partition { (config, _) -> config.obsolete }
+
+				div {
+					showNodes(currentNodes)
+				}
+
+				// show the obsolete nodes, if wanted
+				val obsoleteCheck = CheckBox(value = false, label = "Show obsolete blocks")
+				div {
+					add(obsoleteCheck)
+				}
+				val obsoleteSection = div {
+					showNodes(obsoleteNodes)
+				}
+
+				fun updateObsoleteVisibility() {
+					obsoleteSection.visible = obsoleteCheck.value
+				}
+				updateObsoleteVisibility()
+
+				// wire up events
+				obsoleteCheck.onClick {
+					updateObsoleteVisibility()
 				}
 			}
 		}

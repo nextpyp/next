@@ -48,11 +48,6 @@ class SingleParticlePreprocessingJob(
 				doc.getString("list")
 			)
 
-		fun args() =
-			Backend.pypArgs
-				.filter(config.configId, includeHiddenArgs = false, includeHiddenGroups = true)
-				.appendAll(MicromonArgs.slurmLaunch)
-
 		/**
 		 * A mechanism to forward micrograph events to websocket clients listening for real-time updates.
 		 */

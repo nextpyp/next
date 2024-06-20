@@ -7,97 +7,49 @@ import edu.duke.bartesaghi.micromon.linux.userprocessor.deleteDirRecursivelyAs
 import edu.duke.bartesaghi.micromon.linux.userprocessor.writerAs
 import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.mongo.getDocument
-import edu.duke.bartesaghi.micromon.nodes.TomographyPreprocessingNodeConfig
+import edu.duke.bartesaghi.micromon.nodes.TomographyPurePreprocessingNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.*
 import org.bson.Document
 import org.bson.conversions.Bson
-import org.slf4j.LoggerFactory
 import kotlin.io.path.div
 
 
-class TomographyPreprocessingJob(
+class TomographyPurePreprocessingJob(
 	userId: String,
 	projectId: String
 ) : Job(userId, projectId, config), FilteredJob {
 
-	val args = JobArgs<TomographyPreprocessingArgs>()
+	val args = JobArgs<TomographyPurePreprocessingArgs>()
 	var latestTiltSeriesId: String? = null
 
 	var inTiltSeries: CommonJobData.DataId? by InputProp(config.tiltSeries)
 
 	companion object : JobInfo {
 
-		override val config = TomographyPreprocessingNodeConfig
+		override val config = TomographyPurePreprocessingNodeConfig
 		override val dataType = JobInfo.DataType.TiltSeries
 
-		override fun fromDoc(doc: Document) = TomographyPreprocessingJob(
+		override fun fromDoc(doc: Document) = TomographyPurePreprocessingJob(
 			doc.getString("userId"),
 			doc.getString("projectId")
 		).apply {
-			args.finished = doc.getDocument("finishedArgs")?.let { TomographyPreprocessingArgs.fromDoc(it) }
-			args.next = doc.getDocument("nextArgs")?.let { TomographyPreprocessingArgs.fromDoc(it) }
+			args.finished = doc.getDocument("finishedArgs")?.let { TomographyPurePreprocessingArgs.fromDoc(it) }
+			args.next = doc.getDocument("nextArgs")?.let { TomographyPurePreprocessingArgs.fromDoc(it) }
 			latestTiltSeriesId = doc.getString("latestTiltSeriesId")
 			fromDoc(doc)
 		}
 
-		private fun TomographyPreprocessingArgs.toDoc() = Document().also { doc ->
+		private fun TomographyPurePreprocessingArgs.toDoc() = Document().also { doc ->
 			doc["values"] = values
-			doc["tomolist"] = tomolist
 		}
 
-		private fun TomographyPreprocessingArgs.Companion.fromDoc(doc: Document) =
-			TomographyPreprocessingArgs(
-				doc.getString("values"),
-				doc.getString("tomolist")
+		private fun TomographyPurePreprocessingArgs.Companion.fromDoc(doc: Document) =
+			TomographyPurePreprocessingArgs(
+				doc.getString("values")
 			)
 
-		/**
-		 * A mechanism to forward tilt series events to websocket clients listening for real-time updates.
-		 */
-		class EventListeners {
-
-			private val log = LoggerFactory.getLogger("TomographyPreprocessing")
-
-			inner class Listener(val jobId: String) : AutoCloseable {
-
-				var onTiltSeries: (suspend (TiltSeries) -> Unit)? = null
-				var onParams: (suspend (ArgValues) -> Unit)? = null
-
-				override fun close() {
-					listenersByJob[jobId]?.remove(this)
-				}
-			}
-
-			private val listenersByJob = HashMap<String,MutableList<Listener>>()
-
-			fun add(jobId: String) =
-				Listener(jobId).also {
-					listenersByJob.getOrPut(jobId) { ArrayList() }.add(it)
-				}
-
-			suspend fun sendTiltSeries(jobId: String, tiltSeriesId: String) {
-				val tiltSeries = TiltSeries.get(jobId, tiltSeriesId) ?: return
-				listenersByJob[jobId]?.forEach { listener ->
-					try {
-						listener.onTiltSeries?.invoke(tiltSeries)
-					} catch (ex: Throwable) {
-						log.error("tilt series listener failed", ex)
-					}
-				}
-			}
-
-			suspend fun sendParams(jobId: String, values: ArgValues) {
-				listenersByJob[jobId]?.forEach { listener ->
-					try {
-						listener.onParams?.invoke(values)
-					} catch (ex: Throwable) {
-						log.error("params listener failed", ex)
-					}
-				}
-			}
-		}
-		val eventListeners = EventListeners()
+		val eventListeners = TomographyPreprocessingJob.Companion.EventListeners()
 	}
 
 	override fun createDoc(doc: Document) {
@@ -117,12 +69,11 @@ class TomographyPreprocessingJob(
 	override fun isChanged() = args.hasNext()
 
 	override suspend fun data() =
-		TomographyPreprocessingData(
+		TomographyPurePreprocessingData(
 			commonData(),
 			args,
 			diagramImageURL(),
-			Database.tiltSeries.count(idOrThrow),
-			Database.particles.countAllParticles(idOrThrow, ParticlesList.PypAutoParticles)
+			Database.tiltSeries.count(idOrThrow)
 		)
 
 	override suspend fun launch(runningUser: User, runId: Int) {
@@ -134,10 +85,6 @@ class TomographyPreprocessingJob(
 		val prevJob = inTiltSeries?.resolveJob<Job>() ?: throw IllegalStateException("no tilt series input configured")
 
 		val newestArgs = args.newestOrThrow().args
-
-		// write out particles, if needed
-		val argValues = newestArgs.values.toArgValues(Backend.pypArgs)
-		ParticlesJobs.writeTomography(runningUser, idOrThrow, dir, argValues, newestArgs.tomolist)
 
 		// write out the tilt exclusions, if needed
 		run {
@@ -208,8 +155,6 @@ class TomographyPreprocessingJob(
 		Database.tiltSeriesAvgRot.deleteAll(idOrThrow)
 		Database.tiltSeriesDriftMetadata.deleteAll(idOrThrow)
 		Database.jobPreprocessingFilters.deleteAll(idOrThrow)
-		Database.particleLists.deleteAll(idOrThrow)
-		Database.particles.deleteAllParticles(idOrThrow)
 		Database.tiltExclusions.delete(idOrThrow)
 	}
 

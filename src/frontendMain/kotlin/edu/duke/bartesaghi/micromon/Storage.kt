@@ -110,6 +110,7 @@ object Storage {
 	var tomographyImportDataTabIndex by IntStorageItem("tomographyImportDataIndex")
 	var integratedRefinementTabIndex by IntStorageItem("integratedRefinementTabIndex")
 	var tomographyPreprocessingTabIndex by IntStorageItem("tomographyPreprocessingTabIndex")
+	var tomographyPurePreprocessingTabIndex by IntStorageItem("tomographyPurePreprocessingTabIndex")
 	var tomographyPreprocessingMultiPanelTabIndex by IntStorageItem("tomographyPreprocessingMultiPanelTabIndex")
 	var threeJsDoubleViews by BoolStorageItem("threeJsDoubleViews")
 	var showParticles by BoolStorageItem("showParticles")

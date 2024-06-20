@@ -1,5 +1,7 @@
 package edu.duke.bartesaghi.micromon.nodes
 
+import edu.duke.bartesaghi.micromon.nodes.NodeConfig.NodeType
+
 
 object SingleParticleRawDataNodeConfig : NodeConfig {
 
@@ -9,6 +11,7 @@ object SingleParticleRawDataNodeConfig : NodeConfig {
 	override val configId = "spr_import_raw"
 	override val name = "Single Particle (from Raw Data)"
 	override val hasFiles = true
+	override val type = NodeType.SingleParticleRawData
 
 	val movies = NodeConfig.Data("movies", NodeConfig.Data.Type.Movies)
 

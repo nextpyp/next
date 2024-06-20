@@ -24,7 +24,7 @@ import kotlin.reflect.KMutableProperty0
 class TomoParticlesImage(
 	val tiltSerieses: TiltSeriesesData,
 	val tiltSeries: TiltSeriesData,
-	val particleControls: ParticleControls,
+	val particleControls: ParticleControls?,
 	val editable: Boolean,
 	val spriteUrl: String,
 	val ownerType: OwnerType,
@@ -38,7 +38,7 @@ class TomoParticlesImage(
 			job: JobData,
 			tiltSerieses: TiltSeriesesData,
 			tiltSeries: TiltSeriesData,
-			particleControls: ProjectParticleControls
+			particleControls: ProjectParticleControls? = null
 		) =
 			TomoParticlesImage(
 				tiltSerieses,
@@ -144,7 +144,7 @@ class TomoParticlesImage(
     init {
 
 		// listen to events from the picking controls
-		particleControls.onListChange = {
+		particleControls?.onListChange = {
 			AppScope.launch {
 
 				loadParticlesAsync()
@@ -255,7 +255,7 @@ class TomoParticlesImage(
 		if (virusMode != null) {
 
 			// in virus mode, the picked particles are virions
-			val virionsInfo = particleControls.list
+			val virionsInfo = particleControls?.list
 				?.let { particlesList ->
 					ParticlesInfo(
 						list = particlesList,
@@ -287,7 +287,7 @@ class TomoParticlesImage(
 		} else {
 
 			// use the picked particles, if any
-			val particlesInfo = particleControls.list
+			val particlesInfo = particleControls?.list
 				?.let { particlesList ->
 					ParticlesInfo(
 						list = particlesList,
@@ -431,7 +431,7 @@ class TomoParticlesImage(
 			.firstOrNull { it.editable }
 			?: return
 
-		if (particleControls.list?.source != ParticlesSource.User) {
+		if (particleControls?.list?.source != ParticlesSource.User) {
 			return
 		}
 
@@ -482,7 +482,7 @@ class TomoParticlesImage(
 			.firstOrNull { it.editable }
 			?: return
 
-		if (particleControls.list?.source != ParticlesSource.User) {
+		if (particleControls?.list?.source != ParticlesSource.User) {
 			return
 		}
 

@@ -45,6 +45,7 @@ object RealTimeServices {
 
 	val singleParticlePreprocessing by RealTimeService()
 	val tomographyPreprocessing by RealTimeService()
+	val tomographyPurePreprocessing by RealTimeService()
 	val reconstruction by RealTimeService()
 	val streamLog by RealTimeService()
 

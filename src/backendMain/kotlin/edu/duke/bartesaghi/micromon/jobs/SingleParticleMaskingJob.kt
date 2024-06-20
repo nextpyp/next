@@ -47,11 +47,6 @@ class SingleParticleMaskingJob(
 			SingleParticleMaskingArgs(
 				doc.getString("values")
 			)
-
-		fun args() =
-			Backend.pypArgs
-				.filter(config.configId, includeHiddenArgs = false, includeHiddenGroups = true)
-				.appendAll(MicromonArgs.slurmLaunch)
 	}
 
 	override fun createDoc(doc: Document) {
