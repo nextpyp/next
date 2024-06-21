@@ -672,12 +672,15 @@ async fn dispatch_delete_file(socket: Rc<RefCell<OwnedWriteHalf>>, request_id: u
 
 	debug!(path, "Request");
 
-	let Some(()) = fs::remove_file(&path)
-		.or_respond_error(&socket, request_id, |e|
-			format!("Failed to delete file: {}\n\tpath: {}", e, &path)
-		)
-		.await
-		else { return };
+	let path_buf = PathBuf::from(&path);
+	if path_buf.exists() {
+		let Some(()) = fs::remove_file(&path)
+			.or_respond_error(&socket, request_id, |e|
+				format!("Failed to delete file: {}\n\tpath: {}", e, &path)
+			)
+			.await
+			else { return };
+	}
 
 	write_response(&socket, request_id, Response::DeleteFile)
 		.await
