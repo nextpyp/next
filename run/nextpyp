@@ -190,7 +190,7 @@ setup()
     if [ -x "/usr/bin/nextpyp-host-processor" ]; then
       hpexec="/usr/bin/nextpyp-host-processor"
     else
-      hpexec="$installdir/host-processor"
+      hpexec="$installdir/nextpyp-host-processor"
     fi
     hpoptions=()
   fi
