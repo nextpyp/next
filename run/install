@@ -222,8 +222,9 @@ fi
 
 
 # save the installation folder in the config so we can find it again later
-$usdo ln -s "$here" "$home/.config/nextpyp/installdir"
-
+if [ ! -L "$home/.config/nextpyp/installdir" ]; then
+  $usdo ln -s "$here" "$home/.config/nextpyp/installdir"
+fi
 
 # generate the initial configuration
 configPath="$here/config.toml"
