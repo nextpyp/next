@@ -576,23 +576,27 @@ class ProjectView(val project: ProjectData) : View {
 
 				// show the workflows
 				win.div(classes = setOf("workflows")) {
-					for (workflow in workflows) {
+					if (workflows.isNotEmpty()) {
+						for (workflow in workflows) {
 
-						val importButton = Button("Import")
-							.onClick {
-								win.hide()
-								WorkflowImportDialog(workflow).show(::addWorkflow)
-							}
+							val importButton = Button("Import")
+								.onClick {
+									win.hide()
+									WorkflowImportDialog(workflow).show(::addWorkflow)
+								}
 
-						div(classes = setOf("workflow")) {
-							div(classes = setOf("header")) {
-								h1(workflow.name)
-								add(importButton)
-							}
-							div(classes = setOf("description")) {
-								content = workflow.description
+							div(classes = setOf("workflow")) {
+								div(classes = setOf("header")) {
+									h1(workflow.name)
+									add(importButton)
+								}
+								div(classes = setOf("description")) {
+									content = workflow.description
+								}
 							}
 						}
+					} else {
+						div("No workflows available", classes = setOf("empty", "spaced"))
 					}
 				}
 			}
