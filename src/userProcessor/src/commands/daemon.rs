@@ -672,8 +672,10 @@ async fn dispatch_delete_file(socket: Rc<RefCell<OwnedWriteHalf>>, request_id: u
 
 	debug!(path, "Request");
 
-	let path_buf = PathBuf::from(&path);
-	if path_buf.exists() {
+	// NOTE: Don't just check for exists() here, since that returns false for a broken symlink,
+	//       but we may still want to delete the symlink.
+	//       Instead, use an existence check that won't follow symlinks, like symlink_metadata().
+	if fs::symlink_metadata(&path).is_ok() {
 		let Some(()) = fs::remove_file(&path)
 			.or_respond_error(&socket, request_id, |e|
 				format!("Failed to delete file: {}\n\tpath: {}", e, &path)
