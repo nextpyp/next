@@ -120,6 +120,26 @@ else
 fi
 
 
+if [ "$oscaps" = "root" ]; then
+  # in root mode, save the installation folder somewhere canonical, so we can find it again later
+  canondir="/opt/nextpyp"
+  if [ "$here" = "$canondir" ]; then
+    # as luck would have it, we're already installing into the canonical location
+    true
+  elif [ -L "$canondir" ]; then
+    # already a symbolic link here, overwrite it
+    ln -sf "$here" "$canondir"
+  elif [ -e "$canondir" ]; then
+    # something else installed here, panic!
+    echo "Failed to create installdir symlink at $canondir, something else already exists there"
+    exit 1
+  else
+    # nothing in canondir yet, create the link
+    ln -s "$here" "$canondir"
+  fi
+fi
+
+
 # configure downloads
 www="https://nextpyp.app/files/pyp/$version"
 wgetopts="-nv"
@@ -203,28 +223,12 @@ mkdirfs "$sharedDir/sessions" # TODO: how should user-switching work for session
 mkdirfs "$sharedDir/groups"
 
 
-# create the home configuration folder, if needed
+# create the home configuration folder, if needed (apptainer needs it)
 if [ "$oscaps" = "root" ]; then
-
   mkdirswitch "$home" u+rwx,go+rx,go-w
   mkdirswitch "$home/.config"
-
-  # make a config folder we can use too
-  configdir="$home/.config/nextpyp"
-  mkdirswitch "$configdir"
-
-else
-
-  # make a config folder we can use too
-  configdir="$home/.config/nextpyp"
-  mkdirfs "$configdir"
 fi
 
-
-# save the installation folder in the config so we can find it again later
-if [ ! -L "$home/.config/nextpyp/installdir" ]; then
-  $usdo ln -s "$here" "$home/.config/nextpyp/installdir"
-fi
 
 # generate the initial configuration
 configPath="$here/config.toml"
@@ -306,8 +310,8 @@ EOF
 
 else
   echo "WARNING: Since you did not run the installer as root, nextPYP will not start automatically"
-  echo "To start manually, run: PYP_CONFIG=\"$configPath\" \"$here/nextpyp\" start"
-  echo "To stop nextPYP, run: PYP_CONFIG=\"$configPath\" \"$here/nextpyp\" stop"
+  echo "To start manually, run: \"$here/nextpyp\" start"
+  echo "To stop nextPYP, run: \"$here/nextpyp\" stop"
 fi
 
 echo "Finished installing nextPYP $version"

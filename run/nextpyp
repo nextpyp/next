@@ -6,36 +6,8 @@
 set -e
 
 
-# look for the config file in the usual places
-# first try the environment
-configpath=$(realpath "$PYP_CONFIG" || echo "")
-defaultpath=~/.pyp/config.toml
-if [ -z "$configpath" ] || [ ! -f "$configpath" ] ; then
-  # then look in the default location
-  configpath=$defaultpath
-fi
-if [ -z "$configpath" ] || [ ! -f "$configpath" ] ; then
-  echo "no configuration file found!"
-  echo "checked PYP_CONFIG=$PYP_CONFIG"
-  echo "and $defaultpath"
-  exit 1
-fi
-echo "Using configuration at $configpath"
-
-# set the config file path (on the host) to another environment variable so processes inside the container can see it
-# useful for spawning new containers from inside the container
-export PYP_CONFIG_HOST=$configpath
-
-
-# this shell script doesn't know how to parse the TOML config file
-# but the Kotlin code inside the container does
-# so use the container to parse the config file and check for errors
-# but send the directories back here to the shell script for validation
-# since the conainer can't check external directories without binds, which we haven't done yet
-
-# create binds to map the config file into the container
-# must bind the config file to a canonical path so it doesn't conflict with any of the bind folders
-binds=(--bind "$configpath":/var/micromon/config.toml)
+# init the binds global var as initially empty
+binds=()
 
 addbind() #(host path, container path)
 {
@@ -69,6 +41,7 @@ binddevfile() #(host path, container path)
     exit 1
   fi
 }
+
 
 setupdev()
 {
@@ -117,41 +90,69 @@ setupdev()
 }
 
 
-find_install() #(home)
-{
-  # look for the install dir using the config link
-  configlink="$1/.config/nextpyp/installdir"
-  if [ -L "$configlink" ] ; then
-    installdir=$(readlink "$configlink")
-    echo "Found installation folder: $installdir"
-  else
-    echo "Failed to find installation folder: missing configuration symlink: $configlink"
-    exit 1
-  fi
-}
-
-
-find_install_root()
-{
-  # we're root, so we need to find the service account
-  username=$PYP_USER
-  if [ -z "$username" ]; then
-    echo "Set PYP_USER to the service account name."
-    exit
-  fi
-
-  find_install "$(getent passwd "$username" | cut -d: -f6)"
-}
-
-
 setup()
 {
+  # find the installation folder, if needed
+  if [ -z "$installdir" ]; then
+    # first, look for it using the symlink in a canonical location
+    canondir="/opt/nextpyp"
+    scriptdir="$(dirname "$(realpath "$0")")"
+    if [ -L "$canondir" ]; then
+      # canonical location is a link: follow it
+      installdir="$(readlink "$canondir")"
+      echo "Found installation folder from canonical link: $installdir"
+    elif [ -d "$canondir" ]; then
+      # canonical location is a real folder: just use that
+      installdir="$canondir"
+      echo "Found installation folder in canonical location: $installdir"
+    elif [ -d "$scriptdir" ] && [ "$scriptdir" != "/usr/bin" ]; then
+      # canonical location not found: use the folder containing this script
+      installdir="$scriptdir"
+      echo "Found installation folder using script location: $installdir"
+    else
+      echo "Failed to find installation folder, checked:"
+      echo " * $canondir"
+      echo " * $scriptdir"
+      exit 1
+    fi
+  fi
+
+  # look for the config file in the usual places
+  if [ -n "$PYP_CONFIG" ]; then
+    # environmental override: use that regardless of anything else
+    configpath=$(realpath "$PYP_CONFIG" || echo "")
+    if [ -f "$configpath" ]; then
+      echo "Using configuration from environment: $configpath"
+    else
+      echo "Config file not found at PYP_CONFIG=$PYP_CONFIG"
+      exit 1
+    fi
+  else
+    # otherwise, use the config in the install folder
+    configpath="$installdir/config.toml"
+    if [ -f "$configpath" ]; then
+      echo "Using configuration from install folder: $configpath"
+    else
+      echo "Config file not found at: $configpath"
+      exit 1
+    fi
+  fi
+
   # get the website container
   container="$installdir/nextPYP.sif"
   if [ ! -f "$container" ] ; then
     echo "Website container not found: $container"
     exit 1
   fi
+
+  # this shell script doesn't know how to parse the TOML config file
+  # but the Kotlin code inside the container does
+  # so use the container to parse the config file and check for errors
+  # but send the directories back here to the shell script for validation
+  # since the conainer can't check external directories without binds, which we haven't done yet
+
+  # bind the config file to a canonical path so it doesn't conflict with any of the bind folders
+  addbind "$configpath" "/var/micromon/config.toml"
 
   # build the command to run the CLI
   cli=(\
@@ -225,9 +226,6 @@ case "$1" in
     # handle dev arguments, if any
     setupdev "$2" "$3" "$4"
 
-    if [ -z "$installdir" ] ; then
-      find_install "$HOME"
-    fi
     setup
 
     # the shared folder needs to have other-exec permissions all the way up to /
@@ -298,6 +296,11 @@ case "$1" in
     export NEXTPYP_HOSTPROCESSOR_PID
     export NEXTPYP_LOGS
 
+    # set the config file path (on the host) to another environment variable so processes inside the container can see it
+    # useful for spawning new containers from inside the container
+    PYP_CONFIG_HOST=$configpath
+    export PYP_CONFIG_HOST
+
     # set general args to apptainer
     #printf "\t%s\n" "${binds[@]}" # DEBUG
     apptainerargs=("${binds[@]}" --writable-tmpfs --no-home)
@@ -359,9 +362,6 @@ case "$1" in
     # handle dev arguments, if any
     setupdev "$2" "$3" "$4"
 
-    if [ -z "$installdir" ] ; then
-      find_install "$HOME"
-    fi
     setup
 
     # ok to fail here, keep going so we can cleanup
@@ -406,7 +406,6 @@ case "$1" in
       exit 1
     fi
 
-    find_install_root
     setup
     usersetup "$2"
 
@@ -433,7 +432,6 @@ case "$1" in
       exit 1
     fi
 
-    find_install_root
     setup
     usersetup "$2"
 

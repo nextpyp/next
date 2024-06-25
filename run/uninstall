@@ -103,8 +103,14 @@ $fsdo rm "$installdir/uninstall" 2> /dev/null
 $fsdo rm "$installdir/install-rprox" 2> /dev/null
 
 
-# delete the configs
-$usdo rm -rf "$home/.config/nextpyp"
+if [ "$oscaps" = "root" ]; then
+
+  # delete the canonical link
+  canondir=/opt/nextpyp
+  if [ -L "$canondir" ]; then
+    rm "$canondir"
+  fi
+fi
 
 
 echo "Finished uninstalling nextPYP"
