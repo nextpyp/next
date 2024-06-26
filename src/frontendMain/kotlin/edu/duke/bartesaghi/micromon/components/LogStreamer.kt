@@ -61,6 +61,7 @@ class LogStreamer(
 		}
 	}
 
+	var onEnd: (() -> Unit)? = null
 	var onPin: (() -> Unit)? = null
 
 	private var lastScrollTop: Double? = null
@@ -231,6 +232,7 @@ class LogStreamer(
 
 	private fun end() {
 		autoScroll.enabled = false
+		onEnd?.invoke()
 	}
 
 	val connector = WebsocketConnector(RealTimeServices.streamLog) { signaler, input, output ->

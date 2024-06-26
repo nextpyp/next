@@ -10,7 +10,6 @@ import io.kvision.form.select.SelectInput
 import io.kvision.form.spinner.SpinnerInput
 import io.kvision.html.*
 import io.kvision.modal.Modal
-import io.kvision.panel.TabPanel
 
 
 class ClusterJobLogViewer(
@@ -30,20 +29,43 @@ class ClusterJobLogViewer(
 	)
 
 	private val debugElem = Div(classes = setOf("debug-info"))
-	private val tabs = TabPanel(classes = setOf("tabs"))
+	private val tabs = LazyTabPanel(classes = setOf("tabs"))
 	private val streamTab = Div(classes = setOf("stream"))
 	private val logsTab = Div(classes = setOf("logs"))
 
-	private var logStreamer: LogStreamer? = null
+	private val logStreamer = LogStreamer(RealTimeC2S.ListenToJobStreamLog(clusterJobId), true)
+		.apply {
+			onEnd = {
+				// clear the existing data so the next tab load has to refresh it
+				clusterJobLog = null
+			}
+			onPin = ::pinStream
+			streamTab.add(this)
+		}
+
+	private var clusterJobLog: ClusterJobLog? = null
 	private var pinned = false
 
 	init {
 
 		// layout the UI
 		win.add(debugElem)
-		tabs.addTab("Stream", streamTab)
-		tabs.addTab("Logs", logsTab)
+		tabs.addTab("Stream") { tab ->
+			tab.elem.add(streamTab)
+		}
+		tabs.addTab("Logs") { tab ->
+			tab.elem.add(logsTab)
+
+			AppScope.launch {
+				// load new data, if needed
+				if (clusterJobLog == null) {
+					clusterJobLog = load()
+				}
+				clusterJobLog?.let { updateLogs(it) }
+			}
+		}
 		win.add(tabs)
+		tabs.activateDefaultTab()
 
 		// wire up events
 		win.onEvent {
@@ -59,88 +81,91 @@ class ClusterJobLogViewer(
 		win.show()
 
 		AppScope.launch {
-
-			// load initial info from the server
-			val loading = win.loading("Loading logs ...")
-			val clusterJobLog = try {
-				Services.projects.clusterJobLog(clusterJobId)
-			} catch (t: Throwable) {
-				win.errorMessage(t)
-				return@launch
-			} finally {
-				win.remove(loading)
-			}
-
-			// show the debug commands
-			debugElem.disclosure(
-				label = {
-					span("Launch Info")
-				},
-				disclosed = d@{
-					if (clusterJobLog.submitFailure != null) {
-
-						h2("Success:")
-						div(classes = setOf("section")) {
-							content = "No"
-						}
-						h2("Reason:")
-						div(classes = setOf("section")) {
-							content = clusterJobLog.submitFailure
-						}
-
-					} else if (clusterJobLog.launchResult != null) {
-
-						h2("Success:")
-						div(classes = setOf("section")) {
-							content = if (clusterJobLog.launchResult.success) {
-								"Yes"
-							} else {
-								"No"
-							}
-						}
-						h2("Command")
-						div(classes = setOf("commands", "section")) {
-							content = clusterJobLog.launchResult.command ?: "(no launch command)"
-						}
-						h2("Console Output")
-						div(classes = setOf("commands", "section")) {
-							content = clusterJobLog.launchResult.out
-						}
-
-					} else {
-
-						span("(none)")
-					}
-				}
-			).apply {
-				// automatically show the launch info if there was a launch problem
-				open = clusterJobLog.submitFailure != null
-					|| clusterJobLog.launchResult?.success == false
-			}
-			debugElem.disclosure(
-				label = {
-					span("Commands")
-				},
-				disclosed = {
-					div(classes = setOf("commands")) {
-						content = clusterJobLog.representativeCommand
-					}
-				}
-			).apply {
-				open = false
-			}
-
-			logStreamer = LogStreamer(RealTimeC2S.ListenToJobStreamLog(clusterJobId), true)
-				.also {
-					it.onPin = ::pinStream
-					streamTab.add(it)
-				}
-
-			showLogs(clusterJobLog)
+			clusterJobLog = load()
+			clusterJobLog?.let { updateDebug(it) }
 		}
 	}
 
-	private fun showLogs(clusterJobLog: ClusterJobLog) {
+	private suspend fun load(): ClusterJobLog? {
+
+		// load initial info from the server
+		val loading = win.loading("Loading logs ...")
+		try {
+			return Services.projects.clusterJobLog(clusterJobId)
+		} catch (t: Throwable) {
+			win.errorMessage(t)
+			return null
+		} finally {
+			win.remove(loading)
+		}
+	}
+
+	private fun updateDebug(clusterJobLog: ClusterJobLog) {
+
+		debugElem.removeAll()
+
+		// show the debug commands
+		debugElem.disclosure(
+			label = {
+				span("Launch Info")
+			},
+			disclosed = d@{
+				if (clusterJobLog.submitFailure != null) {
+
+					h2("Success:")
+					div(classes = setOf("section")) {
+						content = "No"
+					}
+					h2("Reason:")
+					div(classes = setOf("section")) {
+						content = clusterJobLog.submitFailure
+					}
+
+				} else if (clusterJobLog.launchResult != null) {
+
+					h2("Success:")
+					div(classes = setOf("section")) {
+						content = if (clusterJobLog.launchResult.success) {
+							"Yes"
+						} else {
+							"No"
+						}
+					}
+					h2("Command")
+					div(classes = setOf("commands", "section")) {
+						content = clusterJobLog.launchResult.command ?: "(no launch command)"
+					}
+					h2("Console Output")
+					div(classes = setOf("commands", "section")) {
+						content = clusterJobLog.launchResult.out
+					}
+
+				} else {
+
+					span("(none)")
+				}
+			}
+		).apply {
+			// automatically show the launch info if there was a launch problem
+			open = clusterJobLog.submitFailure != null
+				|| clusterJobLog.launchResult?.success == false
+		}
+
+		debugElem.disclosure(
+			label = {
+				span("Commands")
+			},
+			disclosed = {
+				div(classes = setOf("commands")) {
+					content = clusterJobLog.representativeCommand
+				}
+			}
+		).apply {
+			open = false
+		}
+	}
+
+	private fun updateLogs(clusterJobLog: ClusterJobLog) {
 
 		// make the log section
 		val logElem = Div(classes = setOf("log"))
@@ -275,15 +300,10 @@ class ClusterJobLogViewer(
 	}
 
 	private fun close() {
-		logStreamer?.close()
+		logStreamer.close()
 	}
 
 	private fun pinStream() {
-
-		val logStreamer = logStreamer ?: run {
-			console.warn("No log streamer, can't move it!")
-			return
-		}
 
 		pinned = true
 		win.hide()
@@ -330,11 +350,6 @@ class ClusterJobLogViewer(
 	}
 
 	private fun unpinStream() {
-
-		val logStreamer = logStreamer ?: run {
-			console.warn("No log streamer, can't move it!")
-			return
-		}
 
 		pinned = false
 
