@@ -18,7 +18,7 @@ echo "local directory is $NEXTPYP_LOCAL"
 escapedpath=$(echo "$NEXTPYP_LOCAL" | sed "s/\\//\\\\\\//g")
 sed "s/\$NEXTPYP_LOCAL/$escapedpath/g" /etc/mongod.conf.template \
   | sed "s/\$NEXTPYP_DATABASE_MEMGB/$NEXTPYP_DATABASE_MEMGB/g" \
-  > /tmp/mongod.conf
+  > "$NEXTPYP_LOCAL/db/mongod.conf"
 
 # NOTE: if mongodb gets aborted without properly shutting down, it will leave lock files behind and refuse to restart:
 # local/db/mongod.lock
