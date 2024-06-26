@@ -39,13 +39,13 @@ interface Cluster {
 	 */
 	fun validateDependency(depId: String)
 
-	suspend fun launch(clusterJob: ClusterJob, username: String?, depIds: List<String>, scriptPath: Path): ClusterJob.LaunchResult?
+	suspend fun launch(clusterJob: ClusterJob, depIds: List<String>, scriptPath: Path): ClusterJob.LaunchResult?
 
 	suspend fun waitingReason(launchResult: ClusterJob.LaunchResult): String?
 
 	suspend fun cancel(clusterJobs: List<ClusterJob>)
 
-	suspend fun jobResult(clusterJob: ClusterJob, username: String?, arrayIndex: Int?): ClusterJob.Result
+	suspend fun jobResult(clusterJob: ClusterJob, arrayIndex: Int?): ClusterJob.Result
 
 
 	companion object {
@@ -149,10 +149,6 @@ interface Cluster {
 
 		private suspend fun submitFragile(clusterJob: ClusterJob): String? {
 
-			// get the submission user, if any
-			val user = clusterJob.userId
-				?.let { Database.users.getUser(it) }
-
 			// create the cluster job id
 			if (clusterJob.id != null) {
 				throw IllegalStateException("job already submitted")
@@ -217,8 +213,8 @@ interface Cluster {
 
 			// write the script files
 			val scriptPath = clusterJob.batchPath()
-			val commands = clusterJob.commands.render(clusterJob, user?.osUsername, instance.commandsConfig)
-			scriptPath.writeStringAs(user?.osUsername, """
+			val commands = clusterJob.commands.render(clusterJob, instance.commandsConfig)
+			scriptPath.writeStringAs(clusterJob.osUsername, """
 				|#!/bin/bash
 				|
 				|export NEXTPYP_WEBHOST="${Backend.config.web.webhost}"
@@ -237,12 +233,12 @@ interface Cluster {
 				|
 				|${commands.joinToString("\n")}
 			""".trimMargin())
-			scriptPath.editPermissionsAs(user?.osUsername) {
+			scriptPath.editPermissionsAs(clusterJob.osUsername) {
 				add(PosixFilePermission.OWNER_EXECUTE)
 			}
 
 			// try to launch the job on the cluster
-			val launchResult = instance.launch(clusterJob, user?.osUsername, depIds, scriptPath)
+			val launchResult = instance.launch(clusterJob, depIds, scriptPath)
 				?: return null
 
 			// launch succeeded, update the database with the launch result
@@ -304,14 +300,10 @@ interface Cluster {
 			// DEBUG
 			//println("Cluster.ended() ${clusterJob.webName}(${clusterJob.id}), $arrayId, exitCode=$exitCode")
 
-			// get the submission user, if any
-			val user = clusterJob.userId
-				?.let { Database.users.getUser(it) }
-
 			// read the job output and cleanup
 			// NOTE: this involves potentially slow operations (like SSH)
 			//       so do it before updating the database state
-			val result = instance.jobResult(clusterJob, user?.osUsername, arrayId)
+			val result = instance.jobResult(clusterJob, arrayId)
 				// then apply any failure signals to the cluster job result
 				.applyExitCode(exitCode)
 				.applyFailures(clusterJob, arrayId)
@@ -385,9 +377,9 @@ interface Cluster {
 
 				// cleanup remote files, eventually
 				slowIOs {
-					clusterJob.batchPath().deleteAs(user?.osUsername)
+					clusterJob.batchPath().deleteAs(clusterJob.osUsername)
 					for (file in clusterJob.commands.filesToDelete(clusterJob)) {
-						file.deleteAs(user?.osUsername)
+						file.deleteAs(clusterJob.osUsername)
 					}
 				}
 

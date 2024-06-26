@@ -134,7 +134,7 @@ actual class TomographySessionService : ITomographySessionService, Service {
 		// create the session
 		val session = TomographySession(user.id)
 		session.args.next = args
-		session.create(user)
+		session.create()
 
 		return session.data(user)
 	}
@@ -218,7 +218,7 @@ actual class TomographySessionService : ITomographySessionService, Service {
 		val newSession = TomographySession(user.id)
 		newSession.args.next = session.args.newestOrThrow().args
 			.copy(name = args.name)
-		newSession.create(user)
+		newSession.create()
 
 		return newSession.data(user)
 	}

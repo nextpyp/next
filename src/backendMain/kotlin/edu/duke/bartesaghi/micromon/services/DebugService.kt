@@ -251,7 +251,7 @@ object DebugService {
 
 					// make a new pyp job
 					ClusterJob(
-						userId = null,
+						osUsername = null,
 						ownerId = testOwnerId,
 						webName = "PYP array job stress test",
 						//containerId = Container.Pyp.id,

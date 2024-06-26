@@ -48,7 +48,7 @@ sealed interface Commands {
 		val reserved: String = ""
 	)
 
-	suspend fun render(job: ClusterJob, username: String?, config: Config): List<String>
+	suspend fun render(job: ClusterJob, config: Config): List<String>
 
 	fun filesToDelete(job: ClusterJob): List<Path> =
 		listOf(batchPath(job))
@@ -123,11 +123,11 @@ class CommandsScript(
 	override fun representativeCommand(): String =
 		commands.firstOrNull() ?: ""
 
-	override suspend fun render(job: ClusterJob, username: String?, config: Commands.Config): List<String> {
+	override suspend fun render(job: ClusterJob, config: Commands.Config): List<String> {
 
 		// write the commands into a batch script
 		val batchPath = batchPath(job)
-		batchPath.writeStringAs(username, StringBuilder().apply {
+		batchPath.writeStringAs(job.osUsername, StringBuilder().apply {
 
 			appendLine(batchHeader(job))
 
@@ -137,7 +137,7 @@ class CommandsScript(
 			}
 
 		}.toString())
-		batchPath.editPermissionsAs(username) {
+		batchPath.editPermissionsAs(job.osUsername) {
 			add(PosixFilePermission.OWNER_EXECUTE)
 		}
 
@@ -191,7 +191,7 @@ class CommandsGrid(
 	override fun representativeCommand(): String =
 		commands.firstOrNull()?.firstOrNull() ?: ""
 
-	override suspend fun render(job: ClusterJob, username: String?, config: Commands.Config): List<String> {
+	override suspend fun render(job: ClusterJob, config: Commands.Config): List<String> {
 
 		val commands = ArrayList<String>()
 
@@ -206,7 +206,7 @@ class CommandsGrid(
 
 		// write the commands into a batch script
 		val batchPath = batchPath(job)
-		batchPath.writeStringAs(username, StringBuilder().apply {
+		batchPath.writeStringAs(job.osUsername, StringBuilder().apply {
 
 			appendLine(batchHeader(job))
 
@@ -221,7 +221,7 @@ class CommandsGrid(
 			}
 
 		}.toString())
-		batchPath.editPermissionsAs(username) {
+		batchPath.editPermissionsAs(job.osUsername) {
 			add(PosixFilePermission.OWNER_EXECUTE)
 		}
 

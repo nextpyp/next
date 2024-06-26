@@ -75,7 +75,7 @@ class SBatch(val config: Config.Slurm) : Cluster {
 		// sbatch will validate the dependency ids, so we don't have to do it here
 	}
 
-	override suspend fun launch(clusterJob: ClusterJob, username: String?, depIds: List<String>, scriptPath: Path): ClusterJob.LaunchResult? {
+	override suspend fun launch(clusterJob: ClusterJob, depIds: List<String>, scriptPath: Path): ClusterJob.LaunchResult? {
 
 		// build the sbatch command and add any args
 		// NOTE: argument sanitization is handled by Command.toSafeShellString(), so we don't need to double-sanitize each argument here
@@ -117,8 +117,8 @@ class SBatch(val config: Config.Slurm) : Cluster {
 		sbatch.args.add("$scriptPath")
 
 		// run the job as the specified OS user, if needed
-		if (username != null) {
-			sbatch = Backend.userProcessors.get(username).wrap(sbatch)
+		if (clusterJob.osUsername != null) {
+			sbatch = Backend.userProcessors.get(clusterJob.osUsername).wrap(sbatch)
 		}
 
 		// add environment vars from the job submission
@@ -186,13 +186,13 @@ class SBatch(val config: Config.Slurm) : Cluster {
 		}
 	}
 
-	override suspend fun jobResult(clusterJob: ClusterJob, username: String?, arrayIndex: Int?): ClusterJob.Result {
+	override suspend fun jobResult(clusterJob: ClusterJob, arrayIndex: Int?): ClusterJob.Result {
 
 		// read the job output and cleanup the log file
 		val outPath = clusterJob.outPath(arrayIndex)
 		val out: String? = try {
-			val out = outPath.readStringAs(username)
-			outPath.deleteAs(username)
+			val out = outPath.readStringAs(clusterJob.osUsername)
+			outPath.deleteAs(clusterJob.osUsername)
 			out
 		} catch (t: Throwable) {
 			Backend.log.warn("Failed to retrieve cluster job output log file from: $outPath", t)

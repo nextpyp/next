@@ -22,7 +22,7 @@ actual class SingleParticlePreprocessingService : ISingleParticlePreprocessingSe
 		val job = SingleParticlePreprocessingJob(userId, projectId)
 		job.args.next = args
 		job.inMovies = inMovies
-		job.create(user)
+		job.create()
 
 		return job.data()
 	}

@@ -210,7 +210,7 @@ actual class SessionsService : ISessionsService, Service {
 
 	override suspend fun start(sessionId: String, daemon: SessionDaemon) = sanitizeExceptions {
 		val authed = auth(sessionId, SessionPermission.Write)
-		authed.session.start(daemon, authed.user.id)
+		authed.session.start(daemon)
 	}
 
 	override suspend fun restart(sessionId: String, daemon: SessionDaemon) = sanitizeExceptions {

@@ -22,7 +22,7 @@ actual class TomographyFlexibleRefinementService : ITomographyFlexibleRefinement
 		val job = TomographyFlexibleRefinementJob(userId, projectId)
 		job.args.next = args
 		job.inMovieRefinements = inMovieRefinements
-		job.create(user)
+		job.create()
 
 		return job.data()
 	}

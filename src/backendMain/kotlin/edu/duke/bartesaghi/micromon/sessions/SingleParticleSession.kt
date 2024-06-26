@@ -128,7 +128,7 @@ class SingleParticleSession(
 		return pypArgs
 	}
 
-	override suspend fun start(daemon: SessionDaemon, userId: String) {
+	override suspend fun start(daemon: SessionDaemon) {
 
 		// only the main daemon can be started
 		if (!daemon.isMainDaemon) {
@@ -160,7 +160,7 @@ class SingleParticleSession(
 		events.sessionStarted(idOrThrow)
 
 		Pyp.streampyp.launch(
-			userId = userId,
+			osUsername = null,
 			webName = "Single Particle Session",
 			clusterName = SessionDaemon.Streampyp.clusterJobClusterName,
 			owner = idOrThrow,

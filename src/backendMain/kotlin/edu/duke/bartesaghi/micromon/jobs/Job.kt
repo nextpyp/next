@@ -23,9 +23,7 @@ import io.ktor.application.*
 import io.kvision.remote.ServiceException
 import org.bson.Document
 import org.bson.conversions.Bson
-import java.nio.file.Files
 import java.nio.file.Path
-import java.nio.file.attribute.PosixFilePermission
 import java.util.*
 import kotlin.io.path.div
 import kotlin.reflect.KClass
@@ -43,6 +41,9 @@ abstract class Job(
 		protected set
 	val idOrThrow get() =
 		id ?: throw NoSuchElementException("job has no id")
+
+	fun projectOrThrow(): Project =
+		Project.getOrThrow(this)
 
 	var jobNumber: Int? = null
 		protected set
@@ -147,7 +148,7 @@ abstract class Job(
 	 * Create a new job in the database.
 	 * Throws an error if this job has already been created
 	 */
-	suspend fun create(user: User) {
+	suspend fun create() {
 
 		if (id != null) {
 			throw IllegalStateException("job has already been created")
@@ -164,9 +165,9 @@ abstract class Job(
 		name = baseConfig.name
 		Database.jobs.update(id, set("name", name))
 
-		createFolder(user)
+		createFolder()
 		if (baseConfig.hasFiles) {
-			LinkTree.jobCreated(Project.getOrThrow(this), this)
+			LinkTree.jobCreated(projectOrThrow(), this)
 		}
 	}
 
@@ -176,7 +177,7 @@ abstract class Job(
 		})
 	}
 
-	suspend fun delete(user: User) {
+	suspend fun delete() {
 
 		val id = id ?: throw IllegalStateException("job has no id")
 
@@ -201,32 +202,33 @@ abstract class Job(
 		// NOTE: deleting many files from networked file systems (eg NFS)
 		// can be really slow, so do the deletion asynchronously and return
 		// from this function immediately
-		deleteFilesAsync(user)
+		deleteFilesAsync()
 		if (baseConfig.hasFiles) {
-			LinkTree.jobDeleted(Project.getOrThrow(this), this)
+			LinkTree.jobDeleted(projectOrThrow(), this)
 		}
 
 		this.id = null
 	}
 
-	suspend fun createFolder(user: User) {
+	suspend fun createFolder() {
 		if (baseConfig.hasFiles) {
-			dir.createDirsIfNeededAs(user.osUsername)
-			wwwDir.createIfNeeded(user.osUsername)
+			val project = projectOrThrow()
+			dir.createDirsIfNeededAs(project.osUsername)
+			wwwDir.createIfNeededAs(project.osUsername)
 		}
 	}
 
-	suspend fun deleteFiles(user: User) {
+	suspend fun deleteFiles() {
 
 		// delete any folders/files associated with the job, if any
 		if (baseConfig.hasFiles) {
-			dir.deleteDirRecursivelyAs(user.osUsername)
+			dir.deleteDirRecursivelyAs(projectOrThrow().osUsername)
 		}
 	}
 
-	fun deleteFilesAsync(user: User) {
+	fun deleteFilesAsync() {
 		if (baseConfig.hasFiles) {
-			dir.deleteDirRecursivelyAsyncAs(user.osUsername)
+			dir.deleteDirRecursivelyAsyncAs(projectOrThrow().osUsername)
 		}
 	}
 
@@ -259,17 +261,17 @@ abstract class Job(
 	}
 
 	val dir: Path get() =
-		Project.dir(userId, projectId) / "${baseConfig.id}-$idOrThrow"
+		Project.dir(userId, projectOrThrow().osUsername, projectId) / "${baseConfig.id}-$idOrThrow"
 
 	val wwwDir: WebCacheDir get() =
 		WebCacheDir(dir / "www")
 
 	/** runs this job on the server */
-	abstract suspend fun launch(runningUser: User, runId: Int)
+	abstract suspend fun launch(runId: Int)
 
-	protected fun Pyp.launch(user: User, runId: Int, argValues: ArgValues, webName: String, clusterName: String) {
+	protected fun Pyp.launch(osUsername: String?, runId: Int, argValues: ArgValues, webName: String, clusterName: String) {
 		launch(
-			userId = user.id,
+			osUsername = osUsername,
 			webName = webName,
 			clusterName = clusterName,
 			owner = JobOwner(idOrThrow, runId).toString(),

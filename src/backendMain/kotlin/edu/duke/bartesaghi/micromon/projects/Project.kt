@@ -25,6 +25,7 @@ import kotlin.io.path.div
 class Project(
 	val userId: String,
 	val projectId: String,
+	val osUsername: String?,
 	val projectNumber: Int?,
 	var name: String,
 	val created: Instant,
@@ -34,6 +35,7 @@ class Project(
 	constructor (doc: Document) : this(
 		userId = doc.getString("userId"),
 		projectId = doc.getString("projectId"),
+		osUsername = doc.getString("osUsername"),
 		projectNumber = doc.getInteger("projectNumber"),
 		name = doc.getString("name"),
 		created = Instant.ofEpochMilli(doc.getLong("created")),
@@ -57,11 +59,11 @@ class Project(
 		fun getOrThrow(job: Job): Project =
 			getOrThrow(job.userId, job.projectId)
 
-		fun dir(userId: String): Path =
-			User.dir(userId) / "projects"
+		fun dir(userId: String, osUsername: String?): Path =
+			User.dir(userId, osUsername) / "projects"
 
-		fun dir(userId: String, projectId: String): Path =
-			dir(userId) / projectId
+		fun dir(userId: String, osUsername: String?, projectId: String): Path =
+			dir(userId, osUsername) / projectId
 
 
 		class RepresentativeImages {
@@ -147,23 +149,24 @@ class Project(
 	}
 
 	val dir: Path get() =
-		dir(userId, projectId)
+		dir(userId, osUsername, projectId)
 
-	suspend fun create(user: User) {
+	suspend fun create() {
 
 		// create the database entry
 		Database.projects.create(userId, projectId) {
+			set("osUsername", osUsername)
 			set("name", name)
 			set("projectNumber", projectNumber)
 			set("created", created.toEpochMilli())
 		}
 
 		// create the folder
-		dir.createDirsIfNeededAs(user.osUsername)
+		dir.createDirsIfNeededAs(osUsername)
 		LinkTree.projectCreated(this)
 	}
 
-	suspend fun delete(user: User) {
+	suspend fun delete() {
 
 		// delete all related cluster jobs
 		Cluster.deleteAll(getRuns().flatMap { run ->
@@ -184,7 +187,7 @@ class Project(
 		}
 
 		// delete the files and folders, asynchronously
-		dir.deleteDirRecursivelyAsyncAs(user.osUsername)
+		dir.deleteDirRecursivelyAsyncAs(osUsername)
 		LinkTree.projectDeleted(this)
 	}
 

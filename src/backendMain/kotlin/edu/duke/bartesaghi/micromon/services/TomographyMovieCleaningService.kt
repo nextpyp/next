@@ -22,7 +22,7 @@ actual class TomographyMovieCleaningService : ITomographyMovieCleaningService, S
 		val job = TomographyMovieCleaningJob(userId, projectId)
 		job.args.next = args
 		job.inMovieRefinements = inMovieRefinements
-		job.create(user)
+		job.create()
 
 		return job.data()
 	}

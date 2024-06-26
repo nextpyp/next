@@ -125,7 +125,7 @@ class TomographySession(
 		return pypArgs
 	}
 
-	override suspend fun start(daemon: SessionDaemon, userId: String) {
+	override suspend fun start(daemon: SessionDaemon) {
 
 		// only the main daemon can be started
 		if (!daemon.isMainDaemon) {
@@ -157,7 +157,7 @@ class TomographySession(
 		events.sessionStarted(idOrThrow)
 
 		Pyp.streampyp.launch(
-			userId = userId,
+			osUsername = null,
 			webName = "Tomography Session",
 			clusterName = SessionDaemon.Streampyp.clusterJobClusterName,
 			owner = idOrThrow,

@@ -121,10 +121,12 @@ class SingleParticlePreprocessingJob(
 			Database.particles.countAllParticles(idOrThrow, ParticlesList.PypAutoParticles)
 		)
 
-	override suspend fun launch(runningUser: User, runId: Int) {
+	override suspend fun launch(runId: Int) {
+
+		val project = projectOrThrow()
 
 		// clear caches
-		wwwDir.recreate(runningUser.osUsername)
+		wwwDir.recreateAs(project.osUsername)
 
 		// get the input raw data job
 		val prevJob = inMovies?.resolveJob<Job>() ?: throw IllegalStateException("no movies input configured")
@@ -134,7 +136,7 @@ class SingleParticlePreprocessingJob(
 		// if we've picked some particles, write those out to pyp
 		newestArgs.particlesName
 			?.let { Database.particleLists.get(idOrThrow, it) }
-			?.let { ParticlesJobs.writeSingleParticle(runningUser, idOrThrow, dir, it) }
+			?.let { ParticlesJobs.writeSingleParticle(project.osUsername, idOrThrow, dir, it) }
 
 		// build the args for PYP
 		val pypArgs = ArgValues(Backend.pypArgs)
@@ -151,7 +153,7 @@ class SingleParticlePreprocessingJob(
 		// set the hidden args
 		pypArgs.dataMode = "spr"
 
-		Pyp.pyp.launch(runningUser, runId, pypArgs, "Launch", "pyp_launch")
+		Pyp.pyp.launch(project.osUsername, runId, pypArgs, "Launch", "pyp_launch")
 
 		// job was launched, move the args over
 		args.run()

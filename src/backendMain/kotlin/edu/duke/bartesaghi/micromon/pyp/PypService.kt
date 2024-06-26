@@ -103,7 +103,7 @@ object PypService {
 
 		// submit the new job to the cluster
 		val clusterJob = ClusterJob(
-			userId = parent.userId,
+			osUsername = parent.osUsername,
 			containerId = parent.containerId,
 			ownerId = parent.ownerId,
 			ownerListener = parent.ownerListener,

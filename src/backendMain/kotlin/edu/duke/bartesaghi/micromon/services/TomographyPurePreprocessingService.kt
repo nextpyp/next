@@ -22,7 +22,7 @@ actual class TomographyPurePreprocessingService : ITomographyPurePreprocessingSe
 		val job = TomographyPurePreprocessingJob(userId, projectId)
 		job.args.next = args
 		job.inTiltSeries = inTiltSeries
-		job.create(user)
+		job.create()
 
 		return job.data()
 	}

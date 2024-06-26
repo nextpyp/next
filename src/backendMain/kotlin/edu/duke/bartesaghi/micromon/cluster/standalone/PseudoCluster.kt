@@ -35,7 +35,6 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 	private inner class Job(
 		val jobId: Long,
 		val clusterJob: ClusterJob,
-		val username: String?,
 		val depIds: List<String>,
 		val scriptPath: Path
 	) {
@@ -249,7 +248,7 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 				// add the job environment variables
 				cmd.envvars.addAll(clusterJob.env)
 
-				job.username?.let { username ->
+				job.clusterJob.osUsername?.let { username ->
 					cmd = Backend.userProcessors.get(username).wrap(cmd)
 				}
 
@@ -498,16 +497,11 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 		}
 	}
 
-	override suspend fun launch(
-		clusterJob: ClusterJob,
-		username: String?,
-		depIds: List<String>,
-		scriptPath: Path
-	): ClusterJob.LaunchResult {
+	override suspend fun launch(clusterJob: ClusterJob, depIds: List<String>, scriptPath: Path): ClusterJob.LaunchResult {
 
 		// create the job, and start it, if possible
 		val job = jobs.use { jobs ->
-			val job = Job(jobs.nextId(), clusterJob, username, depIds, scriptPath)
+			val job = Job(jobs.nextId(), clusterJob, depIds, scriptPath)
 			jobs.add(job)
 			jobs.maybeStartTasks()
 			return@use job
@@ -565,13 +559,13 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 		this.jobs.use { it.maybeStartTasks() }
 	}
 
-	override suspend fun jobResult(clusterJob: ClusterJob, username: String?, arrayIndex: Int?): ClusterJob.Result {
+	override suspend fun jobResult(clusterJob: ClusterJob, arrayIndex: Int?): ClusterJob.Result {
 
 		// try to read the output file and delete it
 		val outPath = clusterJob.outPath(arrayIndex)
 		val out: String? = try {
-			val out = outPath.readStringAs(username)
-			outPath.deleteAs(username)
+			val out = outPath.readStringAs(clusterJob.osUsername)
+			outPath.deleteAs(clusterJob.osUsername)
 			out
 		} catch (t: Throwable) {
 			Backend.log.warn("Failed to retrieve cluster job output log file from: $outPath", t)

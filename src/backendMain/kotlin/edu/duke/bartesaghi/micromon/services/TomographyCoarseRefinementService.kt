@@ -22,7 +22,7 @@ actual class TomographyCoarseRefinementService : ITomographyCoarseRefinementServ
 		val job = TomographyCoarseRefinementJob(userId, projectId)
 		job.args.next = args
 		job.inMovieRefinement = inMovieRefinement
-		job.create(user)
+		job.create()
 
 		return job.data()
 	}

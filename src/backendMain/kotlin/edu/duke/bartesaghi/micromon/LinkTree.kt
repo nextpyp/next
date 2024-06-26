@@ -1,8 +1,8 @@
 package edu.duke.bartesaghi.micromon
 
+import edu.duke.bartesaghi.micromon.auth.dir
 import edu.duke.bartesaghi.micromon.jobs.Job
 import edu.duke.bartesaghi.micromon.linux.userprocessor.*
-import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.projects.Project
 import edu.duke.bartesaghi.micromon.sessions.Session
 import java.nio.file.Path
@@ -30,34 +30,26 @@ import kotlin.io.path.moveTo
  */
 object LinkTree {
 
-	private val usersDir = Backend.config.web.sharedDir / "users"
 	private val groupsDir = Backend.config.web.sharedDir / "groups"
 
-
-	private fun userDir(userId: String): Path =
-		usersDir / userId
-
-	private fun userProjectLinksDir(userId: String): Path =
-		userDir(userId) / "project-links"
 
 	private fun projectFilename(number: Int, name: String): String =
 		"P$number-$name".sanitizeFileName()
 
-	private fun projectPath(userId: String, number: Int, name: String): Path =
-		userProjectLinksDir(userId) / projectFilename(number, name)
+	private fun projectPath(userId: String, osUsername: String?, number: Int, name: String): Path =
+		User.dir(userId, osUsername) / "project-links" / projectFilename(number, name)
+
+	private fun Project.linkPath(): Path? =
+		projectNumber?.let { projectPath(userId, osUsername, it, name) }
 
 	suspend fun projectCreated(project: Project) {
 
 		// new projects should always have a project number
-		val projectNumber = project.projectNumber
+		val projectPath = project.linkPath()
 			?: throw NoSuchElementException("new project has no project number")
-		val projectPath = projectPath(project.userId, projectNumber, project.name)
-
-		// get the owner for this project
-		val user = Database.users.getUser(project.userId)
 
 		// make the filesystem change
-		projectPath.createDirsIfNeededAs(user?.osUsername)
+		projectPath.createDirsIfNeededAs(project.osUsername)
 	}
 
 	// NOTE: currently, projects can't be renamed, so we don't need this just yet
@@ -66,89 +58,74 @@ object LinkTree {
 		// projects without numbers won't have links, so there's nothing to rename
 		val projectNumber = project.projectNumber
 			?: return
-		val oldPath = projectPath(project.userId, projectNumber, oldName)
+		val oldPath = projectPath(project.userId, project.osUsername, projectNumber, oldName)
 		val newFilename = projectFilename(projectNumber, project.name)
 
-		// get the owner for this project
-		val user = Database.users.getUser(project.userId)
-
 		// make the filesystem change
-		oldPath.renameAs(user?.osUsername, newFilename)
+		oldPath.renameAs(project.osUsername, newFilename)
 	}
 
 	suspend fun projectDeleted(project: Project) {
 
 		// projects without numbers won't have links, so there's nothing to delete
-		val projectNumber = project.projectNumber
+		val projectPath = project.linkPath()
 			?: return
-		val projectPath = projectPath(project.userId, projectNumber, project.name)
-
-		// get the owner for this project
-		val user = Database.users.getUser(project.userId)
 
 		// make the filesystem change
-		projectPath.deleteDirRecursivelyAs(user?.osUsername)
+		projectPath.deleteDirRecursivelyAs(project.osUsername)
 	}
 
 	private fun jobFilename(number: Int, name: String): String =
 		"B$number-$name".sanitizeFileName()
 
+	private fun jobPath(projectPath: Path, number: Int, name: String): Path =
+		projectPath / jobFilename(number, name)
+
+	private fun Job.linkPath(projectPath: Path): Path? =
+		jobNumber?.let { jobPath(projectPath, it, name) }
+
 	suspend fun jobCreated(project: Project, job: Job) {
 
 		// old project may not have a project number, so we can't create job links either
-		val projectNumber = project.projectNumber
+		val projectPath = project.linkPath()
 			?: return
-		val projectPath = projectPath(project.userId, projectNumber, project.name)
 
 		// new jobs should always have a project number though
-		val jobNumber = job.jobNumber
+		val jobPath = job.linkPath(projectPath)
 			?: throw NoSuchElementException("new job has no job number")
-		val jobPath = projectPath / jobFilename(jobNumber, job.name)
-
-		// get the owner for this project
-		val user = Database.users.getUser(project.userId)
 
 		// make the filesystem change
-		job.dir.symlinkAs(user?.osUsername, jobPath)
+		job.dir.symlinkAs(project.osUsername, jobPath)
 	}
 
 	suspend fun jobRenamed(project: Project, oldName: String, job: Job) {
 
 		// old project may not have a project number, so we can't create job links either
-		val projectNumber = project.projectNumber
+		val projectPath = project.linkPath()
 			?: return
-		val projectPath = projectPath(project.userId, projectNumber, project.name)
 
 		// old job might not have a job number either
 		val jobNumber = job.jobNumber
 			?: return
-		val oldPath = projectPath / jobFilename(jobNumber, oldName)
+		val oldPath = jobPath(projectPath, jobNumber, oldName)
 		val newFilename = jobFilename(jobNumber, job.name)
 
-		// get the owner for this project
-		val user = Database.users.getUser(project.userId)
-
 		// make the filesystem change
-		oldPath.renameAs(user?.osUsername, newFilename)
+		oldPath.renameAs(project.osUsername, newFilename)
 	}
 
 	suspend fun jobDeleted(project: Project, job: Job) {
 
 		// old project may not have a project number, so we can't create job links either
-		val projectNumber = project.projectNumber
+		val projectPath = project.linkPath()
 			?: return
-		val projectPath = projectPath(project.userId, projectNumber, project.name)
 
 		// old job might not have a job number either
-		val jobNumber = job.jobNumber
+		val jobPath = job.linkPath(projectPath)
 			?: return
-		val jobPath = projectPath / jobFilename(jobNumber, job.name)
-
-		// get the owner for this project
-		val user = Database.users.getUser(project.userId)
 
 		// make the filesystem change
-		jobPath.deleteAs(user?.osUsername)
+		jobPath.deleteAs(project.osUsername)
 	}
 
 	private fun groupFilename(name: String): String =

@@ -25,7 +25,7 @@ actual class SingleParticleRelionDataService : ISingleParticleRelionDataService,
 		// make the job
 		val job = SingleParticleRelionDataJob(userId, projectId)
 		job.args.next = args
-		job.create(user)
+		job.create()
 
 		return job.data()
 	}

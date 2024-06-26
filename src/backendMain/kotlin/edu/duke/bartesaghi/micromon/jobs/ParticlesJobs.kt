@@ -13,29 +13,29 @@ import kotlin.io.path.div
 
 object ParticlesJobs {
 
-	suspend fun writeSingleParticle(user: User, jobId: String, dir: Path, particlesList: ParticlesList) {
+	suspend fun writeSingleParticle(osUsername: String?, jobId: String, dir: Path, particlesList: ParticlesList) {
 
 		val trainDir = dir / "train"
 		val nextDir = dir / "next"
 
 		// write the name of the picked particles
 		val particlesNamePath = trainDir / "current_list.txt"
-		particlesNamePath.parent.createDirsIfNeededAs(user.osUsername)
+		particlesNamePath.parent.createDirsIfNeededAs(osUsername)
 		val particlesFilename = particlesList.name
 			.sanitizeFileName()
 			.replace(" ", "_") // pyp can't handle spaces or periods in paths either
 			.replace(".", "_")
-		particlesNamePath.writeStringAs(user.osUsername, particlesFilename)
+		particlesNamePath.writeStringAs(osUsername, particlesFilename)
 
 		// write out the micrographs and coordinates
 		val micrographsPath = trainDir / "${particlesFilename}_images.txt"
-		micrographsPath.parent.createDirsIfNeededAs(user.osUsername)
-		micrographsPath.writerAs(user.osUsername).use { writerMicrographs ->
+		micrographsPath.parent.createDirsIfNeededAs(osUsername)
+		micrographsPath.writerAs(osUsername).use { writerMicrographs ->
 			writerMicrographs.write("image_name\tpath\n")
 
 			val coordinatesPath = trainDir / "${particlesFilename}_coordinates.txt"
-			coordinatesPath.parent.createDirsIfNeededAs(user.osUsername)
-			coordinatesPath.writerAs(user.osUsername).use { writerCoords ->
+			coordinatesPath.parent.createDirsIfNeededAs(osUsername)
+			coordinatesPath.writerAs(osUsername).use { writerCoords ->
 				writerCoords.write("image_name\tx_coord\ty_coord\n")
 
 				// TODO: could optimize this query to project just the micrographIds if needed
@@ -46,8 +46,8 @@ object ParticlesJobs {
 
 							writerMicrographs.write("${micrograph.micrographId}\t${micrograph.micrographId}.mrc\n")
 							val boxFile = nextDir / "${micrograph.micrographId}.next"
-							boxFile.parent.createDirsIfNeededAs(user.osUsername)
-							boxFile.writerAs(user.osUsername).use { writerBox ->
+							boxFile.parent.createDirsIfNeededAs(osUsername)
+							boxFile.writerAs(osUsername).use { writerBox ->
 								for (particleId in particles.keys.sorted()) {
 									val particle = particles[particleId]
 										?: continue
@@ -63,7 +63,7 @@ object ParticlesJobs {
 		}
 	}
 
-	suspend fun writeTomography(user: User, jobId: String, dir: Path, argValues: ArgValues, listName: String?) {
+	suspend fun writeTomography(osUsername: String?, jobId: String, dir: Path, argValues: ArgValues, listName: String?) {
 
 		// get the particles mode
 		val tomoVirMethod = argValues.tomoVirMethodOrDefault
@@ -73,7 +73,7 @@ object ParticlesJobs {
 
 				// in auto virus mode, just write the particle thresholds for the auto virions
 				Database.particleLists.get(jobId, ParticlesList.PypAutoVirions)
-					?.let { writeTomography(user, jobId, dir, it) }
+					?.let { writeTomography(osUsername, jobId, dir, it) }
 				// NOTE: write() also writes out coordinates, but that's not so bad in this case
 			}
 
@@ -85,39 +85,39 @@ object ParticlesJobs {
 
 			// otherwise, write out the coordinates and thresholds for the picked particles
 			Database.particleLists.get(jobId, listName)
-				?.let { writeTomography(user, jobId, dir, it) }
+				?.let { writeTomography(osUsername, jobId, dir, it) }
 		}
 	}
 
-	private suspend fun writeTomography(user: User, jobId: String, dir: Path, particlesList: ParticlesList) {
+	private suspend fun writeTomography(osUsername: String?, jobId: String, dir: Path, particlesList: ParticlesList) {
 
 		val trainDir = dir / "train"
 		val nextDir = dir / "next"
 
 		// write out the particles name
 		val pathListFile = trainDir / "current_list.txt"
-		pathListFile.parent.createDirsIfNeededAs(user.osUsername)
+		pathListFile.parent.createDirsIfNeededAs(osUsername)
 		val particlesFilename = particlesList.name
 			.replace(" ", "_")
 			.replace("$", "_")
 			.replace(".", "_")
-		pathListFile.writeStringAs(user.osUsername, particlesFilename)
+		pathListFile.writeStringAs(osUsername, particlesFilename)
 
 		// write out the tilt series image paths and coordinates
 		val pathFile = trainDir / "${particlesFilename}_images.txt"
-		pathFile.parent.createDirsIfNeededAs(user.osUsername)
-		pathFile.writerAs(user.osUsername).use { writerPaths ->
+		pathFile.parent.createDirsIfNeededAs(osUsername)
+		pathFile.writerAs(osUsername).use { writerPaths ->
 			writerPaths.write("image_name\trec_path\n")
 
 			val coordinatesFile = trainDir / "${particlesFilename}_coordinates.txt"
-			coordinatesFile.parent.createDirsIfNeededAs(user.osUsername)
-			coordinatesFile.writerAs(user.osUsername).use { writerCoords ->
+			coordinatesFile.parent.createDirsIfNeededAs(osUsername)
+			coordinatesFile.writerAs(osUsername).use { writerCoords ->
 				writerCoords.write("image_name\tx_coord\tz_coord\ty_coord\n")
 				// NOTE: the x,z,y order for the coords file is surprising but apparently intentional
 
 				val file = nextDir / "virion_thresholds.next"
-				file.parent.createDirsIfNeededAs(user.osUsername)
-				file.writerAs(user.osUsername).use { writerThresholds ->
+				file.parent.createDirsIfNeededAs(osUsername)
+				file.writerAs(osUsername).use { writerThresholds ->
 
 					// TODO: could optimize this query to project just the tiltSeriesIds if needed
 					TiltSeries.getAllAsync(jobId) { cursor ->
@@ -134,8 +134,8 @@ object ParticlesJobs {
 								val indicesById = HashMap<Int,Int>()
 
 								val boxFile = nextDir / "${tiltSeries.tiltSeriesId}.next"
-								boxFile.parent.createDirsIfNeededAs(user.osUsername)
-								boxFile.writerAs(user.osUsername).use { writerBox ->
+								boxFile.parent.createDirsIfNeededAs(osUsername)
+								boxFile.writerAs(osUsername).use { writerBox ->
 
 									for ((particleIndex, particleId) in particles.keys.sorted().withIndex()) {
 										val particle = particles[particleId]

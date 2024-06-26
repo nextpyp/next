@@ -138,7 +138,7 @@ open class FileBrowser(
 				loadRoot()
 			}
 			homeButton.onClick {
-				loadFolder(init.homeDir/"projects")
+				loadFolder(init.homeDir())
 			}
 			upButton.onClick {
 				loadUp()
@@ -198,7 +198,7 @@ open class FileBrowser(
 				// absolutize paths
 				val absPath = when {
 					path.startsWith('/') -> path
-					PathType.Project.matches(path) -> PathType.Project.absolutize(init.projectsDir, path)
+					PathType.Project.matches(path) -> PathType.Project.absolutize(init.projectsDir(), path)
 					else -> throw IllegalArgumentException("don't know how to absolutize path: $path")
 				}
 
@@ -342,7 +342,7 @@ open class FileBrowser(
 
 			location.value = folder.path ?: ""
 			rootButton.enabled = folder.path != null
-			homeButton.enabled = folder.path != init.homeDir
+			homeButton.enabled = folder.path != init.homeDir()
 			upButton.enabled = folder.path != null
 
 			// show the folder element

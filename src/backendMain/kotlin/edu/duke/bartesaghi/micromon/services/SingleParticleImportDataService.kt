@@ -60,7 +60,7 @@ actual class SingleParticleImportDataService : ISingleParticleImportDataService,
 		// make the job
 		val job = SingleParticleImportDataJob(userId, projectId)
 		job.args.next = args
-		job.create(user)
+		job.create()
 
 		return job.data()
 	}

@@ -76,10 +76,12 @@ class TomographyPurePreprocessingJob(
 			Database.tiltSeries.count(idOrThrow)
 		)
 
-	override suspend fun launch(runningUser: User, runId: Int) {
+	override suspend fun launch(runId: Int) {
+
+		val project = projectOrThrow()
 
 		// clear caches
-		wwwDir.recreate(runningUser.osUsername)
+		wwwDir.recreateAs(project.osUsername)
 
 		// get the input raw data job
 		val prevJob = inTiltSeries?.resolveJob<Job>() ?: throw IllegalStateException("no tilt series input configured")
@@ -93,15 +95,15 @@ class TomographyPurePreprocessingJob(
 			val suffix = "_exclude_views.next"
 
 			// delete any old files
-			dir.deleteDirRecursivelyAs(runningUser.osUsername)
-			dir.createDirsIfNeededAs(runningUser.osUsername)
+			dir.deleteDirRecursivelyAs(project.osUsername)
+			dir.createDirsIfNeededAs(project.osUsername)
 
 			// write any new files
 			val exclusionsByTiltSeries = Database.tiltExclusions.getForJob(idOrThrow)
 			if (exclusionsByTiltSeries != null) {
 				for ((tiltSeriesId, exclusionsByTiltIndex) in exclusionsByTiltSeries) {
 					val file = dir / "$tiltSeriesId$suffix"
-					file.writerAs(runningUser.osUsername).use { writer ->
+					file.writerAs(project.osUsername).use { writer ->
 						for ((tiltIndex, isExcluded) in exclusionsByTiltIndex) {
 							if (isExcluded) {
 								writer.write("0\t0\t$tiltIndex\n")
@@ -127,7 +129,7 @@ class TomographyPurePreprocessingJob(
 		// set the hidden args
 		pypArgs.dataMode = "tomo"
 
-		Pyp.pyp.launch(runningUser, runId, pypArgs, "Launch", "pyp_launch")
+		Pyp.pyp.launch(project.osUsername, runId, pypArgs, "Launch", "pyp_launch")
 
 		// job was launched, move the args over
 		args.run()

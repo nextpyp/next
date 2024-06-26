@@ -2,7 +2,6 @@ package edu.duke.bartesaghi.micromon.jobs
 
 import com.mongodb.client.model.Updates
 import edu.duke.bartesaghi.micromon.Backend
-import edu.duke.bartesaghi.micromon.User
 import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.mongo.getDocument
 import edu.duke.bartesaghi.micromon.nodes.TomographyMovieCleaningNodeConfig
@@ -75,10 +74,12 @@ class TomographyMovieCleaningJob(
 			jobInfoString ?: ""
 		)
 
-	override suspend fun launch(runningUser: User, runId: Int) {
+	override suspend fun launch(runId: Int) {
+
+		val project = projectOrThrow()
 
 		// clear caches
-		wwwDir.recreate(runningUser.osUsername)
+		wwwDir.recreateAs(project.osUsername)
 
 		// get the input jobs
 		val prevJob = inMovieRefinements?.resolveJob<Job>() ?: throw IllegalStateException("no movie refinements input configured")
@@ -95,7 +96,7 @@ class TomographyMovieCleaningJob(
 		// set the hidden args
 		pypArgs.dataParent = prevJob.dir.toString()
 
-		Pyp.pcl.launch(runningUser, runId, pypArgs, "Launch", "launch")
+		Pyp.pcl.launch(project.osUsername, runId, pypArgs, "Launch", "launch")
 
 		// job was launched, move the args over
 		args.run()

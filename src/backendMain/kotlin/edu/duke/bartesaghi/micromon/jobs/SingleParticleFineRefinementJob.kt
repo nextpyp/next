@@ -2,7 +2,6 @@ package edu.duke.bartesaghi.micromon.jobs
 
 import com.mongodb.client.model.Updates
 import edu.duke.bartesaghi.micromon.Backend
-import edu.duke.bartesaghi.micromon.User
 import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.mongo.getDocument
 import edu.duke.bartesaghi.micromon.nodes.SingleParticleFineRefinementNodeConfig
@@ -75,10 +74,12 @@ class SingleParticleFineRefinementJob(
 			jobInfoString ?: ""
 		)
 
-	override suspend fun launch(runningUser: User, runId: Int) {
+	override suspend fun launch(runId: Int) {
+
+		val project = projectOrThrow()
 
 		// clear caches
-		wwwDir.recreate(runningUser.osUsername)
+		wwwDir.recreateAs(project.osUsername)
 
 		// get the input jobs
 		val prevJob = inRefinements?.resolveJob<Job>() ?: throw IllegalStateException("no refinements input configured")
@@ -98,7 +99,7 @@ class SingleParticleFineRefinementJob(
 		// pypArgs.refineMode = "1"
 		// pypArgs.reconstructCutoff = "1"
 
-		Pyp.pcl.launch(runningUser, runId, pypArgs, "Launch", "pyp_launch")
+		Pyp.pcl.launch(project.osUsername, runId, pypArgs, "Launch", "pyp_launch")
 
 		// job was launched, move the args over
 		args.run()

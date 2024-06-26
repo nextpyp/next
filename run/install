@@ -217,7 +217,8 @@ mkdirfs "$localDir/sock" ugo=rwx,+t
 # make the shared sub-folders
 mkdirfs "$sharedDir/batch" ugo=rwx,+t
 mkdirfs "$sharedDir/log" ugo=rwx,+t
-mkdirfs "$sharedDir/users" ugo=rwx,+t
+mkdirfs "$sharedDir/users"
+mkdirfs "$sharedDir/os-users" ugo=rwx,+t
 mkdirfs "$sharedDir/user-processors" ugo=rwx,+t
 mkdirfs "$sharedDir/sessions" # TODO: how should user-switching work for sessions?
 mkdirfs "$sharedDir/groups"

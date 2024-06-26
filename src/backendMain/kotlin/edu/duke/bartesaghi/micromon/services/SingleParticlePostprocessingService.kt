@@ -22,7 +22,7 @@ actual class SingleParticlePostprocessingService : ISingleParticlePostprocessing
 		val job = SingleParticlePostprocessingJob(userId, projectId)
 		job.args.next = args
 		job.inRefinements = inRefinements
-		job.create(user)
+		job.create()
 
 		return job.data()
 	}

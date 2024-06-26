@@ -79,7 +79,7 @@ class SessionExport(
 
 			// launch the cluster job
 			val clusterJob = Pyp.pex.launch(
-				userId = user.id,
+				osUsername = null,
 				webName = "Export ${request::class.simpleName}",
 				clusterName = "pyp_export",
 				owner = export.idOrThrow,

@@ -15,11 +15,15 @@ fun User.Companion.lookupName(id: String, default: String = "???"): String =
 	}
 
 
-fun User.Companion.dir(userId: String) =
-	Backend.config.web.sharedDir / "users" / userId
+fun User.Companion.dir(userId: String, osUsername: String?) =
+	if (osUsername != null) {
+		Backend.config.web.sharedDir / "os-users" / osUsername
+	} else {
+		Backend.config.web.sharedDir / "users" / userId
+	}
 
 fun User.dir() =
-	User.dir(id)
+	User.dir(id, osUsername)
 
 
 fun User.authUserOrThrow(userId: String): User {

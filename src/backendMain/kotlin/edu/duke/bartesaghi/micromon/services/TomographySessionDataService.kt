@@ -24,7 +24,7 @@ actual class TomographySessionDataService : ITomographySessionDataService, Servi
 		// make the job
 		val job = TomographySessionDataJob(userId, projectId)
 		job.args.next = TomographySessionDataArgs(sessionId,"", null)
-		job.create(user)
+		job.create()
 
 		return job.data()
 	}

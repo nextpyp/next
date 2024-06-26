@@ -32,7 +32,7 @@ actual class TomographyPickingService : ITomographyPickingService, Service {
 			NodeConfig.Data.Type.Segmentation -> job.inSegmentation = inData
 			else -> throw IllegalArgumentException("Unxepected input data type: ${input.type}")
 		}
-		job.create(user)
+		job.create()
 
 		return job.data()
 	}

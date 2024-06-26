@@ -42,7 +42,7 @@ actual class SingleParticleSessionService : ISingleParticleSessionService, Servi
 		// create the session
 		val session = SingleParticleSession(user.id)
 		session.args.next = args
-		session.create(user)
+		session.create()
 
 		return session.data(user)
 	}
@@ -86,7 +86,7 @@ actual class SingleParticleSessionService : ISingleParticleSessionService, Servi
 		val newSession = SingleParticleSession(user.id)
 		newSession.args.next = session.args.newestOrThrow().args
 			.copy(name = args.name)
-		newSession.create(user)
+		newSession.create()
 
 		return newSession.data(user)
 	}

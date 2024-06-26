@@ -2,7 +2,6 @@ package edu.duke.bartesaghi.micromon.jobs
 
 import com.mongodb.client.model.Updates
 import edu.duke.bartesaghi.micromon.Backend
-import edu.duke.bartesaghi.micromon.User
 import edu.duke.bartesaghi.micromon.linux.userprocessor.createDirsIfNeededAs
 import edu.duke.bartesaghi.micromon.linux.userprocessor.writeStringAs
 import edu.duke.bartesaghi.micromon.mongo.Database
@@ -80,10 +79,12 @@ class SingleParticleCoarseRefinementJob(
 			jobInfoString ?: ""
 		)
 
-	override suspend fun launch(runningUser: User, runId: Int) {
+	override suspend fun launch(runId: Int) {
+
+		val project = projectOrThrow()
 
 		// clear caches
-		wwwDir.recreate(runningUser.osUsername)
+		wwwDir.recreateAs(project.osUsername)
 
 		val preprocessingJob = inRefinement?.resolveJob<Job>() ?: throw IllegalStateException("no refinement input configured")
 
@@ -94,10 +95,10 @@ class SingleParticleCoarseRefinementJob(
 			if (filter != null) {
 
 				// write out the micrographs file to the job folder before starting pyp
-				val dir = dir.createDirsIfNeededAs(runningUser.osUsername)
+				val dir = dir.createDirsIfNeededAs(project.osUsername)
 				val file = dir / "${dir.fileName}.micrographs"
 				val micrographIds = preprocessingJob.resolveFilter(filter)
-				file.writeStringAs(runningUser.osUsername, micrographIds.joinToString("\n"))
+				file.writeStringAs(project.osUsername, micrographIds.joinToString("\n"))
 			}
 		}
 
@@ -114,7 +115,7 @@ class SingleParticleCoarseRefinementJob(
 		pypArgs.dataParent = preprocessingJob.dir.toString()
 		pypArgs.extractFmt = "frealign"
 		
-		Pyp.csp.launch(runningUser, runId, pypArgs, "Launch", "pyp_launch")
+		Pyp.csp.launch(project.osUsername, runId, pypArgs, "Launch", "pyp_launch")
 
 		// job was launched, move the args over
 		args.run()

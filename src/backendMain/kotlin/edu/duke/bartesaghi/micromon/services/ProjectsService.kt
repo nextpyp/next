@@ -103,6 +103,7 @@ actual class ProjectsService : IProjectsService {
 			// make a new project
 			Project(
 				userId = user.id,
+				osUsername = user.osUsername,
 				projectId = projectId,
 				projectNumber = projectNumber,
 				name = name,
@@ -110,7 +111,7 @@ actual class ProjectsService : IProjectsService {
 			)
 		}
 
-		project.create(user)
+		project.create()
 
 		return project.toData(user)
 	}
@@ -126,7 +127,7 @@ actual class ProjectsService : IProjectsService {
 			throw ServiceException("Project is currently running and can't be deleted. Stop the all project runs before deleting the project.")
 		}
 
-		project.delete(user)
+		project.delete()
 	}
 
 	override suspend fun get(userId: String, projectId: String): ProjectData = sanitizeExceptions {
@@ -146,7 +147,7 @@ actual class ProjectsService : IProjectsService {
 
 		// make the runner and wait for the result, so the jobs monitor populates with the run
 		val runner = JobRunner(project)
-		runner.init(jobIds, user.id)
+		runner.init(jobIds)
 
 		// then start the first job, but don't wait for the result so the UI stays responsive
 		Backend.scope.launch {
@@ -212,7 +213,7 @@ actual class ProjectsService : IProjectsService {
 			// authenticate the user for this job
 			val job = user.authJobOrThrow(ProjectPermission.Write, jobId)
 
-			job.delete(user)
+			job.delete()
 		}
 	}
 
@@ -307,8 +308,8 @@ actual class ProjectsService : IProjectsService {
 
 		if (deleteFilesAndData) {
 			job.wipeData()
-			job.deleteFiles(user)
-			job.createFolder(user)
+			job.deleteFiles()
+			job.createFolder()
 		}
 
 		Unit

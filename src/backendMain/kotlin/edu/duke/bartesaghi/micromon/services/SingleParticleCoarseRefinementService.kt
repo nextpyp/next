@@ -22,7 +22,7 @@ actual class SingleParticleCoarseRefinementService : ISingleParticleCoarseRefine
 		val job = SingleParticleCoarseRefinementJob(userId, projectId)
 		job.args.next = args
 		job.inRefinement = inRefinement
-		job.create(user)
+		job.create()
 
 		return job.data()
 	}

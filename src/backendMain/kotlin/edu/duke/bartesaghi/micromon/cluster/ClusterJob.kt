@@ -19,8 +19,8 @@ import kotlin.collections.ArrayList
 
 
 class ClusterJob(
-	/** run the job as the specified website user, if any */
-	val userId: String?,
+	/** run the job as the specified OS user, if any */
+	val osUsername: String?,
 	val containerId: String?,
 	val commands: Commands,
 	/** working directory of the command. if a container was given, this path is inside the container */
@@ -271,7 +271,7 @@ class ClusterJob(
 	fun create(): String {
 		// create a database record of the submission
 		val dbid = Database.cluster.launches.create {
-			set("userId", userId)
+			set("osUsername", osUsername)
 			set("container", containerId)
 			set("commands", commands.toDoc())
 			set("dir", dir.toString())
@@ -438,7 +438,7 @@ class ClusterJob(
 				return null
 			}
 			return ClusterJob(
-				userId = doc.getString("userId"),
+				osUsername = doc.getString("osUsername"),
 				containerId = doc.getString("container"),
 				commands = when (val c = doc.get("commands")) {
 					is Document -> Commands.fromDoc(c)

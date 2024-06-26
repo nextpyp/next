@@ -40,7 +40,7 @@ class LoadTestingCluster : Cluster {
 		// whatever, it's fine
 	}
 
-	override suspend fun launch(clusterJob: ClusterJob, username: String?, depIds: List<String>, scriptPath: Path): ClusterJob.LaunchResult {
+	override suspend fun launch(clusterJob: ClusterJob, depIds: List<String>, scriptPath: Path): ClusterJob.LaunchResult {
 
 		val clusterJobId = clusterJob.idOrThrow
 
@@ -112,12 +112,12 @@ class LoadTestingCluster : Cluster {
 		// nope
 	}
 
-	override suspend fun jobResult(clusterJob: ClusterJob, username: String?, arrayIndex: Int?): ClusterJob.Result {
+	override suspend fun jobResult(clusterJob: ClusterJob, arrayIndex: Int?): ClusterJob.Result {
 
 		// read the job output and cleanup the log file
 		val outPath = clusterJob.outPath(arrayIndex)
-		val out = outPath.readStringAs(username)
-		outPath.deleteAs(username)
+		val out = outPath.readStringAs(clusterJob.osUsername)
+		outPath.deleteAs(clusterJob.osUsername)
 
 		return ClusterJob.Result(ClusterJobResultType.Success, out)
 	}

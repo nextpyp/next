@@ -22,7 +22,7 @@ actual class SingleParticleFlexibleRefinementService : ISingleParticleFlexibleRe
 		val job = SingleParticleFlexibleRefinementJob(userId, projectId)
 		job.args.next = args
 		job.inRefinements = inRefinements
-		job.create(user)
+		job.create()
 
 		return job.data()
 	}

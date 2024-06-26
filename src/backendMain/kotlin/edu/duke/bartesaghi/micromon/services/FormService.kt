@@ -11,7 +11,6 @@ import edu.duke.bartesaghi.micromon.linux.userprocessor.globCountAs
 import edu.duke.bartesaghi.micromon.linux.userprocessor.listFolderFastAs
 import edu.duke.bartesaghi.micromon.linux.userprocessor.statAs
 import edu.duke.bartesaghi.micromon.mongo.Database
-import edu.duke.bartesaghi.micromon.projects.Project
 import io.ktor.application.*
 import io.ktor.http.*
 import io.ktor.request.*
@@ -82,8 +81,8 @@ actual class FormService : IFormService, Service {
 				names = paths.map { it.toString() },
 				typeIds = paths.map { FileBrowserType.Folder.ordinal }
 			),
-			homeDir = user.dir().toString(),
-			projectsDir = Project.dir(user.id).toString()
+			userDir = User.dir(user.id, null).toString(),
+			osUserDir = user.osUsername?.let { User.dir(user.id, it).toString() }
 		)
 	}
 

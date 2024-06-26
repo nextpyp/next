@@ -25,7 +25,7 @@ actual class TomographyRawDataService : ITomographyRawDataService, Service {
 		// make the job
 		val job = TomographyRawDataJob(userId, projectId)
 		job.args.next = args
-		job.create(user)
+		job.create()
 
 		return job.data()
 	}

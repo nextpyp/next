@@ -87,7 +87,6 @@ data class JobRun(
 data class ProjectRun(
 	val timestamp: Instant,
 	val jobs: List<JobRun>,
-	val runningUserId: String? = null,
 	var status: RunStatus,
 	var id: Int? = null
 ) {
@@ -98,7 +97,6 @@ data class ProjectRun(
 	fun toDoc() = Document().apply {
 		set("timestamp", timestamp.toEpochMilli())
 		set("jobs", jobs.map { it.toDoc() })
-		set("runningUserId", runningUserId)
 		set("status", status.id)
 	}
 
@@ -109,7 +107,6 @@ data class ProjectRun(
 			jobs = doc.getListOfDocuments("jobs")
 				?.map { JobRun.fromDoc(it) }
 				?: emptyList(),
-			runningUserId = doc.getString("runningUserId"),
 			status = RunStatus[doc.getString("status")],
 			id = doci
 		)

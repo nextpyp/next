@@ -22,7 +22,7 @@ actual class SingleParticleMaskingService : ISingleParticleMaskingService, Servi
 		val job = SingleParticleMaskingJob(userId, projectId)
 		job.args.next = args
 		job.inRefinements = inRefinements
-		job.create(user)
+		job.create()
 
 		return job.data()
 	}

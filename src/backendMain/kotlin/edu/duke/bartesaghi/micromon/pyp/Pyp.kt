@@ -27,7 +27,7 @@ enum class Pyp(private val cmdName: String) {
 	streampyp("streampyp");
 
 	fun launch(
-		userId: String,
+		osUsername: String?,
 		/** a user-friendly name for the job to display on the website */
 		webName: String,
 		/** a user-friendly name for the job to display in cluster management tools */
@@ -46,7 +46,7 @@ enum class Pyp(private val cmdName: String) {
 
 		// launch a PYP script inside of the container via SLURM
 		val clusterJob = ClusterJob(
-			userId = userId,
+			osUsername = osUsername,
 			containerId = Container.Pyp.id,
 			commands = CommandsScript(commands = listOf(
 				Container.Pyp.run(cmdName) + " " + args.joinToString(" ")

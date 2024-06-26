@@ -24,7 +24,7 @@ actual class SingleParticleSessionDataService : ISingleParticleSessionDataServic
 		// make the job
 		val job = SingleParticleSessionDataJob(userId, projectId)
 		job.args.next = SingleParticleSessionDataArgs(sessionId,"", null)
-		job.create(user)
+		job.create()
 
 		return job.data()
 	}

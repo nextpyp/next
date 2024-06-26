@@ -34,10 +34,17 @@ interface IFormService {
 @Serializable
 data class FileBrowserInit(
 	val dataDirs: FileBrowserEntries,
-	val homeDir: String,
-	val projectsDir: String
+	val userDir: String,
+	val osUserDir: String?
 	// TODO: links to other users' shared files?
-)
+) {
+
+	fun homeDir(): String =
+		osUserDir ?: userDir
+
+	fun projectsDir(): String =
+		homeDir() / "projects"
+}
 
 @Serializable
 data class FileBrowserFolder(

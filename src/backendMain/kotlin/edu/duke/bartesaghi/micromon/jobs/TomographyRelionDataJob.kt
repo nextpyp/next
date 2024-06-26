@@ -2,7 +2,6 @@ package edu.duke.bartesaghi.micromon.jobs
 
 import com.mongodb.client.model.Updates
 import edu.duke.bartesaghi.micromon.Backend
-import edu.duke.bartesaghi.micromon.User
 import edu.duke.bartesaghi.micromon.globCountOrNull
 import edu.duke.bartesaghi.micromon.mongo.getDocument
 import edu.duke.bartesaghi.micromon.nodes.TomographyRelionDataNodeConfig
@@ -87,16 +86,18 @@ class TomographyRelionDataJob(
 		return TomographyRelionDataDisplay(numTiltSeries)
 	}
 
-	override suspend fun launch(runningUser: User, runId: Int) {
+	override suspend fun launch(runId: Int) {
+
+		val project = projectOrThrow()
 
 		// clear caches
-		wwwDir.recreate(runningUser.osUsername)
+		wwwDir.recreateAs(project.osUsername)
 
 		val newestArgs = args.newestOrThrow().args
 
 		// write out particles, if needed
 		val argValues = newestArgs.values.toArgValues(Backend.pypArgs)
-		ParticlesJobs.writeTomography(runningUser, idOrThrow, dir, argValues, newestArgs.particlesName)
+		ParticlesJobs.writeTomography(project.osUsername, idOrThrow, dir, argValues, newestArgs.particlesName)
 
 		// build the args for PYP
 		val pypArgs = ArgValues(Backend.pypArgs)
@@ -112,7 +113,7 @@ class TomographyRelionDataJob(
 		pypArgs.importMode = "TOMO_STAR"
 		pypArgs.importReadStar = true
 
-		Pyp.rlp.launch(runningUser, runId, pypArgs, "Import Star", "pyp_import")
+		Pyp.rlp.launch(project.osUsername, runId, pypArgs, "Import Star", "pyp_import")
 
 		// job was launched, move the args over
 		args.run()

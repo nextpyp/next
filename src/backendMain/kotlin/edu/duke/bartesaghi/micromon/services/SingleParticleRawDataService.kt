@@ -25,7 +25,7 @@ actual class SingleParticleRawDataService : ISingleParticleRawDataService, Servi
 		// make the job
 		val job = SingleParticleRawDataJob(userId, projectId)
 		job.args.next = args
-		job.create(user)
+		job.create()
 
 		return job.data()
 	}

@@ -274,14 +274,17 @@ class WebCacheDir(val path: Path) {
 	fun exists(): Boolean =
 		path.exists()
 
-	suspend fun createIfNeeded(username: String?): Path {
+	suspend fun createIfNeededAs(username: String?): Path {
 		if (!exists()) {
-			create(username)
+			createAs(username)
 		}
 		return path
 	}
 
-	suspend fun create(username: String?) {
+	suspend fun createIfNeeded() =
+		createIfNeededAs(null)
+
+	suspend fun createAs(username: String?) {
 		path.createDirsIfNeededAs(username)
 		path.editPermissionsAs(username) {
 			add(PosixFilePermission.GROUP_READ)
@@ -290,12 +293,18 @@ class WebCacheDir(val path: Path) {
 		}
 	}
 
-	suspend fun recreate(username: String?) {
+	suspend fun create() =
+		createAs(null)
+
+	suspend fun recreateAs(username: String?) {
 		if (exists()) {
 			path.deleteDirRecursivelyAs(username)
 		}
 		if (!exists()) {
-			create(username)
+			createAs(username)
 		}
 	}
+
+	suspend fun recreate() =
+		recreateAs(null)
 }

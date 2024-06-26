@@ -2,7 +2,6 @@ package edu.duke.bartesaghi.micromon.jobs
 
 import com.mongodb.client.model.Updates
 import edu.duke.bartesaghi.micromon.Backend
-import edu.duke.bartesaghi.micromon.User
 import edu.duke.bartesaghi.micromon.globCountOrNull
 import edu.duke.bartesaghi.micromon.mongo.getDocument
 import edu.duke.bartesaghi.micromon.nodes.SingleParticleRawDataNodeConfig
@@ -85,10 +84,12 @@ class SingleParticleRawDataJob(
 		return SingleParticleRawDataDisplay(numMovies)
 	}
 
-	override suspend fun launch(runningUser: User, runId: Int) {
+	override suspend fun launch(runId: Int) {
+
+		val project = projectOrThrow()
 
 		// clear caches
-		wwwDir.recreate(runningUser.osUsername)
+		wwwDir.recreateAs(project.osUsername)
 
 		// build the args for PYP
 		val pypArgs = ArgValues(Backend.pypArgs)
@@ -102,7 +103,7 @@ class SingleParticleRawDataJob(
 		// set the hidden args
 		pypArgs.dataMode = "spr"
 
-		Pyp.gyp.launch(runningUser, runId, pypArgs, "Check gain reference", "pyp_gainref")
+		Pyp.gyp.launch(project.osUsername, runId, pypArgs, "Check gain reference", "pyp_gainref")
 
 		// job was launched, move the args over
 		args.run()

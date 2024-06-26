@@ -5,7 +5,6 @@ import edu.duke.bartesaghi.micromon.auth.authOrThrow
 import edu.duke.bartesaghi.micromon.cluster.ClusterJob
 import edu.duke.bartesaghi.micromon.files.Speeds
 import edu.duke.bartesaghi.micromon.linux.userprocessor.WebCacheDir
-import edu.duke.bartesaghi.micromon.linux.userprocessor.createDirsIfNeededAs
 import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.*
@@ -116,7 +115,7 @@ sealed class Session(
 	 * Create a new session in the database.
 	 * Throws an error if this session has already been created
 	 */
-	suspend fun create(user: User) {
+	suspend fun create() {
 
 		if (id != null) {
 			throw IllegalStateException("session has already been created")
@@ -132,8 +131,8 @@ sealed class Session(
 		this.sessionNumber = number
 
 		// create the session folder, if needed
-		dir.createDirsIfNeededAs(user.osUsername)
-		wwwDir.createIfNeeded(user.osUsername)
+		dir.createDirsIfNeeded()
+		wwwDir.createIfNeeded()
 		LinkTree.sessionCreated(this, Database.groups.getOrThrow(newestArgs().groupId))
 	}
 
@@ -245,7 +244,7 @@ sealed class Session(
 	abstract fun argsDiff(): ArgValues
 
 	/** starts one of the daemons */
-	abstract suspend fun start(daemon: SessionDaemon, userId: String)
+	abstract suspend fun start(daemon: SessionDaemon)
 
 	/** restarts one of the daemons */
 	suspend fun restart(daemon: SessionDaemon) {

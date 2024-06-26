@@ -25,7 +25,7 @@ actual class TomographyRelionDataService : ITomographyRelionDataService, Service
 		// make the job
 		val job = TomographyRelionDataJob(userId, projectId)
 		job.args.next = args
-		job.create(user)
+		job.create()
 
 		return job.data()
 	}

@@ -64,10 +64,12 @@ class TomographySegmentationJob(
 			diagramImageURL()
 		)
 
-	override suspend fun launch(runningUser: User, runId: Int) {
+	override suspend fun launch(runId: Int) {
+
+		val project = projectOrThrow()
 
 		// clear caches
-		wwwDir.recreate(runningUser.osUsername)
+		wwwDir.recreateAs(project.osUsername)
 
 		// get the input raw data job
 		val prevJob = inTiltSeries?.resolveJob<Job>() ?: throw IllegalStateException("no tilt series input configured")
@@ -86,7 +88,7 @@ class TomographySegmentationJob(
 		// set the hidden args
 		pypArgs.dataMode = "tomo"
 
-		Pyp.pyp.launch(runningUser, runId, pypArgs, "Launch", "pyp_launch")
+		Pyp.pyp.launch(project.osUsername, runId, pypArgs, "Launch", "pyp_launch")
 
 		// job was launched, move the args over
 		args.run()
