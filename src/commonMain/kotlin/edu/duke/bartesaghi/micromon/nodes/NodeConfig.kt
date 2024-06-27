@@ -64,6 +64,15 @@ interface NodeConfig {
 		TomographyRawData
 	}
 
+	enum class NodeStatus {
+		/** an old, retired node */
+		Obsolete,
+		/** normal everyday nodes, ready for production use */
+		Regular,
+		/** a new, in-development node, not ready for general use just yet */
+		Preview
+	}
+
 	/**
 	 * Should be unique over all nodes
 	 */
@@ -78,7 +87,7 @@ interface NodeConfig {
 	val enabled: Boolean get() = true
 	val hasFiles: Boolean
 	val type: NodeType? get() = null
-	val obsolete: Boolean get() = false
+	val status: NodeStatus get() = NodeStatus.Regular
 	val inputs: List<Data>
 	val outputs: List<Data>
 

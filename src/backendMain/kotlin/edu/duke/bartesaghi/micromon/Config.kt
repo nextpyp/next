@@ -29,8 +29,6 @@ class Config(toml: String) {
 			Config(Paths.get("/var/micromon/config.toml").readString())
 	}
 
-	val dev: Boolean
-
 	data class Pyp(
 		val container: Path,
 		val sources: Path?,
@@ -173,8 +171,6 @@ class Config(toml: String) {
 			throw TomlParseException("TOML parsing failure:\n${doc.errors().joinToString("\n")}")
 		}
 
-		dev = doc.getBoolean("dev") ?: false
-
 		pyp = doc.getTableOrThrow("pyp").run {
 			Pyp(
 				container = getStringOrThrow("container").toPath(),
@@ -267,8 +263,6 @@ class Config(toml: String) {
 	override fun toString() = StringBuilder().apply {
 		val indent = "                    "
 		append("""
-			|[]
-			|               dev: $dev
 			|[pyp]
 			|       conatainer:  ${pyp.container}
 			|          sources:  ${pyp.sources}

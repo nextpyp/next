@@ -38,7 +38,7 @@ actual class AdminService : IAdminService {
 		if (!Backend.config.web.auth.hasUsers) {
 
 			// but allow in dev mode if explicitly enabled
-			if (butAllowIfDev && Backend.config.dev) {
+			if (butAllowIfDev && Backend.config.web.debug) {
 				return
 			}
 
@@ -56,7 +56,7 @@ actual class AdminService : IAdminService {
 			adminLoggedIn = user?.isAdmin ?: false,
 			demoLoggedIn = user?.isDemo ?: false,
 			authType = Backend.config.web.auth,
-			dev = Backend.config.dev,
+			debug = Backend.config.web.debug,
 			clusterMode = Cluster.instance.clusterMode
 		)
 	}

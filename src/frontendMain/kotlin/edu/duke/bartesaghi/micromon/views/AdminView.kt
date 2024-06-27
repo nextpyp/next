@@ -182,7 +182,7 @@ class AdminView : View {
 	private fun Container.adminTabs(info: AdminInfo) {
 		lazyTabPanel {
 
-			if (info.authType.hasUsers || info.dev) {
+			if (info.authType.hasUsers || info.debug) {
 				addTab("Users", "fas fa-users") { lazyTab ->
 					AdminUsersTab(lazyTab.elem, info)
 				}

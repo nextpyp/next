@@ -9,6 +9,8 @@ object TomographyPickingNodeConfig : NodeConfig {
 	override val configId = "tomo_picking"
 	override val name = "Particle-Picking"
 	override val hasFiles = true
+	// TEMP: preview status during development
+	override val status = NodeConfig.NodeStatus.Preview
 
 	val tomograms = NodeConfig.Data("tomograms", NodeConfig.Data.Type.Tomograms)
 	val segmentation = NodeConfig.Data("segmentation", NodeConfig.Data.Type.Segmentation)

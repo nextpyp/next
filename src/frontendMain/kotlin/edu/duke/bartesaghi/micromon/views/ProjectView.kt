@@ -66,6 +66,10 @@ class ProjectView(val project: ProjectData) : View {
 		}
 
 		fun path(project: ProjectData) = "/project/${project.owner.id}/${project.projectId}"
+
+		val adminInfo = ServerVal {
+			Services.admin.getInfo()
+		}
 	}
 
 	override val elem = Div(classes = setOf("project-view"))
@@ -732,34 +736,62 @@ class ProjectView(val project: ProjectData) : View {
 				}
 
 				// what nodes can use this port?
-				val (obsoleteNodes, currentNodes) = NodeConfigs.findNodesUsing(data)
-					.partition { (config, _) -> config.obsolete }
+				val (obsoleteNodes, regularNodes, previewNodes) = NodeConfigs.findNodesUsing(data)
+					.groupBy { (config, _) -> config.status }
+					.let {
+						listOf(
+							it[NodeConfig.NodeStatus.Obsolete] ?: emptyList(),
+							it[NodeConfig.NodeStatus.Regular] ?: emptyList(),
+							it[NodeConfig.NodeStatus.Preview] ?: emptyList()
+						)
+					}
 
 				div {
-					showNodes(currentNodes)
+					showNodes(regularNodes)
 				}
 
-				// show the obsolete nodes, if wanted
+				// show the obsolete,preview nodes, if needed
+				val obsoleteCheck = CheckBox(value = false, label = "Show obsolete blocks")
+				val obsoleteSection = Div()
+				val previewCheck = CheckBox(value = false, label = "Show preview blocks")
+				val previewSection = Div()
+
+				fun updateVisibility() {
+					obsoleteSection.visible = obsoleteCheck.value
+					previewSection.visible = previewCheck.value
+				}
+
 				if (obsoleteNodes.isNotEmpty()) {
 
-					val obsoleteCheck = CheckBox(value = false, label = "Show obsolete blocks")
 					div {
 						add(obsoleteCheck)
 					}
-					val obsoleteSection = div {
-						showNodes(obsoleteNodes)
-					}
-
-					fun updateObsoleteVisibility() {
-						obsoleteSection.visible = obsoleteCheck.value
-					}
-					updateObsoleteVisibility()
-
-					// wire up events
 					obsoleteCheck.onClick {
-						updateObsoleteVisibility()
+						updateVisibility()
+					}
+
+					add(obsoleteSection)
+					obsoleteSection.showNodes(obsoleteNodes)
+				}
+
+				// show the preview nodes, if any, but only in dev mode
+				if (previewNodes.isNotEmpty()) {
+					AppScope.launch {
+						if (adminInfo.get().debug) {
+							div {
+								add(previewCheck)
+							}
+							previewCheck.onClick {
+								updateVisibility()
+							}
+
+							add(previewSection)
+							previewSection.showNodes(previewNodes)
+						}
 					}
 				}
+
+				updateVisibility()
 			}
 		}
 

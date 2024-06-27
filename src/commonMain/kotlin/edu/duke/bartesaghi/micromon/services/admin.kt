@@ -86,7 +86,7 @@ data class AdminInfo(
 	val adminLoggedIn: Boolean,
 	val demoLoggedIn: Boolean,
 	val authType: AuthType,
-	val dev: Boolean,
+	val debug: Boolean,
 	val clusterMode: ClusterMode
 )
 

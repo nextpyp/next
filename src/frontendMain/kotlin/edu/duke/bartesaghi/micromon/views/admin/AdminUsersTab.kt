@@ -408,7 +408,7 @@ class AdminUsersTab(val elem: Container, val info: AdminInfo) {
 		}
 
 		// show disclaimer in Auth=None + dev mode
-		if (!info.authType.hasUsers && info.dev) {
+		if (!info.authType.hasUsers && info.debug) {
 			elem.div(classes = setOf("empty")) {
 				p("""
 						|Authentication is currently disabled, but development mode is on.
