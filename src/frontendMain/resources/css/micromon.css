@@ -2021,24 +2021,22 @@ img.large-scale-down {
 	margin-bottom: 10px;
 }
 
-.cluster-job-logs .tabs {
+/* need to set strict y limits on these elements so log scrolling works properly */
+.cluster-job-logs .tabs,
+.cluster-job-logs .tabs > div,
+.cluster-job-logs .tabs > div > div,
+.cluster-job-logs .tabs > div > div > div {
     display: flex;
     flex-direction: column;
     overflow-y: hidden;
 }
-
-.cluster-job-logs .tabs > ul {
-	/* the tab buttons container, need to override kvision/bootstrap styles */
+.cluster-job-logs .tabs > div > div {
+	flex-shrink: 1;
+}
+.cluster-job-logs .tabs > div > ul {
 	flex-shrink: 0;
 }
 
-.cluster-job-logs .tabs > div {
-	/* the tabs container, need to override kvision/bootstrap styles */
-	flex-shrink: 1;
-	display: flex;
-	flex-direction: column;
-	overflow-y: hidden;
-}
 
 .cluster-job-logs .stream {
 	display: flex;
