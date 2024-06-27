@@ -10,9 +10,9 @@ object TomographySegmentationNodeConfig : NodeConfig {
 	override val name = "Segmentation"
 	override val hasFiles = true
 
-	val tiltSeries = NodeConfig.Data("tilt-series", NodeConfig.Data.Type.TiltSeries)
+	val tomograms = NodeConfig.Data("tomograms", NodeConfig.Data.Type.Tomograms)
 	val segmentation = NodeConfig.Data("segmentation", NodeConfig.Data.Type.Segmentation)
 
-	override val inputs = listOf(tiltSeries)
+	override val inputs = listOf(tomograms)
 	override val outputs = listOf(segmentation)
 }

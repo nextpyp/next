@@ -17,7 +17,7 @@ class TomographySegmentationJob(
 
 	val args = JobArgs<TomographySegmentationArgs>()
 
-	var inTiltSeries: CommonJobData.DataId? by InputProp(config.tiltSeries)
+	var inTomograms: CommonJobData.DataId? by InputProp(config.tomograms)
 
 	companion object : JobInfo {
 
@@ -72,7 +72,7 @@ class TomographySegmentationJob(
 		wwwDir.recreateAs(project.osUsername)
 
 		// get the input raw data job
-		val prevJob = inTiltSeries?.resolveJob<Job>() ?: throw IllegalStateException("no tilt series input configured")
+		val prevJob = inTomograms?.resolveJob<Job>() ?: throw IllegalStateException("no tilt series input configured")
 
 		val newestArgs = args.newestOrThrow().args
 

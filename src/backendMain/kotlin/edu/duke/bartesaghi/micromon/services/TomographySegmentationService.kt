@@ -21,7 +21,7 @@ actual class TomographySegmentationService : ITomographySegmentationService, Ser
 		// make the job
 		val job = TomographySegmentationJob(userId, projectId)
 		job.args.next = args
-		job.inTiltSeries = inTiltSeries
+		job.inTomograms = inTiltSeries
 		job.create()
 
 		return job.data()
