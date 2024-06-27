@@ -740,22 +740,25 @@ class ProjectView(val project: ProjectData) : View {
 				}
 
 				// show the obsolete nodes, if wanted
-				val obsoleteCheck = CheckBox(value = false, label = "Show obsolete blocks")
-				div {
-					add(obsoleteCheck)
-				}
-				val obsoleteSection = div {
-					showNodes(obsoleteNodes)
-				}
+				if (obsoleteNodes.isNotEmpty()) {
 
-				fun updateObsoleteVisibility() {
-					obsoleteSection.visible = obsoleteCheck.value
-				}
-				updateObsoleteVisibility()
+					val obsoleteCheck = CheckBox(value = false, label = "Show obsolete blocks")
+					div {
+						add(obsoleteCheck)
+					}
+					val obsoleteSection = div {
+						showNodes(obsoleteNodes)
+					}
 
-				// wire up events
-				obsoleteCheck.onClick {
+					fun updateObsoleteVisibility() {
+						obsoleteSection.visible = obsoleteCheck.value
+					}
 					updateObsoleteVisibility()
+
+					// wire up events
+					obsoleteCheck.onClick {
+						updateObsoleteVisibility()
+					}
 				}
 			}
 		}
