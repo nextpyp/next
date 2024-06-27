@@ -3,6 +3,7 @@
 # exit the installer if any command fails
 set -e
 
+
 # build-time settings (to be filled in by a build script)
 version="__TARGET_VERSION__"
 
@@ -20,31 +21,15 @@ fi
 here=$(pwd)
 
 
-mkdirfs() #(path, chmod ops)
-{
-  if [ -d "$1" ]; then
-    echo "Using exixting folder $1"
+mkdirdo() { #(do, path, chmod ops)
+  if [ -d "$2" ]; then
+    echo "Using exixting folder $2"
   else
-    $fsdo mkdir -p "$1"
-    if [ -n "$2" ]; then
-      $fsdo chmod "$2" "$1"
+    $1 mkdir -p "$2"
+    if [ -n "$3" ]; then
+      $1 chmod "$3" "$2"
     fi
-    echo "Created folder $1"
-  fi
-}
-
-mkdirswitch() #(path, chmod ops)
-{
-  if [ -d "$1" ]; then
-    # make the folder as root, then change it to the service account
-    mkdir -p "$1"
-    chown "$username":"$groupname" "$1"
-    if [ -n "$2" ]; then
-      chmod "$2" "$1"
-    fi
-    echo "Created folder $1"
-  else
-    echo "Using exixting folder $1"
+    echo "Created folder $2"
   fi
 }
 
@@ -55,21 +40,6 @@ if [ "$whoami" = "root" ]; then
 
   echo "Installing in root mode: Will integrate with OS"
   oscaps="root"
-
-  # determine filesystem capabilities
-  testfile="$here/__fscaps_test__"
-  if touch "$testfile" ; then
-    # root user can write here
-    rm "$testfile"
-    # create files/folders as root
-    fsdo=
-    mkdirhere=mkdirswitch
-  else
-    # root user can't write here, so create files and folders as the service account instead
-    fsdo="$usdo"
-    mkdirhere=mkdirfs
-    echo "Installing in root shared mode: Will create files/folders as service account"
-  fi
 
   # get the username for the service account
   username=$PYP_USER
@@ -94,6 +64,41 @@ if [ "$whoami" = "root" ]; then
   # make a way to do things as the service account, like sudo, but user-do
   usdo="sudo -u $username"
 
+  # determine filesystem capabilities
+  installowner="$(stat -c '%U' "$here")"
+  if [ "$installowner" = "root" ]; then
+    echo "Install folder owned by root"
+
+    heredo=
+
+    mkdirheresrv() { #(path, chmod ops)
+      mkdirdo "" "$1" "$2"
+      # folder will be owned by root: need to chmod to service account
+      chown "$1" "$username:$groupname"
+    }
+
+  elif [ "$installowner" = "$username" ]; then
+    echo "Install folder owned by service account"
+
+    heredo="$usdo"
+
+    mkdirheresrv() { #(path, chmod ops)
+      mkdirdo "$usdo" "$1" "$2"
+    }
+
+  else
+    echo "Install folder owned by $installowner"
+
+    heredo="sudo -u $installowner"
+
+    mkdirheresrv() { #(path, chmod ops)
+      # service account might not be able to write here, so temporarily make the folder world-writeable
+      $heredo chmod o+w "$here"
+      mkdirdo "$usdo" "$1" "$2"
+      $heredo chmod o-w "$here"
+    }
+  fi
+
   # install binaries to the OS bin dir
   bindir=/usr/bin
 
@@ -110,8 +115,10 @@ else
   echo "Installing nextPYP $version as current account $username ..."
 
   usdo=
-  fsdo=
-  mkdirhere=mkdirfs
+  heredo=
+  mkdirheresrv() { #(path, chmod ops)
+    mkdirdo "$usdo" "$1" "$2"
+  }
 
   # "install" binaries here
   bindir="$here"
@@ -128,7 +135,8 @@ if [ "$oscaps" = "root" ]; then
     true
   elif [ -L "$canondir" ]; then
     # already a symbolic link here, overwrite it
-    ln -sf "$here" "$canondir"
+    rm "$canondir"
+    ln -s "$here" "$canondir"
   elif [ -e "$canondir" ]; then
     # something else installed here, panic!
     echo "Failed to create installdir symlink at $canondir, something else already exists there"
@@ -146,11 +154,10 @@ wgetopts="-nv"
 # for interactive use, it's helpful to turn on the progress bar to track long downloads
 #wgetopts="$wgetopts --progress=bar"
 
-download() #(path, chmod ops)
-{
-  $fsdo wget $wgetopts -O "$1" "$www/$1"
+download() { #(path, chmod vops)
+  $heredo wget $wgetopts -O "$1" "$www/$1"
   if [ -n "$2" ]; then
-    $fsdo chmod "$2" "$1"
+    $heredo chmod "$2" "$1"
   fi
 }
 
@@ -171,14 +178,13 @@ download "install-rprox"
 
 # download the workflow files
 workflowDir="$here/workflows"
-mkdirfs "$workflowDir" ugo+r
+mkdirdo "$heredo" "$workflowDir" ugo+r
 download "workflows/spr_tutorial.toml" ugo+r
 download "workflows/tomo_tutorial.toml" ugo+r
 download "workflows/class_tutorial.toml" ugo+r
 
 
-install() #(filename, dest filename)
-{
+install() { #(filename, dest filename)
   if [ -n "$2" ]; then
     dstname="$2"
   else
@@ -187,7 +193,8 @@ install() #(filename, dest filename)
   # move the executables into the binaries dir (eg /usr/bin so SELinux won't deny access)
   outpath="$bindir/$dstname"
   if [ "$here/$1" != "$outpath" ]; then
-  mv "$here/$1" "$outpath"
+    cp -f "$here/$1" "$outpath"
+    $heredo rm "$here/$1"
   fi
   chmod u=rwx,go=rx "$outpath"
 }
@@ -201,33 +208,35 @@ install "host-processor" "nextpyp-host-processor"
 
 # make the base folders
 localDir="$here/local"
-$mkdirhere "$localDir" g+s
+mkdirheresrv "$localDir" g+s
 sharedDir="$here/shared"
-$mkdirhere "$sharedDir" ugo+rx,g+s
+mkdirheresrv "$sharedDir" ugo+rx,g+s
 
 # NOTE: The base folders have setgid (g+s) so all files inherit the service account group.
 #       Setgid will propagate automatically to all subfolders when they're created,
 #       so we don't need to re-set it for every folder.
 
 # make the local sub-folders
-mkdirfs "$localDir/logs"
-mkdirfs "$localDir/db"
-mkdirfs "$localDir/sock" ugo=rwx,+t
+mkdirdo "$usdo" "$localDir/logs"
+mkdirdo "$usdo" "$localDir/db"
+mkdirdo "$usdo" "$localDir/sock" ugo=rwx,+t
 
 # make the shared sub-folders
-mkdirfs "$sharedDir/batch" ugo=rwx,+t
-mkdirfs "$sharedDir/log" ugo=rwx,+t
-mkdirfs "$sharedDir/users"
-mkdirfs "$sharedDir/os-users" ugo=rwx,+t
-mkdirfs "$sharedDir/user-processors" ugo=rwx,+t
-mkdirfs "$sharedDir/sessions" # TODO: how should user-switching work for sessions?
-mkdirfs "$sharedDir/groups"
+mkdirdo "$usdo" "$sharedDir/batch" ugo=rwx,+t
+mkdirdo "$usdo" "$sharedDir/log" ugo=rwx,+t
+mkdirdo "$usdo" "$sharedDir/users"
+mkdirdo "$usdo" "$sharedDir/os-users" ugo=rwx,+t
+mkdirdo "$usdo" "$sharedDir/user-processors" ugo=rwx,+t
+mkdirdo "$usdo" "$sharedDir/sessions" # TODO: how should user-switching work for sessions?
+mkdirdo "$usdo" "$sharedDir/groups"
 
 
 # create the home configuration folder, if needed (apptainer needs it)
 if [ "$oscaps" = "root" ]; then
-  mkdirswitch "$home" u+rwx,go+rx,go-w
-  mkdirswitch "$home/.config"
+  mkdirdo "" "$home" u+rwx,go+rx,go-w
+  chown "$username:$groupname" "$home"
+  mkdirdo "" "$home/.config" u+rwx,go+rx,go-w
+  chown "$username:$groupname" "$home/.config"
 fi
 
 
@@ -236,7 +245,7 @@ configPath="$here/config.toml"
 if [ -f "$configPath" ]; then
   echo "Using existing configuration file: $configPath"
 else
-  $fsdo cat << EOF > "$configPath"
+  $heredo cat << EOF > "$configPath"
 
 [pyp]
 # path to the PYP container file, from a SLURM compute node's point of view
@@ -268,7 +277,7 @@ EOF
 fi
 
 # make sure others can't write to the config file
-chmod o-w "$configPath"
+$heredo chmod o-w "$configPath"
 
 
 if [ "$oscaps" = "root" ]; then
@@ -292,7 +301,6 @@ Type=forking
 Restart=always
 RestartSec=1
 User=$username
-Environment=PYP_CONFIG=$configPath
 ExecStart=$bindir/nextpyp start
 ExecStop=$bindir/nextpyp stop
 
