@@ -158,12 +158,14 @@ class TomoParticlesImage(
 
         add(playableSprite)
 
-		// add the checkboxes
-		if (tiltSerieses.virusMode != null) {
-			add(showVirionsCheck)
-			add(showSpikesCheck)
-		} else {
-			add(showParticlesCheck)
+		// add the checkboxes, if needed
+		if (particleControls != null) {
+			if (tiltSerieses.virusMode != null) {
+				add(showVirionsCheck)
+				add(showSpikesCheck)
+			} else {
+				add(showParticlesCheck)
+			}
 		}
 
         // add keyboard shortcuts to control the slice selection

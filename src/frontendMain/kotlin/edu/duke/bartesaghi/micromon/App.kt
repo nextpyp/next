@@ -51,6 +51,7 @@ class App : Application() {
 			ProjectView.Companion,
 			SingleParticlePreprocessingView.Companion,
 			TomographyPreprocessingView.Companion,
+			TomographyPurePreprocessingView.Companion,
 			IntegratedRefinementView.Companion,
 			SessionsView.Companion,
 			SingleParticleSessionView.Companion,

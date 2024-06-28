@@ -57,14 +57,9 @@ data class TiltSeriesesData(
 		val args = nodeClientInfo.pypArgs.get()
 		val values = finishedValues?.toArgValues(args)
 
-		// not all blocks have the tomo_vir tab, so check and generate a nice error message if it's missing
-		if (!args.tomoVirMethodExists) {
-			throw NoSuchElementException("Block ${nodeClientInfo.config.id} has no tomo_vir.method configured")
-		}
-
 		// get the virion mode data, if any
 		virusMode = values
-			?.takeIf { it.tomoVirMethodOrDefault.isVirusMode }
+			?.takeIf { values.args.tomoVirMethodExists && it.tomoVirMethodOrDefault.isVirusMode }
 			?.let {
 				VirusModeData(
 					virionRadiusA = it.tomoVirRadOrDefault,
