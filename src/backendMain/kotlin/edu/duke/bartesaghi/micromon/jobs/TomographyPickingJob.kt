@@ -82,6 +82,11 @@ class TomographyPickingJob(
 		// build the args for PYP
 		val pypArgs = ArgValues(Backend.pypArgs)
 
+		// copy args from the import block(s), since pyp requires them
+		for (rootJob in rootJobs()) {
+			pypArgs.setAll(rootJob.finishedArgValuesOrThrow())
+		}
+
 		// set the user args
 		pypArgs.setAll(args().diff(
 			newestArgs.values,
@@ -109,7 +114,7 @@ class TomographyPickingJob(
 	override fun wipeData() {
 
 		// also delete any associated data
-		// TODO
+		// TODO: what does pyp send for this block? particles?
 	}
 
 	override fun newestArgValues(): ArgValuesToml? =
