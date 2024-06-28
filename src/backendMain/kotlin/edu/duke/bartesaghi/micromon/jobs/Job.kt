@@ -327,24 +327,6 @@ abstract class Job(
 				?: ImagesScale.default().particleRadiusA
 		)
 
-	fun rootJobs(): List<Job> {
-		val out = ArrayList<Job>()
-		fun Job.findRoots() {
-			for (upstreamData in inputs) {
-				val upstreamJob = fromIdOrThrow(upstreamData.jobId)
-				if (upstreamJob.baseConfig.inputs.isEmpty()) {
-					// no inputs: found a root job
-					out.add(upstreamJob)
-				} else {
-					// recurse
-					upstreamJob.findRoots()
-				}
-			}
-		}
-		findRoots()
-		return out
-	}
-
 	companion object {
 
 		fun fromId(jobId: String): Job? {

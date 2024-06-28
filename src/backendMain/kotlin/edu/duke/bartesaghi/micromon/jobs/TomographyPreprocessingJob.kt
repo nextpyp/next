@@ -170,9 +170,6 @@ class TomographyPreprocessingJob(
 		// build the args for PYP
 		val pypArgs = ArgValues(Backend.pypArgs)
 
-		// copy args from the raw data block, since pyp requires them
-		pypArgs.setAll(prevJob.finishedArgValuesOrThrow())
-
 		// set the user args
 		pypArgs.setAll(args().diff(
 			newestArgs.values,

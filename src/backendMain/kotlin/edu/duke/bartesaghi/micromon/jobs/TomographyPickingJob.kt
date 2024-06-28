@@ -75,17 +75,11 @@ class TomographyPickingJob(
 		// get the input job
 		val prevJob = (inSegmentation ?: inTomograms)?.resolveJob<Job>()
 			?: throw IllegalStateException("no tomograms or segmentation input configured")
-		// TODO: do we need to do anything different for one input type vs the other?
 
 		val newestArgs = args.newestOrThrow().args
 
 		// build the args for PYP
 		val pypArgs = ArgValues(Backend.pypArgs)
-
-		// copy args from the import block(s), since pyp requires them
-		for (rootJob in rootJobs()) {
-			pypArgs.setAll(rootJob.finishedArgValuesOrThrow())
-		}
 
 		// set the user args
 		pypArgs.setAll(args().diff(
