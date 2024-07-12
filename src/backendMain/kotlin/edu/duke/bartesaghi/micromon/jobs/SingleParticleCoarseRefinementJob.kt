@@ -1,7 +1,6 @@
 package edu.duke.bartesaghi.micromon.jobs
 
 import com.mongodb.client.model.Updates
-import edu.duke.bartesaghi.micromon.Backend
 import edu.duke.bartesaghi.micromon.linux.userprocessor.createDirsIfNeededAs
 import edu.duke.bartesaghi.micromon.linux.userprocessor.writeStringAs
 import edu.duke.bartesaghi.micromon.mongo.Database
@@ -86,33 +85,28 @@ class SingleParticleCoarseRefinementJob(
 		// clear caches
 		wwwDir.recreateAs(project.osUsername)
 
-		val preprocessingJob = inRefinement?.resolveJob<Job>() ?: throw IllegalStateException("no refinement input configured")
+		val upstreamJob = inRefinement?.resolveJob<Job>()
+			?: throw IllegalStateException("no refinement input configured")
 
 		// are we using a micrograh filter?
-		if (preprocessingJob is FilteredJob) {
+		if (upstreamJob is FilteredJob) {
 			val filter = args.newestOrThrow().args.filter
-				?.let { filter -> preprocessingJob.filters[filter] }
+				?.let { filter -> upstreamJob.filters[filter] }
 			if (filter != null) {
 
 				// write out the micrographs file to the job folder before starting pyp
 				val dir = dir.createDirsIfNeededAs(project.osUsername)
 				val file = dir / "${dir.fileName}.micrographs"
-				val micrographIds = preprocessingJob.resolveFilter(filter)
+				val micrographIds = upstreamJob.resolveFilter(filter)
 				file.writeStringAs(project.osUsername, micrographIds.joinToString("\n"))
 			}
 		}
 
 		// build the args for PYP
-		val pypArgs = ArgValues(Backend.pypArgs)
-
-		// set the user args
-		pypArgs.setAll(args().diff(
-			args.newestOrThrow().args.values,
-			args.finished?.values ?: preprocessingJob.finishedArgValues()
-		))
+		val pypArgs = launchArgValues(upstreamJob, args.newestOrThrow().args.values, args.finished?.values)
 
 		// set the hidden args
-		pypArgs.dataParent = preprocessingJob.dir.toString()
+		pypArgs.dataParent = upstreamJob.dir.toString()
 		pypArgs.extractFmt = "frealign"
 		
 		Pyp.csp.launch(project.osUsername, runId, pypArgs, "Launch", "pyp_launch")

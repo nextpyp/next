@@ -1,7 +1,6 @@
 package edu.duke.bartesaghi.micromon.jobs
 
 import com.mongodb.client.model.Updates
-import edu.duke.bartesaghi.micromon.Backend
 import edu.duke.bartesaghi.micromon.globCountOrNull
 import edu.duke.bartesaghi.micromon.mongo.getDocument
 import edu.duke.bartesaghi.micromon.nodes.TomographyRawDataNodeConfig
@@ -92,13 +91,7 @@ class TomographyRawDataJob(
 		wwwDir.recreateAs(project.osUsername)
 
 		// build the args for PYP
-		val pypArgs = ArgValues(Backend.pypArgs)
-
-		// set the user args
-		pypArgs.setAll(args().diff(
-			args.newestOrThrow().args.values,
-			args.finished?.values
-		))
+		val pypArgs = launchArgValues(null, args.newestOrThrow().args.values, args.finished?.values)
 
 		// set the hidden args
 		pypArgs.dataMode = "tomo"

@@ -1,7 +1,6 @@
 package edu.duke.bartesaghi.micromon.jobs
 
 import com.mongodb.client.model.Updates
-import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.mongo.getDocument
 import edu.duke.bartesaghi.micromon.nodes.SingleParticlePreprocessingNodeConfig
@@ -128,9 +127,6 @@ class SingleParticlePreprocessingJob(
 		// clear caches
 		wwwDir.recreateAs(project.osUsername)
 
-		// get the input raw data job
-		val prevJob = inMovies?.resolveJob<Job>() ?: throw IllegalStateException("no movies input configured")
-
 		val newestArgs = args.newestOrThrow().args
 
 		// if we've picked some particles, write those out to pyp
@@ -139,16 +135,9 @@ class SingleParticlePreprocessingJob(
 			?.let { ParticlesJobs.writeSingleParticle(project.osUsername, idOrThrow, dir, it) }
 
 		// build the args for PYP
-		val pypArgs = ArgValues(Backend.pypArgs)
-
-		// copy args from the raw data block, since pyp requires them
-		pypArgs.setAll(prevJob.finishedArgValuesOrThrow())
-
-		// set the user args
-		pypArgs.setAll(args().diff(
-			newestArgs.values,
-			args.finished?.values ?: prevJob.finishedArgValues()
-		))
+		val upstreamJob = inMovies?.resolveJob<Job>()
+			?: throw IllegalStateException("no movies input configured")
+		val pypArgs = launchArgValues(upstreamJob, newestArgs.values, args.finished?.values)
 
 		// set the hidden args
 		pypArgs.dataMode = "spr"

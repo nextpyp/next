@@ -97,13 +97,9 @@ class ArgsForm(
 
 			if (form.args.groups.isNotEmpty()) {
 
-				// filter out hidden tabs in the UI only, not the values
-				val groups = form.args.groups
-					.filter { form.blockId == null || it.hidden.isVisibleInBlock(form.blockId) }
-
 				// show the arg in a tab panel, one tab for each group
 				tabPanel {
-					for (group in groups) {
+					for (group in form.args.groups) {
 						val tab = ArgsInputs(form.args.args(group), values, controls, form.outNodes, form.enabled, ::showAdvanced)
 						tabs[group.groupId] = tab
 						addTab(group.name, tab)

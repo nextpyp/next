@@ -1,7 +1,6 @@
 package edu.duke.bartesaghi.micromon.jobs
 
 import com.mongodb.client.model.Updates
-import edu.duke.bartesaghi.micromon.Backend
 import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.mongo.getDocument
 import edu.duke.bartesaghi.micromon.nodes.SingleParticleSessionDataNodeConfig
@@ -82,24 +81,18 @@ class SingleParticleSessionDataJob(
 
 		val newestArgs = args.newestOrThrow().args
 
+		// authenticate the user for the session
+		val user = Database.users.getUser(userId)
+			?: throw NoSuchElementException("no logged in user")
+		val session = user.authSessionForReadOrThrow(newestArgs.sessionId)
+
 		// if we've picked some particles, write those out to pyp
 		newestArgs.particlesName
 			?.let { Database.particleLists.get(idOrThrow, it) }
 			?.let { ParticlesJobs.writeSingleParticle(project.osUsername, idOrThrow, dir, it) }
 
 		// build the args for PYP
-		val pypArgs = ArgValues(Backend.pypArgs)
-
-		// set the user args
-		pypArgs.setAll(args().diff(
-			newestArgs.values,
-			args.finished?.values
-		))
-
-		// authenticate the user for the session
-		val user = Database.users.getUser(userId)
-			?: throw NoSuchElementException("no logged in user")
-		val session = user.authSessionForReadOrThrow(newestArgs.sessionId)
+		val pypArgs = launchArgValues(null, newestArgs.values, args.finished?.values)
 
 		// set the hidden args
 		pypArgs.dataMode = "spr"

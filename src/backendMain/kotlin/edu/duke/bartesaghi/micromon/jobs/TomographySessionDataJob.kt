@@ -82,23 +82,17 @@ class TomographySessionDataJob(
 
 		val newestArgs = args.newestOrThrow().args
 
+		// authenticate the user for the session
+		val user = Database.users.getUser(userId)
+			?: throw NoSuchElementException("no logged in user")
+		val session = user.authSessionForReadOrThrow(newestArgs.sessionId)
+
 		// write out particles, if needed
 		val argValues = newestArgs.values.toArgValues(Backend.pypArgs)
 		ParticlesJobs.writeTomography(project.osUsername, idOrThrow, dir, argValues, newestArgs.particlesName)
 
 		// build the args for PYP
-		val pypArgs = ArgValues(Backend.pypArgs)
-
-		// set the user args
-		pypArgs.setAll(args().diff(
-			newestArgs.values,
-			args.finished?.values
-		))
-
-		// authenticate the user for the session
-		val user = Database.users.getUser(userId)
-			?: throw NoSuchElementException("no logged in user")
-		val session = user.authSessionForReadOrThrow(newestArgs.sessionId)
+		val pypArgs = launchArgValues(null, newestArgs.values, args.finished?.values)
 
 		// set the hidden args
 		pypArgs.dataMode = "tomo"

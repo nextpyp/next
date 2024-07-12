@@ -1,7 +1,6 @@
 package edu.duke.bartesaghi.micromon.jobs
 
 import com.mongodb.client.model.Updates
-import edu.duke.bartesaghi.micromon.Backend
 import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.mongo.getDocument
 import edu.duke.bartesaghi.micromon.nodes.TomographyFlexibleRefinementNodeConfig
@@ -81,20 +80,13 @@ class TomographyFlexibleRefinementJob(
 		// clear caches
 		wwwDir.recreateAs(project.osUsername)
 
-		// get the input jobs
-		val prevJob = inMovieRefinements?.resolveJob<Job>() ?: throw IllegalStateException("no movie refinements input configured")
-
 		// build the args for PYP
-		val pypArgs = ArgValues(Backend.pypArgs)
-
-		// set the user args
-		pypArgs.setAll(args().diff(
-			args.newestOrThrow().args.values,
-			args.finished?.values ?: prevJob.finishedArgValues()
-		))
+		val upstreamJob = inMovieRefinements?.resolveJob<Job>()
+			?: throw IllegalStateException("no movie refinements input configured")
+		val pypArgs = launchArgValues(upstreamJob, args.newestOrThrow().args.values, args.finished?.values)
 
 		// set the hidden args
-		pypArgs.dataParent = prevJob.dir.toString()
+		pypArgs.dataParent = upstreamJob.dir.toString()
 		pypArgs.extractFmt = "frealign_local"
 
 		Pyp.csp.launch(project.osUsername, runId, pypArgs, "Launch", "pyp_launch")

@@ -79,17 +79,14 @@ class Args(
 	fun args(group: ArgGroup) =
 		args(group.groupId)
 
-	fun filter(blockId: String, includeHiddenArgs: Boolean, includeHiddenGroups: Boolean): Args {
-
-		// NOTE: `includeHiddenArgs` appears to never be set to true
+	fun filter(blockId: String): Args {
 
 		val groups = blockOrThrow(blockId).groupIds
 			.mapNotNull { group(it) }
-			.filter { includeHiddenGroups || it.hidden.isVisibleInBlock(blockId) }
 
 		val args = groups.flatMap { group ->
 			args(group.groupId)
-				.filter { includeHiddenArgs || it.hidden.isVisibleInBlock(blockId) }
+				.filter { it.hidden.isVisibleInBlock(blockId) }
 		}
 
 		return Args(emptyList(), groups, args)
@@ -172,7 +169,8 @@ class Block(
 	val blockId: String,
 	val name: String,
 	val description: String,
-	val groupIds: List<String>
+	val groupIds: List<String>,
+	val forwardedGroupIds: List<String>,
 ) {
 
 	override fun toString() = name
@@ -182,8 +180,7 @@ class Block(
 class ArgGroup(
 	val groupId: String,
 	val name: String,
-	val description: String,
-	val hidden: GroupHidden = GroupHidden.none(),
+	val description: String
 ) {
 
 	override fun toString() = name
@@ -852,31 +849,6 @@ class ArgHidden private constructor(val blockIds: List<String>?) {
 		fun all() = ArgHidden(null)
 
 		fun some(blockIds: List<String>) = ArgHidden(blockIds)
-	}
-}
-
-
-/**
- * Tracks which blocks the group is hidden from.
- * Empty list for hidden from no blocks.
- * Null list for hidden from all blocks.
- *
- * "Hidden" here means the group's arguments will not be shown in forms,
- * but the argument values will still be copied to downstream blocks.
- */
-@Serializable
-class GroupHidden private constructor(val blockIds: List<String>?) {
-
-	fun isVisibleInBlock(blockId: String): Boolean =
-		blockIds != null && blockId !in blockIds
-
-	companion object {
-
-		fun none() = GroupHidden(emptyList())
-
-		fun all() = GroupHidden(null)
-
-		fun some(blockIds: List<String>) = GroupHidden(blockIds)
 	}
 }
 

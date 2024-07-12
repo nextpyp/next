@@ -100,13 +100,7 @@ class TomographyRelionDataJob(
 		ParticlesJobs.writeTomography(project.osUsername, idOrThrow, dir, argValues, newestArgs.particlesName)
 
 		// build the args for PYP
-		val pypArgs = ArgValues(Backend.pypArgs)
-
-		// set the user args
-		pypArgs.setAll(args().diff(
-			newestArgs.values,
-			args.finished?.values
-		))
+		val pypArgs = launchArgValues(null, newestArgs.values, args.finished?.values)
 
 		// set the hidden args
 		pypArgs.dataMode = "tomo"

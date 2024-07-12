@@ -50,7 +50,7 @@ class SingleParticleSession(
 
 		fun args() =
 			Backend.pypArgs
-				.filter("stream_spr", includeHiddenArgs = false, includeHiddenGroups = true)
+				.filter("stream_spr")
 				.appendAll(MicromonArgs.slurmLaunch)
 
 		object StreampypListener : ClusterJob.OwnerListener {

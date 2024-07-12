@@ -33,15 +33,30 @@ fun Args.Companion.fromToml(toml: String): Args {
 		val blockPos = blocksTable.inputPositionOf(blockId)
 		val blockTable = blocksTable.getTableOrThrow(blockId)
 
+		val groupIds = blockTable.getArrayOrThrow("tabs").let { array ->
+			(0 until array.size()).map { i ->
+				array.getString(i)
+			}
+		}
+
+		val forwardedGroupIds = blockTable.getArray("forwarded_tabs")
+			?.let { array ->
+				(0 until array.size()).map { i ->
+					val id = array.getString(i)
+					if (id in groupIds) {
+						throw TomlParseException("forwarded tab shouldn't also be a regular tab: $id", array.inputPositionOf(i))
+					}
+					id
+				}
+			}
+			?: emptyList()
+
 		blocks.add(Block(
 			blockId,
 			name = blockTable.getStringOrThrow("name", blockPos),
 			description = blockTable.getStringOrThrow("description", blockPos),
-			groupIds = blockTable.getArrayOrThrow("tabs").let { array ->
-				(0 until array.size()).map { i ->
-					array.getString(i)
-				}
-			}
+			groupIds = groupIds,
+			forwardedGroupIds = forwardedGroupIds
 		))
 	}
 
@@ -60,8 +75,7 @@ fun Args.Companion.fromToml(toml: String): Args {
 		groups.add(ArgGroup(
 			groupId,
 			groupTable.getStringOrThrow("_name", groupPos),
-			groupTable.getStringOrThrow("_description", groupPos),
-			groupTable.getGroupHidden("_hidden")
+			groupTable.getStringOrThrow("_description", groupPos)
 		))
 
 		// for each arg in the group ...
@@ -231,25 +245,6 @@ fun TomlTable.getArgHidden(key: String): ArgHidden {
 			val blockIds = value.toList()
 				.map { it as? String ?: throw TomlParseException("block name not a string: $it", pos) }
 			ArgHidden.some(blockIds)
-		}
-
-		else -> throw TomlParseException("unrecognized hidden value: $value", pos)
-	}
-}
-
-fun TomlTable.getGroupHidden(key: String): GroupHidden {
-
-	val pos = inputPositionOf(key)
-	val value = get(key) ?: return GroupHidden.none()
-
-	return when (value) {
-
-		true -> GroupHidden.all()
-
-		is TomlArray -> {
-			val blockIds = value.toList()
-				.map { it as? String ?: throw TomlParseException("block name not a string: $it", pos) }
-			GroupHidden.some(blockIds)
 		}
 
 		else -> throw TomlParseException("unrecognized hidden value: $value", pos)

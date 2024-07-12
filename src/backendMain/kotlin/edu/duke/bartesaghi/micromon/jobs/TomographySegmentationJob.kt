@@ -1,7 +1,6 @@
 package edu.duke.bartesaghi.micromon.jobs
 
 import com.mongodb.client.model.Updates
-import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.mongo.getDocument
 import edu.duke.bartesaghi.micromon.nodes.TomographySegmentationNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.*
@@ -71,19 +70,10 @@ class TomographySegmentationJob(
 		// clear caches
 		wwwDir.recreateAs(project.osUsername)
 
-		// get the input raw data job
-		val prevJob = inTomograms?.resolveJob<Job>() ?: throw IllegalStateException("no tilt series input configured")
-
-		val newestArgs = args.newestOrThrow().args
-
 		// build the args for PYP
-		val pypArgs = ArgValues(Backend.pypArgs)
-
-		// set the user args
-		pypArgs.setAll(args().diff(
-			newestArgs.values,
-			args.finished?.values ?: prevJob.finishedArgValues()
-		))
+		val upstreamJob = inTomograms?.resolveJob<Job>()
+			?: throw IllegalStateException("no tilt series input configured")
+		val pypArgs = launchArgValues(upstreamJob, args.newestOrThrow().args.values, args.finished?.values)
 
 		// set the hidden args
 		pypArgs.dataMode = "tomo"

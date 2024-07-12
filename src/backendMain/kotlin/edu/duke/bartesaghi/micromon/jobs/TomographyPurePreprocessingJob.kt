@@ -83,9 +83,6 @@ class TomographyPurePreprocessingJob(
 		// clear caches
 		wwwDir.recreateAs(project.osUsername)
 
-		// get the input raw data job
-		val prevJob = inTiltSeries?.resolveJob<Job>() ?: throw IllegalStateException("no tilt series input configured")
-
 		val newestArgs = args.newestOrThrow().args
 
 		// write out the tilt exclusions, if needed
@@ -115,13 +112,9 @@ class TomographyPurePreprocessingJob(
 		}
 
 		// build the args for PYP
-		val pypArgs = ArgValues(Backend.pypArgs)
-
-		// set the user args
-		pypArgs.setAll(args().diff(
-			newestArgs.values,
-			args.finished?.values ?: prevJob.finishedArgValues()
-		))
+		val upstreamJob = inTiltSeries?.resolveJob<Job>()
+			?: throw IllegalStateException("no tilt series input configured")
+		val pypArgs = launchArgValues(upstreamJob, newestArgs.values, args.finished?.values)
 
 		// set the hidden args
 		pypArgs.dataMode = "tomo"
