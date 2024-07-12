@@ -18,6 +18,7 @@ import edu.duke.bartesaghi.micromon.sessions.SingleParticleSession
 import edu.duke.bartesaghi.micromon.sessions.TomographySession
 import io.ktor.features.*
 import io.ktor.routing.Routing
+import org.slf4j.LoggerFactory
 import java.time.Instant
 import java.text.NumberFormat
 import java.util.Locale
@@ -26,6 +27,9 @@ import java.util.Locale
 // this warning is incorrect here, the linter is probably confused by the reflection
 @Suppress("RedundantSuspendModifier")
 object PypService {
+
+	private val log = LoggerFactory.getLogger("PypService")
+
 
 	fun init(routing: Routing) {
 		JsonRpc.init(
@@ -161,6 +165,8 @@ object PypService {
 			?: return JsonRpcFailure("invalid webid")
 		val owner = clusterJob.findOwner()
 
+		log.debug("writeParameters: {}", owner)
+
 		/* parse the inputs, PYP sends something like:
 			"webid" : "eFZHeeCNEQJp5W2B",
 			"parameter_id" : "sp-preprocessing-eFZHdEHe66FQQNp8",
@@ -280,6 +286,8 @@ object PypService {
 			Database.particles.importParticles2D(list.ownerId, list.name, micrographId, particles)
 		}
 
+		log.debug("writeMicrograph: {}: id={}, particles={}", owner, micrographId, particles?.size?.toString() ?: "none")
+
 		when (owner) {
 
 			is Owner.Job -> {
@@ -343,6 +351,8 @@ object PypService {
 			set("fsc", fsc.toListOfListOfDoubles())
 			set("plots", plots.toDoc())
 		}
+
+		log.debug("writeReconstruction: {}: id={}, iter={}, class={}", owner, reconstructionId, iteration, classNum)
 
 		when (owner) {
 
@@ -448,6 +458,12 @@ object PypService {
 			Database.particles.importParticles3D(list.ownerId, list.name, tiltSeriesId, particles)
 		}
 
+		log.debug("writeTiltSeries: {}: id={}, virions={}, spikes={}, particles={}", owner, tiltSeriesId,
+			virionsAndThresholds?.first?.size?.toString() ?: "none",
+			virionsAndThresholds?.second?.size?.toString() ?: "none",
+			particles?.size?.toString() ?: "none"
+		)
+
 		when (owner) {
 
 			is Owner.Job -> {
@@ -508,6 +524,8 @@ object PypService {
 		)
 		refinement.write()
 
+		log.debug("writeRefinement: {}: dataId={}, iter={}", owner, refinement.dataId, refinement.iteration)
+
 		when (owner) {
 
 			is Owner.Job -> {
@@ -559,6 +577,8 @@ object PypService {
 		)
 		refinementBundle.write()
 
+		log.debug("writeRefinementBundle: {}: id={}, iter={}", owner, refinementBundle.refinementBundleId, refinementBundle.iteration)
+
 		when (owner) {
 
 			is Owner.Job -> {
@@ -602,6 +622,8 @@ object PypService {
 		)
 		twoDClasses.write()
 
+		log.debug("writeClasses: {}: id={}", owner, twoDClasses.twoDClassesId)
+
 		when (owner) {
 
 			is Owner.Job -> {
@@ -622,8 +644,17 @@ object PypService {
 	sealed class Owner(
 		val id: String
 	) {
-		class Job(val job: edu.duke.bartesaghi.micromon.jobs.Job) : Owner(job.idOrThrow)
-		class Session(val session: edu.duke.bartesaghi.micromon.sessions.Session) : Owner(session.idOrThrow)
+		class Job(val job: edu.duke.bartesaghi.micromon.jobs.Job) : Owner(job.idOrThrow) {
+
+			override fun toString(): String =
+				"Job[${job.baseConfig.id},${job.id}]"
+		}
+
+		class Session(val session: edu.duke.bartesaghi.micromon.sessions.Session) : Owner(session.idOrThrow) {
+
+			override fun toString(): String =
+				"Session[${session.type},${session.id}]"
+		}
 	}
 
 	private fun ClusterJob.findOwner(): Owner {
