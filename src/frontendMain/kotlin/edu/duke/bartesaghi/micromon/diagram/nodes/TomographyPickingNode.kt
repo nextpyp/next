@@ -1,6 +1,5 @@
 package edu.duke.bartesaghi.micromon.diagram.nodes
 
-import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.AppScope
 import edu.duke.bartesaghi.micromon.components.forms.*
 import edu.duke.bartesaghi.micromon.diagram.Diagram
@@ -11,6 +10,7 @@ import edu.duke.bartesaghi.micromon.pyp.Args
 import edu.duke.bartesaghi.micromon.pyp.filterForDownstreamCopy
 import edu.duke.bartesaghi.micromon.refreshDynamicImages
 import edu.duke.bartesaghi.micromon.services.*
+import edu.duke.bartesaghi.micromon.views.TomographyPickingView
 import edu.duke.bartesaghi.micromon.views.Viewport
 import io.kvision.form.formPanel
 import io.kvision.modal.Modal
@@ -30,7 +30,7 @@ class TomographyPickingNode(
 	companion object : NodeClientInfo {
 
 		override val config = TomographyPickingNodeConfig
-		override val type = MicromonDiagrams.nodeType(config, "fas fa-chart-bar")
+		override val type = MicromonDiagrams.nodeType(config, "fas fa-crosshairs")
 		override val jobClass = TomographyPickingData::class
 		override val urlFragment = null
 
@@ -105,8 +105,7 @@ class TomographyPickingNode(
 
 		content {
 			button(className = "image-button", onClick = {
-				// TODO: view?
-				//TomographyPickingView.go(viewport, project, job)
+				TomographyPickingView.go(viewport, project, job)
 			}) {
 				img(job.imageUrl, className = dynamicImageClassName)
 			}

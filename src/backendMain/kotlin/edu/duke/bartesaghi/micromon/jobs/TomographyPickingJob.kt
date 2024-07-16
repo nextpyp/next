@@ -1,6 +1,7 @@
 package edu.duke.bartesaghi.micromon.jobs
 
 import com.mongodb.client.model.Updates
+import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.mongo.getDocument
 import edu.duke.bartesaghi.micromon.nodes.TomographyPickingNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.*
@@ -12,9 +13,10 @@ import org.bson.conversions.Bson
 class TomographyPickingJob(
 	userId: String,
 	projectId: String
-) : Job(userId, projectId, config) {
+) : Job(userId, projectId, config), TiltSeriesesJob {
 
 	val args = JobArgs<TomographyPickingArgs>()
+	override var latestTiltSeriesId: String? = null
 
 	var inTomograms: CommonJobData.DataId? by InputProp(config.tomograms)
 	var inSegmentation: CommonJobData.DataId? by InputProp(config.segmentation)
@@ -30,6 +32,7 @@ class TomographyPickingJob(
 		).apply {
 			args.finished = doc.getDocument("finishedArgs")?.let { TomographyPickingArgs.fromDoc(it) }
 			args.next = doc.getDocument("nextArgs")?.let { TomographyPickingArgs.fromDoc(it) }
+			latestTiltSeriesId = doc.getString("latestTiltSeriesId")
 			fromDoc(doc)
 		}
 
@@ -41,6 +44,8 @@ class TomographyPickingJob(
 			TomographyPickingArgs(
 				doc.getString("values")
 			)
+
+		val eventListeners = TomographyPreprocessingJob.Companion.EventListeners()
 	}
 
 	override fun createDoc(doc: Document) {
@@ -53,6 +58,7 @@ class TomographyPickingJob(
 		super.updateDoc(updates)
 		updates.add(Updates.set("finishedArgs", args.finished?.toDoc()))
 		updates.add(Updates.set("nextArgs", args.next?.toDoc()))
+		updates.add(Updates.set("latestTiltSeriesId", latestTiltSeriesId))
 	}
 
 	override fun isChanged() = args.hasNext()
@@ -83,6 +89,8 @@ class TomographyPickingJob(
 
 		// job was launched, move the args over
 		args.run()
+		// and wipe the latest tilt series id, so we can detect when the first one comes in next time
+		latestTiltSeriesId = null
 		update()
 	}
 
@@ -90,14 +98,22 @@ class TomographyPickingJob(
 
 		val size = ImageSize.Small
 
-		// TEMP: use a placeholder for now
-		return "/img/placeholder/${size.id}"
-	}
+		// find an arbitrary (but deterministic) tilt series for this job
+		// like the newest tilt series written for this job
+		return latestTiltSeriesId
+			?.let { "/kv/jobs/$idOrThrow/data/$it/image/${size.id}" }
+
+			// or just use a placeholder
+			?: return "/img/placeholder/${size.id}"	}
 
 	override fun wipeData() {
 
 		// also delete any associated data
-		// TODO: what does pyp send for this block? particles?
+		Database.tiltSeriesAvgRot.deleteAll(idOrThrow)
+		Database.tiltSeriesDriftMetadata.deleteAll(idOrThrow)
+		Database.jobPreprocessingFilters.deleteAll(idOrThrow)
+		Database.tiltExclusions.delete(idOrThrow)
+		Database.particles.deleteAllParticles(idOrThrow)
 	}
 
 	override fun newestArgValues(): ArgValuesToml? =
@@ -105,4 +121,8 @@ class TomographyPickingJob(
 
 	override fun finishedArgValues(): ArgValuesToml? =
 		args.finished?.values
+
+	override suspend fun notifyTiltSeries(tiltSeriesId: String) {
+		eventListeners.sendTiltSeries(idOrThrow, tiltSeriesId)
+	}
 }

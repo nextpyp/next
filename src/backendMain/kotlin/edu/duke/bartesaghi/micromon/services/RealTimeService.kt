@@ -136,44 +136,68 @@ object RealTimeService {
 			listener.close()
 		}
 
-		suspend fun DefaultWebSocketServerSession.tomographyPreprocessingService(eventListeners: TomographyPreprocessingJob.Companion.EventListeners) {
+		suspend fun DefaultWebSocketServerSession.tiltSeriesesService(makeListener: (Job) -> AutoCloseable) {
 
 			val user = call.authOrThrow()
 
 			// wait to hear which job the user wants
-			val msg = incoming.receiveMessage<RealTimeC2S.ListenToTomographyPreprocessing>(outgoing)
+			val msg = incoming.receiveMessage<RealTimeC2S.ListenToTiltSerieses>(outgoing)
 				?: return
 
 			// authenticate the user for this job
 			val job = user.authJobOrThrow(ProjectPermission.Read, msg.jobId)
 
-			// route messages to the client
-			val listener = eventListeners.add(job.idOrThrow)
-			listener.onParams = { values ->
+			// route messages to the client via the listener
+			makeListener(job).use {
+				// wait for the connection to close, then cleanup the listeners
+				incoming.waitForClose(outgoing)
+			}
+		}
+
+		fun DefaultWebSocketServerSession.updatedParamsHandler(job: Job): (suspend (ArgValues) -> Unit) {
+			return { values ->
 				outgoing.trySendMessage(RealTimeS2C.UpdatedParameters(
 					imagesScale = job.imagesScale(values),
 					pypStats = PypStats.fromTomography(values)
 				))
 			}
-			listener.onTiltSeries = { tiltSeries ->
+		}
+
+		fun DefaultWebSocketServerSession.updatedTiltSeriesHandler(job: Job): (suspend (TiltSeries) -> Unit) {
+			return { tiltSeries ->
 				outgoing.trySendMessage(RealTimeS2C.UpdatedTiltSeries(
 					tiltSeries = tiltSeries.getMetadata(),
 					numAutoParticles = Database.particles.countParticles(job.idOrThrow, ParticlesList.PypAutoParticles, tiltSeries.tiltSeriesId),
 					numAutoVirions = Database.particles.countParticles(job.idOrThrow, ParticlesList.PypAutoVirions, tiltSeries.tiltSeriesId)
 				))
 			}
-
-			// wait for the connection to close, then cleanup the listeners
-			incoming.waitForClose(outgoing)
-			listener.close()
 		}
 
 		routing.webSocket(RealTimeServices.tomographyPreprocessing) {
-			tomographyPreprocessingService(TomographyPreprocessingJob.eventListeners)
+			tiltSeriesesService { job ->
+				TomographyPreprocessingJob.eventListeners.add(job.idOrThrow).apply {
+					onParams = updatedParamsHandler(job)
+					onTiltSeries = updatedTiltSeriesHandler(job)
+				}
+			}
 		}
 
 		routing.webSocket(RealTimeServices.tomographyPurePreprocessing) {
-			tomographyPreprocessingService(TomographyPurePreprocessingJob.eventListeners)
+			tiltSeriesesService { job ->
+				TomographyPurePreprocessingJob.eventListeners.add(job.idOrThrow).apply {
+					onParams = updatedParamsHandler(job)
+					onTiltSeries = updatedTiltSeriesHandler(job)
+				}
+			}
+		}
+
+		routing.webSocket(RealTimeServices.tomographyPicking) {
+			tiltSeriesesService { job ->
+				TomographyPickingJob.eventListeners.add(job.idOrThrow).apply {
+					onParams = updatedParamsHandler(job)
+					onTiltSeries = updatedTiltSeriesHandler(job)
+				}
+			}
 		}
 
 		routing.webSocket(RealTimeServices.reconstruction) handler@{

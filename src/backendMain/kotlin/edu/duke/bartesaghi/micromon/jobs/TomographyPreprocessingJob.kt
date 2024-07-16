@@ -19,10 +19,11 @@ import kotlin.io.path.div
 class TomographyPreprocessingJob(
 	userId: String,
 	projectId: String
-) : Job(userId, projectId, config), FilteredJob {
+) : Job(userId, projectId, config), FilteredJob, TiltSeriesesJob {
 
 	val args = JobArgs<TomographyPreprocessingArgs>()
-	var latestTiltSeriesId: String? = null
+
+	override var latestTiltSeriesId: String? = null
 
 	var inTiltSeries: CommonJobData.DataId? by InputProp(config.tiltSeries)
 
@@ -215,4 +216,8 @@ class TomographyPreprocessingJob(
 
 	override fun finishedArgValues(): ArgValuesToml? =
 		args.finished?.values
+
+	override suspend fun notifyTiltSeries(tiltSeriesId: String) {
+		eventListeners.sendTiltSeries(idOrThrow, tiltSeriesId)
+	}
 }

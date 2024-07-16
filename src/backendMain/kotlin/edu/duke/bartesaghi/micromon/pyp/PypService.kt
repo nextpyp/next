@@ -469,26 +469,25 @@ object PypService {
 			is Owner.Job -> {
 
 				// update the job with the newest micrograph id
-				val jobDoc = Database.jobs.get(owner.id)
-				if (jobDoc != null) {
+				val job = Job.fromIdOrThrow(owner.job.idOrThrow)
+				if (job is TiltSeriesesJob) {
 
-					val isFirstTiltSeries = jobDoc["latestTiltSeriesId"] == null
+					// update the latest tilt series
+					val isFirstTiltSeries = job.latestTiltSeriesId == null
 					Database.jobs.update(owner.id,
 						set("latestTiltSeriesId", tiltSeriesId)
 					)
+					job.latestTiltSeriesId = tiltSeriesId
 
 					// send the update to the clients, if needed
 					if (isFirstTiltSeries) {
-						// reload the job so it get the tilt series id we just wrote
-						val job = Job.fromIdOrThrow(owner.job.idOrThrow)
-						val jobData = job.data()
 						Backend.projectEventListeners.getAll(job.userId, job.projectId)
-							.forEach { it.onJobUpdate(jobData) }
+							.forEach { it.onJobUpdate(job.data()) }
 					}
-				}
 
-				// notify any listening clients
-				TomographyPreprocessingJob.eventListeners.sendTiltSeries(owner.id, tiltSeriesId)
+					// notify any listening clients
+					job.notifyTiltSeries(tiltSeriesId)
+				}
 			}
 
 			is Owner.Session -> {

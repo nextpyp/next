@@ -46,6 +46,7 @@ object RealTimeServices {
 	val singleParticlePreprocessing by RealTimeService()
 	val tomographyPreprocessing by RealTimeService()
 	val tomographyPurePreprocessing by RealTimeService()
+	val tomographyPicking by RealTimeService()
 	val reconstruction by RealTimeService()
 	val streamLog by RealTimeService()
 
@@ -150,7 +151,7 @@ sealed class RealTimeC2S {
 	) : RealTimeC2S()
 
 	@Serializable
-	data class ListenToTomographyPreprocessing(
+	data class ListenToTiltSerieses(
 		val jobId: String
 	) : RealTimeC2S()
 

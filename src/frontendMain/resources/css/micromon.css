@@ -571,10 +571,35 @@ label.radio-selection .radio-selection-check:checked {
 label.radio-selection .radio-selection-check:checked ~ span {
     color: white;
 }
+
+
 /* TOMOGRAPHY PREPROCESSING VIEW */
 
 div.tomography-preprocessing {
 	position: relative;
+}
+
+div.tomography-preprocessing .live .stats {
+	margin-left: 4px;
+	margin-top: 10px;
+	margin-bottom: 6px;
+}
+
+div.tomography-preprocessing .live .stats .log-button {
+	margin-left: 20px;
+}
+
+div.tomography-preprocessing div.pyp-stats {
+	margin-top: 6px;
+    margin-bottom: 6px;
+    margin-left: 10px;
+    color: #666666;
+}
+
+div.tomography-preprocessing .websocket-control {
+	position: absolute;
+	top: 10px;
+	right: 10px;
 }
 
 div.tomography-preprocessing div.tiltseries-stats {
@@ -644,6 +669,36 @@ div.tomography-preprocessing div.tomography-preprocessing-table div.rows div.for
 
 .tomography-particle-preprocessing .hyper-gallery {
 	margin-top: 10px;
+}
+
+
+/* TOMOGRAPHY PARTICLE PICKING VIEW */
+
+.tomography-picking {
+	position: relative;
+}
+
+.tomography-picking .tiltseries-stats {
+	margin-top: 6px;
+    margin-bottom: 6px;
+    margin-left: 10px;
+    color: #666666;
+}
+
+.tomography-picking .stats {
+	margin-left: 4px;
+	margin-top: 10px;
+	margin-bottom: 6px;
+}
+
+.tomography-picking .stats .log-button {
+	margin-left: 20px;
+}
+
+.tomography-picking .websocket-control {
+	position: absolute;
+	top: 10px;
+	right: 10px;
 }
 
 
@@ -863,34 +918,7 @@ div.tomography-preprocessing div.tomography-preprocessing-table div.rows div.for
 }
 
 
-/* TOMOGRAPHY PREPROCESSING VIEW */
-
-div.tomography-preprocessing {
-	position: relative;
-}
-
-div.tomography-preprocessing .live .stats {
-	margin-left: 4px;
-	margin-top: 10px;
-	margin-bottom: 6px;
-}
-
-div.tomography-preprocessing .live .stats .log-button {
-	margin-left: 20px;
-}
-
-div.tomography-preprocessing div.pyp-stats {
-	margin-top: 6px;
-    margin-bottom: 6px;
-    margin-left: 10px;
-    color: #666666;
-}
-
-div.tomography-preprocessing .websocket-control {
-	position: absolute;
-	top: 10px;
-	right: 10px;
-}
+/* ??? What is this stuff? */
 
 .full-width-image {
     width: 100%;
@@ -908,10 +936,10 @@ div.new-delete-load input {
     margin-top: 15px;
 }
 
-
 .particles-gallery img {
     width: 256px;
 }
+
 
 /* TILT SERIES GIF IMAGE */
 

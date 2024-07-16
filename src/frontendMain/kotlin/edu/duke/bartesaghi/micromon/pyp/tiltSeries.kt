@@ -26,6 +26,13 @@ data class TiltSeriesesData(
 			job.args.finished?.values
 		)
 
+	suspend fun load(job: TomographyPickingData) =
+		loadForProject(
+			job.jobId,
+			job.clientInfo,
+			job.args.finished?.values
+		)
+
 	suspend fun load(job: TomographyImportDataData) =
 		loadForProject(
 			job.jobId,
