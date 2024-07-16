@@ -8,7 +8,6 @@ From: rockylinux:8.7
 IncludeCmd: no
 
 %files
-	config/centos.repo /etc/yum.repos.d/micromon.repo
 	config/supervisord.conf /etc/supervisor/
 	config/mongod.conf /etc/mongod.conf.template
 	config/init.sh /opt/micromon/
