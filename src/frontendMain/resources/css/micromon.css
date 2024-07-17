@@ -1636,63 +1636,76 @@ div.project-view div.diagram div.node div.content {
 	padding: 8px;
 }
 
-div.project-view div.diagram div.node div.ports {
+.project-view .diagram .node .ports {
 	display: flex;
 	flex-direction: row;
 	font-size: 14px;
-    line-height: 20px;
-    margin-bottom: 2px;
-}
-
-div.project-view div.diagram div.node div.ports div.center-ports {
-	flex-grow: 1;
-}
-
-div.project-view div.diagram div.node div.ports div.left-port {
-	display: flex;
-	flex-direction: row;
-	background-color: #c9ced3;
-	padding-right: 10px;
-	border-bottom-right-radius: 10px;
-	border-top-right-radius: 10px;
-	margin-top: 2px;
+	line-height: 20px;
 	margin-bottom: 2px;
+
+	.left-ports {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+
+		.left-port {
+			display: flex;
+			flex-direction: row;
+			background-color: #c9ced3;
+			padding-right: 10px;
+			border-bottom-right-radius: 10px;
+			border-top-right-radius: 10px;
+			margin-top: 2px;
+			margin-bottom: 2px;
+		}
+	}
+
+	.center-ports {
+		flex-grow: 1;
+	}
+
+	.right-ports {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-end;
+
+		.right-port {
+			display: flex;
+			flex-direction: row;
+			background-color: #c9ced3;
+			padding-left: 10px;
+			border-bottom-left-radius: 10px;
+			border-top-left-radius: 10px;
+			margin-top: 2px;
+			margin-bottom: 2px;
+		}
+	}
+
+	.port {
+		width: 20px;
+		height: 20px;
+		border: solid 2px #004791;
+		background: linear-gradient(to bottom, #2d92ff 0%, #0065d0 100%);
+
+		&.in-port {
+			border-bottom-right-radius: 8px;
+			border-top-right-radius: 8px;
+			border-left: none;
+			box-shadow: -2px 0px 0px #004791;
+			margin-right: 6px;
+		}
+
+		&.out-port {
+			border-bottom-left-radius: 8px;
+			border-top-left-radius: 8px;
+			border-right: none;
+			box-shadow: 2px 0px 0px #004791;
+			margin-left: 6px;
+			cursor: pointer;
+		}
+	}
 }
 
-div.project-view div.diagram div.node div.ports div.right-port {
-	display: flex;
-	flex-direction: row;
-	background-color: #c9ced3;
-    padding-left: 10px;
-    border-bottom-left-radius: 10px;
-    border-top-left-radius: 10px;
-	margin-top: 2px;
-	margin-bottom: 2px;
-}
-
-div.project-view div.diagram div.node div.ports div.port {
-	width: 20px;
-	height: 20px;
-	border: solid 2px #004791;
-    background: linear-gradient(to bottom, #2d92ff 0%, #0065d0 100%);
-}
-
-div.project-view div.diagram div.node div.ports div.in-port {
-    border-bottom-right-radius: 8px;
-    border-top-right-radius: 8px;
-    border-left: none;
-    box-shadow: -2px 0px 0px #004791;
-    margin-right: 6px;
-}
-
-div.project-view div.diagram div.node div.ports div.out-port {
-    border-bottom-left-radius: 8px;
-    border-top-left-radius: 8px;
-    border-right: none;
-    box-shadow: 2px 0px 0px #004791;
-    margin-left: 6px;
-    cursor: pointer;
-}
 
 div.project-view div.diagram span.user-card {
 	border: solid 1px #c0c5ca;

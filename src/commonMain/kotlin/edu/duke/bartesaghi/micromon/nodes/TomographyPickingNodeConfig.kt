@@ -15,7 +15,8 @@ object TomographyPickingNodeConfig : NodeConfig {
 	val tomograms = NodeConfig.Data("tomograms", NodeConfig.Data.Type.Tomograms)
 	val segmentation = NodeConfig.Data("segmentation", NodeConfig.Data.Type.Segmentation)
 	val particles = NodeConfig.Data("particles", NodeConfig.Data.Type.Particles)
+	val particleCoords = NodeConfig.Data("particleCoords", NodeConfig.Data.Type.ParticleCoords)
 
 	override val inputs = listOf(tomograms, segmentation)
-	override val outputs = listOf(particles)
+	override val outputs = listOf(particles, particleCoords)
 }

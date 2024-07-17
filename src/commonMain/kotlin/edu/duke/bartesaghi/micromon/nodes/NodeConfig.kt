@@ -30,8 +30,11 @@ interface NodeConfig {
 			/** Virion picking and segmentation */
 			Segmentation("Segmentation"),
 
-			/** Particles picked from tomograms, micrographs, etc */
+			/** Particle coordinates (picked from tomograms, micrographs, etc) and associated metadata */
 			Particles("Particles"),
+
+			/** Particle coordinates (picked from tomograms, micrographs, etc) only */
+			ParticleCoords("Particle Coordinates"),
 
 			/** A single refinement */
 			Refinement("Particles"),
