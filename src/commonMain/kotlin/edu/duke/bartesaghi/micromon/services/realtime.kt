@@ -47,6 +47,7 @@ object RealTimeServices {
 	val tomographyPreprocessing by RealTimeService()
 	val tomographyPurePreprocessing by RealTimeService()
 	val tomographyPicking by RealTimeService()
+	val tomographySegmentation by RealTimeService()
 	val reconstruction by RealTimeService()
 	val streamLog by RealTimeService()
 

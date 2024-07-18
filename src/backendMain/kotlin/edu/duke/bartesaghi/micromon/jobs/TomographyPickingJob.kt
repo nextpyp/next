@@ -104,7 +104,8 @@ class TomographyPickingJob(
 			?.let { "/kv/jobs/$idOrThrow/data/$it/image/${size.id}" }
 
 			// or just use a placeholder
-			?: return "/img/placeholder/${size.id}"	}
+			?: return "/img/placeholder/${size.id}"
+	}
 
 	override fun wipeData() {
 

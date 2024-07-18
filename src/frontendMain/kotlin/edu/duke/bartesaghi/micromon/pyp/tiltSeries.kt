@@ -12,42 +12,7 @@ data class TiltSeriesesData(
 	var virusMode: VirusModeData? = null
 ) {
 
-	suspend fun load(job: TomographyPreprocessingData) =
-		loadForProject(
-			job.jobId,
-			job.clientInfo,
-			job.args.finished?.values
-		)
-
-	suspend fun load(job: TomographyPurePreprocessingData) =
-		loadForProject(
-			job.jobId,
-			job.clientInfo,
-			job.args.finished?.values
-		)
-
-	suspend fun load(job: TomographyPickingData) =
-		loadForProject(
-			job.jobId,
-			job.clientInfo,
-			job.args.finished?.values
-		)
-
-	suspend fun load(job: TomographyImportDataData) =
-		loadForProject(
-			job.jobId,
-			job.clientInfo,
-			job.args.finished?.values
-		)
-
-	suspend fun load(job: TomographySessionDataData) =
-		loadForProject(
-			job.jobId,
-			job.clientInfo,
-			job.args.finished?.values
-		)
-
-	private suspend fun loadForProject(jobId: String, nodeClientInfo: NodeClientInfo, finishedValues: ArgValuesToml?) {
+	suspend fun loadForProject(jobId: String, nodeClientInfo: NodeClientInfo, finishedValues: ArgValuesToml?) {
 
 		tiltSerieses.clear()
 		Services.jobs.getTiltSerieses(jobId)

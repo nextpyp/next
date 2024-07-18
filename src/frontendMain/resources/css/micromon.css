@@ -676,29 +676,59 @@ div.tomography-preprocessing div.tomography-preprocessing-table div.rows div.for
 
 .tomography-picking {
 	position: relative;
+
+	.tiltseries-stats {
+		margin-top: 6px;
+		margin-bottom: 6px;
+		margin-left: 10px;
+		color: #666666;
+	}
+
+	.stats {
+		margin-left: 4px;
+		margin-top: 10px;
+		margin-bottom: 6px;
+	}
+
+	.log-button {
+		margin-left: 20px;
+	}
+
+	.websocket-control {
+		position: absolute;
+		top: 10px;
+		right: 10px;
+	}
 }
 
-.tomography-picking .tiltseries-stats {
-	margin-top: 6px;
-    margin-bottom: 6px;
-    margin-left: 10px;
-    color: #666666;
-}
 
-.tomography-picking .stats {
-	margin-left: 4px;
-	margin-top: 10px;
-	margin-bottom: 6px;
-}
+/* TOMOGRAPHY SEGMENTATION VIEW */
 
-.tomography-picking .stats .log-button {
-	margin-left: 20px;
-}
+.tomography-segmentation {
+	position: relative;
 
-.tomography-picking .websocket-control {
-	position: absolute;
-	top: 10px;
-	right: 10px;
+	.tiltseries-stats {
+		margin-top: 6px;
+		margin-bottom: 6px;
+		margin-left: 10px;
+		color: #666666;
+	}
+
+	.stats {
+		margin-left: 4px;
+		margin-top: 10px;
+		margin-bottom: 6px;
+
+		.log-button {
+			margin-left: 20px;
+		}
+	}
+
+	.websocket-control {
+		position: absolute;
+		top: 10px;
+		right: 10px;
+	}
 }
 
 

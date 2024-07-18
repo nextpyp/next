@@ -200,6 +200,15 @@ object RealTimeService {
 			}
 		}
 
+		routing.webSocket(RealTimeServices.tomographySegmentation) {
+			tiltSeriesesService { job ->
+				TomographySegmentationJob.eventListeners.add(job.idOrThrow).apply {
+					onParams = updatedParamsHandler(job)
+					onTiltSeries = updatedTiltSeriesHandler(job)
+				}
+			}
+		}
+
 		routing.webSocket(RealTimeServices.reconstruction) handler@{
 
 			val user = call.authOrThrow()

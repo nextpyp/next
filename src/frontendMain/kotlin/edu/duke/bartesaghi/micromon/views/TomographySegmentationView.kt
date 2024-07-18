@@ -2,7 +2,7 @@ package edu.duke.bartesaghi.micromon.views
 
 import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.components.*
-import edu.duke.bartesaghi.micromon.diagram.nodes.TomographyPickingNode
+import edu.duke.bartesaghi.micromon.diagram.nodes.TomographySegmentationNode
 import edu.duke.bartesaghi.micromon.diagram.nodes.clientInfo
 import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.*
@@ -14,23 +14,23 @@ import io.kvision.navbar.navLink
 import kotlin.js.Date
 
 
-fun Widget.onGoToTomographyPicking(viewport: Viewport, project: ProjectData, job: TomographyPickingData) {
-	onShow(TomographyPickingView.path(project, job)) {
-		viewport.setView(TomographyPickingView(project, job))
+fun Widget.onGoToTomographySegmentation(viewport: Viewport, project: ProjectData, job: TomographySegmentationData) {
+	onShow(TomographySegmentationView.path(project, job)) {
+		viewport.setView(TomographySegmentationView(project, job))
 	}
 }
 
-class TomographyPickingView(val project: ProjectData, val job: TomographyPickingData) : View {
+class TomographySegmentationView(val project: ProjectData, val job: TomographySegmentationData) : View {
 
 	companion object : Routed {
 
 		override fun register(routing: Routing, viewport: Viewport) {
-			routing.registerParams("^/project/($urlToken)/($urlToken)/tomographyPicking/($urlToken)$") { userId, projectId, jobId ->
+			routing.registerParams("^/project/($urlToken)/($urlToken)/tomographySegmentation/($urlToken)$") { userId, projectId, jobId ->
 				AppScope.launch {
 					try {
 						val project = Services.projects.get(userId, projectId)
-						val job = Services.tomographyPicking.get(jobId)
-						viewport.setView(TomographyPickingView(project, job))
+						val job = Services.tomographySegmentation.get(jobId)
+						viewport.setView(TomographySegmentationView(project, job))
 					} catch (t: Throwable) {
 						viewport.setView(ErrorView(t))
 					}
@@ -38,15 +38,15 @@ class TomographyPickingView(val project: ProjectData, val job: TomographyPicking
 			}
 		}
 
-		fun path(project: ProjectData, job: TomographyPickingData) = "/project/${project.owner.id}/${project.projectId}/tomographyPicking/${job.jobId}"
+		fun path(project: ProjectData, job: TomographySegmentationData) = "/project/${project.owner.id}/${project.projectId}/tomographySegmentation/${job.jobId}"
 
-		fun go(viewport: Viewport, project: ProjectData, job: TomographyPickingData) {
+		fun go(viewport: Viewport, project: ProjectData, job: TomographySegmentationData) {
 			routing.show(path(project, job))
-			viewport.setView(TomographyPickingView(project, job))
+			viewport.setView(TomographySegmentationView(project, job))
 		}
 	}
 
-	override val elem = Div(classes = setOf("dock-page", "tomography-picking"))
+	override val elem = Div(classes = setOf("dock-page", "tomography-segmentation"))
 
 	// NOTE: the same instance of these controls should be used for all the tilt series
 	private val pickingControls = ProjectParticleControls(project, job)
@@ -62,8 +62,8 @@ class TomographyPickingView(val project: ProjectData, val job: TomographyPicking
 					.onGoToDashboard()
 				navLink(project.numberedName, icon = "fas fa-project-diagram")
 					.onGoToProject(project)
-				navLink(job.numberedName, icon = TomographyPickingNode.type.iconClass)
-					.onGoToTomographyPicking(viewport, project, job)
+				navLink(job.numberedName, icon = TomographySegmentationNode.type.iconClass)
+					.onGoToTomographySegmentation(viewport, project, job)
 			}
 		}
 
@@ -75,8 +75,8 @@ class TomographyPickingView(val project: ProjectData, val job: TomographyPicking
 			try {
 				delayAtLeast(200) {
 					data.loadForProject(job.jobId, job.clientInfo, job.args.finished?.values)
-					pickingControls.newParticlesType = ParticlesType.Particles3D
-					pickingControls.setList(ParticlesList.autoParticles3D(job.jobId))
+					pickingControls.newParticlesType = ParticlesType.Virions3D
+					pickingControls.setList(ParticlesList.autoVirions(job.jobId))
 				}
 			} catch (t: Throwable) {
 				elem.errorMessage(t)
@@ -135,7 +135,7 @@ class TomographyPickingView(val project: ProjectData, val job: TomographyPicking
 			listNav.showItem(data.tiltSerieses.size - 1, false)
 
 			// open the websocket connection to listen for server-side updates
-			val connector = WebsocketConnector(RealTimeServices.tomographyPicking) { signaler, input, output ->
+			val connector = WebsocketConnector(RealTimeServices.tomographySegmentation) { signaler, input, output ->
 
 				// tell the server we want to listen to this session
 				output.send(RealTimeC2S.ListenToTiltSerieses(job.jobId).toJson())
@@ -158,7 +158,7 @@ class TomographyPickingView(val project: ProjectData, val job: TomographyPicking
 					}
 				}
 			}
-			this@TomographyPickingView.connector = connector
+			this@TomographySegmentationView.connector = connector
 			elem.add(WebsocketControl(connector))
 			connector.connect()
 		}

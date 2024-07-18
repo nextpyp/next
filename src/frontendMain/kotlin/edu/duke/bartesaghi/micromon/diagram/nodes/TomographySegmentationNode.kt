@@ -11,6 +11,7 @@ import edu.duke.bartesaghi.micromon.pyp.Args
 import edu.duke.bartesaghi.micromon.pyp.filterForDownstreamCopy
 import edu.duke.bartesaghi.micromon.refreshDynamicImages
 import edu.duke.bartesaghi.micromon.services.*
+import edu.duke.bartesaghi.micromon.views.TomographySegmentationView
 import edu.duke.bartesaghi.micromon.views.Viewport
 import io.kvision.form.formPanel
 import io.kvision.modal.Modal
@@ -105,8 +106,7 @@ class TomographySegmentationNode(
 
 		content {
 			button(className = "image-button", onClick = {
-				// TODO: view?
-				//TomographySegmentationView.go(viewport, project, job)
+				TomographySegmentationView.go(viewport, project, job)
 			}) {
 				img(job.imageUrl, className = dynamicImageClassName)
 			}
