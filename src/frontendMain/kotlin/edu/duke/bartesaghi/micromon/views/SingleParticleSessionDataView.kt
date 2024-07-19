@@ -60,7 +60,7 @@ class SingleParticleSessionDataView(val project: ProjectData, val job: SinglePar
 	private var liveTabId: Int? = null
 	private var statsLine: PypStatsLine? = null
 	// NOTE: the same instance of these controls should be used for all the micrographs
-	private val particleControls = ProjectParticleControls(project, job, ParticlesType.Particles2D, ParticlesList.autoParticles2D(job.jobId))
+	private val particleControls = MultiListParticleControls(project, job, ParticlesType.Particles2D, ParticlesList.autoParticles2D(job.jobId))
 
 	private var connector: WebsocketConnector? = null
 

@@ -18,7 +18,7 @@ class TomoMultiPanel(
 	val job: JobData,
 	val tiltSerieses: TiltSeriesesData,
 	val tiltSeries: TiltSeriesData,
-	val pickingControls: ProjectParticleControls? = null
+	val pickingControls: MultiListParticleControls? = null
 ): Div(classes = setOf("tomo-multipanel")) {
 
 	private var currentTiltFramesTab: Double? = null

@@ -21,6 +21,7 @@ interface ParticleControls {
 	val list: ParticlesList?
 	var onListChange: (() -> Unit)?
 	val canWrite: Boolean
+	val numParticles: Long
 
 	suspend fun addParticle2D(micrographId: String, particle: Particle2D): Int? = null
 	suspend fun addParticle3D(micrographId: String, particle: Particle3D): Int? = null
@@ -28,7 +29,7 @@ interface ParticleControls {
 }
 
 
-class ProjectParticleControls(
+class MultiListParticleControls(
 	val project: ProjectData,
 	val job: JobData,
 	var newParticlesType: ParticlesType? = null,
@@ -38,7 +39,7 @@ class ProjectParticleControls(
 	override var list: ParticlesList? = initialList
 		private set
 
-	var numParticles: Long = 0
+	override var numParticles: Long = 0
 		private set
 
 	init {
@@ -380,12 +381,117 @@ class ProjectParticleControls(
 }
 
 
+class SingleListParticleControls(
+	val project: ProjectData,
+	val job: JobData,
+): Div(), ParticleControls {
+
+	override var list: ParticlesList? = null
+
+	override var numParticles: Long = 0
+		private set
+
+	init {
+		// load the initial particle count, if needed
+		AppScope.launch {
+			updateCount()
+		}
+	}
+
+	override var onListChange: (() -> Unit)? = null
+
+	override val canWrite get() =
+		project.canWrite()
+
+	suspend fun load(default: ParticlesList) {
+
+		this.list = Services.particles.getLists(OwnerType.Project, job.jobId)
+			.find { it.name == default.name }
+			?: run {
+				Services.particles.addList(OwnerType.Project, default.ownerId, default.name, default.type)
+				default
+			}
+
+		updateCount()
+		onListChange?.invoke()
+	}
+
+	private val toastOptions = ToastOptions(
+		positionClass = ToastPosition.TOPLEFT,
+		showMethod = ToastMethod.SLIDEDOWN,
+		hideMethod = ToastMethod.SLIDEUP
+	)
+
+	private suspend fun updateCount() {
+
+		numParticles = 0
+
+		val list = list
+			?: return
+
+		numParticles =
+			try {
+				Services.particles.countParticles(OwnerType.Project, job.jobId, list.name, null)
+					.unwrap()
+			} catch (t: Throwable) {
+				null
+			}
+			?: 0
+	}
+
+	override suspend fun addParticle2D(micrographId: String, particle: Particle2D): Int? {
+
+		val list = list
+			?: return null
+
+		return try {
+			Services.particles.addParticle2D(OwnerType.Project, job.jobId, list.name, micrographId, particle)
+				.also { numParticles += 1 }
+		} catch (t: Throwable) {
+			Toast.error(t.message ?: "(unknown reason)",  "Failed to save particle addition", options = toastOptions)
+			null
+		}
+	}
+
+	override suspend fun addParticle3D(micrographId: String, particle: Particle3D): Int? {
+
+		val list = list
+			?: return null
+
+		return try {
+			val particleId = Services.particles.addParticle3D(OwnerType.Project, job.jobId, list.name, micrographId, particle)
+			numParticles += 1
+			particleId
+		} catch (t: Throwable) {
+			Toast.error(t.message ?: "(unknown reason)",  "Failed to save particle addition", options = toastOptions)
+			null
+		}
+	}
+
+	override suspend fun removeParticle(micrographId: String, particleId: Int): Boolean {
+
+		val list = list
+			?: return false
+
+		return try {
+			Services.particles.deleteParticle(OwnerType.Project, job.jobId, list.name, micrographId, particleId)
+			numParticles -= 1
+			true
+		} catch (t: Throwable) {
+			Toast.error(t.message ?: "(unknown reason)",  "Failed to save particle removal", options = toastOptions)
+			false
+		}
+	}
+}
+
+
 /**
  * Only shows one particle list, but doesn't show any controls or allow particle picking
  */
 class ShowListParticleControls(override val list: ParticlesList) : ParticleControls {
 	override var onListChange: (() -> Unit)? = null
 	override val canWrite get() = false
+	override val numParticles get() = 0L
 }
 
 
@@ -393,4 +499,5 @@ class NoneParticleControls : ParticleControls {
 	override val list: ParticlesList? = null
 	override var onListChange: (() -> Unit)? = null
 	override val canWrite: Boolean = false
+	override val numParticles get() = 0L
 }

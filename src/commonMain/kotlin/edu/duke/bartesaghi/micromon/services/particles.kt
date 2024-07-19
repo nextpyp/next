@@ -103,6 +103,7 @@ enum class ParticlesSource(val id: String) {
 
 @Serializable
 data class ParticlesList(
+	/** job id, or session id */
 	val ownerId: String,
 	val name: String,
 	val type: ParticlesType,
@@ -113,6 +114,8 @@ data class ParticlesList(
 
 		const val PypAutoParticles = "Auto Particles"
 		const val PypAutoVirions = "Auto Virions"
+		const val PypSegmentation = "Segmentation"
+		const val PypPicking = "Picking"
 
 		fun autoParticles2D(ownerId: String): ParticlesList =
 			ParticlesList(
@@ -135,6 +138,38 @@ data class ParticlesList(
 				ownerId = ownerId,
 				name = PypAutoVirions,
 				type = ParticlesType.Virions3D,
+				source = ParticlesSource.Pyp
+			)
+
+		fun userSegmentation3D(ownerId: String): ParticlesList =
+			ParticlesList(
+				ownerId = ownerId,
+				name = PypSegmentation,
+				type = ParticlesType.Virions3D,
+				source = ParticlesSource.User
+			)
+
+		fun pypSegmentation3D(ownerId: String): ParticlesList =
+			ParticlesList(
+				ownerId = ownerId,
+				name = PypSegmentation,
+				type = ParticlesType.Virions3D,
+				source = ParticlesSource.Pyp
+			)
+
+		fun userPicking3D(ownerId: String): ParticlesList =
+			ParticlesList(
+				ownerId = ownerId,
+				name = PypPicking,
+				type = ParticlesType.Particles3D,
+				source = ParticlesSource.User
+			)
+
+		fun pypPicking3D(ownerId: String): ParticlesList =
+			ParticlesList(
+				ownerId = ownerId,
+				name = PypPicking,
+				type = ParticlesType.Particles3D,
 				source = ParticlesSource.Pyp
 			)
 	}

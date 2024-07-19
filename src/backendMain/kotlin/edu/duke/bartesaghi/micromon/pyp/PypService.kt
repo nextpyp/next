@@ -447,18 +447,24 @@ object PypService {
 		Database.tiltSeriesDriftMetadata.write(owner.id, tiltSeriesId, dmd)
 
 		virionsAndThresholds?.let { (virions, thresholds) ->
-			val list = ParticlesList.autoVirions(owner.id)
+			val list = when (val job = (owner as? Owner.Job)?.job) {
+				is TomographySegmentationJob -> ParticlesList.pypSegmentation3D(job.idOrThrow)
+				else -> ParticlesList.autoVirions(owner.id)
+			}
 			Database.particleLists.createIfNeeded(list)
 			Database.particles.importParticles3D(list.ownerId, list.name, tiltSeriesId, virions)
 			Database.particles.importVirionThresholds(list.ownerId, list.name, tiltSeriesId, thresholds)
 		}
 		if (particles != null) {
-			val list = ParticlesList.autoParticles3D(owner.id)
+			val list = when (val job = (owner as? Owner.Job)?.job) {
+				is TomographyPickingJob -> ParticlesList.pypPicking3D(job.idOrThrow)
+				else -> ParticlesList.autoParticles3D(owner.id)
+			}
 			Database.particleLists.createIfNeeded(list)
 			Database.particles.importParticles3D(list.ownerId, list.name, tiltSeriesId, particles)
 		}
 
-		log.debug("writeTiltSeries: {}: id={}, virions={}, spikes={}, particles={}", owner, tiltSeriesId,
+		log.debug("writeTiltSeries: {}: id={}, virions={}, thresholds={}, particles={}", owner, tiltSeriesId,
 			virionsAndThresholds?.first?.size?.toString() ?: "none",
 			virionsAndThresholds?.second?.size?.toString() ?: "none",
 			particles?.size?.toString() ?: "none"
@@ -469,24 +475,25 @@ object PypService {
 			is Owner.Job -> {
 
 				// update the job with the newest micrograph id
-				val job = Job.fromIdOrThrow(owner.job.idOrThrow)
-				if (job is TiltSeriesesJob) {
+				when (val job = owner.job) {
+					is TiltSeriesesJob -> {
 
-					// update the latest tilt series
-					val isFirstTiltSeries = job.latestTiltSeriesId == null
-					Database.jobs.update(owner.id,
-						set("latestTiltSeriesId", tiltSeriesId)
-					)
-					job.latestTiltSeriesId = tiltSeriesId
+						// update the latest tilt series
+						val isFirstTiltSeries = job.latestTiltSeriesId == null
+						Database.jobs.update(owner.id,
+							set("latestTiltSeriesId", tiltSeriesId)
+						)
+						job.latestTiltSeriesId = tiltSeriesId
 
-					// send the update to the clients, if needed
-					if (isFirstTiltSeries) {
-						Backend.projectEventListeners.getAll(job.userId, job.projectId)
-							.forEach { it.onJobUpdate(job.data()) }
+						// send the update to the clients, if needed
+						if (isFirstTiltSeries) {
+							Backend.projectEventListeners.getAll(job.userId, job.projectId)
+								.forEach { it.onJobUpdate(job.data()) }
+						}
+
+						// notify any listening clients
+						job.notifyTiltSeries(tiltSeriesId)
 					}
-
-					// notify any listening clients
-					job.notifyTiltSeries(tiltSeriesId)
 				}
 			}
 

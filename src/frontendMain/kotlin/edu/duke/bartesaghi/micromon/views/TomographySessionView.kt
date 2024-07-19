@@ -600,7 +600,7 @@ class TomographySessionView(
 
 			statsElem.removeAll()
 			statsElem.add(TiltSeriesStats().apply {
-				update(tiltSeriesesData)
+				updateCombined(tiltSeriesesData)
 			})
 			statsElem.add(PypStatsLine(PypStats.fromTomography(argsValues)))
 		}

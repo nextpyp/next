@@ -49,7 +49,7 @@ class TomographySegmentationView(val project: ProjectData, val job: TomographySe
 	override val elem = Div(classes = setOf("dock-page", "tomography-segmentation"))
 
 	// NOTE: the same instance of these controls should be used for all the tilt series
-	private val pickingControls = ProjectParticleControls(project, job)
+	private val pickingControls = SingleListParticleControls(project, job)
 
 	private var connector: WebsocketConnector? = null
 
@@ -75,8 +75,7 @@ class TomographySegmentationView(val project: ProjectData, val job: TomographySe
 			try {
 				delayAtLeast(200) {
 					data.loadForProject(job.jobId, job.clientInfo, job.args.finished?.values)
-					pickingControls.newParticlesType = ParticlesType.Virions3D
-					pickingControls.setList(ParticlesList.autoVirions(job.jobId))
+					pickingControls.load(default = ParticlesList.userSegmentation3D(job.jobId))
 				}
 			} catch (t: Throwable) {
 				elem.errorMessage(t)
@@ -88,8 +87,7 @@ class TomographySegmentationView(val project: ProjectData, val job: TomographySe
 			// show tilt series stats
 			val tiltSeriesStats = TiltSeriesStats()
 			elem.add(tiltSeriesStats)
-			tiltSeriesStats.update(data)
-
+			tiltSeriesStats.updateSegmentation(data, pickingControls)
 
 			val tiltSeriesesElem = Div()
 			val listNav = BigListNav(data.tiltSerieses, has100 = false) e@{ index ->
@@ -119,7 +117,7 @@ class TomographySegmentationView(val project: ProjectData, val job: TomographySe
 				tiltSeriesesElem.add(pickingControls)
 				val particlesImage = TomoParticlesImage.forProject(project, job, data, tiltSeries, pickingControls)
 				particlesImage.onParticlesChange = {
-					tiltSeriesStats.update(data, pickingControls)
+					tiltSeriesStats.updateSegmentation(data, pickingControls)
 				}
 				tiltSeriesesElem.add(particlesImage)
 
@@ -151,7 +149,7 @@ class TomographySegmentationView(val project: ProjectData, val job: TomographySe
 						}
 						is RealTimeS2C.UpdatedTiltSeries -> {
 							data.update(msg)
-							tiltSeriesStats.update(data)
+							tiltSeriesStats.updateSegmentation(data, pickingControls)
 							listNav.newItem()
 						}
 						else -> Unit

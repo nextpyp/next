@@ -38,7 +38,7 @@ class TomoParticlesImage(
 			job: JobData,
 			tiltSerieses: TiltSeriesesData,
 			tiltSeries: TiltSeriesData,
-			particleControls: ProjectParticleControls? = null
+			particleControls: ParticleControls? = null
 		) =
 			TomoParticlesImage(
 				tiltSerieses,

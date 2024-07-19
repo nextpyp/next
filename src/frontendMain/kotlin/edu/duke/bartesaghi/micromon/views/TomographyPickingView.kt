@@ -49,7 +49,7 @@ class TomographyPickingView(val project: ProjectData, val job: TomographyPicking
 	override val elem = Div(classes = setOf("dock-page", "tomography-picking"))
 
 	// NOTE: the same instance of these controls should be used for all the tilt series
-	private val pickingControls = ProjectParticleControls(project, job)
+	private val pickingControls = SingleListParticleControls(project, job)
 
 	private var connector: WebsocketConnector? = null
 
@@ -75,8 +75,7 @@ class TomographyPickingView(val project: ProjectData, val job: TomographyPicking
 			try {
 				delayAtLeast(200) {
 					data.loadForProject(job.jobId, job.clientInfo, job.args.finished?.values)
-					pickingControls.newParticlesType = ParticlesType.Particles3D
-					pickingControls.setList(ParticlesList.autoParticles3D(job.jobId))
+					pickingControls.load(default = ParticlesList.userPicking3D(job.jobId))
 				}
 			} catch (t: Throwable) {
 				elem.errorMessage(t)
@@ -88,7 +87,7 @@ class TomographyPickingView(val project: ProjectData, val job: TomographyPicking
 			// show tilt series stats
 			val tiltSeriesStats = TiltSeriesStats()
 			elem.add(tiltSeriesStats)
-			tiltSeriesStats.update(data)
+			tiltSeriesStats.updatePicking(data, pickingControls)
 
 
 			val tiltSeriesesElem = Div()
@@ -119,7 +118,7 @@ class TomographyPickingView(val project: ProjectData, val job: TomographyPicking
 				tiltSeriesesElem.add(pickingControls)
 				val particlesImage = TomoParticlesImage.forProject(project, job, data, tiltSeries, pickingControls)
 				particlesImage.onParticlesChange = {
-					tiltSeriesStats.update(data, pickingControls)
+					tiltSeriesStats.updatePicking(data, pickingControls)
 				}
 				tiltSeriesesElem.add(particlesImage)
 
@@ -151,7 +150,7 @@ class TomographyPickingView(val project: ProjectData, val job: TomographyPicking
 						}
 						is RealTimeS2C.UpdatedTiltSeries -> {
 							data.update(msg)
-							tiltSeriesStats.update(data)
+							tiltSeriesStats.updatePicking(data, pickingControls)
 							listNav.newItem()
 						}
 						else -> Unit

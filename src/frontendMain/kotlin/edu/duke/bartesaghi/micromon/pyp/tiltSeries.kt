@@ -1,15 +1,15 @@
 package edu.duke.bartesaghi.micromon.pyp
 
 import edu.duke.bartesaghi.micromon.diagram.nodes.NodeClientInfo
-import edu.duke.bartesaghi.micromon.diagram.nodes.clientInfo
 import edu.duke.bartesaghi.micromon.services.*
 
 
 data class TiltSeriesesData(
 	val tiltSerieses: MutableList<TiltSeriesData> = ArrayList(),
 	var imagesScale: ImagesScale? = null,
-	var numAutoParticles: Long? = null,
-	var virusMode: VirusModeData? = null
+	var detectMode: DetectModeData? = null,
+	var virusMode: VirusModeData? = null,
+	var spikeMode: SpikeModeData? = null
 ) {
 
 	suspend fun loadForProject(jobId: String, nodeClientInfo: NodeClientInfo, finishedValues: ArgValuesToml?) {
@@ -22,22 +22,39 @@ data class TiltSeriesesData(
 		imagesScale = Services.jobs.getImagesScale(jobId)
 			.unwrap()
 
-		numAutoParticles = Services.particles.countParticles(OwnerType.Project, jobId, ParticlesList.PypAutoParticles, null)
-			.unwrap()
-
 		// get the job's finished pyp arg values, if any
 		val args = nodeClientInfo.pypArgs.get()
 		val values = finishedValues?.toArgValues(args)
 
+		// get the detect mode data, if any
+		detectMode = values
+			?.takeIf { values.args.detectMethodExists && it.detectMethodOrDefault.isEnabled }
+			?. let {
+				DetectModeData(
+					particleRadiusA = it.detectRad,
+					numAutoParticles = Services.particles.countParticles(OwnerType.Project, jobId, ParticlesList.PypAutoParticles, null)
+						.unwrap()
+				)
+			}
+
 		// get the virion mode data, if any
 		virusMode = values
-			?.takeIf { values.args.tomoVirMethodExists && it.tomoVirMethodOrDefault.isVirusMode }
+			?.takeIf { values.args.tomoVirMethodExists && it.tomoVirMethodOrDefault.isEnabled }
 			?.let {
 				VirusModeData(
 					virionRadiusA = it.tomoVirRadOrDefault,
 					virionBinning = it.tomoVirBinnOrDefault.toInt(),
 					numAutoVirions = Services.particles.countParticles(OwnerType.Project, jobId, ParticlesList.PypAutoVirions, null)
 						.unwrap()
+				)
+			}
+
+		// get the spike mode data, if any
+		spikeMode = values
+			?.takeIf { values.args.tomoSpkMethodExists && it.tomoSpkMethodOrDefault.isEnabled }
+			?.let {
+				SpikeModeData(
+					spikeRadiusA = it.tomoSpkRadOrDefault
 				)
 			}
 	}
@@ -49,12 +66,16 @@ data class TiltSeriesesData(
 
 		imagesScale = initMsg.imagesScale
 
-		numAutoParticles = Services.particles.countParticles(OwnerType.Session, session.sessionId, ParticlesList.PypAutoParticles, null)
-			.unwrap()
+		// get the detect mode data, if any
+		detectMode = DetectModeData(
+			particleRadiusA = null, // TODO: do we need to get this from somewhere?
+			numAutoParticles = Services.particles.countParticles(OwnerType.Session, session.sessionId, ParticlesList.PypAutoParticles, null)
+				.unwrap()
+		)
 
 		// get the virion mode data, if any
 		virusMode = initMsg
-			.takeIf { initMsg.tomoVirMethod.isVirusMode }
+			.takeIf { initMsg.tomoVirMethod.isEnabled }
 			?.let {
 				VirusModeData(
 					virionRadiusA = it.tomoVirRad,
@@ -84,7 +105,7 @@ data class TiltSeriesesData(
 		// update the auto counts
 
 		// basically this: numAutoParticles += msg.numAutoParticles
-		this.numAutoParticles = this.numAutoParticles?.let { dst ->
+		detectMode?.numAutoParticles = detectMode?.numAutoParticles?.let { dst ->
 			numAutoParticles?.let { src ->
 				dst + src
 			}
@@ -100,8 +121,21 @@ data class TiltSeriesesData(
 }
 
 
+data class DetectModeData(
+	var particleRadiusA: Double?,
+	/** for older combined preprocessing blocks */
+	var numAutoParticles: Long?
+)
+
+
 data class VirusModeData(
 	val virionRadiusA: Double,
 	var virionBinning: Int,
+	/** for older combined preprocessing blocks */
 	var numAutoVirions: Long?
+)
+
+
+data class SpikeModeData(
+	val spikeRadiusA: Double
 )

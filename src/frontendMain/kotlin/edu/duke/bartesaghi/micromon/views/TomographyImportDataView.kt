@@ -63,7 +63,7 @@ class TomographyImportDataView(val project: ProjectData, val job: TomographyImpo
 	private var liveTabId: Int? = null
 	private var statsLine: PypStatsLine? = null
 	// NOTE: the same instance of these controls should be used for all the tilt series
-	private val pickingControls = ProjectParticleControls(project, job)
+	private val pickingControls = MultiListParticleControls(project, job)
 
 	private var connector: WebsocketConnector? = null
 
@@ -107,7 +107,7 @@ class TomographyImportDataView(val project: ProjectData, val job: TomographyImpo
 
 			// show tilt series stats
 			elem.add(tiltSeriesStats)
-			tiltSeriesStats.update(data, pickingControls)
+			tiltSeriesStats.updateCombined(data, pickingControls)
 
 			// show PYP stats
 			statsLine = PypStatsLine(pypStats)
@@ -230,7 +230,7 @@ class TomographyImportDataView(val project: ProjectData, val job: TomographyImpo
 
 		data.update(msg)
 
-		tiltSeriesStats.update(data, pickingControls)
+		tiltSeriesStats.updateCombined(data, pickingControls)
 
 		// update tabs
 		plots?.update(msg.tiltSeries)
@@ -277,7 +277,7 @@ class TomographyImportDataView(val project: ProjectData, val job: TomographyImpo
 
 			val tomoPanel = TomoMultiPanel(project, job, data, tiltSeries, pickingControls)
 			tomoPanel.particlesImage.onParticlesChange = {
-				tiltSeriesStats.update(data, pickingControls)
+				tiltSeriesStats.updateCombined(data, pickingControls)
 			}
 			tiltSeriesesElem.add(tomoPanel)
 			AppScope.launch {

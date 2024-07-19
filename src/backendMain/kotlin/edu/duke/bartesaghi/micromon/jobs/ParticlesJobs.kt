@@ -69,7 +69,7 @@ object ParticlesJobs {
 		val tomoVirMethod = argValues.tomoVirMethodOrDefault
 		if (tomoVirMethod.usesAutoList) {
 
-			if (tomoVirMethod.isVirusMode) {
+			if (tomoVirMethod.isEnabled) {
 
 				// in auto virus mode, just write the particle thresholds for the auto virions
 				Database.particleLists.get(jobId, ParticlesList.PypAutoVirions)

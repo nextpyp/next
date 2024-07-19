@@ -279,7 +279,7 @@ class MicrographImage(
 	val job: JobData,
 	val micrograph: MicrographMetadata,
 	imagesScale: ImagesScale?,
-	particleControls: ProjectParticleControls
+	particleControls: MultiListParticleControls
 ) : ParticlesImage(
 	"Micrograph",
 	Storage::micrographSize,

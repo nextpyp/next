@@ -79,20 +79,6 @@ val Args.ctfMinRes: Arg
 val ArgValues.ctfMinResOrThrow: Double
 	get() = getOrThrow(args.ctfMinRes) as Double
 
-val Args.tomoSpkRad: Arg
-	get() = argOrThrow("tomo_spk", "rad")
-val ArgValues.tomoSpkRad: Double?
-	get() = get(args.tomoSpkRad) as Double?
-val ArgValues.tomoSpkRadOrThrow: Double
-	get() = getOrThrow(args.tomoSpkRad) as Double
-
-val Args.detectRad: Arg
-	get() = argOrThrow("detect", "rad")
-val ArgValues.detectRad: Double?
-	get() = get(args.detectRad) as Double?
-val ArgValues.detectRadOrThrow: Double
-	get() = getOrThrow(args.detectRad) as Double
-
 val Args.scopePixel: Arg
 	get() = argOrThrow("scope", "pixel")
 val ArgValues.scopePixel: Double?
@@ -174,6 +160,47 @@ val Args.defaultSharpenCistemHighResBfactor: Double
 val ArgValues.sharpenCistemHighResBfactor: Double?
 	get() = get(args.sharpenCistemHighResBfactor) as Double?
 
+
+val Args.detectMethodExists: Boolean
+	get() = arg("detect", "method") != null
+val Args.detectMethod: Arg
+	get() = argOrThrow("detect", "method")
+val ArgValues.detectMethod: DetectMethod?
+	get() = DetectMethod[get(args.detectMethod) as String?]
+val ArgValues.detectMethodOrDefault: DetectMethod
+	get() = DetectMethod[getOrDefault(args.detectMethod) as String]
+		?: throw NoSuchElementException(
+			"detectMethod default ${getOrDefault(args.detectMethod)} is invalid."
+				+ " Need one of ${DetectMethod.values().map { it.id }}"
+		)
+
+@Serializable
+enum class DetectMethod(val id: String, val isEnabled: Boolean) {
+
+	None("none", false),
+	Auto("auto", true),
+	All("all", true),
+	Manual("manual", true),
+	Import("import", true),
+	PYPTrain("pyp-train", true),
+	PYPEval("pyp-eval", true),
+	TopazTrain("topaz-train", true),
+	TopazEval("topaz-eval", true);
+
+	companion object {
+		operator fun get(id: String?): DetectMethod? =
+			values().find { it.id == id }
+	}
+}
+
+val Args.detectRad: Arg
+	get() = argOrThrow("detect", "rad")
+val ArgValues.detectRad: Double?
+	get() = get(args.detectRad) as Double?
+val ArgValues.detectRadOrThrow: Double
+	get() = getOrThrow(args.detectRad) as Double
+
+
 val Args.tomoVirMethodExists: Boolean
 	get() = arg("tomo_vir", "method") != null
 val Args.tomoVirMethod: Arg
@@ -188,7 +215,7 @@ val ArgValues.tomoVirMethodOrDefault: TomoVirMethod
 		)
 
 @Serializable
-enum class TomoVirMethod(val id: String, val isVirusMode: Boolean, val usesAutoList: Boolean) {
+enum class TomoVirMethod(val id: String, val isEnabled: Boolean, val usesAutoList: Boolean) {
 
 	None("none", false, false),
 	Auto("auto", true, true),
@@ -220,6 +247,8 @@ val ArgValues.tomoVirBinnOrDefault: Long
 	get() = getOrDefault(args.tomoVirBinn) as Long
 
 
+val Args.tomoSpkMethodExists: Boolean
+	get() = arg("tomo_spk", "method") != null
 val Args.tomoSpkMethod: Arg
 	get() = argOrThrow("tomo_spk", "method")
 val ArgValues.tomoSpkMethod: TomoSpkMethod?
@@ -232,22 +261,31 @@ val ArgValues.tomoSpkMethodOrDefault: TomoSpkMethod
 		)
 
 @Serializable
-enum class TomoSpkMethod(val id: String, val usesAutoList: Boolean) {
+enum class TomoSpkMethod(val id: String, val isEnabled: Boolean, val usesAutoList: Boolean) {
 
-	None("none", false),
-	Auto("auto", true),
-	Import("import", true),
-	Manual("manual", false),
-	MiloTrain("milo-train", false),
-	MiloEval("milo-eval", true),
-	PYPTrain("pyp-train", false),
-	PYPEval("pyp-eval", true);
+	None("none", false, false),
+	Auto("auto", true, true),
+	Import("import", true, true),
+	Manual("manual", true, false),
+	MiloTrain("milo-train", true, false),
+	MiloEval("milo-eval", true, true),
+	PYPTrain("pyp-train", true, false),
+	PYPEval("pyp-eval", true, true);
 
 	companion object {
 		operator fun get(id: String?): TomoSpkMethod? =
 			values().find { it.id == id }
 	}
 }
+
+
+val Args.tomoSpkRad: Arg
+	get() = argOrThrow("tomo_spk", "rad")
+val ArgValues.tomoSpkRad: Double?
+	get() = get(args.tomoSpkRad) as Double?
+val ArgValues.tomoSpkRadOrDefault: Double
+	get() = getOrDefault(args.tomoSpkRad) as Double
+
 
 /**
  * arguments for micromon itself and not pyp

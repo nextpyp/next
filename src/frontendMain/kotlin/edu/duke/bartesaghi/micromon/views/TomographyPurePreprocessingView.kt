@@ -98,7 +98,7 @@ class TomographyPurePreprocessingView(val project: ProjectData, val job: Tomogra
 
 			// show tilt series stats
 			elem.add(tiltSeriesStats)
-			tiltSeriesStats.update(data)
+			tiltSeriesStats.updateCombined(data)
 
 			// show PYP stats
 			statsLine = PypStatsLine(pypStats)
@@ -222,7 +222,7 @@ class TomographyPurePreprocessingView(val project: ProjectData, val job: Tomogra
 
 		data.update(msg)
 
-		tiltSeriesStats.update(data)
+		tiltSeriesStats.updateCombined(data)
 
 		// update tabs
 		plots?.update(msg.tiltSeries)
@@ -269,7 +269,7 @@ class TomographyPurePreprocessingView(val project: ProjectData, val job: Tomogra
 
 			val tomoPanel = TomoMultiPanel(project, job, data, tiltSeries)
 			tomoPanel.particlesImage.onParticlesChange = {
-				tiltSeriesStats.update(data)
+				tiltSeriesStats.updateCombined(data)
 			}
 			tiltSeriesesElem.add(tomoPanel)
 			AppScope.launch {
