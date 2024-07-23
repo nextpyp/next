@@ -82,6 +82,7 @@ class TomographySegmentationJob(
 		val pypArgs = launchArgValues(upstreamJob, args.newestOrThrow().args.values, args.finished?.values)
 
 		// set the hidden args
+		pypArgs.dataParent = upstreamJob.dir.toString()
 		pypArgs.dataMode = "tomo"
 
 		Pyp.pyp.launch(project.osUsername, runId, pypArgs, "Launch", "pyp_launch")
