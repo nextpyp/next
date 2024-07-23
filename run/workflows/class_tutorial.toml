@@ -32,9 +32,9 @@ tomo_spk_radiustimes_3d = 2.0
 tomo_spk_inhibit_3d = true
 tomo_spk_stdtimes_filt_3d = 2.0
 tomo_spk_detection_width_3d = 40.0
+tomo_ali_format = false
 tomo_rec_binning = 12
 tomo_rec_thickness = 3072
-tomo_rec_format = false
 tomo_rec_erase_fiducials = true
 slurm_tasks = { ask = true }            # e.g.: 42 for pre-processing, 124 for refinement
 slurm_memory = { ask = true }           # e.g.: 420 for pre-processingm 720 for refinement
