@@ -7,6 +7,7 @@ import edu.duke.bartesaghi.micromon.nodes.TomographySessionDataNodeConfig
 import edu.duke.bartesaghi.micromon.nodes.Workflow
 import org.tomlj.Toml
 import org.tomlj.TomlTable
+import kotlin.io.path.extension
 import kotlin.io.path.isRegularFile
 import kotlin.io.path.readText
 
@@ -20,7 +21,7 @@ object Workflows {
 	fun init() {
 		for (dir in Backend.config.web.workflowDirs) {
 			for (file in dir.listFiles()) {
-				if (file.isRegularFile()) {
+				if (file.isRegularFile() && file.extension == "toml") {
 					Backend.log.info("Reading workflow: $file")
 					readToml(file.readText())
 				}
