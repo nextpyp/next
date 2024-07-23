@@ -151,6 +151,7 @@ fun Application.main() {
 		applyRoutes(TomographyPurePreprocessingServiceManager)
 		applyRoutes(TomographySegmentationServiceManager)
 		applyRoutes(TomographyPickingServiceManager)
+		applyRoutes(TomographyDenoisingServiceManager)
 		applyRoutes(TomographyCoarseRefinementServiceManager)
 		applyRoutes(TomographyFineRefinementServiceManager)
 		applyRoutes(TomographyMovieCleaningServiceManager)

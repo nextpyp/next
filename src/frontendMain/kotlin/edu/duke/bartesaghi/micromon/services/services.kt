@@ -44,6 +44,7 @@ object Services {
 	val tomographySegmentation = TomographySegmentationService()
 	val tomographyPicking = TomographyPickingService()
 	val tomographyPurePreprocessing = TomographyPurePreprocessingService()
+	val tomographyDenoising = TomographyDenoisingService()
 	val tomographyCoarseRefinement = TomographyCoarseRefinementService()
 	val tomographyFineRefinement = TomographyFineRefinementService()
 	val tomographyMovieCleaning = TomographyMovieCleaningService()
