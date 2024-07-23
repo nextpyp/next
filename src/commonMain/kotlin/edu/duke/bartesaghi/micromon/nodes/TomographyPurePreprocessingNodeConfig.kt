@@ -7,7 +7,7 @@ object TomographyPurePreprocessingNodeConfig : NodeConfig {
 
 	override val id = ID
 	override val configId = "tomo_pure_preprocess"
-	override val name = "Pre-processing (pure)"
+	override val name = "Pre-processing"
 	override val hasFiles = true
 	// TEMP: preview status during development
 	override val status = NodeConfig.NodeStatus.Preview

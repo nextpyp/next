@@ -7,7 +7,7 @@ object TomographyPreprocessingNodeConfig : NodeConfig {
 
 	override val id = ID
 	override val configId = "tomo_pre_process"
-	override val name = "Pre-processing"
+	override val name = "Pre-processing (legacy)"
 	override val hasFiles = true
 	// TODO: obsolete the old nodes
 	//override val status = NodeConfig.NodeStatus.Obsolete
