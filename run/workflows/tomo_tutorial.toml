@@ -27,9 +27,9 @@ tomo_rec_binning = 8
 tomo_rec_thickness = 2048
 tomo_vir_method = "auto"
 tomo_vir_rad = 500
-tomo_vir_detect_band = 800
-tomo_vir_detect_method = "mesh"
-tomo_vir_detect_dist = 8
+tomo_srf_detect_band = 800
+tomo_srf_detect_method = "mesh"
+tomo_srf_detect_dist = 8
 tomo_spk_rad = 50
 slurm_tasks = { ask = true }            # e.g.: 42 (124 for refinement)
 slurm_memory = { ask = true }           # e.g.: 420 (720 for refinement)
