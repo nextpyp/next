@@ -118,6 +118,7 @@ class TomographyPurePreprocessingJob(
 
 		// set the hidden args
 		pypArgs.dataMode = "tomo"
+		pypArgs.dataParent = upstreamJob.dir.toString()
 
 		Pyp.pyp.launch(project.osUsername, runId, pypArgs, "Launch", "pyp_launch")
 
