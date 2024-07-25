@@ -141,7 +141,7 @@ class SingleParticlePreprocessingJob(
 
 		// set the hidden args
 		pypArgs.dataMode = "spr"
-		pypArgs.dataParent = upstreamJob.dir.toString()
+		// NOTE: even though this is not a source block, setting the data parent causes pyp to throw errors, so don't do it here
 
 		Pyp.pyp.launch(project.osUsername, runId, pypArgs, "Launch", "pyp_launch")
 
