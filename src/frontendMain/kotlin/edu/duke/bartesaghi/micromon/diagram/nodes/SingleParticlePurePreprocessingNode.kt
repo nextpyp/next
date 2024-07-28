@@ -1,53 +1,52 @@
 package edu.duke.bartesaghi.micromon.diagram.nodes
 
+import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.AppScope
-import edu.duke.bartesaghi.micromon.components.forms.ArgsForm
-import edu.duke.bartesaghi.micromon.components.forms.addSaveResetButtons
-import edu.duke.bartesaghi.micromon.components.forms.init
+import edu.duke.bartesaghi.micromon.components.forms.*
 import edu.duke.bartesaghi.micromon.diagram.Diagram
 import edu.duke.bartesaghi.micromon.dynamicImageClassName
-import edu.duke.bartesaghi.micromon.nodes.TomographyDenoisingNodeConfig
+import edu.duke.bartesaghi.micromon.nodes.SingleParticlePurePreprocessingNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
 import edu.duke.bartesaghi.micromon.pyp.Args
 import edu.duke.bartesaghi.micromon.pyp.filterForDownstreamCopy
 import edu.duke.bartesaghi.micromon.refreshDynamicImages
 import edu.duke.bartesaghi.micromon.services.*
 import edu.duke.bartesaghi.micromon.views.Viewport
-import io.kvision.form.formPanel
-import io.kvision.modal.Modal
 import js.micromondiagrams.MicromonDiagrams
 import js.micromondiagrams.nodeType
+import io.kvision.form.formPanel
+import io.kvision.modal.Modal
 
 
-class TomographyDenoisingNode(
+class SingleParticlePurePreprocessingNode(
 	viewport: Viewport,
 	diagram: Diagram,
 	project: ProjectData,
-	job: TomographyDenoisingData
+	job: SingleParticlePurePreprocessingData
 ) : Node(viewport, diagram, type, config, project, job) {
 
-	val job get() = baseJob as TomographyDenoisingData
+	val job get() = baseJob as SingleParticlePurePreprocessingData
 
 	companion object : NodeClientInfo {
 
-		override val config = TomographyDenoisingNodeConfig
-		override val type = MicromonDiagrams.nodeType(config, "fas fa-filter") // TODO: pick an icon
-		override val jobClass = TomographyDenoisingData::class
-		override val urlFragment = "tomographyDenoising"
+		override val config = SingleParticlePurePreprocessingNodeConfig
+		override val type = MicromonDiagrams.nodeType(config, "far fa-chart-bar")
+		override val jobClass = SingleParticlePurePreprocessingData::class
+		override val urlFragment = null
 
 		override fun makeNode(viewport: Viewport, diagram: Diagram, project: ProjectData, job: JobData) =
-			TomographyDenoisingNode(viewport, diagram, project, job as TomographyDenoisingData)
+			SingleParticlePurePreprocessingNode(viewport, diagram, project, job as SingleParticlePurePreprocessingData)
 
 		override fun showUseDataForm(viewport: Viewport, diagram: Diagram, project: ProjectData, outNode: Node, input: CommonJobData.DataId, copyFrom: Node?, callback: (Node) -> Unit) {
-			val defaultArgs = (copyFrom as TomographyDenoisingNode?)?.job?.args
+			val defaultArgs = (copyFrom as SingleParticlePurePreprocessingNode?)?.job?.args
 			form(config.name, outNode, defaultArgs, true) { args ->
 
 				// save the node to the server
 				AppScope.launch {
-					val data = Services.tomographyDenoising.addNode(project.owner.id, project.projectId, input, args)
+					val data = Services.singleParticlePurePreprocessing.addNode(project.owner.id, project.projectId, input, args)
 
 					// send the node back to the diagram
-					callback(TomographyDenoisingNode(viewport, diagram, project, data))
+					callback(SingleParticlePurePreprocessingNode(viewport, diagram, project, data))
 				}
 			}
 		}
@@ -56,20 +55,20 @@ class TomographyDenoisingNode(
 			@Suppress("NAME_SHADOWING")
 			val input = input
 				?: throw IllegalArgumentException("input required to make job for ${config.id}")
-			val args = TomographyDenoisingArgs(
+			val args = SingleParticlePurePreprocessingArgs(
 				values = argValues
 			)
-			return Services.tomographyDenoising.addNode(project.owner.id, project.projectId, input, args)
+			return Services.singleParticlePurePreprocessing.addNode(project.owner.id, project.projectId, input, args)
 		}
 
-		override suspend fun getJob(jobId: String): TomographyDenoisingData =
-			Services.tomographyDenoising.get(jobId)
+		override suspend fun getJob(jobId: String): SingleParticlePurePreprocessingData =
+			Services.singleParticlePurePreprocessing.get(jobId)
 
 		override val pypArgs = ServerVal {
-			Args.fromJson(Services.tomographyDenoising.getArgs())
+			Args.fromJson(Services.singleParticlePurePreprocessing.getArgs())
 		}
 
-		private fun form(caption: String, upstreamNode: Node, args: JobArgs<TomographyDenoisingArgs>?, enabled: Boolean, onDone: (TomographyDenoisingArgs) -> Unit) = AppScope.launch {
+		private fun form(caption: String, upstreamNode: Node, args: JobArgs<SingleParticlePurePreprocessingArgs>?, enabled: Boolean, onDone: (SingleParticlePurePreprocessingArgs) -> Unit) = AppScope.launch {
 
 			val pypArgs = pypArgs.get()
 
@@ -80,13 +79,13 @@ class TomographyDenoisingNode(
 				classes = setOf("dashboard-popup", "args-form-popup", "max-height-dialog")
 			)
 
-			val form = win.formPanel<TomographyDenoisingArgs> {
-				add(TomographyDenoisingArgs::values, ArgsForm(pypArgs, listOf(upstreamNode), enabled, config.configId))
+			val form = win.formPanel<SingleParticlePurePreprocessingArgs>().apply {
+				add(SingleParticlePurePreprocessingArgs::values, ArgsForm(pypArgs, listOf(upstreamNode), enabled, config.configId))
 			}
 
 			// by default, copy args values from the upstream node
-			val argsOrCopy: JobArgs<TomographyDenoisingArgs> = args
-				?: JobArgs.fromNext(TomographyDenoisingArgs(
+			val argsOrCopy: JobArgs<SingleParticlePurePreprocessingArgs> = args
+				?: JobArgs.fromNext(SingleParticlePurePreprocessingArgs(
 					values = upstreamNode.newestArgValues()?.filterForDownstreamCopy(pypArgs) ?: ""
 				))
 
@@ -105,11 +104,16 @@ class TomographyDenoisingNode(
 	override fun renderContent(refreshImages: Boolean) {
 
 		content {
-			button(className = "image-button reconstruction-node", onClick = {
-				// TODO: does this node have a view?
-				//TomographyDenoisingView.go(viewport, project, job)
+			button(className = "image-button", onClick = {
+				// TODO: make a view
+				//SingleParticlePurePreprocessingView.go(viewport, project, job)
 			}) {
 				img(job.imageUrl, className = dynamicImageClassName)
+			}
+			div(className = "count") {
+				div {
+					text("${job.numMicrographs.formatWithDigitGroupsSeparator()} micrograph(s)")
+				}
 			}
 		}
 
@@ -129,7 +133,7 @@ class TomographyDenoisingNode(
 			val diff = job.args.diff(newArgs)
 			if (diff.shouldSave) {
 				AppScope.launch {
-					baseJob = Services.tomographyDenoising.edit(baseJob.jobId, diff.newNextArgs(newArgs))
+					baseJob = Services.singleParticlePurePreprocessing.edit(baseJob.jobId, diff.newNextArgs(newArgs))
 					edited()
 				}
 			}

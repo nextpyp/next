@@ -1,47 +1,43 @@
 package edu.duke.bartesaghi.micromon.jobs
 
 import com.mongodb.client.model.Updates
-import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.mongo.getDocument
-import edu.duke.bartesaghi.micromon.nodes.TomographyDenoisingNodeConfig
+import edu.duke.bartesaghi.micromon.nodes.TomographyDrgnNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.*
 import org.bson.Document
 import org.bson.conversions.Bson
 
 
-class TomographyDenoisingJob(
+class TomographyDrgnJob(
 	userId: String,
 	projectId: String
-) : Job(userId, projectId, config), TiltSeriesesJob {
+) : Job(userId, projectId, config) {
 
-	val args = JobArgs<TomographyDenoisingArgs>()
-	override var latestTiltSeriesId: String? = null
-	override val eventListeners get() = Companion.eventListeners
+	val args = JobArgs<TomographyDrgnArgs>()
 
-	var inTomograms: CommonJobData.DataId? by InputProp(config.inTomograms)
+	var inMovieRefinements: CommonJobData.DataId? by InputProp(config.inMovieRefinements)
 
 	companion object : JobInfo {
 
-		override val config = TomographyDenoisingNodeConfig
+		override val config = TomographyDrgnNodeConfig
 		override val dataType = JobInfo.DataType.TiltSeries
 
-		override fun fromDoc(doc: Document) = TomographyDenoisingJob(
+		override fun fromDoc(doc: Document) = TomographyDrgnJob(
 			doc.getString("userId"),
 			doc.getString("projectId")
 		).apply {
-			args.finished = doc.getDocument("finishedArgs")?.let { TomographyDenoisingArgs.fromDoc(it) }
-			args.next = doc.getDocument("nextArgs")?.let { TomographyDenoisingArgs.fromDoc(it) }
-			latestTiltSeriesId = doc.getString("latestTiltSeriesId")
+			args.finished = doc.getDocument("finishedArgs")?.let { TomographyDrgnArgs.fromDoc(it) }
+			args.next = doc.getDocument("nextArgs")?.let { TomographyDrgnArgs.fromDoc(it) }
 			fromDoc(doc)
 		}
 
-		private fun TomographyDenoisingArgs.toDoc() = Document().also { doc ->
+		private fun TomographyDrgnArgs.toDoc() = Document().also { doc ->
 			doc["values"] = values
 		}
 
-		private fun TomographyDenoisingArgs.Companion.fromDoc(doc: Document) =
-			TomographyDenoisingArgs(
+		private fun TomographyDrgnArgs.Companion.fromDoc(doc: Document) =
+			TomographyDrgnArgs(
 				doc.getString("values")
 			)
 
@@ -58,13 +54,12 @@ class TomographyDenoisingJob(
 		super.updateDoc(updates)
 		updates.add(Updates.set("finishedArgs", args.finished?.toDoc()))
 		updates.add(Updates.set("nextArgs", args.next?.toDoc()))
-		updates.add(Updates.set("latestTiltSeriesId", latestTiltSeriesId))
 	}
 
 	override fun isChanged() = args.hasNext()
 
 	override suspend fun data() =
-		TomographyDenoisingData(
+		TomographyDrgnData(
 			commonData(),
 			args,
 			diagramImageURL()
@@ -78,8 +73,8 @@ class TomographyDenoisingJob(
 		wwwDir.recreateAs(project.osUsername)
 
 		// build the args for PYP
-		val upstreamJob = inTomograms?.resolveJob<Job>()
-			?: throw IllegalStateException("no tomograms input configured")
+		val upstreamJob = inMovieRefinements?.resolveJob<Job>()
+			?: throw IllegalStateException("no movie refinements input configured")
 		val pypArgs = launchArgValues(upstreamJob, args.newestOrThrow().args.values, args.finished?.values)
 
 		// set the hidden args
@@ -90,8 +85,6 @@ class TomographyDenoisingJob(
 
 		// job was launched, move the args over
 		args.run()
-		// and wipe the latest tilt series id, so we can detect when the first one comes in next time
-		latestTiltSeriesId = null
 		update()
 	}
 
@@ -99,19 +92,14 @@ class TomographyDenoisingJob(
 
 		val size = ImageSize.Small
 
-		// find an arbitrary (but deterministic) tilt series for this job
-		// like the newest tilt series written for this job
-		return latestTiltSeriesId
-			?.let { "/kv/jobs/$idOrThrow/data/$it/image/${size.id}" }
-
-			// or just use a placeholder
-			?: return "/img/placeholder/${size.id}"
+		// TEMP: placeholder for now
+		return "/img/placeholder/${size.id}"
 	}
 
 	override fun wipeData() {
 
 		// also delete any associated data
-		Database.tiltSeries.deleteAll(idOrThrow)
+		// TODO: what metadata should be deleted?
 	}
 
 	override fun newestArgValues(): ArgValuesToml? =

@@ -8,29 +8,29 @@ import edu.duke.bartesaghi.micromon.mongo.authProjectOrThrow
 import io.ktor.application.*
 
 
-actual class TomographyPickingService : ITomographyPickingService, Service {
+actual class TomographyDrgnService : ITomographyDrgnService, Service {
 
 	@Inject
 	override lateinit var call: ApplicationCall
 
-	override suspend fun addNode(userId: String, projectId: String, inData: CommonJobData.DataId, args: TomographyPickingArgs): TomographyPickingData = sanitizeExceptions {
+	override suspend fun addNode(userId: String, projectId: String, inData: CommonJobData.DataId, args: TomographyDrgnArgs): TomographyDrgnData = sanitizeExceptions {
 
 		val user = call.authOrThrow()
 		user.authProjectOrThrow(ProjectPermission.Write, userId, projectId)
 
 		// make the job
-		val job = TomographyPickingJob(userId, projectId)
+		val job = TomographyDrgnJob(userId, projectId)
 		job.args.next = args
-		job.inTomograms = inData
+		job.inMovieRefinements = inData
 		job.create()
 
 		return job.data()
 	}
 
-	private fun String.authJob(permission: ProjectPermission): AuthInfo<TomographyPickingJob> =
+	private fun String.authJob(permission: ProjectPermission): AuthInfo<TomographyDrgnJob> =
 		authJob(permission, this)
 
-	override suspend fun edit(jobId: String, args: TomographyPickingArgs?): TomographyPickingData = sanitizeExceptions {
+	override suspend fun edit(jobId: String, args: TomographyDrgnArgs?): TomographyDrgnData = sanitizeExceptions {
 
 		val job = jobId.authJob(ProjectPermission.Write).job
 
@@ -41,7 +41,7 @@ actual class TomographyPickingService : ITomographyPickingService, Service {
 		return job.data()
 	}
 
-	override suspend fun get(jobId: String): TomographyPickingData = sanitizeExceptions {
+	override suspend fun get(jobId: String): TomographyDrgnData = sanitizeExceptions {
 
 		val job = jobId.authJob(ProjectPermission.Read).job
 
@@ -49,6 +49,6 @@ actual class TomographyPickingService : ITomographyPickingService, Service {
 	}
 
 	override suspend fun getArgs(): String = sanitizeExceptions {
-		return TomographyPickingJob.args().toJson()
+		return TomographyDrgnJob.args().toJson()
 	}
 }

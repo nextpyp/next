@@ -3,19 +3,19 @@ package edu.duke.bartesaghi.micromon.jobs
 import com.mongodb.client.model.Updates
 import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.mongo.getDocument
-import edu.duke.bartesaghi.micromon.nodes.SingleParticlePreprocessingNodeConfig
+import edu.duke.bartesaghi.micromon.nodes.SingleParticlePurePreprocessingNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.*
 import org.bson.Document
 import org.bson.conversions.Bson
 
 
-class SingleParticlePreprocessingJob(
+class SingleParticlePurePreprocessingJob(
 	userId: String,
 	projectId: String
 ) : Job(userId, projectId, config), FilteredJob, MicrographsJob {
 
-	val args = JobArgs<SingleParticlePreprocessingArgs>()
+	val args = JobArgs<SingleParticlePurePreprocessingArgs>()
 	override var latestMicrographId: String? = null
 	override val eventListeners get() = Companion.eventListeners
 
@@ -23,28 +23,26 @@ class SingleParticlePreprocessingJob(
 
 	companion object : JobInfo {
 
-		override val config = SingleParticlePreprocessingNodeConfig
+		override val config = SingleParticlePurePreprocessingNodeConfig
 		override val dataType = JobInfo.DataType.Micrograph
 
-		override fun fromDoc(doc: Document) = SingleParticlePreprocessingJob(
+		override fun fromDoc(doc: Document) = SingleParticlePurePreprocessingJob(
 			doc.getString("userId"),
 			doc.getString("projectId")
 		).apply {
-			args.finished = doc.getDocument("finishedArgs")?.let { SingleParticlePreprocessingArgs.fromDoc(it) }
-			args.next = doc.getDocument("nextArgs")?.let { SingleParticlePreprocessingArgs.fromDoc(it) }
+			args.finished = doc.getDocument("finishedArgs")?.let { SingleParticlePurePreprocessingArgs.fromDoc(it) }
+			args.next = doc.getDocument("nextArgs")?.let { SingleParticlePurePreprocessingArgs.fromDoc(it) }
 			latestMicrographId = doc.getString("latestMicrographId")
 			fromDoc(doc)
 		}
 
-		private fun SingleParticlePreprocessingArgs.toDoc() = Document().also { doc ->
+		private fun SingleParticlePurePreprocessingArgs.toDoc() = Document().also { doc ->
 			doc["values"] = values
-			doc["list"] = particlesName
 		}
 
-		private fun SingleParticlePreprocessingArgs.Companion.fromDoc(doc: Document) =
-			SingleParticlePreprocessingArgs(
-				doc.getString("values"),
-				doc.getString("list")
+		private fun SingleParticlePurePreprocessingArgs.Companion.fromDoc(doc: Document) =
+			SingleParticlePurePreprocessingArgs(
+				doc.getString("values")
 			)
 
 		val eventListeners = MicrographEventListeners(this)
@@ -67,12 +65,11 @@ class SingleParticlePreprocessingJob(
 	override fun isChanged() = args.hasNext()
 
 	override suspend fun data() =
-		SingleParticlePreprocessingData(
+		SingleParticlePurePreprocessingData(
 			commonData(),
 			args,
 			diagramImageURL(),
-			Database.micrographs.count(idOrThrow),
-			Database.particles.countAllParticles(idOrThrow, ParticlesList.PypAutoParticles)
+			Database.micrographs.count(idOrThrow)
 		)
 
 	override suspend fun launch(runId: Int) {
@@ -83,11 +80,6 @@ class SingleParticlePreprocessingJob(
 		wwwDir.recreateAs(project.osUsername)
 
 		val newestArgs = args.newestOrThrow().args
-
-		// if we've picked some particles, write those out to pyp
-		newestArgs.particlesName
-			?.let { Database.particleLists.get(idOrThrow, it) }
-			?.let { ParticlesJobs.writeSingleParticle(project.osUsername, idOrThrow, dir, it) }
 
 		// build the args for PYP
 		val upstreamJob = inMovies?.resolveJob<Job>()
@@ -126,8 +118,6 @@ class SingleParticlePreprocessingJob(
 		Database.micrographs.deleteAll(idOrThrow)
 		Database.micrographsAvgRot.deleteAll(idOrThrow)
 		Database.jobPreprocessingFilters.deleteAll(idOrThrow)
-		Database.particleLists.deleteAll(idOrThrow)
-		Database.particles.deleteAllParticles(idOrThrow)
 	}
 
 	override val filters get() = PreprocessingFilters.ofJob(idOrThrow)

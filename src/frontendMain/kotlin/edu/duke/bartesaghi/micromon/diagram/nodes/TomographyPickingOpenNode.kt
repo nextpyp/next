@@ -1,17 +1,15 @@
 package edu.duke.bartesaghi.micromon.diagram.nodes
 
-import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.AppScope
 import edu.duke.bartesaghi.micromon.components.forms.*
 import edu.duke.bartesaghi.micromon.diagram.Diagram
 import edu.duke.bartesaghi.micromon.dynamicImageClassName
-import edu.duke.bartesaghi.micromon.nodes.TomographySegmentationNodeConfig
+import edu.duke.bartesaghi.micromon.nodes.TomographyPickingOpenNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
 import edu.duke.bartesaghi.micromon.pyp.Args
 import edu.duke.bartesaghi.micromon.pyp.filterForDownstreamCopy
 import edu.duke.bartesaghi.micromon.refreshDynamicImages
 import edu.duke.bartesaghi.micromon.services.*
-import edu.duke.bartesaghi.micromon.views.TomographySegmentationView
 import edu.duke.bartesaghi.micromon.views.Viewport
 import io.kvision.form.formPanel
 import io.kvision.modal.Modal
@@ -19,35 +17,35 @@ import js.micromondiagrams.MicromonDiagrams
 import js.micromondiagrams.nodeType
 
 
-class TomographySegmentationNode(
+class TomographyPickingOpenNode(
 	viewport: Viewport,
 	diagram: Diagram,
 	project: ProjectData,
-	job: TomographySegmentationData
+	job: TomographyPickingOpenData
 ) : Node(viewport, diagram, type, config, project, job) {
 
-	val job get() = baseJob as TomographySegmentationData
+	val job get() = baseJob as TomographyPickingOpenData
 
 	companion object : NodeClientInfo {
 
-		override val config = TomographySegmentationNodeConfig
-		override val type = MicromonDiagrams.nodeType(config, "fas fa-chart-bar")
-		override val jobClass = TomographySegmentationData::class
+		override val config = TomographyPickingOpenNodeConfig
+		override val type = MicromonDiagrams.nodeType(config, "fas fa-crosshairs")
+		override val jobClass = TomographyPickingOpenData::class
 		override val urlFragment = null
 
 		override fun makeNode(viewport: Viewport, diagram: Diagram, project: ProjectData, job: JobData) =
-			TomographySegmentationNode(viewport, diagram, project, job as TomographySegmentationData)
+			TomographyPickingOpenNode(viewport, diagram, project, job as TomographyPickingOpenData)
 
 		override fun showUseDataForm(viewport: Viewport, diagram: Diagram, project: ProjectData, outNode: Node, input: CommonJobData.DataId, copyFrom: Node?, callback: (Node) -> Unit) {
-			val defaultArgs = (copyFrom as TomographySegmentationNode?)?.job?.args
+			val defaultArgs = (copyFrom as TomographyPickingOpenNode?)?.job?.args
 			form(config.name, outNode, defaultArgs, true) { args ->
 
 				// save the node to the server
 				AppScope.launch {
-					val data = Services.tomographySegmentation.addNode(project.owner.id, project.projectId, input, args)
+					val data = Services.tomographyPickingOpen.addNode(project.owner.id, project.projectId, input, args)
 
 					// send the node back to the diagram
-					callback(TomographySegmentationNode(viewport, diagram, project, data))
+					callback(TomographyPickingOpenNode(viewport, diagram, project, data))
 				}
 			}
 		}
@@ -56,20 +54,20 @@ class TomographySegmentationNode(
 			@Suppress("NAME_SHADOWING")
 			val input = input
 				?: throw IllegalArgumentException("input required to make job for ${config.id}")
-			val args = TomographySegmentationArgs(
+			val args = TomographyPickingOpenArgs(
 				values = argValues
 			)
-			return Services.tomographySegmentation.addNode(project.owner.id, project.projectId, input, args)
+			return Services.tomographyPickingOpen.addNode(project.owner.id, project.projectId, input, args)
 		}
 
-		override suspend fun getJob(jobId: String): TomographySegmentationData =
-			Services.tomographySegmentation.get(jobId)
+		override suspend fun getJob(jobId: String): TomographyPickingOpenData =
+			Services.tomographyPickingOpen.get(jobId)
 
 		override val pypArgs = ServerVal {
-			Args.fromJson(Services.tomographySegmentation.getArgs())
+			Args.fromJson(Services.tomographyPickingOpen.getArgs())
 		}
 
-		private fun form(caption: String, upstreamNode: Node, args: JobArgs<TomographySegmentationArgs>?, enabled: Boolean, onDone: (TomographySegmentationArgs) -> Unit) = AppScope.launch {
+		private fun form(caption: String, upstreamNode: Node, args: JobArgs<TomographyPickingOpenArgs>?, enabled: Boolean, onDone: (TomographyPickingOpenArgs) -> Unit) = AppScope.launch {
 
 			val pypArgs = pypArgs.get()
 
@@ -80,13 +78,13 @@ class TomographySegmentationNode(
 				classes = setOf("dashboard-popup", "args-form-popup", "max-height-dialog")
 			)
 
-			val form = win.formPanel<TomographySegmentationArgs>().apply {
-				add(TomographySegmentationArgs::values, ArgsForm(pypArgs, listOf(upstreamNode), enabled, config.configId))
+			val form = win.formPanel<TomographyPickingOpenArgs>().apply {
+				add(TomographyPickingOpenArgs::values, ArgsForm(pypArgs, listOf(upstreamNode), enabled, config.configId))
 			}
 
 			// by default, copy args values from the upstream node
-			val argsOrCopy: JobArgs<TomographySegmentationArgs> = args
-				?: JobArgs.fromNext(TomographySegmentationArgs(
+			val argsOrCopy: JobArgs<TomographyPickingOpenArgs> = args
+				?: JobArgs.fromNext(TomographyPickingOpenArgs(
 					values = upstreamNode.newestArgValues()?.filterForDownstreamCopy(pypArgs) ?: ""
 				))
 
@@ -106,7 +104,8 @@ class TomographySegmentationNode(
 
 		content {
 			button(className = "image-button", onClick = {
-				TomographySegmentationView.go(viewport, project, job)
+				// TODO: make a view
+				//TomographyPickingOpenView.go(viewport, project, job)
 			}) {
 				img(job.imageUrl, className = dynamicImageClassName)
 			}
@@ -128,7 +127,7 @@ class TomographySegmentationNode(
 			val diff = job.args.diff(newArgs)
 			if (diff.shouldSave) {
 				AppScope.launch {
-					baseJob = Services.tomographySegmentation.edit(baseJob.jobId, diff.newNextArgs(newArgs))
+					baseJob = Services.tomographyPickingOpen.edit(baseJob.jobId, diff.newNextArgs(newArgs))
 					edited()
 				}
 			}

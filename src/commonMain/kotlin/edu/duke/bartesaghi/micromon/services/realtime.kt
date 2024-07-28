@@ -44,10 +44,15 @@ object RealTimeServices {
 	val project by RealTimeService()
 
 	val singleParticlePreprocessing by RealTimeService()
+	val singleParticlePurePreprocessing by RealTimeService()
+	val singleParticleDenoising by RealTimeService()
+	val singleParticlePicking by RealTimeService()
 	val tomographyPreprocessing by RealTimeService()
 	val tomographyPurePreprocessing by RealTimeService()
+	val tomographyDenoising by RealTimeService()
 	val tomographyPicking by RealTimeService()
-	val tomographySegmentation by RealTimeService()
+	val tomographyPickingOpen by RealTimeService()
+	val tomographyPickingClosed by RealTimeService()
 	val reconstruction by RealTimeService()
 	val streamLog by RealTimeService()
 

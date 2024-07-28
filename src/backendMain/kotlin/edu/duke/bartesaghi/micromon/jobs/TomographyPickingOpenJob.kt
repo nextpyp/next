@@ -3,48 +3,49 @@ package edu.duke.bartesaghi.micromon.jobs
 import com.mongodb.client.model.Updates
 import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.mongo.getDocument
-import edu.duke.bartesaghi.micromon.nodes.TomographySegmentationNodeConfig
+import edu.duke.bartesaghi.micromon.nodes.TomographyPickingOpenNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.*
 import org.bson.Document
 import org.bson.conversions.Bson
 
 
-class TomographySegmentationJob(
+class TomographyPickingOpenJob(
 	userId: String,
 	projectId: String
 ) : Job(userId, projectId, config), TiltSeriesesJob {
 
-	val args = JobArgs<TomographySegmentationArgs>()
+	val args = JobArgs<TomographyPickingOpenArgs>()
 	override var latestTiltSeriesId: String? = null
+	override val eventListeners get() = Companion.eventListeners
 
 	var inTomograms: CommonJobData.DataId? by InputProp(config.tomograms)
 
 	companion object : JobInfo {
 
-		override val config = TomographySegmentationNodeConfig
+		override val config = TomographyPickingOpenNodeConfig
 		override val dataType = JobInfo.DataType.TiltSeries
 
-		override fun fromDoc(doc: Document) = TomographySegmentationJob(
+		override fun fromDoc(doc: Document) = TomographyPickingOpenJob(
 			doc.getString("userId"),
 			doc.getString("projectId")
 		).apply {
-			args.finished = doc.getDocument("finishedArgs")?.let { TomographySegmentationArgs.fromDoc(it) }
-			args.next = doc.getDocument("nextArgs")?.let { TomographySegmentationArgs.fromDoc(it) }
+			args.finished = doc.getDocument("finishedArgs")?.let { TomographyPickingOpenArgs.fromDoc(it) }
+			args.next = doc.getDocument("nextArgs")?.let { TomographyPickingOpenArgs.fromDoc(it) }
 			latestTiltSeriesId = doc.getString("latestTiltSeriesId")
 			fromDoc(doc)
 		}
 
-		private fun TomographySegmentationArgs.toDoc() = Document().also { doc ->
+		private fun TomographyPickingOpenArgs.toDoc() = Document().also { doc ->
 			doc["values"] = values
 		}
 
-		private fun TomographySegmentationArgs.Companion.fromDoc(doc: Document) =
-			TomographySegmentationArgs(
+		private fun TomographyPickingOpenArgs.Companion.fromDoc(doc: Document) =
+			TomographyPickingOpenArgs(
 				doc.getString("values")
 			)
 
-		val eventListeners = TomographyPreprocessingJob.Companion.EventListeners()
+		val eventListeners = TiltSeriesEventListeners(this)
 	}
 
 	override fun createDoc(doc: Document) {
@@ -63,7 +64,7 @@ class TomographySegmentationJob(
 	override fun isChanged() = args.hasNext()
 
 	override suspend fun data() =
-		TomographySegmentationData(
+		TomographyPickingOpenData(
 			commonData(),
 			args,
 			diagramImageURL()
@@ -78,11 +79,10 @@ class TomographySegmentationJob(
 
 		// build the args for PYP
 		val upstreamJob = inTomograms?.resolveJob<Job>()
-			?: throw IllegalStateException("no tilt series input configured")
+			?: throw IllegalStateException("no tomograms input configured")
 		val pypArgs = launchArgValues(upstreamJob, args.newestOrThrow().args.values, args.finished?.values)
 
 		// set the hidden args
-		pypArgs.dataParent = upstreamJob.dir.toString()
 		pypArgs.dataMode = "tomo"
 		pypArgs.dataParent = upstreamJob.dir.toString()
 
@@ -111,10 +111,8 @@ class TomographySegmentationJob(
 	override fun wipeData() {
 
 		// also delete any associated data
-		Database.tiltSeriesAvgRot.deleteAll(idOrThrow)
-		Database.tiltSeriesDriftMetadata.deleteAll(idOrThrow)
-		Database.jobPreprocessingFilters.deleteAll(idOrThrow)
-		Database.tiltExclusions.delete(idOrThrow)
+		Database.tiltSeries.deleteAll(idOrThrow)
+		Database.particleLists.deleteAll(idOrThrow)
 		Database.particles.deleteAllParticles(idOrThrow)
 	}
 
@@ -123,8 +121,4 @@ class TomographySegmentationJob(
 
 	override fun finishedArgValues(): ArgValuesToml? =
 		args.finished?.values
-
-	override suspend fun notifyTiltSeries(tiltSeriesId: String) {
-		eventListeners.sendTiltSeries(idOrThrow, tiltSeriesId)
-	}
 }

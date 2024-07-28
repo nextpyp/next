@@ -16,25 +16,17 @@ interface NodeConfig {
 		 */
 		enum class Type(val displayName: String) {
 
-			// TODO: make better comments for these types after I understand CryoEM data a little better
-
 			/** Raw movies from the microscope */
 			Movies("Movies"),
 
 			/** Raw movies from the microscope, at multiple different tilts */
 			TiltSeries("Tilt-series"),
 
+			/** Single images created from aligning and processing the movies */
+			Micrographs("Micrographs"),
+
 			/** 3D voxel fields constructed from tilt series */
 			Tomograms("Tomograms"),
-
-			/** Virion picking and segmentation */
-			Segmentation("Segmentation"),
-
-			/** Particle coordinates (picked from tomograms, micrographs, etc) and associated metadata */
-			Particles("Particles"),
-
-			/** Particle coordinates (picked from tomograms, micrographs, etc) only */
-			ParticleCoords("Particle Coordinates"),
 
 			/** A single refinement */
 			Refinement("Particles"),

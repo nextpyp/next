@@ -280,6 +280,7 @@ object PypService {
 		}
 		Database.micrographsAvgRot.write(owner.id, micrographId, avgrot)
 
+		// TODO: update this to be analogous to the tomography side when the new blocks are ready to process metadata
 		if (particles != null) {
 			val list = ParticlesList.autoParticles2D(owner.id)
 			Database.particleLists.createIfNeeded(list)
@@ -293,26 +294,25 @@ object PypService {
 			is Owner.Job -> {
 
 				// update the job with the newest micrograph id
-				val jobDoc = Database.jobs.get(owner.id)
-				if (jobDoc != null) {
+				when (val job = owner.job) {
+					is MicrographsJob -> {
 
-					val isFirstMicrograph = jobDoc["latestMicrographId"] == null
-					Database.jobs.update(owner.id,
-						set("latestMicrographId", micrographId)
-					)
+						val isFirstMicrograph = job.latestMicrographId == null
+						Database.jobs.update(owner.id,
+							set("latestMicrographId", micrographId)
+						)
+						job.latestMicrographId = micrographId
 
-					// send the update to the clients, if needed
-					if (isFirstMicrograph) {
-						// reload the job so it gets the micrograph id we just wrote
-						val job = Job.fromIdOrThrow(owner.job.idOrThrow)
-						val jobData = job.data()
-						Backend.projectEventListeners.getAll(job.userId, job.projectId)
-							.forEach { it.onJobUpdate(jobData) }
+						// send the update to the clients, if needed
+						if (isFirstMicrograph) {
+							Backend.projectEventListeners.getAll(job.userId, job.projectId)
+								.forEach { it.onJobUpdate(job.data()) }
+						}
+
+						// notify any listening clients
+						job.eventListeners.sendMicrograph(owner.id, micrographId)
 					}
 				}
-
-				// notify any listening clients
-				SingleParticlePreprocessingJob.eventListeners.sendMicrograph(owner.id, micrographId)
 			}
 
 			is Owner.Session -> {
@@ -448,7 +448,7 @@ object PypService {
 
 		virionsAndThresholds?.let { (virions, thresholds) ->
 			val list = when (val job = (owner as? Owner.Job)?.job) {
-				is TomographySegmentationJob -> ParticlesList.pypSegmentation3D(job.idOrThrow)
+				// TODO: what special per-job stuff do we need here, if any?
 				else -> ParticlesList.autoVirions(owner.id)
 			}
 			Database.particleLists.createIfNeeded(list)
@@ -457,7 +457,7 @@ object PypService {
 		}
 		if (particles != null) {
 			val list = when (val job = (owner as? Owner.Job)?.job) {
-				is TomographyPickingJob -> ParticlesList.pypPicking3D(job.idOrThrow)
+				// TODO: what special per-job stuff do we need here, if any?
 				else -> ParticlesList.autoParticles3D(owner.id)
 			}
 			Database.particleLists.createIfNeeded(list)
@@ -474,7 +474,7 @@ object PypService {
 
 			is Owner.Job -> {
 
-				// update the job with the newest micrograph id
+				// update the job with the newest tilt series id
 				when (val job = owner.job) {
 					is TiltSeriesesJob -> {
 
@@ -492,7 +492,7 @@ object PypService {
 						}
 
 						// notify any listening clients
-						job.notifyTiltSeries(tiltSeriesId)
+						job.eventListeners.sendTiltSeries(job.idOrThrow, tiltSeriesId)
 					}
 				}
 			}

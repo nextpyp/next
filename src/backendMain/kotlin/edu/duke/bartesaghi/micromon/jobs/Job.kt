@@ -23,6 +23,7 @@ import io.ktor.application.*
 import io.kvision.remote.ServiceException
 import org.bson.Document
 import org.bson.conversions.Bson
+import org.slf4j.LoggerFactory
 import java.nio.file.Path
 import java.util.*
 import kotlin.io.path.div
@@ -329,6 +330,8 @@ abstract class Job(
 
 	companion object {
 
+		private val log = LoggerFactory.getLogger("Job")
+
 		fun fromId(jobId: String): Job? {
 			val doc = Database.jobs.get(jobId) ?: return null
 			return fromDoc(doc)
@@ -340,14 +343,33 @@ abstract class Job(
 		fun allFromProject(userId: String, projectId: String): List<Job> =
 			Database.jobs.getAllInProject(userId, projectId) { docs ->
 				docs
+					// just ignore jobs we can't recognize (like jobs in the database whose code has been deleted)
+					.filter { configFromDoc(it) != null }
 					.map { fromDoc(it) }
 					.toList()
 			}
 
+		private fun configFromDoc(doc: Document): NodeConfig? {
+			val jobId = doc.getObjectId("_id").toStringId()
+			val configId = doc.getString("configId")
+				?: run {
+					log.warn("Job=$jobId database entry has no configId")
+					return null
+				}
+			val config = NodeConfigs[configId]
+				?: run {
+					log.warn("Job=$jobId configId=$configId has no NodeConfig")
+					return null
+				}
+			return config
+		}
+
+		private fun configFromDocOrThrow(doc: Document): NodeConfig =
+			configFromDoc(doc)
+				?: throw NoSuchElementException("Unknown kind of job, see log for more detailed warnings")
+
 		fun fromDoc(doc: Document): Job {
-			val configId = doc.getString("configId") ?: throw NoSuchElementException("configId not set for job")
-			val config = NodeConfigs[configId] ?: throw NoSuchElementException("no NodeConfig for id = $configId")
-			return config.jobInfo.fromDoc(doc)
+			return configFromDocOrThrow(doc).jobInfo.fromDoc(doc)
 		}
 
 		fun savePosition(jobId: String, x: Double, y: Double) {

@@ -1,13 +1,13 @@
 package edu.duke.bartesaghi.micromon.nodes
 
 
-object TomographyPickingNodeConfig : NodeConfig {
+object TomographyPickingOpenNodeConfig : NodeConfig {
 
-	const val ID = "tomo-picking"
+	const val ID = "tomo-picking-open"
 
 	override val id = ID
-	override val configId = "tomo_picking"
-	override val name = "Particle-Picking"
+	override val configId = "tomo_segment_open"
+	override val name = "Particle-Picking on Open Surface"
 	override val hasFiles = true
 	// TEMP: preview status during development
 	override val status = NodeConfig.NodeStatus.Preview

@@ -22,6 +22,7 @@ class TomographyPurePreprocessingJob(
 
 	val args = JobArgs<TomographyPurePreprocessingArgs>()
 	override var latestTiltSeriesId: String? = null
+	override val eventListeners get() = Companion.eventListeners
 
 	var inTiltSeries: CommonJobData.DataId? by InputProp(config.tiltSeries)
 
@@ -49,7 +50,7 @@ class TomographyPurePreprocessingJob(
 				doc.getString("values")
 			)
 
-		val eventListeners = TomographyPreprocessingJob.Companion.EventListeners()
+		val eventListeners = TiltSeriesEventListeners(this)
 	}
 
 	override fun createDoc(doc: Document) {
@@ -145,6 +146,7 @@ class TomographyPurePreprocessingJob(
 	override fun wipeData() {
 
 		// also delete any associated data
+		Database.tiltSeries.deleteAll(idOrThrow)
 		Database.tiltSeriesAvgRot.deleteAll(idOrThrow)
 		Database.tiltSeriesDriftMetadata.deleteAll(idOrThrow)
 		Database.jobPreprocessingFilters.deleteAll(idOrThrow)
@@ -161,8 +163,4 @@ class TomographyPurePreprocessingJob(
 
 	override fun finishedArgValues(): ArgValuesToml? =
 		args.finished?.values
-
-	override suspend fun notifyTiltSeries(tiltSeriesId: String) {
-		eventListeners.sendTiltSeries(idOrThrow, tiltSeriesId)
-	}
 }

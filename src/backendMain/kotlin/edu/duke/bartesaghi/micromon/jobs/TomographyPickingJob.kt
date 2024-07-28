@@ -17,9 +17,9 @@ class TomographyPickingJob(
 
 	val args = JobArgs<TomographyPickingArgs>()
 	override var latestTiltSeriesId: String? = null
+	override val eventListeners get() = Companion.eventListeners
 
 	var inTomograms: CommonJobData.DataId? by InputProp(config.tomograms)
-	var inSegmentation: CommonJobData.DataId? by InputProp(config.segmentation)
 
 	companion object : JobInfo {
 
@@ -45,7 +45,7 @@ class TomographyPickingJob(
 				doc.getString("values")
 			)
 
-		val eventListeners = TomographyPreprocessingJob.Companion.EventListeners()
+		val eventListeners = TiltSeriesEventListeners(this)
 	}
 
 	override fun createDoc(doc: Document) {
@@ -78,12 +78,11 @@ class TomographyPickingJob(
 		wwwDir.recreateAs(project.osUsername)
 
 		// build the args for PYP
-		val upstreamJob = (inSegmentation ?: inTomograms)?.resolveJob<Job>()
-			?: throw IllegalStateException("no tomograms or segmentation input configured")
+		val upstreamJob = inTomograms?.resolveJob<Job>()
+			?: throw IllegalStateException("no tomograms input configured")
 		val pypArgs = launchArgValues(upstreamJob, args.newestOrThrow().args.values, args.finished?.values)
 
 		// set the hidden args
-		pypArgs.dataParent = upstreamJob.dir.toString()
 		pypArgs.dataMode = "tomo"
 		pypArgs.dataParent = upstreamJob.dir.toString()
 
@@ -112,10 +111,8 @@ class TomographyPickingJob(
 	override fun wipeData() {
 
 		// also delete any associated data
-		Database.tiltSeriesAvgRot.deleteAll(idOrThrow)
-		Database.tiltSeriesDriftMetadata.deleteAll(idOrThrow)
-		Database.jobPreprocessingFilters.deleteAll(idOrThrow)
-		Database.tiltExclusions.delete(idOrThrow)
+		Database.tiltSeries.deleteAll(idOrThrow)
+		Database.particleLists.deleteAll(idOrThrow)
 		Database.particles.deleteAllParticles(idOrThrow)
 	}
 
@@ -124,8 +121,4 @@ class TomographyPickingJob(
 
 	override fun finishedArgValues(): ArgValuesToml? =
 		args.finished?.values
-
-	override suspend fun notifyTiltSeries(tiltSeriesId: String) {
-		eventListeners.sendTiltSeries(idOrThrow, tiltSeriesId)
-	}
 }

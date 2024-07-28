@@ -108,35 +108,58 @@ object RealTimeService {
 			Backend.projectEventListeners.remove(listenerId)
 		}
 
-		routing.webSocket(RealTimeServices.singleParticlePreprocessing) handler@{
+		suspend fun DefaultWebSocketServerSession.micrographsService() {
 
 			val user = call.authOrThrow()
 
 			// wait to hear which job the user wants
 			val msg = incoming.receiveMessage<RealTimeC2S.ListenToSingleParticlePreprocessing>(outgoing)
-				?: return@handler
+				?: return
 
 			// authenticate the user for this job
 			val job = user.authJobOrThrow(ProjectPermission.Read, msg.jobId)
 
 			// route messages to the client
-			val listener = SingleParticlePreprocessingJob.eventListeners.add(job.idOrThrow)
-			listener.onParams = { values ->
-				outgoing.trySendMessage(RealTimeS2C.UpdatedParameters(
-					imagesScale = job.imagesScale(values),
-					pypStats = PypStats.fromSingleParticle(values)
-				))
-			}
-			listener.onMicrograph = { micrograph ->
-				outgoing.trySendMessage(RealTimeS2C.UpdatedMicrograph(micrograph.getMetadata()))
-			}
+			val eventListeners = (job as? MicrographsJob)
+				?.eventListeners
+				?: throw IllegalArgumentException("job ${job::class.simpleName} was not a MicrographsJob")
+			eventListeners.add(job.idOrThrow)
+				.apply {
 
-			// wait for the connection to close, then cleanup the listeners
-			incoming.waitForClose(outgoing)
-			listener.close()
+					onParams = { values ->
+						outgoing.trySendMessage(RealTimeS2C.UpdatedParameters(
+							imagesScale = job.imagesScale(values),
+							pypStats = PypStats.fromSingleParticle(values)
+						))
+					}
+
+					onMicrograph = { micrograph ->
+						outgoing.trySendMessage(RealTimeS2C.UpdatedMicrograph(micrograph.getMetadata()))
+					}
+				}
+				.use {
+					// wait for the connection to close, then cleanup the listeners
+					incoming.waitForClose(outgoing)
+				}
 		}
 
-		suspend fun DefaultWebSocketServerSession.tiltSeriesesService(makeListener: (Job) -> AutoCloseable) {
+		routing.webSocket(RealTimeServices.singleParticlePreprocessing) {
+			micrographsService()
+		}
+
+		routing.webSocket(RealTimeServices.singleParticlePurePreprocessing) {
+			micrographsService()
+		}
+
+		routing.webSocket(RealTimeServices.singleParticleDenoising) {
+			micrographsService()
+		}
+
+		routing.webSocket(RealTimeServices.singleParticlePicking) {
+			micrographsService()
+		}
+
+		suspend fun DefaultWebSocketServerSession.tiltSeriesesService() {
 
 			val user = call.authOrThrow()
 
@@ -148,65 +171,55 @@ object RealTimeService {
 			val job = user.authJobOrThrow(ProjectPermission.Read, msg.jobId)
 
 			// route messages to the client via the listener
-			makeListener(job).use {
-				// wait for the connection to close, then cleanup the listeners
-				incoming.waitForClose(outgoing)
-			}
-		}
+			val eventListeners = (job as? TiltSeriesesJob)
+				?.eventListeners
+				?: throw IllegalArgumentException("job ${job::class.simpleName} was not a TiltSeriesesJob")
+			eventListeners.add(job.idOrThrow)
+				.apply {
 
-		fun DefaultWebSocketServerSession.updatedParamsHandler(job: Job): (suspend (ArgValues) -> Unit) {
-			return { values ->
-				outgoing.trySendMessage(RealTimeS2C.UpdatedParameters(
-					imagesScale = job.imagesScale(values),
-					pypStats = PypStats.fromTomography(values)
-				))
-			}
-		}
+					onParams = { values ->
+						outgoing.trySendMessage(RealTimeS2C.UpdatedParameters(
+							imagesScale = job.imagesScale(values),
+							pypStats = PypStats.fromTomography(values)
+						))
+					}
 
-		fun DefaultWebSocketServerSession.updatedTiltSeriesHandler(job: Job): (suspend (TiltSeries) -> Unit) {
-			return { tiltSeries ->
-				outgoing.trySendMessage(RealTimeS2C.UpdatedTiltSeries(
-					tiltSeries = tiltSeries.getMetadata(),
-					numAutoParticles = Database.particles.countParticles(job.idOrThrow, ParticlesList.PypAutoParticles, tiltSeries.tiltSeriesId),
-					numAutoVirions = Database.particles.countParticles(job.idOrThrow, ParticlesList.PypAutoVirions, tiltSeries.tiltSeriesId)
-				))
-			}
+					onTiltSeries = { tiltSeries ->
+						outgoing.trySendMessage(RealTimeS2C.UpdatedTiltSeries(
+							tiltSeries = tiltSeries.getMetadata(),
+							numAutoParticles = Database.particles.countParticles(job.idOrThrow, ParticlesList.PypAutoParticles, tiltSeries.tiltSeriesId),
+							numAutoVirions = Database.particles.countParticles(job.idOrThrow, ParticlesList.PypAutoVirions, tiltSeries.tiltSeriesId)
+						))
+					}
+				}
+				.use {
+					// wait for the connection to close, then cleanup the listeners
+					incoming.waitForClose(outgoing)
+				}
 		}
 
 		routing.webSocket(RealTimeServices.tomographyPreprocessing) {
-			tiltSeriesesService { job ->
-				TomographyPreprocessingJob.eventListeners.add(job.idOrThrow).apply {
-					onParams = updatedParamsHandler(job)
-					onTiltSeries = updatedTiltSeriesHandler(job)
-				}
-			}
+			tiltSeriesesService()
 		}
 
 		routing.webSocket(RealTimeServices.tomographyPurePreprocessing) {
-			tiltSeriesesService { job ->
-				TomographyPurePreprocessingJob.eventListeners.add(job.idOrThrow).apply {
-					onParams = updatedParamsHandler(job)
-					onTiltSeries = updatedTiltSeriesHandler(job)
-				}
-			}
+			tiltSeriesesService()
+		}
+
+		routing.webSocket(RealTimeServices.tomographyDenoising) {
+			tiltSeriesesService()
 		}
 
 		routing.webSocket(RealTimeServices.tomographyPicking) {
-			tiltSeriesesService { job ->
-				TomographyPickingJob.eventListeners.add(job.idOrThrow).apply {
-					onParams = updatedParamsHandler(job)
-					onTiltSeries = updatedTiltSeriesHandler(job)
-				}
-			}
+			tiltSeriesesService()
 		}
 
-		routing.webSocket(RealTimeServices.tomographySegmentation) {
-			tiltSeriesesService { job ->
-				TomographySegmentationJob.eventListeners.add(job.idOrThrow).apply {
-					onParams = updatedParamsHandler(job)
-					onTiltSeries = updatedTiltSeriesHandler(job)
-				}
-			}
+		routing.webSocket(RealTimeServices.tomographyPickingOpen) {
+			tiltSeriesesService()
+		}
+
+		routing.webSocket(RealTimeServices.tomographyPickingClosed) {
+			tiltSeriesesService()
 		}
 
 		routing.webSocket(RealTimeServices.reconstruction) handler@{

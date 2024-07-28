@@ -4,33 +4,33 @@ import com.google.inject.Inject
 import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.auth.authOrThrow
 import edu.duke.bartesaghi.micromon.jobs.*
-import edu.duke.bartesaghi.micromon.mongo.authProjectOrThrow
+import edu.duke.bartesaghi.micromon.mongo.*
 import io.ktor.application.*
 
 
-actual class TomographySegmentationService : ITomographySegmentationService, Service {
+actual class SingleParticlePickingService : ISingleParticlePickingService, Service {
 
 	@Inject
 	override lateinit var call: ApplicationCall
 
-	override suspend fun addNode(userId: String, projectId: String, inTiltSeries: CommonJobData.DataId, args: TomographySegmentationArgs): TomographySegmentationData = sanitizeExceptions {
+	override suspend fun addNode(userId: String, projectId: String, inData: CommonJobData.DataId, args: SingleParticlePickingArgs): SingleParticlePickingData = sanitizeExceptions {
 
 		val user = call.authOrThrow()
 		user.authProjectOrThrow(ProjectPermission.Write, userId, projectId)
 
 		// make the job
-		val job = TomographySegmentationJob(userId, projectId)
+		val job = SingleParticlePickingJob(userId, projectId)
 		job.args.next = args
-		job.inTomograms = inTiltSeries
+		job.inMicrographs = inData
 		job.create()
 
 		return job.data()
 	}
 
-	private fun String.authJob(permission: ProjectPermission): AuthInfo<TomographySegmentationJob> =
+	private fun String.authJob(permission: ProjectPermission): AuthInfo<SingleParticlePickingJob> =
 		authJob(permission, this)
 
-	override suspend fun edit(jobId: String, args: TomographySegmentationArgs?): TomographySegmentationData = sanitizeExceptions {
+	override suspend fun edit(jobId: String, args: SingleParticlePickingArgs?): SingleParticlePickingData = sanitizeExceptions {
 
 		val job = jobId.authJob(ProjectPermission.Write).job
 
@@ -41,7 +41,7 @@ actual class TomographySegmentationService : ITomographySegmentationService, Ser
 		return job.data()
 	}
 
-	override suspend fun get(jobId: String): TomographySegmentationData = sanitizeExceptions {
+	override suspend fun get(jobId: String): SingleParticlePickingData = sanitizeExceptions {
 
 		val job = jobId.authJob(ProjectPermission.Read).job
 
@@ -49,6 +49,6 @@ actual class TomographySegmentationService : ITomographySegmentationService, Ser
 	}
 
 	override suspend fun getArgs(): String = sanitizeExceptions {
-		return TomographySegmentationJob.args().toJson()
+		return SingleParticlePickingJob.args().toJson()
 	}
 }

@@ -3,45 +3,45 @@ package edu.duke.bartesaghi.micromon.jobs
 import com.mongodb.client.model.Updates
 import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.mongo.getDocument
-import edu.duke.bartesaghi.micromon.nodes.TomographyDenoisingNodeConfig
+import edu.duke.bartesaghi.micromon.nodes.TomographyPickingClosedNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.*
 import org.bson.Document
 import org.bson.conversions.Bson
 
 
-class TomographyDenoisingJob(
+class TomographyPickingClosedJob(
 	userId: String,
 	projectId: String
 ) : Job(userId, projectId, config), TiltSeriesesJob {
 
-	val args = JobArgs<TomographyDenoisingArgs>()
+	val args = JobArgs<TomographyPickingClosedArgs>()
 	override var latestTiltSeriesId: String? = null
 	override val eventListeners get() = Companion.eventListeners
 
-	var inTomograms: CommonJobData.DataId? by InputProp(config.inTomograms)
+	var inMovieRefinement: CommonJobData.DataId? by InputProp(config.inMovieRefinement)
 
 	companion object : JobInfo {
 
-		override val config = TomographyDenoisingNodeConfig
+		override val config = TomographyPickingClosedNodeConfig
 		override val dataType = JobInfo.DataType.TiltSeries
 
-		override fun fromDoc(doc: Document) = TomographyDenoisingJob(
+		override fun fromDoc(doc: Document) = TomographyPickingClosedJob(
 			doc.getString("userId"),
 			doc.getString("projectId")
 		).apply {
-			args.finished = doc.getDocument("finishedArgs")?.let { TomographyDenoisingArgs.fromDoc(it) }
-			args.next = doc.getDocument("nextArgs")?.let { TomographyDenoisingArgs.fromDoc(it) }
+			args.finished = doc.getDocument("finishedArgs")?.let { TomographyPickingClosedArgs.fromDoc(it) }
+			args.next = doc.getDocument("nextArgs")?.let { TomographyPickingClosedArgs.fromDoc(it) }
 			latestTiltSeriesId = doc.getString("latestTiltSeriesId")
 			fromDoc(doc)
 		}
 
-		private fun TomographyDenoisingArgs.toDoc() = Document().also { doc ->
+		private fun TomographyPickingClosedArgs.toDoc() = Document().also { doc ->
 			doc["values"] = values
 		}
 
-		private fun TomographyDenoisingArgs.Companion.fromDoc(doc: Document) =
-			TomographyDenoisingArgs(
+		private fun TomographyPickingClosedArgs.Companion.fromDoc(doc: Document) =
+			TomographyPickingClosedArgs(
 				doc.getString("values")
 			)
 
@@ -64,7 +64,7 @@ class TomographyDenoisingJob(
 	override fun isChanged() = args.hasNext()
 
 	override suspend fun data() =
-		TomographyDenoisingData(
+		TomographyPickingClosedData(
 			commonData(),
 			args,
 			diagramImageURL()
@@ -78,8 +78,8 @@ class TomographyDenoisingJob(
 		wwwDir.recreateAs(project.osUsername)
 
 		// build the args for PYP
-		val upstreamJob = inTomograms?.resolveJob<Job>()
-			?: throw IllegalStateException("no tomograms input configured")
+		val upstreamJob = inMovieRefinement?.resolveJob<Job>()
+			?: throw IllegalStateException("no movie refinement input configured")
 		val pypArgs = launchArgValues(upstreamJob, args.newestOrThrow().args.values, args.finished?.values)
 
 		// set the hidden args
@@ -112,6 +112,8 @@ class TomographyDenoisingJob(
 
 		// also delete any associated data
 		Database.tiltSeries.deleteAll(idOrThrow)
+		Database.particleLists.deleteAll(idOrThrow)
+		Database.particles.deleteAllParticles(idOrThrow)
 	}
 
 	override fun newestArgValues(): ArgValuesToml? =

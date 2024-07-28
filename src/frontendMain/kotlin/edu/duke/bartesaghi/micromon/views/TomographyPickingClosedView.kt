@@ -2,7 +2,7 @@ package edu.duke.bartesaghi.micromon.views
 
 import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.components.*
-import edu.duke.bartesaghi.micromon.diagram.nodes.TomographySegmentationNode
+import edu.duke.bartesaghi.micromon.diagram.nodes.TomographyPickingClosedNode
 import edu.duke.bartesaghi.micromon.diagram.nodes.clientInfo
 import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.*
@@ -14,23 +14,23 @@ import io.kvision.navbar.navLink
 import kotlin.js.Date
 
 
-fun Widget.onGoToTomographySegmentation(viewport: Viewport, project: ProjectData, job: TomographySegmentationData) {
-	onShow(TomographySegmentationView.path(project, job)) {
-		viewport.setView(TomographySegmentationView(project, job))
+fun Widget.onGoToTomographyPickingClosed(viewport: Viewport, project: ProjectData, job: TomographyPickingClosedData) {
+	onShow(TomographyPickingClosedView.path(project, job)) {
+		viewport.setView(TomographyPickingClosedView(project, job))
 	}
 }
 
-class TomographySegmentationView(val project: ProjectData, val job: TomographySegmentationData) : View {
+class TomographyPickingClosedView(val project: ProjectData, val job: TomographyPickingClosedData) : View {
 
 	companion object : Routed {
 
 		override fun register(routing: Routing, viewport: Viewport) {
-			routing.registerParams("^/project/($urlToken)/($urlToken)/tomographySegmentation/($urlToken)$") { userId, projectId, jobId ->
+			routing.registerParams("^/project/($urlToken)/($urlToken)/tomographyPickingClosed/($urlToken)$") { userId, projectId, jobId ->
 				AppScope.launch {
 					try {
 						val project = Services.projects.get(userId, projectId)
-						val job = Services.tomographySegmentation.get(jobId)
-						viewport.setView(TomographySegmentationView(project, job))
+						val job = Services.tomographyPickingClosed.get(jobId)
+						viewport.setView(TomographyPickingClosedView(project, job))
 					} catch (t: Throwable) {
 						viewport.setView(ErrorView(t))
 					}
@@ -38,11 +38,11 @@ class TomographySegmentationView(val project: ProjectData, val job: TomographySe
 			}
 		}
 
-		fun path(project: ProjectData, job: TomographySegmentationData) = "/project/${project.owner.id}/${project.projectId}/tomographySegmentation/${job.jobId}"
+		fun path(project: ProjectData, job: TomographyPickingClosedData) = "/project/${project.owner.id}/${project.projectId}/tomographyPickingClosed/${job.jobId}"
 
-		fun go(viewport: Viewport, project: ProjectData, job: TomographySegmentationData) {
+		fun go(viewport: Viewport, project: ProjectData, job: TomographyPickingClosedData) {
 			routing.show(path(project, job))
-			viewport.setView(TomographySegmentationView(project, job))
+			viewport.setView(TomographyPickingClosedView(project, job))
 		}
 	}
 
@@ -62,8 +62,8 @@ class TomographySegmentationView(val project: ProjectData, val job: TomographySe
 					.onGoToDashboard()
 				navLink(project.numberedName, icon = "fas fa-project-diagram")
 					.onGoToProject(project)
-				navLink(job.numberedName, icon = TomographySegmentationNode.type.iconClass)
-					.onGoToTomographySegmentation(viewport, project, job)
+				navLink(job.numberedName, icon = TomographyPickingClosedNode.type.iconClass)
+					.onGoToTomographyPickingClosed(viewport, project, job)
 			}
 		}
 
@@ -75,7 +75,7 @@ class TomographySegmentationView(val project: ProjectData, val job: TomographySe
 			try {
 				delayAtLeast(200) {
 					data.loadForProject(job.jobId, job.clientInfo, job.args.finished?.values)
-					pickingControls.load(default = ParticlesList.userSegmentation3D(job.jobId))
+					pickingControls.load(default = ParticlesList.userPicking3D(job.jobId))
 				}
 			} catch (t: Throwable) {
 				elem.errorMessage(t)
@@ -133,7 +133,7 @@ class TomographySegmentationView(val project: ProjectData, val job: TomographySe
 			listNav.showItem(data.tiltSerieses.size - 1, false)
 
 			// open the websocket connection to listen for server-side updates
-			val connector = WebsocketConnector(RealTimeServices.tomographySegmentation) { signaler, input, output ->
+			val connector = WebsocketConnector(RealTimeServices.tomographyPickingClosed) { signaler, input, output ->
 
 				// tell the server we want to listen to this session
 				output.send(RealTimeC2S.ListenToTiltSerieses(job.jobId).toJson())
@@ -156,7 +156,7 @@ class TomographySegmentationView(val project: ProjectData, val job: TomographySe
 					}
 				}
 			}
-			this@TomographySegmentationView.connector = connector
+			this@TomographyPickingClosedView.connector = connector
 			elem.add(WebsocketControl(connector))
 			connector.connect()
 		}

@@ -114,7 +114,7 @@ data class ParticlesList(
 
 		const val PypAutoParticles = "Auto Particles"
 		const val PypAutoVirions = "Auto Virions"
-		const val PypSegmentation = "Segmentation"
+		/** name of the particle list for one-list-per-block blocks */
 		const val PypPicking = "Picking"
 
 		fun autoParticles2D(ownerId: String): ParticlesList =
@@ -137,22 +137,6 @@ data class ParticlesList(
 			ParticlesList(
 				ownerId = ownerId,
 				name = PypAutoVirions,
-				type = ParticlesType.Virions3D,
-				source = ParticlesSource.Pyp
-			)
-
-		fun userSegmentation3D(ownerId: String): ParticlesList =
-			ParticlesList(
-				ownerId = ownerId,
-				name = PypSegmentation,
-				type = ParticlesType.Virions3D,
-				source = ParticlesSource.User
-			)
-
-		fun pypSegmentation3D(ownerId: String): ParticlesList =
-			ParticlesList(
-				ownerId = ownerId,
-				name = PypSegmentation,
 				type = ParticlesType.Virions3D,
 				source = ParticlesSource.Pyp
 			)
