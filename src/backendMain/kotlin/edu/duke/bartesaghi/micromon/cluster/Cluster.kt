@@ -41,7 +41,7 @@ interface Cluster {
 
 	suspend fun launch(clusterJob: ClusterJob, depIds: List<String>, scriptPath: Path): ClusterJob.LaunchResult?
 
-	suspend fun waitingReason(launchResult: ClusterJob.LaunchResult): String?
+	suspend fun waitingReason(clusterJob: ClusterJob, launchResult: ClusterJob.LaunchResult): String?
 
 	suspend fun cancel(clusterJobs: List<ClusterJob>)
 
@@ -77,7 +77,7 @@ interface Cluster {
 					// ask the cluster about the job status
 					val launchResult = log.launchResult
 						?: return "Unknown reason: the job has been sent to the cluster, but the job's cluster id was lost"
-					return instance.waitingReason(launchResult)
+					return instance.waitingReason(clusterJob, launchResult)
 						?: "Unknown reason: the job has been sent to the cluster, but the cluster is not aware of this job"
 				}
 

@@ -161,9 +161,9 @@ class SBatch(val config: Config.Slurm) : Cluster {
 		)
 	}
 
-	override suspend fun waitingReason(launchResult: ClusterJob.LaunchResult): String? =
+	override suspend fun waitingReason(clusterJob: ClusterJob, launchResult: ClusterJob.LaunchResult): String? =
 		launchResult.jobId
-			?.let { SQueue(sshPool, config).reason(it) }
+			?.let { SQueue(sshPool, config, clusterJob.osUsername).reason(it) }
 			?.let { "Job has been submitted to SLURM. The SLURM status is: ${it.name}: ${it.description}" }
 
 	override suspend fun cancel(clusterJobs: List<ClusterJob>) {
@@ -173,15 +173,29 @@ class SBatch(val config: Config.Slurm) : Cluster {
 			return
 		}
 
-		// call scancel to actually cancel the SLURM jobs
-		sshPool.connection {
-			for (clusterJob in clusterJobs) {
+		// build the cancel commands
+		val commands = clusterJobs
+			.mapNotNull f@{ clusterJob ->
 
 				// get the SLURM job id for this job, if any
 				val slurmId = clusterJob.getLogOrThrow().launchResult?.jobId
-					?: continue
+					?: return@f null
 
-				exec("${config.cmdScancel} $slurmId")
+				// build the scancel command
+				var scancel = Command(config.cmdScancel, slurmId.toString())
+
+				// run the job as the specified OS user, if needed
+				if (clusterJob.osUsername != null) {
+					scancel = Backend.userProcessors.get(clusterJob.osUsername).wrap(scancel)
+				}
+
+				scancel
+			}
+
+		// run the commands on the SLURM login node
+		sshPool.connection {
+			for (cmd in commands) {
+				exec(cmd.toShellSafeString())
 			}
 		}
 	}

@@ -1,27 +1,35 @@
 package edu.duke.bartesaghi.micromon.cluster.slurm
 
+import edu.duke.bartesaghi.micromon.Backend
 import edu.duke.bartesaghi.micromon.Config
 import edu.duke.bartesaghi.micromon.SSHPool
+import edu.duke.bartesaghi.micromon.linux.Command
 
 
 class SQueue(
 	val sshPool: SSHPool,
-	val config: Config.Slurm
+	val config: Config.Slurm,
+	val osUsername: String? = null
 ) {
 
 	/**
 	 * SLURM squeue formats:
 	 * https://slurm.schedmd.com/squeue.html#OPT_format
-	 *
-	 * WARNING: `format` is printed directly into a shell interpreter,
-	 * but not sanitized by this function.
-	 * Never send input directly from the world into here without sanitizing it first.
-	 * Otherwise, only use trusted values!
 	 */
 	private suspend fun call(jobId: Long, format: String): String? {
 
+		var cmd = Command(config.cmdSqueue,
+			"-j", jobId.toString(),
+			"-h", "--format=$format"
+		)
+
+		// run the job as the specified OS user, if needed
+		if (osUsername != null) {
+			cmd = Backend.userProcessors.get(osUsername).wrap(cmd, quiet=true)
+		}
+
 		val lines = sshPool.connection {
-			exec("${config.cmdSqueue} -j $jobId -h --format=$format")
+			exec(cmd.toShellSafeString())
 				.console
 		}
 

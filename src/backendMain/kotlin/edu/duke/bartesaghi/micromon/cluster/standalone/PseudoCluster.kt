@@ -520,7 +520,7 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 				}
 			}
 
-	override suspend fun waitingReason(launchResult: ClusterJob.LaunchResult): String? {
+	override suspend fun waitingReason(clusterJob: ClusterJob, launchResult: ClusterJob.LaunchResult): String? {
 		jobs.use { jobs ->
 			return launchResult.jobId?.let { jobs.waitingReason(it) }
 		}

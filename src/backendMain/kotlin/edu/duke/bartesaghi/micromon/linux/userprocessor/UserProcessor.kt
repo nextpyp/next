@@ -541,6 +541,13 @@ class UserProcessor(
 			}
 	}
 
-	fun wrap(cmd: Command): Command =
-		cmd.wrap(path.toString(), listOf("run", "/tmp"))
+	fun wrap(cmd: Command, quiet: Boolean = false): Command {
+		val args = ArrayList<String>()
+		if (quiet) {
+			args.add("--quiet")
+		}
+		args.add("run")
+		args.add("/tmp")
+		return cmd.wrap(path.toString(), args)
+	}
 }
