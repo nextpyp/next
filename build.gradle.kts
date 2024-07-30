@@ -690,7 +690,7 @@ afterEvaluate {
 		}
 
 		// pick a unique id for our VM and its sub-objects
-		val vmid = "streamPYP"
+		val vmid = "nextPYP"
 		val storageId = "$vmid-storage"
 		val networkId = "vboxnet0"
 		// NOTE: we can't actually choose the name of the host-only network, the name is automatically generated
@@ -705,7 +705,7 @@ afterEvaluate {
 
 		// for persistent files that should be preserved between builds
 		val devVmDir = projectDir.toPath().resolve("dev").resolve("vm")
-		val drivePath = devVmDir.resolve("drive.vdi")
+		val drivePath = devVmDir.resolve("$vmid.vdi")
 
 		val interfacePrefix = "192.168.56"
 		val vmIp = "$interfacePrefix.5"
@@ -729,9 +729,10 @@ afterEvaluate {
 				// The next best thing to CentOS is now Rocky Linux, see for more info:
 				// https://computingforgeeks.com/rocky-linux-vs-centos-stream-vs-rhel-vs-oracle-linux/
 
-				val installIso = buildDevDir.createFolderIfNeeded().resolve("rocky.iso")
+				val debianVersion = "12.6.0"
+				val installIso = buildDevDir.createFolderIfNeeded().resolve("debian-$debianVersion.iso")
 				if (!installIso.exists()) {
-					URL("https://dl.rockylinux.org/vault/rocky/8.5/isos/x86_64/Rocky-8.5-x86_64-minimal.iso").let {
+					URL("https://cdimage.debian.org/debian-cd/current/amd64/iso-cd/debian-$debianVersion-amd64-netinst.iso").let {
 						println("dowloading $it ...")
 						it.download(installIso)
 					}
@@ -769,7 +770,7 @@ afterEvaluate {
 
 				vbox("createvm") {
 					add("--name", vmid)
-					add("--ostype", "RedHat_64")
+					add("--ostype", "Debian12_64")
 					add("--register")
 					add("--basefolder", devVmDir.toString())
 				}
@@ -910,86 +911,10 @@ afterEvaluate {
 			}
 		}
 
-		create("vmUpdate") {
-			group = "dev"
-			description = "Updates the operating system software in the VM, including kernel updates"
-			doLast {
-
-				// detatch the install iso
-				vbox("storageattach", ignoreExit=true, ignoreResult=true) {
-					add(vmid)
-					add("--storagectl", storageId)
-					add("--port", "2")
-					add("--medium", "none")
-				}
-				vbox("modifyvm") {
-					add(vmid)
-					add("--boot1", "disk")
-				}
-
-				vbox("startvm") {
-					add(vmid)
-					add("--type", "gui")
-				}
-
-				// log into the VM
-				// $ sudo dnf update -y
-				// $ shutdown now
-			}
-		}
-
-		create("vmGuestAdditions") {
-			group = "dev"
-			description = "Sets up folder sharing in the virtual machine"
-			doLast {
-
-				// download the guest additions if needed
-				// NOTE: v6.1.32 doesn't seem to work
-				val guestIso = buildDevDir.createFolderIfNeeded().resolve("guestAdditions.iso")
-				if (!guestIso.exists()) {
-					URL("https://download.virtualbox.org/virtualbox/6.1.30/VBoxGuestAdditions_6.1.30.iso").download(guestIso)
-				}
-				if (!guestIso.exists()) {
-					throw Error("can't find VirtualBox Guest Additions ISO at\n\t$guestIso")
-				}
-
-				// add guest additions media
-				vbox("storageattach") {
-					add(vmid)
-					add("--storagectl", storageId)
-					add("--port", "2")
-					add("--medium", guestIso.toString())
-					add("--type", "dvddrive")
-				}
-
-				vbox("startvm") {
-					add(vmid)
-					add("--type", "gui")
-				}
-
-				// $ sudo dnf install -y kernel-devel kernel-headers gcc make bzip2 perl elfutils-libelf-devel
-				// $ sudo mount /dev/sr0 /mnt
-				// $ sudo /mnt/VBoxLinuxAdditions.run
-				// $ shutdown now
-
-				// NOTE: rocky 9+ needs this too:
-				// sudo dnf install epel-release -y
-				// sudo dnf install -y dkms
-			}
-		}
-
 		create("vmSetup") {
 			group = "dev"
 			description = "performs all the remaining setup to make the VM usable for development"
 			doLast {
-
-				// detatch the guest additions iso
-				vbox("storageattach", ignoreExit=true, ignoreResult=true) {
-					add(vmid)
-					add("--storagectl", storageId)
-					add("--port", "2")
-					add("--medium", "none")
-				}
 
 				// set up shared folders:
 
@@ -1065,10 +990,10 @@ afterEvaluate {
 				try {
 
 					// add the user to the `vboxsf` group so they can access shared folders
-					vboxrun(vmid, "sudo usermod -G vboxsf -a `whoami`")
+					vboxrun(vmid, "usermod -G vboxsf -a `whoami`", sudo=true)
 
 					// run the setup script
-					vboxrun(vmid, "sudo /media/$micromonId/dev/setup.sh")
+					vboxrun(vmid, "/media/$micromonId/dev/setup.sh", sudo=true)
 
 				} finally {
 					vboxstop(vmid)
@@ -1124,13 +1049,12 @@ afterEvaluate {
 
 		fun buildContainer(name: String) {
 			val cmd = listOf(
-				"sudo", "singularity", "build",
+				"apptainer", "build",
 				"--force", // allow overwriting the output files
 				"$vmMicromonDir/run/$name.sif",
 				"$vmMicromonDir/$name.def"
 			)
-			val cmdsh = cmd.joinToString(" ")
-			vboxrun(vmid, "cd \"$vmMicromonDir\" && $cmdsh")
+			vboxrun(vmid, "cd \"$vmMicromonDir\" && ${cmd.joinToString(" ")}", sudo=true)
 		}
 
 		create("vmBuildNextPyp") {
@@ -1545,6 +1469,9 @@ fun vboxInterfaceNetworkName(iface: String) =
 	"HostInterfaceNetworking-$iface"
 
 
+val vmDummyPassword = "dummypassword"
+
+
 /**
  * starts the VM and waits for it to be ready
  */
@@ -1575,6 +1502,7 @@ fun vboxstart(vmid: String, timeoutSeconds: Int = 60) {
 				"guestcontrol",
 				vmid,
 				"run",
+				"--password", vmDummyPassword,
 				"--exe", "/usr/bin/uptime"
 			)
 
@@ -1610,15 +1538,19 @@ fun vboxstop(vmid: String) {
 /**
  * Runs a shell command in a running VM
  */
-fun vboxrun(vmid: String, cmd: String, ignoreResult: Boolean = false, ignoreExit: Boolean = false) {
+fun vboxrun(vmid: String, cmd: String, ignoreResult: Boolean = false, ignoreExit: Boolean = false, sudo: Boolean = false) {
 	vbox("guestcontrol", ignoreResult, ignoreExit) {
 		add(vmid)
 		add("run")
+		add("--password", vmDummyPassword)
 		add("--exe", "/bin/sh")
 		add("--")
-		// looks like a later version of VirtualBox fixed this?
-		//add("ignored") // first argument is ignored for some reason...
-		add("-c", cmd)
+		add("-c")
+		if (sudo) {
+			add("echo \"$vmDummyPassword\" | sudo -S /bin/sh -c \"${cmd.replace("\"", "\\\"")}\"")
+		} else {
+			add(cmd)
+		}
 	}
 }
 
