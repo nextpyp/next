@@ -45,6 +45,7 @@ rm "$debpath"
 # install slurm
 apt install -y slurm slurmd slurmctld
 cp /media/micromon/dev/slurm.conf /etc/slurm/
+chmod u=rw,go=r /etc/slurm/slurm.conf
 
 # make a new munge key if needed
 if [ ! -f "/etc/munge/munge.key" ]; then
