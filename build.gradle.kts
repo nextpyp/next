@@ -739,25 +739,25 @@ afterEvaluate {
 
 				// remove any old VMs
 				// but detatch the drive first so it doesn't get deleted too
-				vbox("storageattach", ignoreExit=true) {
+				vbox("storageattach", ignoreExit=true, ignoreResult=true) {
 					add(vmid)
 					add("--storagectl", storageId)
 					add("--port", "1")
 					add("--medium", "none")
 				}
-				vbox("closemedium", ignoreExit=true) {
+				vbox("closemedium", ignoreExit=true, ignoreResult=true) {
 					add("disk")
 					add(drivePath.toString())
 				}
-				vbox("unregistervm", ignoreExit=true) {
+				vbox("unregistervm", ignoreExit=true, ignoreResult=true) {
 					add(vmid)
 					add("--delete")
 					// NOTE: also deletes any attached drives
 				}
-				vbox("hostonlyif", ignoreExit=true) {
+				vbox("hostonlyif", ignoreExit=true, ignoreResult=true) {
 					add("remove", networkId)
 				}
-				vbox("dhcpserver", ignoreExit=true) {
+				vbox("dhcpserver", ignoreExit=true, ignoreResult=true) {
 					add("remove")
 					add("--network", vboxInterfaceNetworkName(networkId))
 				}
@@ -916,7 +916,7 @@ afterEvaluate {
 			doLast {
 
 				// detatch the install iso
-				vbox("storageattach", ignoreExit=true) {
+				vbox("storageattach", ignoreExit=true, ignoreResult=true) {
 					add(vmid)
 					add("--storagectl", storageId)
 					add("--port", "2")
@@ -984,7 +984,7 @@ afterEvaluate {
 			doLast {
 
 				// detatch the guest additions iso
-				vbox("storageattach", ignoreExit=true) {
+				vbox("storageattach", ignoreExit=true, ignoreResult=true) {
 					add(vmid)
 					add("--storagectl", storageId)
 					add("--port", "2")
@@ -994,7 +994,7 @@ afterEvaluate {
 				// set up shared folders:
 
 				// writeable access to micromon
-				vbox("sharedfolder", ignoreExit=true) {
+				vbox("sharedfolder", ignoreExit=true, ignoreResult=true) {
 					add("remove")
 					add(vmid)
 					add("--name", micromonId)
@@ -1012,7 +1012,7 @@ afterEvaluate {
 				if (!pypDir.exists()) {
 					throw Error("pyp folder not found at \"$pypDir\". Make sure /local.properties `pypDir` has the correct path")
 				}
-				vbox("sharedfolder", ignoreExit=true) {
+				vbox("sharedfolder", ignoreExit=true, ignoreResult=true) {
 					add("remove")
 					add(vmid)
 					add("--name", pypId)
@@ -1028,7 +1028,7 @@ afterEvaluate {
 				}
 
 				// read-only access to raw data folder, if available
-				vbox("sharedfolder", ignoreExit=true) {
+				vbox("sharedfolder", ignoreExit=true, ignoreResult=true) {
 					add("remove")
 					add(vmid)
 					add("--name", rawDataId)
@@ -1046,7 +1046,7 @@ afterEvaluate {
 				}
 
 				// read-only access to the gradle cache folder
-				vbox("sharedfolder", ignoreExit=true) {
+				vbox("sharedfolder", ignoreExit=true, ignoreResult=true) {
 					add("remove")
 					add(vmid)
 					add("--name", gradleCachesId)
