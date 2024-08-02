@@ -135,6 +135,16 @@ class ClusterJobLogViewer(
 					div(classes = setOf("commands", "section")) {
 						content = clusterJobLog.launchResult.command ?: "(no launch command)"
 					}
+					h2("Arguments")
+					div(classes = setOf("commands", "section")) {
+						if (clusterJobLog.launchResult.arguments.isNotEmpty()) {
+							for (arg in clusterJobLog.launchResult.arguments) {
+								div(arg)
+							}
+						} else {
+							span("(none)", classes = setOf("empty"))
+						}
+					}
 					h2("Console Output")
 					div(classes = setOf("commands", "section")) {
 						content = clusterJobLog.launchResult.out

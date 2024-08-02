@@ -36,11 +36,7 @@ class LoadTestingCluster : Cluster {
 		// whatever, it's fine
 	}
 
-	override fun validateDependency(depId: String) {
-		// whatever, it's fine
-	}
-
-	override suspend fun launch(clusterJob: ClusterJob, depIds: List<String>, scriptPath: Path): ClusterJob.LaunchResult {
+	override suspend fun launch(clusterJob: ClusterJob, scriptPath: Path): ClusterJob.LaunchResult {
 
 		val clusterJobId = clusterJob.idOrThrow
 
@@ -102,7 +98,7 @@ class LoadTestingCluster : Cluster {
 			}
 		}
 
-		return ClusterJob.LaunchResult(null, "", null)
+		return ClusterJob.LaunchResult(null, "", null, emptyList())
 	}
 
 	override suspend fun waitingReason(clusterJob: ClusterJob, launchResult: ClusterJob.LaunchResult) =

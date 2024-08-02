@@ -35,7 +35,6 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 	private inner class Job(
 		val jobId: Long,
 		val clusterJob: ClusterJob,
-		val depIds: List<String>,
 		val scriptPath: Path
 	) {
 
@@ -168,8 +167,8 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 				}
 
 				// see if the dependencies are finished
-				for (depId in job.depIds) {
-					if (!dependencySatisfied(jobs, depId)) {
+				for (dep in job.clusterJob.dependencies()) {
+					if (!dependencySatisfied(jobs, dep)) {
 						return WaitingReason.Dependency
 					}
 				}
@@ -185,9 +184,13 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 				return null
 			}
 
-			private fun dependencySatisfied(jobs: Jobs, depId: String): Boolean {
+			private fun dependencySatisfied(jobs: Jobs, dep: ClusterJob.Dependency): Boolean {
 
-				val (depIdJob, depIdArray) = depId
+				val launchId = dep.launchId
+					// dependency not launched yet, so the dependency is not satisfied
+					?: return false
+
+				val (depIdJob, depIdArray) = launchId
 					.split('_')
 					.let { it[0].toLong() to it.getOrNull(1)?.toInt() }
 
@@ -476,38 +479,17 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 		}
 	}
 
-	override fun validateDependency(depId: String) {
-
-		val parts = depId.split('_')
-		when (parts.size) {
-
-			1 -> {
-				parts[0].toLongOrNull()
-					?: throw IllegalArgumentException("dependency id $depId is not a number")
-			}
-
-			2 -> {
-				parts[0].toLongOrNull()
-					?: throw IllegalArgumentException("dependency id $depId job part ${parts[0]} is not a number")
-				parts[1].toIntOrNull()
-					?: throw IllegalArgumentException("dependency id $depId array part ${parts[1]} is not an integer")
-			}
-
-			else -> throw IllegalArgumentException("dependency id $depId is unrecognizable")
-		}
-	}
-
-	override suspend fun launch(clusterJob: ClusterJob, depIds: List<String>, scriptPath: Path): ClusterJob.LaunchResult {
+	override suspend fun launch(clusterJob: ClusterJob, scriptPath: Path): ClusterJob.LaunchResult {
 
 		// create the job, and start it, if possible
 		val job = jobs.use { jobs ->
-			val job = Job(jobs.nextId(), clusterJob, depIds, scriptPath)
+			val job = Job(jobs.nextId(), clusterJob, scriptPath)
 			jobs.add(job)
 			jobs.maybeStartTasks()
 			return@use job
 		}
 
-		return ClusterJob.LaunchResult(job.jobId, "", null)
+		return ClusterJob.LaunchResult(job.jobId, "", null, emptyList())
 	}
 
 	private suspend fun ClusterJob.findJob(): Job? =

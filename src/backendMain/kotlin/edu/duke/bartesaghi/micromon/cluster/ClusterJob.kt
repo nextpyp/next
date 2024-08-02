@@ -243,13 +243,16 @@ class ClusterJob(
 		/** the console output from the cluster launcher, eg sbatch */
 		val out: String,
 		/** the submission command, if any */
-		val command: String?
+		val command: String?,
+		/** any arguments to the launcher that don't appear in the command itself */
+		val arguments: List<String>
 	) {
 
 		fun toDoc() = Document().apply {
 			set("id", jobId)
 			set("out", out)
 			set("command", command)
+			set("arguments", arguments)
 		}
 
 		companion object {
@@ -257,14 +260,16 @@ class ClusterJob(
 			fun fromDoc(doc: Document) = LaunchResult(
 				jobId = doc.getLong("id"),
 				out = doc.getString("out"),
-				command = doc.getString("command")
+				command = doc.getString("command"),
+				arguments = doc.getListOfStrings("arguments") ?: emptyList()
 			)
 		}
 
 		fun toData() = ClusterJobLaunchResultData(
 			command,
 			out,
-			success = jobId != null
+			success = jobId != null,
+			arguments
 		)
 	}
 
@@ -414,6 +419,47 @@ class ClusterJob(
 		// wipe the id
 		id = null
 	}
+
+	data class Dependency(
+		val dependencyId: String,
+		val launchId: String?
+	) {
+
+		val launchIdOrThrow: String get() =
+			launchId
+				?: throw NoSuchElementException("dependency job with id=$dependencyId not launched yet")
+	}
+
+	/**
+	 * Resolve the job's dependency ids (that refer to micromon targets)
+	 * into launch ids (that refer to cluster scheduler (eg SLURM) targets).
+	 *
+	 * A resolved id is only returned if the job has already been launched.
+	 * Unlaunched jobs will have null resolved ids.
+	 */
+	fun dependencies(): List<Dependency> =
+		deps.map { depId ->
+
+			// Sometimes, pyp puts `_N` on the end of the dependency id to signal a dependency
+			// on the Nth element in an array job. The database doesn't know anything about that,
+			// so take it off before jobId resolution.
+			val (depIdJob, depIdArray) = depId
+				.split('_')
+				.let { it[0] to it.getOrNull(1) }
+
+			var launchId = Database.cluster.log.get(depIdJob)
+				?.let { Log.fromDoc(it) }
+				?.launchResult
+				?.jobId
+				?.toString()
+
+			// But then put the `_N` back on before giving the IDs to the cluster.
+			if (depIdArray != null) {
+				launchId = "${launchId}_$depIdArray"
+			}
+
+			Dependency(depId, launchId)
+		}
 
 
 	companion object {

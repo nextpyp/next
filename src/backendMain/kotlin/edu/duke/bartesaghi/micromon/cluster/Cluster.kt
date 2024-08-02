@@ -34,12 +34,18 @@ interface Cluster {
 	fun validate(job: ClusterJob)
 
 	/**
-	 * Throw an error if the dependency id format can't be recognized.
-	 * But don't try to check if the dependency exists yet.
+	 * Builds the batch script to run the job.
 	 */
-	fun validateDependency(depId: String)
+	suspend fun buildScript(clusterJob: ClusterJob, commands: String): String {
+		// by default, just wrap the commands in a simple bash script, with no other fanfare
+		return """
+			|#!/bin/bash
+			|
+			|$commands
+		""".trimMargin()
+	}
 
-	suspend fun launch(clusterJob: ClusterJob, depIds: List<String>, scriptPath: Path): ClusterJob.LaunchResult?
+	suspend fun launch(clusterJob: ClusterJob, scriptPath: Path): ClusterJob.LaunchResult?
 
 	suspend fun waitingReason(clusterJob: ClusterJob, launchResult: ClusterJob.LaunchResult): String?
 
@@ -122,7 +128,8 @@ interface Cluster {
 						set("sbatch", ClusterJob.LaunchResult(
 							null,
 							t.console.joinToString("\n"),
-							t.command
+							t.command,
+							emptyList()
 						).toDoc())
 
 					is ClusterJob.ValidationFailedException ->
@@ -181,42 +188,9 @@ interface Cluster {
 			// but wait until at least after the submission event went out, so failures here can be shown in the UI
 			instance.validate(clusterJob)
 
-			// resolve the dependency ids, or die trying
-			val depIds = clusterJob.deps
-				.map { depId ->
-
-					// Sometimes, pyp puts `_N` on the end of the dependency id to signal a dependency
-					// on the Nth element in an array job. The database doesn't know anything about that,
-					// so take it off before jobId resolution.
-					val (depIdJob, depIdArray) = depId
-						.split('_')
-						.let { it[0] to it.getOrNull(1) }
-
-					val launchId = Database.cluster.log.get(depIdJob)
-						?.let { ClusterJob.Log.fromDoc(it) }
-						?.launchResult
-						?.jobId
-						?: throw IllegalStateException("dependency job with id=$depId not launched yet")
-
-					// But then put the `_N` back on before giving the IDs to the cluster.
-					if (depIdArray != null) {
-						"${launchId}_$depIdArray"
-					} else {
-						launchId.toString()
-					}
-				}
-
-			// validate the dependency ids
-			for (depId in depIds) {
-				instance.validateDependency(depId)
-			}
-
 			// write the script files
-			val scriptPath = clusterJob.batchPath()
 			val commands = clusterJob.commands.render(clusterJob, instance.commandsConfig)
-			scriptPath.writeStringAs(clusterJob.osUsername, """
-				|#!/bin/bash
-				|
+			val script = instance.buildScript(clusterJob, """
 				|export NEXTPYP_WEBHOST="${Backend.config.web.webhost}"
 				|export NEXTPYP_TOKEN="${JsonRpc.token}"
 				|export NEXTPYP_WEBID="$clusterJobId"
@@ -233,12 +207,14 @@ interface Cluster {
 				|
 				|${commands.joinToString("\n")}
 			""".trimMargin())
+			val scriptPath = clusterJob.batchPath()
+			scriptPath.writeStringAs(clusterJob.osUsername, script)
 			scriptPath.editPermissionsAs(clusterJob.osUsername) {
 				add(PosixFilePermission.OWNER_EXECUTE)
 			}
 
 			// try to launch the job on the cluster
-			val launchResult = instance.launch(clusterJob, depIds, scriptPath)
+			val launchResult = instance.launch(clusterJob, scriptPath)
 				?: return null
 
 			// launch succeeded, update the database with the launch result

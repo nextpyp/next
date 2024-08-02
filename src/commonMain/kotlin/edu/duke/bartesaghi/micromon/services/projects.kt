@@ -408,7 +408,8 @@ class ClusterJobLog(
 class ClusterJobLaunchResultData(
 	val command: String?,
 	val out: String,
-	val success: Boolean
+	val success: Boolean,
+	val arguments: List<String>
 )
 
 @Serializable

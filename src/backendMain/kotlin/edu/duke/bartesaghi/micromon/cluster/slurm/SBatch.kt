@@ -5,6 +5,7 @@ import edu.duke.bartesaghi.micromon.cluster.Cluster
 import edu.duke.bartesaghi.micromon.cluster.ClusterJob
 import edu.duke.bartesaghi.micromon.cluster.Commands
 import edu.duke.bartesaghi.micromon.linux.Command
+import edu.duke.bartesaghi.micromon.linux.Posix
 import edu.duke.bartesaghi.micromon.linux.userprocessor.deleteAs
 import edu.duke.bartesaghi.micromon.linux.userprocessor.readStringAs
 import edu.duke.bartesaghi.micromon.pyp.*
@@ -71,23 +72,17 @@ class SBatch(val config: Config.Slurm) : Cluster {
 		}
 	}
 
-	override fun validateDependency(depId: String) {
-		// sbatch will validate the dependency ids, so we don't have to do it here
-	}
+	fun buildArguments(clusterJob: ClusterJob): List<String> {
 
-	override suspend fun launch(clusterJob: ClusterJob, depIds: List<String>, scriptPath: Path): ClusterJob.LaunchResult? {
-
-		// build the sbatch command and add any args
-		// NOTE: argument sanitization is handled by Command.toSafeShellString(), so we don't need to double-sanitize each argument here
-		var sbatch = Command(config.cmdSbatch)
-
-		sbatch.args.add("--output=${clusterJob.outPathMask()}")
+		val out = ArrayList<String>()
 
 		// add all the arguments from the job submission
-		sbatch.args.addAll(clusterJob.args)
+		out.addAll(clusterJob.args)
 
-		if (depIds.isNotEmpty()) {
-			sbatch.args.add("--dependency=afterany:${depIds.joinToString(",")}")
+		val deps = clusterJob.dependencies()
+		if (deps.isNotEmpty()) {
+			val launchIds = deps.joinToString(",") { it.launchIdOrThrow }
+			out.add("--dependency=afterany:$launchIds")
 		}
 
 		// use the default cpu queue, if none was specified in the args
@@ -98,7 +93,7 @@ class SBatch(val config: Config.Slurm) : Cluster {
 		if (partition == null) {
 			// that is, if any default queue exists
 			config.queues.firstOrNull()
-				?.let { sbatch.args.add("--partition=$it") }
+				?.let { out.add("--partition=$it") }
 		}
 
 		// render the array arguments
@@ -106,14 +101,55 @@ class SBatch(val config: Config.Slurm) : Cluster {
 			val bundleInfo = clusterJob.commands.bundleSize
 				?.let { "%$it" }
 				?: ""
-			sbatch.args.add("--array=1-$arraySize$bundleInfo")
+			out.add("--array=1-$arraySize$bundleInfo")
 		}
 
 		// set the job name, if any
 		clusterJob.clusterName?.let {
-			sbatch.args.add("--job-name=$it")
+			out.add("--job-name=$it")
 		}
 
+		return out
+	}
+
+	override suspend fun buildScript(clusterJob: ClusterJob, commands: String): String {
+
+		// NOTE: In SLURM, command-line arguments to sbatch take precedence over #SBATCH directives in the script
+		//       This precedence is apparently not documented in the official SLURM docs, but I determined it empirically.
+		//       Since it's undocumented (?), it's possible this behavior could change in a future release.
+		//       Meaning, #SBATCH directives in this script *cannot* override command-line arguments set in launch()
+
+		val out = StringBuilder()
+
+		fun StringBuilder.write(msg: String) {
+			append(msg)
+		}
+		fun StringBuilder.writeln(msg: String? = null) {
+			msg?.let { write(it) }
+			write("\n")
+		}
+
+		out.writeln("#!/bin/bash")
+		out.writeln()
+
+		// write sbatch directives
+		for (arg in buildArguments(clusterJob)) {
+			out.writeln("#SBATCH ${Posix.quote(arg)}")
+		}
+		out.writeln()
+
+		// write the commands
+		out.write(commands)
+
+		return out.toString()
+	}
+
+	override suspend fun launch(clusterJob: ClusterJob, scriptPath: Path): ClusterJob.LaunchResult? {
+
+		// build the sbatch command and add any args
+		// NOTE: argument sanitization is handled by Command.toSafeShellString(), so we don't need to double-sanitize each argument here
+		var sbatch = Command(config.cmdSbatch)
+		sbatch.args.add("--output=${clusterJob.outPathMask()}")
 		sbatch.args.add("$scriptPath")
 
 		// run the job as the specified OS user, if needed
@@ -127,6 +163,10 @@ class SBatch(val config: Config.Slurm) : Cluster {
 		// render the command into something suitable for a remote shell,
 		// ie, with proper argument quoting to avoid injection attacks
 		val sbatchCmd = sbatch.toShellSafeString()
+
+		// collect all the other sbatch arguments for the launch result, but don't add them to the command
+		// (since they're already in the batch script)
+		val args = buildArguments(clusterJob)
 
 		// call sbatch on the SLURM host and wait for the job to submit
 		val result = sshPool
@@ -157,7 +197,8 @@ class SBatch(val config: Config.Slurm) : Cluster {
 		return ClusterJob.LaunchResult(
 			sbatchId,
 			result.console.joinToString("\n"),
-			sbatchCmd
+			sbatchCmd,
+			args
 		)
 	}
 
