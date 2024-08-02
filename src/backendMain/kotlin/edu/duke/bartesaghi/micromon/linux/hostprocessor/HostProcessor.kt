@@ -206,6 +206,7 @@ class HostProcessor(
 					cmd.program,
 					cmd.args,
 					dir?.toString(),
+					cmd.envvars.map { it.name to it.value },
 					stdin = Request.Exec.Stdin.Ignore,
 					stdout = outPath
 						?.let { Request.Exec.Stdout.Write(it.toString()) }
@@ -264,6 +265,7 @@ class HostProcessor(
 					cmd.program,
 					cmd.args,
 					dir?.toString(),
+					cmd.envvars.map { it.name to it.value },
 					if (stdin) Request.Exec.Stdin.Stream else Request.Exec.Stdin.Ignore,
 					if (stdout) Request.Exec.Stdout.Stream else Request.Exec.Stdout.Ignore,
 					if (stderr) Request.Exec.Stderr.Stream else Request.Exec.Stderr.Ignore,

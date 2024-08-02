@@ -383,6 +383,7 @@ async fn dispatch_exec(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32, proce
 	let response = Command::new(request.program)
 		.args(request.args)
 		.current_dir(dir)
+		.envs(request.envvars)
 		.stdin(match &request.stdin {
 			ExecStdin::Stream => Stdio::piped(),
 			ExecStdin::Ignore => Stdio::null()

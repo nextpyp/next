@@ -69,6 +69,7 @@ fn exec() {
 		program: "ls".to_string(),
 		args: vec!["-al".to_string()],
 		dir: None,
+		envvars: vec![],
 		stdin: ExecStdin::Ignore,
 		stdout: ExecStdout::Ignore,
 		stderr: ExecStderr::Ignore,
@@ -96,6 +97,7 @@ fn exec_stdout_stream() {
 		program: "ls".to_string(),
 		args: vec!["-al".to_string()],
 		dir: None,
+		envvars: vec![],
 		stdin: ExecStdin::Ignore,
 		stdout: ExecStdout::Stream,
 		stderr: ExecStderr::Ignore,
@@ -127,6 +129,7 @@ fn exec_stdout_write() {
 		program: "echo".to_string(),
 		args: vec!["hello".to_string()],
 		dir: None,
+		envvars: vec![],
 		stdin: ExecStdin::Ignore,
 		stdout: ExecStdout::Write {
 			path: out_path.to_string_lossy().to_string()
@@ -164,6 +167,7 @@ fn exec_stderr_stream() {
 		program: "ls".to_string(),
 		args: vec!["/nope/probably/not/a/thing/right?".to_string()],
 		dir: None,
+		envvars: vec![],
 		stdin: ExecStdin::Ignore,
 		stdout: ExecStdout::Ignore,
 		stderr: ExecStderr::Stream,
@@ -195,6 +199,7 @@ fn exec_stderr_write() {
 		program: "ls".to_string(),
 		args: vec!["/nope/probably/not/a/thing/right?".to_string()],
 		dir: None,
+		envvars: vec![],
 		stdin: ExecStdin::Ignore,
 		stdout: ExecStdout::Ignore,
 		stderr: ExecStderr::Write {
@@ -234,6 +239,7 @@ fn exec_stderr_merge() {
 		program: "ls".to_string(),
 		args: vec!["/nope/probably/not/a/thing/right?".to_string()],
 		dir: None,
+		envvars: vec![],
 		stdin: ExecStdin::Ignore,
 		stdout: ExecStdout::Write {
 			path: out_path.to_string_lossy().to_string()
@@ -271,6 +277,7 @@ fn exec_stdin() {
 		program: "cat".to_string(),
 		args: vec!["-".to_string()],
 		dir: None,
+		envvars: vec![],
 		stdin: ExecStdin::Stream,
 		stdout: ExecStdout::Stream,
 		stderr: ExecStderr::Stream,
@@ -304,6 +311,7 @@ fn exec_dir() {
 		program: "pwd".to_string(),
 		args: vec![],
 		dir: Some("/tmp".to_string()),
+		envvars: vec![],
 		stdin: ExecStdin::Ignore,
 		stdout: ExecStdout::Stream,
 		stderr: ExecStderr::Ignore,
@@ -314,6 +322,38 @@ fn exec_dir() {
 	let (stdout, _, exit_code) = exec::outputs(&mut socket, request_id);
 	assert_that!(&exit_code, eq(Some(0)));
 	assert_that!(&String::from_utf8_lossy(stdout.as_ref()).to_string(), eq("/tmp\n".to_string()));
+
+	host_processor.disconnect(socket);
+	host_processor.stop();
+}
+
+
+#[test]
+fn exec_envvars() {
+	let _logging = logging::init_test();
+
+	let host_processor = HostProcessor::start();
+	let mut socket = host_processor.connect();
+
+	// send the exec request
+	let (_pid, request_id) = exec::launch(&mut socket, ExecRequest {
+		program: "sh".to_string(),
+		args: vec!["-c".to_string(), "echo $TEST1 $TEST2".to_string()],
+		dir: Some("/tmp".to_string()),
+		envvars: vec![
+			("TEST1".to_string(), "foo".to_string()),
+			("TEST2".to_string(), "bar".to_string())
+		],
+		stdin: ExecStdin::Ignore,
+		stdout: ExecStdout::Stream,
+		stderr: ExecStderr::Ignore,
+		stream_fin: true
+	});
+
+	// get the stdout
+	let (stdout, _, exit_code) = exec::outputs(&mut socket, request_id);
+	assert_that!(&exit_code, eq(Some(0)));
+	assert_that!(&String::from_utf8_lossy(stdout.as_ref()).to_string(), eq("foo bar\n".to_string()));
 
 	host_processor.disconnect(socket);
 	host_processor.stop();
@@ -335,6 +375,7 @@ fn exec_status() {
 		program: "cat".to_string(),
 		args: vec!["-".to_string()],
 		dir: None,
+		envvars: vec![],
 		stdin: ExecStdin::Stream,
 		stdout: ExecStdout::Ignore,
 		stderr: ExecStderr::Ignore,
@@ -373,6 +414,7 @@ fn exec_kill() {
 		program: "cat".to_string(),
 		args: vec!["-".to_string()],
 		dir: None,
+		envvars: vec![],
 		stdin: ExecStdin::Stream,
 		stdout: ExecStdout::Ignore,
 		stderr: ExecStderr::Ignore,
@@ -519,6 +561,9 @@ impl HostProcessor {
 	fn start() -> Self {
 
 		debug!("Starting host processor ...");
+
+		fs::create_dir_all(SOCKET_DIR)
+			.expect("Failed to create socket folder");
 
 		let proc = Command::new(Self::bin_path())
 			.args(["--log", "trace"])

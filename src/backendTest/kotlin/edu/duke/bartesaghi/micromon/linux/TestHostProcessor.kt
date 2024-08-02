@@ -121,6 +121,19 @@ class TestHostProcessor : DescribeSpec({
 			}
 		}
 
+		it("exec envvars") {
+			withHostProcessor { hostProcessor ->
+				val cmd = Command("sh", "-c", "echo \$TEST1 \$TEST2")
+				cmd.envvars.add(EnvVar("TEST1", "foo"))
+				cmd.envvars.add(EnvVar("TEST2", "bar"))
+				hostProcessor.execStream(cmd, stdout=true).use { proc ->
+					val console = proc.recv<Response.ProcessEvent.Console>()
+					console.kind.shouldBe(Response.ProcessEvent.ConsoleKind.Stdout)
+					console.chunk.toString(Charsets.UTF_8).shouldBe("foo bar\n")
+				}
+			}
+		}
+
 		it("exec multiplexing") {
 			withHostProcessor { hostProcessor ->
 				hostProcessor.execStream(Command("cat", "-"), stdin=true, stdout=true).use { proc1 ->
