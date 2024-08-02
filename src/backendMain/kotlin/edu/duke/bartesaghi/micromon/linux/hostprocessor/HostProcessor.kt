@@ -181,6 +181,7 @@ class HostProcessor(
 
 	private suspend inline fun <reified T:Response> Connection.Responder.recv(): T {
 		return when (val response = recvResponse()) {
+			is Response.Error -> throw ErrorResponseException(response.reason)
 			is T -> response // ok
 			else -> throw UnexpectedResponseException(response)
 		}
@@ -400,5 +401,7 @@ suspend inline fun <reified T:Response.ProcessEvent.Event> HostProcessor.Streami
 
 
 class UnexpectedResponseException(val response: Response) : RuntimeException("Unexpected response: $response")
+
+class ErrorResponseException(val reason: String) : RuntimeException("Host Processor error: $reason")
 
 class UnavailableError : IllegalStateException("The host processor is unavailable, try rebooting the website")
