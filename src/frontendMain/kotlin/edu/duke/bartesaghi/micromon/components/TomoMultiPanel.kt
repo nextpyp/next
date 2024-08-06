@@ -98,13 +98,6 @@ class TomoMultiPanel(
 				loadData()
 			})
 			lazyTab.elem.add(self.alignedTiltSeriesImage)
-			self.alignedTiltSeriesImage.sprite?.let { sprite ->
-				sprite.add(0, Div(classes = setOf("tilt-reference-line")) {
-					div {
-						setStyle("transform", "rotate(${0.0}deg)")
-					}
-				})
-			}
 		}
 
 		addTab("CTF") { lazyTab ->
@@ -144,7 +137,14 @@ class TomoMultiPanel(
 			}
 
 			// Alignment tab
-			alignedTiltSeriesImage.load(metadata.tilts.size, metadata.tilts.size / 2 - 1)
+			alignedTiltSeriesImage.load(metadata.tilts.size, metadata.tilts.size / 2 - 1) { sprite ->
+				sprite.add(0, Div(classes = setOf("tilt-reference-line")) {
+					div {
+						// TODO: does this line need to be rotated?
+						//setStyle("transform", "rotate(${0.0}deg)")
+					}
+				})
+			}
 
 			// CTF tab
 			ctfMultiTiltPlot.myOnClick = { index ->
