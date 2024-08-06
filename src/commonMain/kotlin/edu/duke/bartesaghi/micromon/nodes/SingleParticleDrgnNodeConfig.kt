@@ -6,7 +6,7 @@ object SingleParticleDrgnNodeConfig : NodeConfig {
 	const val ID = "sp-drgn"
 
 	override val id = ID
-	override val configId = "spr_drgn"
+	override val configId = "spr_heterogeneity"
 	override val name = "Continuous Heterogeneity"
 	override val hasFiles = true
 	// TEMP: preview status during development
