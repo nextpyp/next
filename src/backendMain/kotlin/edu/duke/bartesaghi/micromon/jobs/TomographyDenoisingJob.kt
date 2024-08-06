@@ -67,7 +67,8 @@ class TomographyDenoisingJob(
 		TomographyDenoisingData(
 			commonData(),
 			args,
-			diagramImageURL()
+			diagramImageURL(),
+			Database.tiltSeries.count(idOrThrow)
 		)
 
 	override suspend fun launch(runId: Int) {

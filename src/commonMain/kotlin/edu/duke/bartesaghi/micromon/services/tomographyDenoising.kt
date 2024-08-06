@@ -33,7 +33,8 @@ data class TomographyDenoisingArgs(
 data class TomographyDenoisingData(
 	override val common: CommonJobData,
 	val args: JobArgs<TomographyDenoisingArgs>,
-	val imageUrl: String
+	val imageUrl: String,
+	val numTiltSeries: Long
 ) : JobData {
 	override fun isChanged() = args.hasNext()
 }

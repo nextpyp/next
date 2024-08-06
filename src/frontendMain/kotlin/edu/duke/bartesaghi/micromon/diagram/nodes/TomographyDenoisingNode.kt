@@ -6,12 +6,14 @@ import edu.duke.bartesaghi.micromon.components.forms.addSaveResetButtons
 import edu.duke.bartesaghi.micromon.components.forms.init
 import edu.duke.bartesaghi.micromon.diagram.Diagram
 import edu.duke.bartesaghi.micromon.dynamicImageClassName
+import edu.duke.bartesaghi.micromon.formatWithDigitGroupsSeparator
 import edu.duke.bartesaghi.micromon.nodes.TomographyDenoisingNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
 import edu.duke.bartesaghi.micromon.pyp.Args
 import edu.duke.bartesaghi.micromon.pyp.filterForDownstreamCopy
 import edu.duke.bartesaghi.micromon.refreshDynamicImages
 import edu.duke.bartesaghi.micromon.services.*
+import edu.duke.bartesaghi.micromon.views.TomographyDenoisingView
 import edu.duke.bartesaghi.micromon.views.Viewport
 import io.kvision.form.formPanel
 import io.kvision.modal.Modal
@@ -106,10 +108,12 @@ class TomographyDenoisingNode(
 
 		content {
 			button(className = "image-button reconstruction-node", onClick = {
-				// TODO: does this node have a view?
-				//TomographyDenoisingView.go(viewport, project, job)
+				TomographyDenoisingView.go(viewport, project, job)
 			}) {
 				img(job.imageUrl, className = dynamicImageClassName)
+			}
+			div(className = "count") {
+				text("${job.numTiltSeries.formatWithDigitGroupsSeparator()} tilt-series")
 			}
 		}
 

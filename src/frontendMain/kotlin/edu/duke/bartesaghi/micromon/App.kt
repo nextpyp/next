@@ -52,6 +52,7 @@ class App : Application() {
 			SingleParticlePreprocessingView.Companion,
 			TomographyPreprocessingView.Companion,
 			TomographyPurePreprocessingView.Companion,
+			TomographyDenoisingView.Companion,
 			TomographyPickingView.Companion,
 			IntegratedRefinementView.Companion,
 			SessionsView.Companion,
