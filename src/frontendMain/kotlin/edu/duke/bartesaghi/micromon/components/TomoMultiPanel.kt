@@ -138,12 +138,10 @@ class TomoMultiPanel(
 
 			// Alignment tab
 			alignedTiltSeriesImage.load(metadata.tilts.size, metadata.tilts.size / 2 - 1) { sprite ->
-				sprite.add(0, Div(classes = setOf("tilt-reference-line")) {
-					div {
-						// TODO: does this line need to be rotated?
-						//setStyle("transform", "rotate(${0.0}deg)")
-					}
-				})
+				// after loading finishes, add a horizontal reference line to the alignment
+				sprite.div(classes = setOf("tilt-reference-line")) {
+					div() // NOTE: this div is the line itself, the outer div is a container
+				}
 			}
 
 			// CTF tab
