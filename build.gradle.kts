@@ -1289,6 +1289,21 @@ afterEvaluate {
 			}
 		}
 
+		create("vmBuildMockPyp") {
+			group = "build"
+			description = "Build mock pyp in the rustc container"
+			doLast {
+
+				val outDir = vmRustc(Paths.get("src/mockPyp"))
+
+				// copy the executable into the run folder
+				copy {
+					from(outDir.resolve("mock-pyp"))
+					into(runDir)
+				}
+			}
+		}
+
 		create("generateBuildSources") {
 			group = "build"
 			description = "generates source files derived from build data"

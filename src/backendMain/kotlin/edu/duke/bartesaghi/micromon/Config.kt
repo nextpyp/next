@@ -34,7 +34,8 @@ class Config(toml: String) {
 		val sources: Path?,
 		val scratch: Path,
 		val binds: List<Path>,
-		val cudaLibs: List<Path>
+		val cudaLibs: List<Path>,
+		val mock: Mock?
 	) {
 		
 		companion object {
@@ -73,6 +74,11 @@ class Config(toml: String) {
 					}
 				}
 		}
+
+		data class Mock(
+			val container: Path,
+			val exec: Path
+		)
 
 		init {
 			// check the binds against the denylist
@@ -185,7 +191,13 @@ class Config(toml: String) {
 					indices.map { i ->
 						getString(i).toPath()
 					}
-				} ?: emptyList()
+				} ?: emptyList(),
+				mock = getTable("mock")?.run {
+					Pyp.Mock(
+						getStringOrThrow("container").toPath(),
+						getStringOrThrow("exec").toPath()
+					)
+				}
 			)
 		}
 

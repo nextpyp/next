@@ -1,5 +1,6 @@
 package edu.duke.bartesaghi.micromon.pyp
 
+import edu.duke.bartesaghi.micromon.Config
 import edu.duke.bartesaghi.micromon.cluster.Cluster
 import edu.duke.bartesaghi.micromon.cluster.ClusterJob
 import edu.duke.bartesaghi.micromon.cluster.CommandsScript
@@ -45,11 +46,19 @@ enum class Pyp(private val cmdName: String) {
 	) : ClusterJob {
 
 		// launch a PYP script inside of the container via SLURM
+		val (containerId, runCmd) =
+			if (Config.instance.pyp.mock != null) {
+				// or mock pyp entirely, if configured for testing
+				Container.MockPyp.id to "${Container.MockPyp.exec} $cmdName"
+			} else {
+				Container.Pyp.id to Container.Pyp.run(cmdName)
+			}
+
 		val clusterJob = ClusterJob(
 			osUsername = osUsername,
-			containerId = Container.Pyp.id,
+			containerId = containerId,
 			commands = CommandsScript(commands = listOf(
-				Container.Pyp.run(cmdName) + " " + args.joinToString(" ")
+				runCmd + " " + args.joinToString(" ")
 			)),
 			dir = dir,
 			args = launchArgs,

@@ -1,0 +1,13 @@
+
+[package]
+name = "mock-pyp"
+version = "0.1.0"
+authors = ["Jeff Martin <jmartin@cs.duke.edu>"]
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.81" # MIT (or Apache-2)
+display-error-chain = "0.2.0" # MIT (or Apache-2)
+tracing = "0.1.40" # MIT
+tracing-subscriber = { version = "0.3.18", features = ["time", "env-filter"] } # MIT
+time = { version = "0.3.31", features = ["local-offset", "macros", "formatting"] } # MIT (or Apache-2)

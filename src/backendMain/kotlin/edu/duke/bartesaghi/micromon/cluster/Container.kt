@@ -20,6 +20,7 @@ sealed interface Container {
 			when (id) {
 				null -> null
 				Pyp.id -> Pyp()
+				MockPyp.id -> MockPyp()
 				else -> throw IllegalArgumentException("unrecognized container id: $id")
 			}
 
@@ -30,7 +31,7 @@ sealed interface Container {
 
 		companion object {
 
-			val id = "pyp"
+			const val id = "pyp"
 
 			val pypDir: Path =
 				Paths.get("/opt/pyp")
@@ -97,5 +98,30 @@ sealed interface Container {
 					add("export LD_LIBRARY_PATH=\"\$LD_LIBRARY_PATH:$pathsList\"")
 				}
 		}
+	}
+
+	/**
+	 * A container definition to help speed up testing the website when it interacts with pyp
+	 */
+	class MockPyp : Container {
+
+		companion object {
+
+			const val id = "mock-pyp"
+
+			const val exec = "/usr/bin/mock-pyp"
+		}
+
+		private val configOrThrow: Config.Pyp.Mock get() =
+			Config.instance.pyp.mock
+				?: throw NoSuchElementException("missing pyp.mock config")
+
+		override val sifPath = configOrThrow.container
+
+		override val binds = listOf(
+			"${configOrThrow.exec}:${exec}"
+		)
+
+		override fun prelaunchCommands() = emptyList<String>() // nothing to do
 	}
 }
