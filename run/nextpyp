@@ -264,11 +264,11 @@ case "$1" in
         exit 1
       fi
 
-      pushd "$sockdir"
+      pushd "$sockdir" > /dev/null
       "$hpexec" "${hpoptions[@]}" > "$localdir/logs/hostprocessor" 2>&1 &
       hppid=$!
-      echo "Host Processor started pid=$hppid"
-      popd
+      echo "Host Processor started pid=$hppid ($hpexec)"
+      popd > /dev/null
 
     fi
 
