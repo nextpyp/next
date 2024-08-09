@@ -52,7 +52,7 @@ data class MicrographMetadata(
 	override val defocus2: Double,
 	override val angleAstig: Double,
 	override val averageMotion: Double,
-	override val numParticles: Int,
+	override val numAutoParticles: Int,
 	override val sourceDims: ImageDims?
 ) : PreprocessingData {
 

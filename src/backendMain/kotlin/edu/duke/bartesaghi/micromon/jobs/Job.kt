@@ -319,15 +319,6 @@ abstract class Job(
 		finishedArgValues()
 			?: throw NoSuchElementException("no finished arg values available")
 
-	fun imagesScale(pypValues: ArgValues): ImagesScale =
-		ImagesScale(
-			pixelA = pypValues.scopePixel
-				?: ImagesScale.default().pixelA,
-			particleRadiusA = pypValues.detectRad
-				.takeIf { it != 0.0 }
-				?: ImagesScale.default().particleRadiusA
-		)
-
 	companion object {
 
 		private val log = LoggerFactory.getLogger("Job")

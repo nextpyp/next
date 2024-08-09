@@ -263,7 +263,7 @@ actual class JobsService : IJobsService, Service {
 	override suspend fun getImagesScale(jobId: String): Option<ImagesScale> = sanitizeExceptions {
 		val job = jobId.authJob(ProjectPermission.Read).job
 		job.pypParameters()
-			?.let { job.imagesScale(it) }
+			?.imagesScale()
 			.toOption()
 	}
 

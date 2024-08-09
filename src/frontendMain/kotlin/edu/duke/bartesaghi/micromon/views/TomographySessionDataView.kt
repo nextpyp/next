@@ -89,12 +89,17 @@ class TomographySessionDataView(val project: ProjectData, val job: TomographySes
 			val pypStats = try {
 				delayAtLeast(200) {
 					data.loadForProject(job.jobId, job.clientInfo, job.args.finished?.values)
-					if (data.virusMode != null) {
-						pickingControls.newParticlesType = ParticlesType.Virions3D
-						pickingControls.setList(ParticlesList.autoVirions(job.jobId))
-					} else {
-						pickingControls.newParticlesType = ParticlesType.Particles3D
-						pickingControls.setList(ParticlesList.autoParticles3D(job.jobId))
+					// load the auto list by default
+					when (data.particles) {
+						null -> Unit
+						is TiltSeriesesParticlesData.VirusMode -> {
+							pickingControls.newParticlesType = ParticlesType.Virions3D
+							pickingControls.setList(ParticlesList.autoVirions(job.jobId))
+						}
+						is TiltSeriesesParticlesData.Data -> {
+							pickingControls.newParticlesType = ParticlesType.Particles3D
+							pickingControls.setList(ParticlesList.autoParticles3D(job.jobId))
+						}
 					}
 					Services.jobs.pypStats(job.jobId)
 				}
@@ -107,7 +112,6 @@ class TomographySessionDataView(val project: ProjectData, val job: TomographySes
 
 			// show tilt series stats
 			elem.add(tiltSeriesStats)
-			tiltSeriesStats.updateCombined(data, pickingControls)
 
 			// show PYP stats
 			statsLine = PypStatsLine(pypStats)
@@ -199,7 +203,16 @@ class TomographySessionDataView(val project: ProjectData, val job: TomographySes
 							data.imagesScale = msg.imagesScale
 							liveTab?.listNav?.reshow()
 						}
-						is RealTimeS2C.UpdatedTiltSeries -> updateTiltSeries(msg, data)
+						is RealTimeS2C.UpdatedTiltSeries -> {
+							data.update(msg.tiltSeries)
+							tiltSeriesStats.increment(data, msg.tiltSeries)
+
+							// update tabs
+							plots?.update(msg.tiltSeries)
+							filterTable?.update()
+							gallery?.update()
+							liveTab?.listNav?.newItem()
+						}
 						else -> Unit
 					}
 				}
@@ -225,19 +238,6 @@ class TomographySessionDataView(val project: ProjectData, val job: TomographySes
 		}
 
 		liveTab?.listNav?.showItem(index, stopLive)
-	}
-
-	private fun updateTiltSeries(msg: RealTimeS2C.UpdatedTiltSeries, data: TiltSeriesesData) {
-
-		data.update(msg)
-
-		tiltSeriesStats.updateCombined(data, pickingControls)
-
-		// update tabs
-		plots?.update(msg.tiltSeries)
-		filterTable?.update()
-		gallery?.update()
-		liveTab?.listNav?.newItem()
 	}
 
 	private inner class LiveTab(
@@ -278,7 +278,7 @@ class TomographySessionDataView(val project: ProjectData, val job: TomographySes
 
 			val tomoPanel = TomoMultiPanel(project, job, data, tiltSeries, pickingControls)
 			tomoPanel.particlesImage.onParticlesChange = {
-				tiltSeriesStats.updateCombined(data, pickingControls)
+				tiltSeriesStats.picked(data, pickingControls)
 			}
 			tiltSeriesesElem.add(tomoPanel)
 			AppScope.launch {

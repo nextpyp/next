@@ -75,7 +75,7 @@ class TomographyPickingClosedView(val project: ProjectData, val job: TomographyP
 			try {
 				delayAtLeast(200) {
 					data.loadForProject(job.jobId, job.clientInfo, job.args.finished?.values)
-					pickingControls.load(default = ParticlesList.userPicking3D(job.jobId))
+					// TODO: load a particles list?
 				}
 			} catch (t: Throwable) {
 				elem.errorMessage(t)
@@ -87,7 +87,6 @@ class TomographyPickingClosedView(val project: ProjectData, val job: TomographyP
 			// show tilt series stats
 			val tiltSeriesStats = TiltSeriesStats()
 			elem.add(tiltSeriesStats)
-			tiltSeriesStats.updateSegmentation(data, pickingControls)
 
 			val tiltSeriesesElem = Div()
 			val listNav = BigListNav(data.tiltSerieses, has100 = false) e@{ index ->
@@ -116,9 +115,6 @@ class TomographyPickingClosedView(val project: ProjectData, val job: TomographyP
 
 				tiltSeriesesElem.add(pickingControls)
 				val particlesImage = TomoParticlesImage.forProject(project, job, data, tiltSeries, pickingControls)
-				particlesImage.onParticlesChange = {
-					tiltSeriesStats.updateSegmentation(data, pickingControls)
-				}
 				tiltSeriesesElem.add(particlesImage)
 
 				AppScope.launch {
@@ -148,8 +144,8 @@ class TomographyPickingClosedView(val project: ProjectData, val job: TomographyP
 							listNav.reshow()
 						}
 						is RealTimeS2C.UpdatedTiltSeries -> {
-							data.update(msg)
-							tiltSeriesStats.updateSegmentation(data, pickingControls)
+							data.update(msg.tiltSeries)
+							tiltSeriesStats.increment(data, msg.tiltSeries)
 							listNav.newItem()
 						}
 						else -> Unit

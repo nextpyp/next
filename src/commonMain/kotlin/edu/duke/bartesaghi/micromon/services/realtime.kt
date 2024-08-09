@@ -2,6 +2,7 @@ package edu.duke.bartesaghi.micromon.services
 
 import edu.duke.bartesaghi.micromon.pyp.Block
 import edu.duke.bartesaghi.micromon.pyp.ImagesScale
+import edu.duke.bartesaghi.micromon.pyp.TomoSpkMethod
 import edu.duke.bartesaghi.micromon.pyp.TomoVirMethod
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
@@ -333,9 +334,7 @@ sealed class RealTimeS2C {
 
 	@Serializable
 	data class UpdatedTiltSeries(
-		val tiltSeries: TiltSeriesData,
-		val numAutoParticles: Long?,
-		val numAutoVirions: Long?
+		val tiltSeries: TiltSeriesData
 	) : RealTimeS2C()
 
 
@@ -388,7 +387,9 @@ sealed class RealTimeS2C {
 		val imagesScale: ImagesScale?,
 		val tomoVirMethod: TomoVirMethod,
 		val tomoVirRad: Double,
-		val tomoVirBinn: Long
+		val tomoVirBinn: Long,
+		val tomoSpkMethod: TomoSpkMethod,
+		val tomoSpkRad: Double,
 	) : RealTimeS2C() {
 
 		fun isRunning(daemon: SessionDaemon): Boolean
@@ -402,6 +403,8 @@ sealed class RealTimeS2C {
 
 	@Serializable
 	data class SessionLargeData(
+		val autoVirionsCount: Long = 0,
+		val autoParticlesCount: Long = 0,
 		val micrographs: List<MicrographMetadata> = emptyList(),
 		val tiltSerieses: List<TiltSeriesData> = emptyList(),
 		val twoDClasses: List<TwoDClassesData> = emptyList(),
@@ -515,9 +518,7 @@ sealed class RealTimeS2C {
 
 	@Serializable
 	data class SessionTiltSeries(
-		val tiltSeries: TiltSeriesData,
-		val numAutoParticles: Long?,
-		val numAutoVirions: Long?
+		val tiltSeries: TiltSeriesData
 	) : RealTimeS2C()
 
 	@Serializable

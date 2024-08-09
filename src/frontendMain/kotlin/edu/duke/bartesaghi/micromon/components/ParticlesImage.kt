@@ -28,10 +28,10 @@ open class ParticlesImage(
 	val ownerType: OwnerType,
 	val ownerId: String,
 	val datumId: String,
-	val canWrite: Boolean,
 	val imagesScale: ImagesScale?,
 	val sourceDims: ImageDims?,
-	val particleControls: ParticleControls
+	val particleControls: ParticleControls,
+	val newParticleRadiusA: Double?
 ) : SizedPanel(title, sizeStorage.get()) {
 
 	val scaler = Scaler.of(imagesScale, sourceDims)
@@ -213,7 +213,9 @@ open class ParticlesImage(
 
 		val scaler = scaler
 			?: return
-		val radius = scaler.scale.particleRadiusUnbinned
+		val radius = newParticleRadiusA
+			?.aToUnbinned(scaler)
+			?: return
 		val click = event.clickRelativeTo(imageContainerElem, true)
 			?: return
 
@@ -279,7 +281,8 @@ class MicrographImage(
 	val job: JobData,
 	val micrograph: MicrographMetadata,
 	imagesScale: ImagesScale?,
-	particleControls: MultiListParticleControls
+	particleControls: MultiListParticleControls,
+	newParticleRadiusA: Double?
 ) : ParticlesImage(
 	"Micrograph",
 	Storage::micrographSize,
@@ -287,10 +290,10 @@ class MicrographImage(
 	ownerType = OwnerType.Project,
 	ownerId = job.jobId,
 	datumId = micrograph.id,
-	project.canWrite(),
 	imagesScale,
 	micrograph.sourceDims,
 	particleControls,
+	newParticleRadiusA
 )
 
 
@@ -306,10 +309,10 @@ class TiltSeriesImage(
 	ownerType = OwnerType.Project,
 	ownerId = job.jobId,
 	datumId = tiltSeries.id,
-	project.canWrite(),
 	imagesScale,
 	tiltSeries.sourceDims,
-	NoneParticleControls()
+	NoneParticleControls(),
+	null
 )
 
 
@@ -324,10 +327,10 @@ class SessionMicrographImage(
 	ownerType = OwnerType.Session,
 	ownerId = session.sessionId,
 	datumId = micrograph.id,
-	canWrite = false,
 	imagesScale,
 	micrograph.sourceDims,
-	ShowListParticleControls(ParticlesList.autoParticles2D(session.sessionId))
+	ShowListParticleControls(ParticlesList.autoParticles2D(session.sessionId)),
+	null
 )
 
 
@@ -342,10 +345,10 @@ class SessionTiltSeriesImage(
 	ownerType = OwnerType.Session,
 	ownerId = session.sessionId,
 	datumId = tiltSeries.id,
-	canWrite = false,
 	imagesScale,
 	tiltSeries.sourceDims,
-	NoneParticleControls()
+	NoneParticleControls(),
+	null
 )
 
 

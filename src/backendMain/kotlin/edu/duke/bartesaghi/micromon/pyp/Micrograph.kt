@@ -53,7 +53,7 @@ class Micrograph(doc: Document) {
 	val timestamp: Instant =
 		Instant.ofEpochMilli(doc.getLong("timestamp"))
 
-	val particleCount: Int =
+	val autoParticleCount: Int =
 		doc.getInteger("particleCount")
 			?: 0
 
@@ -142,7 +142,7 @@ class Micrograph(doc: Document) {
 			ctf.defocus2,
 			ctf.angast,
 			xf.averageMotion(),
-			particleCount,
+			autoParticleCount,
 			ctf.sourceImageDims()
 		)
 
@@ -162,5 +162,5 @@ fun Micrograph.propDouble(prop: MicrographProp): Double =
 		MicrographProp.Defocus2 -> ctf.defocus2
 		MicrographProp.AngleAstig -> ctf.angast
 		MicrographProp.AverageMotion -> xf.averageMotion()
-		MicrographProp.NumParticles -> particleCount.toDouble()
+		MicrographProp.NumParticles -> autoParticleCount.toDouble()
 	}

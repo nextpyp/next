@@ -98,7 +98,6 @@ class TomographyPurePreprocessingView(val project: ProjectData, val job: Tomogra
 
 			// show tilt series stats
 			elem.add(tiltSeriesStats)
-			tiltSeriesStats.updateCombined(data)
 
 			// show PYP stats
 			statsLine = PypStatsLine(pypStats)
@@ -190,7 +189,16 @@ class TomographyPurePreprocessingView(val project: ProjectData, val job: Tomogra
 							data.imagesScale = msg.imagesScale
 							liveTab?.listNav?.reshow()
 						}
-						is RealTimeS2C.UpdatedTiltSeries -> updateTiltSeries(msg, data)
+						is RealTimeS2C.UpdatedTiltSeries -> {
+							data.update(msg.tiltSeries)
+							tiltSeriesStats.increment(data, msg.tiltSeries)
+
+							// update tabs
+							plots?.update(msg.tiltSeries)
+							filterTable?.update()
+							gallery?.update()
+							liveTab?.listNav?.newItem()
+						}
 						else -> Unit
 					}
 				}
@@ -216,19 +224,6 @@ class TomographyPurePreprocessingView(val project: ProjectData, val job: Tomogra
 		}
 
 		liveTab?.listNav?.showItem(index, stopLive)
-	}
-
-	private fun updateTiltSeries(msg: RealTimeS2C.UpdatedTiltSeries, data: TiltSeriesesData) {
-
-		data.update(msg)
-
-		tiltSeriesStats.updateCombined(data)
-
-		// update tabs
-		plots?.update(msg.tiltSeries)
-		filterTable?.update()
-		gallery?.update()
-		liveTab?.listNav?.newItem()
 	}
 
 	private inner class LiveTab(
@@ -268,9 +263,6 @@ class TomographyPurePreprocessingView(val project: ProjectData, val job: Tomogra
 			}
 
 			val tomoPanel = TomoMultiPanel(project, job, data, tiltSeries)
-			tomoPanel.particlesImage.onParticlesChange = {
-				tiltSeriesStats.updateCombined(data)
-			}
 			tiltSeriesesElem.add(tomoPanel)
 			AppScope.launch {
 				tomoPanel.load()

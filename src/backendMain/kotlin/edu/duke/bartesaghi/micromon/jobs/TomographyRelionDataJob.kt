@@ -97,6 +97,7 @@ class TomographyRelionDataJob(
 
 		// write out particles, if needed
 		val argValues = newestArgs.values.toArgValues(Backend.pypArgs)
+		ParticlesJobs.clear(project.osUsername, dir)
 		ParticlesJobs.writeTomography(project.osUsername, idOrThrow, dir, argValues, newestArgs.particlesName)
 
 		// build the args for PYP

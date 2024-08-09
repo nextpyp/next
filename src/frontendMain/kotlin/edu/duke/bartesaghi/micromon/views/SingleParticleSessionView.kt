@@ -732,7 +732,7 @@ class SingleParticleSessionView(
 	private fun updateStatistics() {
 
 		val numMicrographs = micrographs.size
-		val numParticles = micrographs.sumOf { it.numParticles }
+		val numParticles = micrographs.sumOf { it.numAutoParticles }
 
 		AppScope.launch {
 

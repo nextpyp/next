@@ -82,15 +82,16 @@ class SingleParticleSessionDataView(val project: ProjectData, val job: SinglePar
 
 			// load all the micrographs
 			val loadingElem = elem.loading("Fetching micrographs ...")
-			val (micrographs, imagesScale, pypStats) = try {
+			val (micrographs, imagesScale, pypStats, args) = try {
 				delayAtLeast(200) {
-					Triple(
+					Quad(
 						Services.jobs.getMicrographs(job.jobId)
 							.sortedBy { it.timestamp }
 							.toMutableList(),
 						Services.jobs.getImagesScale(job.jobId)
 							.unwrap(),
-						Services.jobs.pypStats(job.jobId)
+						Services.jobs.pypStats(job.jobId),
+						SingleParticleSessionDataNode.pypArgs.get()
 					)
 				}
 			} catch (t: Throwable) {
@@ -99,6 +100,8 @@ class SingleParticleSessionDataView(val project: ProjectData, val job: SinglePar
 			} finally {
 				elem.remove(loadingElem)
 			}
+
+			val finishedValues = job.args.finished?.values?.toArgValues(args)
 
 			// show micrograph stats
 			micrographStatsElem = elem.div("", classes = setOf("micrograph-stats"))
@@ -139,7 +142,7 @@ class SingleParticleSessionDataView(val project: ProjectData, val job: SinglePar
 								link(micrograph.id, classes = setOf("link"))
 									.onClick { showMicrograph(index, true) }
 							}
-							elem.add(MicrographImage(project, job, micrograph, imagesScale, particleControls).apply {
+							elem.add(MicrographImage(project, job, micrograph, imagesScale, particleControls, null).apply {
 								loadParticles()
 							})
 							elem.add(Micrograph1DPlot(job, micrograph).apply {
@@ -172,7 +175,7 @@ class SingleParticleSessionDataView(val project: ProjectData, val job: SinglePar
 					}
 				}
 
-				liveTab = LiveTab(job, micrographs, imagesScale)
+				liveTab = LiveTab(job, micrographs, finishedValues?.detectRad, imagesScale)
 				liveTabId = addTab("Micrographs", "fas fa-desktop") {
 					liveTab?.show(it.elem)
 				}.id
@@ -250,6 +253,7 @@ class SingleParticleSessionDataView(val project: ProjectData, val job: SinglePar
 	private inner class LiveTab(
 		val job: SingleParticleSessionDataData,
 		val micrographs: MutableList<MicrographMetadata>,
+		val newParticleRadiusA: Double?,
 		imagesScale: ImagesScale?
 	) {
 
@@ -295,7 +299,8 @@ class SingleParticleSessionDataView(val project: ProjectData, val job: SinglePar
 				job,
 				micrograph,
 				this.imagesScale,
-				particleControls
+				particleControls,
+				newParticleRadiusA
 			).apply {
 				loadParticles()
 				onParticlesChange = {

@@ -4,6 +4,9 @@ import edu.duke.bartesaghi.micromon.jobs.Job
 import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.mongo.getMap
 import edu.duke.bartesaghi.micromon.mongo.useCursor
+import edu.duke.bartesaghi.micromon.pyp.aToUnbinned
+import edu.duke.bartesaghi.micromon.pyp.detectRad
+import edu.duke.bartesaghi.micromon.pyp.imagesScale
 import edu.duke.bartesaghi.micromon.services.*
 import org.bson.Document
 import org.slf4j.Logger
@@ -96,8 +99,14 @@ private fun migrate(
 
 			// get the particle radius from the job,
 			// since the old particle system didn't save the radius with the particles
-			val radiusUnbinned = job.imagesScale(job.pypParametersOrNewestArgs())
-				.particleRadiusUnbinned
+			val argValues = job.pypParametersOrNewestArgs()
+			val radiusUnbinned = argValues
+				.detectRad
+				?.aToUnbinned(argValues.imagesScale())
+			if (radiusUnbinned == null) {
+				log.info("Failed to find particle radius for job=$jobId. Skipping this job")
+				continue
+			}
 
 			// migrate the particles list
 			val list = ParticlesList(

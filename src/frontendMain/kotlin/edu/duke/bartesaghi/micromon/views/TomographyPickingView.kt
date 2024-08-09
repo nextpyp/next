@@ -75,7 +75,7 @@ class TomographyPickingView(val project: ProjectData, val job: TomographyPicking
 			try {
 				delayAtLeast(200) {
 					data.loadForProject(job.jobId, job.clientInfo, job.args.finished?.values)
-					pickingControls.load(default = ParticlesList.userPicking3D(job.jobId))
+					// TODO: load a particles list here?
 				}
 			} catch (t: Throwable) {
 				elem.errorMessage(t)
@@ -87,7 +87,6 @@ class TomographyPickingView(val project: ProjectData, val job: TomographyPicking
 			// show tilt series stats
 			val tiltSeriesStats = TiltSeriesStats()
 			elem.add(tiltSeriesStats)
-			tiltSeriesStats.updatePicking(data, pickingControls)
 
 
 			val tiltSeriesesElem = Div()
@@ -118,7 +117,7 @@ class TomographyPickingView(val project: ProjectData, val job: TomographyPicking
 				tiltSeriesesElem.add(pickingControls)
 				val particlesImage = TomoParticlesImage.forProject(project, job, data, tiltSeries, pickingControls)
 				particlesImage.onParticlesChange = {
-					tiltSeriesStats.updatePicking(data, pickingControls)
+					tiltSeriesStats.picked(data, pickingControls)
 				}
 				tiltSeriesesElem.add(particlesImage)
 
@@ -149,8 +148,8 @@ class TomographyPickingView(val project: ProjectData, val job: TomographyPicking
 							listNav.reshow()
 						}
 						is RealTimeS2C.UpdatedTiltSeries -> {
-							data.update(msg)
-							tiltSeriesStats.updatePicking(data, pickingControls)
+							data.update(msg.tiltSeries)
+							tiltSeriesStats.increment(data, msg.tiltSeries)
 							listNav.newItem()
 						}
 						else -> Unit

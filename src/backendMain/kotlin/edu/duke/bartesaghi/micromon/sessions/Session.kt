@@ -330,15 +330,6 @@ sealed class Session(
 		pypParameters()
 			?: throw ServiceException("no pyp parameters available")
 
-	fun imagesScale(pypValues: ArgValues): ImagesScale =
-		ImagesScale(
-			pixelA = pypValues.scopePixel
-				?: ImagesScale.default().pixelA,
-			particleRadiusA = pypValues.detectRad
-				.takeIf { it != 0.0 }
-				?: ImagesScale.default().particleRadiusA
-		)
-
 	fun readTransferSpeeds(): Speeds? {
 
 		val names = newestArgs().pypNames()

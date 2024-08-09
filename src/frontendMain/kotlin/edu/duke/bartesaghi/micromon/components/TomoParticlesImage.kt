@@ -33,6 +33,8 @@ class TomoParticlesImage(
 
 	companion object {
 
+		const val NO_EXTRA_BINNING: Int = 1
+
 		fun forProject(
 			project: ProjectData,
 			job: JobData,
@@ -58,7 +60,7 @@ class TomoParticlesImage(
 			TomoParticlesImage(
 				tiltSerieses,
 				tiltSeries,
-				if (tiltSerieses.virusMode != null) {
+				if (tiltSerieses.particles is TiltSeriesesParticlesData.VirusMode) {
 					ShowListParticleControls(ParticlesList.autoVirions(session.sessionId))
 				} else {
 					ShowListParticleControls(ParticlesList.autoParticles2D(session.sessionId))
@@ -160,7 +162,7 @@ class TomoParticlesImage(
 
 		// add the checkboxes, if needed
 		if (particleControls != null) {
-			if (tiltSerieses.virusMode != null) {
+			if (tiltSerieses.particles is TiltSeriesesParticlesData.VirusMode) {
 				add(showVirionsCheck)
 				add(showSpikesCheck)
 			} else {
@@ -244,64 +246,63 @@ class TomoParticlesImage(
 		particlesInfosToCleanup.addAll(particlesInfos)
 		particlesInfos.clear()
 
-		suspend fun getList(name: String): ParticlesList? =
-			Services.particles.getList(ownerType, ownerId, name)
-				.unwrap()
-
 		suspend fun getParticles(name: String) =
 			Services.particles.getParticles3D(ownerType, ownerId, name, tiltSeries.id)
 				.toMap()
 				.toMutableMap()
 
-		val virusMode = tiltSerieses.virusMode
-		if (virusMode != null) {
+		suspend fun TiltSeriesesParticlesData.Data.addInfo(
+			color: Color,
+			checkbox: ParticlesCheckBox,
+			editable: Boolean,
+			extraParticles: Boolean = false
+		) {
+			val list = when (extraParticles) {
+				true -> this.list
+				false -> particleControls?.list
+			} ?: return
 
-			// in virus mode, the picked particles are virions
-			val virionsInfo = particleControls?.list
-				?.let { particlesList ->
-					ParticlesInfo(
-						list = particlesList,
-						color = Colors.green,
-						checkbox = showVirionsCheck,
-						editable = true,
-						particles = getParticles(particlesList.name),
-						newParticleRadiusA = virusMode.virionRadiusA,
-						extraRadiusBinning = virusMode.virionBinning
-					)
-				}
-			virionsInfo?.let { particlesInfos.add(it) }
+			particlesInfos.add(ParticlesInfo(
+				list = list,
+				color = color,
+				checkbox = checkbox,
+				editable = editable,
+				particles = getParticles(list.name),
+				newParticleRadiusA = this.radiusA,
+				extraRadiusBinning = this.binning ?: NO_EXTRA_BINNING
+			))
+		}
 
-			// if there are any auto particles, show auto those too as spikes
-			val spikesInfo = getList(ParticlesList.PypAutoParticles)
-				?.let { particlesList ->
-					ParticlesInfo(
-						list = particlesList,
-						color = Colors.blue,
-						checkbox = showSpikesCheck,
-						editable = true,
-						particles = getParticles(particlesList.name),
-						newParticleRadiusA = scaler?.scale?.particleRadiusA,
-						extraRadiusBinning = 1
-					)
-				}
-			spikesInfo?.let { particlesInfos.add(it) }
+		when (val particles = tiltSerieses.particles) {
 
-		} else {
+			null -> Unit
 
-			// use the picked particles, if any
-			val particlesInfo = particleControls?.list
-				?.let { particlesList ->
-					ParticlesInfo(
-						list = particlesList,
-						color = Colors.green,
-						checkbox = showParticlesCheck,
-						editable = true,
-						particles = getParticles(particlesList.name),
-						newParticleRadiusA = scaler?.scale?.particleRadiusA,
-						extraRadiusBinning = 1
-					)
-				}
-			particlesInfo?.let { particlesInfos.add(it) }
+			is TiltSeriesesParticlesData.VirusMode -> {
+
+				// in virus mode, the picked particles are virions
+				particles.virions.addInfo(
+					color = Colors.green,
+					checkbox = showVirionsCheck,
+					editable = true,
+				)
+
+				// if there are any auto particles, show those too as spikes, but don't allow editing
+				particles.spikes?.addInfo(
+					color = Colors.blue,
+					checkbox = showSpikesCheck,
+					editable = false,
+					extraParticles = true
+				)
+			}
+
+			// in regular mode, use the picked particles, if any
+			is TiltSeriesesParticlesData.Data -> {
+				particles.addInfo(
+					color = Colors.green,
+					checkbox = showParticlesCheck,
+					editable = true
+				)
+			}
 		}
 	}
 
@@ -366,8 +367,7 @@ class TomoParticlesImage(
 
 	private fun updateParticlesCheckboxes() {
 
-		val virusMode = tiltSerieses.virusMode
-		if (virusMode != null) {
+		if (tiltSerieses.particles is TiltSeriesesParticlesData.VirusMode) {
 
 			val virionsInfo = particlesInfos
 				.find { it.list.type == ParticlesType.Virions3D }

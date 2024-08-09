@@ -73,6 +73,7 @@ enum class ParticlesType(val id: String) {
 
 	Particles2D("particles2D"),
 	Particles3D("particles3D"),
+	/** only used by old preprocessing blocks */
 	Virions3D("virions3D");
 
 	companion object {
@@ -112,49 +113,58 @@ data class ParticlesList(
 
 	companion object {
 
-		const val PypAutoParticles = "Auto Particles"
-		const val PypAutoVirions = "Auto Virions"
-		/** name of the particle list for one-list-per-block blocks */
-		const val PypPicking = "Picking"
+		const val AutoVirions = "Auto Virions"
+		const val AutoParticles = "Auto Particles"
+		const val ManualParticles = "Manual"
 
 		fun autoParticles2D(ownerId: String): ParticlesList =
 			ParticlesList(
 				ownerId = ownerId,
-				name = PypAutoParticles,
+				name = AutoParticles,
 				type = ParticlesType.Particles2D,
 				source = ParticlesSource.Pyp
+			)
+
+		fun manualParticles2D(ownerId: String): ParticlesList =
+			ParticlesList(
+				ownerId = ownerId,
+				name = ManualParticles,
+				type = ParticlesType.Particles2D,
+				source = ParticlesSource.User
 			)
 
 		fun autoParticles3D(ownerId: String): ParticlesList =
 			ParticlesList(
 				ownerId = ownerId,
-				name = PypAutoParticles,
+				name = AutoParticles,
 				type = ParticlesType.Particles3D,
 				source = ParticlesSource.Pyp
 			)
 
-		fun autoVirions(ownerId: String): ParticlesList =
+		fun manualParticles3D(ownerId: String): ParticlesList =
 			ParticlesList(
 				ownerId = ownerId,
-				name = PypAutoVirions,
-				type = ParticlesType.Virions3D,
-				source = ParticlesSource.Pyp
-			)
-
-		fun userPicking3D(ownerId: String): ParticlesList =
-			ParticlesList(
-				ownerId = ownerId,
-				name = PypPicking,
+				name = ManualParticles, // NOTE: older preprocessing blocks may override this name with a user-chosen value
 				type = ParticlesType.Particles3D,
 				source = ParticlesSource.User
 			)
 
-		fun pypPicking3D(ownerId: String): ParticlesList =
+		/** only used by older preprocessing blocks */
+		fun autoVirions(ownerId: String): ParticlesList =
 			ParticlesList(
 				ownerId = ownerId,
-				name = PypPicking,
-				type = ParticlesType.Particles3D,
+				name = AutoVirions,
+				type = ParticlesType.Virions3D,
 				source = ParticlesSource.Pyp
+			)
+
+		/** only used by older preprocessing blocks */
+		fun manualVirions(ownerId: String): ParticlesList =
+			ParticlesList(
+				ownerId = ownerId,
+				name = "(unused)", // this name won't be used since these names are picked by the user
+				type = ParticlesType.Virions3D,
+				source = ParticlesSource.User
 			)
 	}
 }

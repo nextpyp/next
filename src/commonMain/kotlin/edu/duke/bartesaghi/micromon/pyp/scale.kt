@@ -10,25 +10,18 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 data class ImagesScale(
-	/** The size, in Angstroms, of one pixel in the source image */
-	val pixelA: Double,
-	/** The radius, in Angstroms, of a particle */
-	val particleRadiusA: Double
-) {
-
-	companion object {
-
-		fun default() = ImagesScale(1.0, 65.0)
-	}
-
-	/** The particle radius, in unbinned pixels */
-	@ExportServiceProperty(skip=true)
-	val particleRadiusUnbinned: Double =
-		particleRadiusA.aToUnbinned(this)
-}
+	/** The size, in Angstroms, of one pixel in the source image, as defined by pyp's scope_pixel */
+	val pixelA: Double
+)
 
 fun Double.unbinnedToA(scale: ImagesScale): Double = this*scale.pixelA
 fun Double.aToUnbinned(scale: ImagesScale): Double = this/scale.pixelA
+
+
+fun ArgValues.imagesScale(): ImagesScale =
+	ImagesScale(
+		pixelA = scopePixel ?: 1.0,
+	)
 
 
 @Serializable

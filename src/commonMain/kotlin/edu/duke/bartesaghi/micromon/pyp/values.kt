@@ -1,5 +1,6 @@
 package edu.duke.bartesaghi.micromon.pyp
 
+import edu.duke.bartesaghi.micromon.services.ParticlesList
 import kotlinx.serialization.Serializable
 
 
@@ -215,15 +216,15 @@ val ArgValues.tomoVirMethodOrDefault: TomoVirMethod
 		)
 
 @Serializable
-enum class TomoVirMethod(val id: String, val isEnabled: Boolean, val usesAutoList: Boolean) {
+enum class TomoVirMethod(val id: String, val particlesList: (ownerId: String) -> ParticlesList?) {
 
-	None("none", false, false),
-	Auto("auto", true, true),
-	Manual("manual", true, false),
-	PYPTrain("pyp-train", true, false),
-	PYPEval("pyp-eval", true, true),
-	TopazTrain("topaz-train", true, false),
-	TopazEval("topaz-eval", true, true);
+	None("none", { null }),
+	Auto("auto", ParticlesList::autoVirions),
+	Manual("manual", ParticlesList::manualVirions),
+	PYPTrain("pyp-train", ParticlesList::manualVirions),
+	PYPEval("pyp-eval", ParticlesList::autoVirions),
+	TopazTrain("topaz-train", ParticlesList::manualVirions),
+	TopazEval("topaz-eval", ParticlesList::autoVirions);
 
 	companion object {
 		operator fun get(id: String?): TomoVirMethod? =
@@ -260,17 +261,18 @@ val ArgValues.tomoSpkMethodOrDefault: TomoSpkMethod
 				+ " Need one of ${TomoSpkMethod.values().map { it.id }}"
 		)
 
-@Serializable
-enum class TomoSpkMethod(val id: String, val isEnabled: Boolean, val usesAutoList: Boolean) {
 
-	None("none", false, false),
-	Auto("auto", true, true),
-	Import("import", true, true),
-	Manual("manual", true, false),
-	MiloTrain("milo-train", true, false),
-	MiloEval("milo-eval", true, true),
-	PYPTrain("pyp-train", true, false),
-	PYPEval("pyp-eval", true, true);
+@Serializable
+enum class TomoSpkMethod(val id: String, val particlesList: (ownerId: String) -> ParticlesList?) {
+
+	None("none", { null }),
+	Auto("auto", ParticlesList::autoParticles3D),
+	Import("import", ParticlesList::autoParticles3D),
+	Manual("manual", ParticlesList::manualParticles3D),
+	MiloTrain("milo-train", ParticlesList::manualParticles3D),
+	MiloEval("milo-eval", ParticlesList::autoParticles3D),
+	PYPTrain("pyp-train", ParticlesList::manualParticles3D),
+	PYPEval("pyp-eval", ParticlesList::autoParticles3D);
 
 	companion object {
 		operator fun get(id: String?): TomoSpkMethod? =
@@ -285,6 +287,35 @@ val ArgValues.tomoSpkRad: Double?
 	get() = get(args.tomoSpkRad) as Double?
 val ArgValues.tomoSpkRadOrDefault: Double
 	get() = getOrDefault(args.tomoSpkRad) as Double
+
+
+
+val Args.tomoSrfMethodExists: Boolean
+	get() = arg("tomo_srf", "detect_method") != null
+val Args.tomoSrfMethod: Arg
+	get() = argOrThrow("tomo_srf", "detect_method")
+val ArgValues.tomoSrfMethod: TomoSrfMethod?
+	get() = TomoSrfMethod[get(args.tomoSrfMethod) as String?]
+val ArgValues.tomoSrfMethodOrDefault: TomoSrfMethod
+	get() = TomoSrfMethod[getOrDefault(args.tomoSrfMethod) as String]
+		?: throw NoSuchElementException(
+			"tomoSrfMethod default ${getOrDefault(args.tomoSrfMethod)} is invalid."
+				+ " Need one of ${TomoSrfMethod.values().map { it.id }}"
+		)
+
+@Serializable
+enum class TomoSrfMethod(val id: String, val particlesList: (ownerId: String) -> ParticlesList?) {
+
+	None("none", { null }),
+	Template("template", ParticlesList::autoParticles3D),
+	Mesh("mesh", ParticlesList::autoParticles3D);
+
+	companion object {
+		operator fun get(id: String?): TomoSrfMethod? =
+			values().find { it.id == id }
+	}
+}
+
 
 
 /**

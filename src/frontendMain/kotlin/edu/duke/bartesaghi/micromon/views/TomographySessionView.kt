@@ -80,6 +80,7 @@ class TomographySessionView(
 
 	private var viewport: Viewport? = null
 	private val statsElem = Div(classes = setOf("stats"))
+	private val tiltSeriesStats = TiltSeriesStats()
 	private val header = Div(classes = setOf("header"))
 	private val tabs = LazyTabPanel()
 	private var settingsTab: SettingsTab? = null
@@ -202,6 +203,7 @@ class TomographySessionView(
 			val smallDataMsg = input.receiveMessage<RealTimeS2C.SessionSmallData>()
 			opsTab?.exportsMonitor?.setData(smallDataMsg)
 			try {
+				// TODO: anything to update here?
 			} catch (t: Throwable) {
 				t.reportError()
 				Toast.error("An error occurred while loading the session small data.")
@@ -211,6 +213,11 @@ class TomographySessionView(
 			val dataMsg = input.receiveMessage<RealTimeS2C.SessionLargeData>()
 			try {
 				tiltSeriesesData.loadForSession(session, initMsg, dataMsg)
+				tiltSeriesStats.set(
+					tiltSeriesesData,
+					virions = dataMsg.autoVirionsCount,
+					particles = dataMsg.autoParticlesCount
+				)
 				updateStatistics()
 				plotsTab?.loader?.setData(dataMsg)
 				tableTab?.loader?.setData(dataMsg)
@@ -218,7 +225,7 @@ class TomographySessionView(
 				tiltSeriesTab?.loader?.setData(dataMsg)
 			} catch (t: Throwable) {
 				t.reportError()
-				Toast.error("An error occurred while loading the session data.")
+				Toast.error("An error occurred while loading the large session data.")
 			}
 
 			// wait for other updates from the server
@@ -249,7 +256,8 @@ class TomographySessionView(
 								tableTab?.update(msg)
 							}
 							is RealTimeS2C.SessionTiltSeries -> {
-								tiltSeriesesData.update(msg)
+								tiltSeriesesData.update(msg.tiltSeries)
+								tiltSeriesStats.increment(tiltSeriesesData, msg.tiltSeries)
 								updateStatistics()
 								tiltSeriesTab?.listNav?.newItem()
 								plotsTab?.onTiltSeries(msg)
@@ -599,9 +607,7 @@ class TomographySessionView(
 			val argsValues = session?.newestArgs?.values?.toArgValues(args)
 
 			statsElem.removeAll()
-			statsElem.add(TiltSeriesStats().apply {
-				updateCombined(tiltSeriesesData)
-			})
+			statsElem.add(tiltSeriesStats)
 			statsElem.add(PypStatsLine(PypStats.fromTomography(argsValues)))
 		}
 	}

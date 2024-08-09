@@ -91,7 +91,6 @@ class TomographyDenoisingView(val project: ProjectData, val job: TomographyDenoi
 
 			// show tilt series stats
 			live.add(tiltSeriesStats)
-			tiltSeriesStats.updateCombined(data)
 
 			// show PYP stats
 			statsLine = PypStatsLine(pypStats)
@@ -179,8 +178,8 @@ class TomographyDenoisingView(val project: ProjectData, val job: TomographyDenoi
 							listNav.reshow()
 						}
 						is RealTimeS2C.UpdatedTiltSeries -> {
-							data.update(msg)
-							tiltSeriesStats.updateCombined(data)
+							data.update(msg.tiltSeries)
+							tiltSeriesStats.increment(data, msg.tiltSeries)
 							listNav.newItem()
 						}
 						else -> Unit

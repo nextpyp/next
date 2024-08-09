@@ -53,8 +53,12 @@ class TiltSeries(private val doc: Document) {
 	val timestamp: Instant =
 		Instant.ofEpochMilli(doc.getLong("timestamp"))
 
-	val particleCount: Int =
+	val autoParticleCount: Int =
 		doc.getInteger("particleCount")
+			?: 0
+
+	val autoVirionCount: Int =
+		doc.getInteger("virionCount")
 			?: 0
 
 	val ctf: CTF =
@@ -169,7 +173,8 @@ class TiltSeries(private val doc: Document) {
 			ctf.defocus2,
 			ctf.angast,
 			xf.averageMotion(),
-			particleCount,
+			autoParticleCount,
+			autoVirionCount,
 			ctf.sourceImageDims()
 		)
 
@@ -247,5 +252,5 @@ fun TiltSeries.propDouble(prop: TiltSeriesProp): Double =
 		TiltSeriesProp.Defocus2 -> ctf.defocus2
 		TiltSeriesProp.AngleAstig -> ctf.angast
 		TiltSeriesProp.AverageMotion -> xf.averageMotion()
-		TiltSeriesProp.NumParticles -> particleCount.toDouble()
+		TiltSeriesProp.NumParticles -> autoParticleCount.toDouble()
 	}

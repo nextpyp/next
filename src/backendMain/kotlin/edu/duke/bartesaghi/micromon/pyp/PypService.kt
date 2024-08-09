@@ -241,32 +241,35 @@ object PypService {
 		val xf = XF.from(params.getArrayOrThrow("xf"))
 		val avgrot = AVGROT.from(params.getArrayOrThrow("avgrot"))
 
-		fun ArrayNode.readParticles(): Map<Int,Particle2D> {
-
-			// pyp doesn't send size info with the particle coords, so lookup the radius from the pyp arguments
-			val imagesScale = when (owner) {
-				is Owner.Job -> owner.job.pypParameters()?.let { owner.job.imagesScale(it) }
-				is Owner.Session -> owner.session.pypParameters()?.let { owner.session.imagesScale(it) }
-			} ?: ImagesScale.default()
-			val r = imagesScale.particleRadiusUnbinned
-
-			return indices().associate { i ->
-
-				val jsonParticle = getArrayOrThrow(i, "Particles coordinates")
-
-				// read the x,y coords
-				// NOTE: w,h components have no information and are always zero
-				// NOTE: these particles come from pyp in unbinned coordinates
-				val x = jsonParticle.getDoubleOrThrow(0, "Particles coordinates [$i].x")
-				val y = jsonParticle.getDoubleOrThrow(1, "Particles coordinates [$i].y")
-
-				val particleId = i + 1
-
-				particleId to Particle2D(x, y, r)
-			}
-		}
 		val particles = params.getArray("boxx")
-			?.readParticles()
+			?.let { boxx ->
+
+				// pyp doesn't send size info with the particle coords, so lookup the radius (in unbinned coords) from the pyp arguments
+				val values = when (owner) {
+					is Owner.Job -> owner.job.pypParameters()
+					is Owner.Session -> owner.session.pypParameters()
+				} ?: return JsonRpcFailure("can't import boxx particles: no pyp parameters sent")
+
+				val imagesScale = values.imagesScale()
+				val r = values.detectRad
+					?.aToUnbinned(imagesScale)
+					?: return JsonRpcFailure("can't import boxx particles: pyp parameters have no detect_rad")
+
+				boxx.indices().associate { i ->
+
+					val jsonParticle = boxx.getArrayOrThrow(i, "Particles coordinates")
+
+					// read the x,y coords
+					// NOTE: w,h components have no information and are always zero
+					// NOTE: these particles come from pyp in unbinned coordinates
+					val x = jsonParticle.getDoubleOrThrow(0, "Particles coordinates [$i].x")
+					val y = jsonParticle.getDoubleOrThrow(1, "Particles coordinates [$i].y")
+
+					val particleId = i + 1
+
+					particleId to Particle2D(x, y, r)
+				}
+			}
 
 		// update the database
 		val micrographId = params.getStringOrThrow("micrograph_id")
@@ -396,15 +399,13 @@ object PypService {
 			?: return JsonRpcFailure("invalid webid")
 		val owner = clusterJob.findOwner()
 
-		// parse the inputs
-		// NOTE: all these inputs are always sent by pyp
-		val ctf = CTF.from(params.getArrayOrThrow("ctf"))
-		val xf = XF.from(params.getArrayOrThrow("xf"))
-		val avgrot = AVGROT.from(params.getArrayOrThrow("avgrot"))
-		val metadata = params.getObjectOrThrow("metadata")
-		val dmd = DMD.from(metadata)
+		// parse the inputs, everything is basically optional now
+		val ctf = params.getArray("ctf")?.let { CTF.from(it) }
+		val xf = params.getArray("xf")?.let { XF.from(it) }
+		val avgrot = params.getArray("avgrot")?.let { AVGROT.from(it) }
+		val metadata = params.getObject("metadata")
+		val dmd = metadata?.let { DMD.from(it) }
 
-		// these inputs are sometimes sent by pyp
 		fun ArrayNode.readParticles(): Map<Int,Particle3D> =
 			indices().associate { i ->
 				val jsonParticle = getArrayOrThrow(i, "Particles coordinates")
@@ -428,10 +429,14 @@ object PypService {
 					?: 1 // if pyp doesn't send a threshold, pick a default
 				virionId to threshold
 			}
-		val virionsAndThresholds = metadata.getArray("virion_coordinates")
+		val virionsAndThresholds = metadata
+			?.getArray("virion_coordinates")
 			?.let { it.readParticles() to it.readVirionThresholds() }
-		val particles = metadata.getArray("spike_coordinates")
+		val particles = metadata
+			?.getArray("spike_coordinates")
 			?.readParticles()
+		// TODO: what keys will the new pyp picking commands use for particles?
+		log.debug("tilt series metadata keys: {}", metadata?.fieldNames()?.asSequence()?.toList())
 
 		// update the database
 		val tiltSeriesId = params.getStringOrThrow("tiltseries_id")
@@ -439,27 +444,22 @@ object PypService {
 			set("jobId", owner.id)
 			set("tiltSeriesId", tiltSeriesId)
 			set("timestamp", Instant.now().toEpochMilli())
-			set("particleCount", particles?.size)
-			set("ctf", ctf.toDoc())
-			set("xf", xf.toDoc())
+			particles?.let { set("particleCount", it.size) }
+			virionsAndThresholds?.let { (virions, _) -> set("virionCount", virions.size) }
+			ctf?.let { set("ctf", it.toDoc()) }
+			xf?.let { set("xf", it.toDoc()) }
 		}
-		Database.tiltSeriesAvgRot.write(owner.id, tiltSeriesId, avgrot)
-		Database.tiltSeriesDriftMetadata.write(owner.id, tiltSeriesId, dmd)
+		avgrot?.let { Database.tiltSeriesAvgRot.write(owner.id, tiltSeriesId, it) }
+		dmd?.let { Database.tiltSeriesDriftMetadata.write(owner.id, tiltSeriesId, it) }
 
 		virionsAndThresholds?.let { (virions, thresholds) ->
-			val list = when (val job = (owner as? Owner.Job)?.job) {
-				// TODO: what special per-job stuff do we need here, if any?
-				else -> ParticlesList.autoVirions(owner.id)
-			}
+			val list = ParticlesList.autoVirions(owner.id)
 			Database.particleLists.createIfNeeded(list)
 			Database.particles.importParticles3D(list.ownerId, list.name, tiltSeriesId, virions)
 			Database.particles.importVirionThresholds(list.ownerId, list.name, tiltSeriesId, thresholds)
 		}
 		if (particles != null) {
-			val list = when (val job = (owner as? Owner.Job)?.job) {
-				// TODO: what special per-job stuff do we need here, if any?
-				else -> ParticlesList.autoParticles3D(owner.id)
-			}
+			val list = ParticlesList.autoParticles3D(owner.id)
 			Database.particleLists.createIfNeeded(list)
 			Database.particles.importParticles3D(list.ownerId, list.name, tiltSeriesId, particles)
 		}

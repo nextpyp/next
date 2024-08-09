@@ -128,7 +128,7 @@ object RealTimeService {
 
 					onParams = { values ->
 						outgoing.trySendMessage(RealTimeS2C.UpdatedParameters(
-							imagesScale = job.imagesScale(values),
+							imagesScale = values.imagesScale(),
 							pypStats = PypStats.fromSingleParticle(values)
 						))
 					}
@@ -179,16 +179,14 @@ object RealTimeService {
 
 					onParams = { values ->
 						outgoing.trySendMessage(RealTimeS2C.UpdatedParameters(
-							imagesScale = job.imagesScale(values),
+							imagesScale = values.imagesScale(),
 							pypStats = PypStats.fromTomography(values)
 						))
 					}
 
 					onTiltSeries = { tiltSeries ->
 						outgoing.trySendMessage(RealTimeS2C.UpdatedTiltSeries(
-							tiltSeries = tiltSeries.getMetadata(),
-							numAutoParticles = Database.particles.countParticles(job.idOrThrow, ParticlesList.PypAutoParticles, tiltSeries.tiltSeriesId),
-							numAutoVirions = Database.particles.countParticles(job.idOrThrow, ParticlesList.PypAutoVirions, tiltSeries.tiltSeriesId)
+							tiltSeries = tiltSeries.getMetadata()
 						))
 					}
 				}
@@ -237,7 +235,7 @@ object RealTimeService {
 			val listener = RefinementJobs.eventListeners.add(job.idOrThrow)
 			listener.onParams = { values ->
 				outgoing.trySendMessage(RealTimeS2C.UpdatedParameters(
-					imagesScale = job.imagesScale(values),
+					imagesScale = values.imagesScale(),
 					pypStats = when (job.baseConfig.jobInfo.dataType) {
 						// reconstructions could be for either single particle jobs or tomography jobs,
 						// so we need to pick the correct version of the stats here
@@ -331,6 +329,7 @@ object RealTimeService {
 
 			// send the large data (can take a while, so send it after the session status)
 			outgoing.sendMessage(RealTimeS2C.SessionLargeData(
+				autoParticlesCount = Database.particles.countAllParticles(session.idOrThrow, ParticlesList.AutoParticles),
 				micrographs = Micrograph.getAll(session.idOrThrow) { cursor ->
 					cursor
 						.map { it.getMetadata() }
@@ -348,7 +347,7 @@ object RealTimeService {
 			// set up single-particle events
 			listener.onParams = { values ->
 				outgoing.trySendMessage(RealTimeS2C.UpdatedParameters(
-					imagesScale = session.imagesScale(values),
+					imagesScale = values.imagesScale(),
 					pypStats = PypStats.fromSingleParticle(values)
 				))
 			}
@@ -411,6 +410,8 @@ object RealTimeService {
 
 			// send the large data (can take a while, so send it after the session status)
 			outgoing.sendMessage(RealTimeS2C.SessionLargeData(
+				autoVirionsCount = Database.particles.countAllParticles(session.idOrThrow, ParticlesList.AutoVirions),
+				autoParticlesCount = Database.particles.countAllParticles(session.idOrThrow, ParticlesList.AutoParticles),
 				tiltSerieses = TiltSeries.getAll(session.idOrThrow) { cursor ->
 					cursor
 						.map { it.getMetadata() }
@@ -426,16 +427,14 @@ object RealTimeService {
 			// set up tomography events
 			listener.onParams = { values ->
 				outgoing.trySendMessage(RealTimeS2C.UpdatedParameters(
-					imagesScale = session.imagesScale(values),
+					imagesScale = values.imagesScale(),
 					pypStats = PypStats.fromTomography(values)
 				))
 			}
 			listener.onTiltSeries = listener@{ tiltSeriesId ->
 				val tiltSeries = TiltSeries.get(session.idOrThrow, tiltSeriesId) ?: return@listener
 				outgoing.trySendMessage(RealTimeS2C.SessionTiltSeries(
-					tiltSeries = tiltSeries.getMetadata(),
-					numAutoParticles = Database.particles.countParticles(session.idOrThrow, ParticlesList.PypAutoParticles, tiltSeries.tiltSeriesId),
-					numAutoVirions = Database.particles.countParticles(session.idOrThrow, ParticlesList.PypAutoVirions, tiltSeries.tiltSeriesId)
+					tiltSeries = tiltSeries.getMetadata()
 				))
 			}
 			listener.onExport = listener@{ export ->
@@ -513,10 +512,12 @@ object RealTimeService {
 					)
 				},
 
-			imagesScale = values?.let { session.imagesScale(it) },
+			imagesScale = values?.imagesScale(),
 			tomoVirMethod = (values ?: defaults).tomoVirMethodOrDefault,
 			tomoVirRad = (values ?: defaults).tomoVirRadOrDefault,
-			tomoVirBinn = (values ?: defaults).tomoVirBinnOrDefault
+			tomoVirBinn = (values ?: defaults).tomoVirBinnOrDefault,
+			tomoSpkMethod = (values ?: defaults).tomoSpkMethodOrDefault,
+			tomoSpkRad = (values ?: defaults).tomoSpkRadOrDefault
 		))
 
 		// send the small data

@@ -3,6 +3,7 @@ package edu.duke.bartesaghi.micromon.components
 import edu.duke.bartesaghi.micromon.AppScope
 import edu.duke.bartesaghi.micromon.Storage
 import edu.duke.bartesaghi.micromon.pyp.TiltSeriesesData
+import edu.duke.bartesaghi.micromon.pyp.TiltSeriesesParticlesData
 import edu.duke.bartesaghi.micromon.services.*
 import edu.duke.bartesaghi.micromon.toFixed
 import io.kvision.html.Div
@@ -54,7 +55,7 @@ class TomoMultiPanel(
 	)
 
 	val particlesImage = TomoParticlesImage.forProject(project, job, tiltSerieses, tiltSeries, pickingControls)
-	val virionThresholds = TomoVirionThresholds(project, job, tiltSeries)
+	var virionThresholds: TomoVirionThresholds? = null
 
 	private val alignedTiltSeriesImage = PlayableSpritePanel(
 		"/kv/jobs/${job.jobId}/data/${tiltSeries.id}/alignedTiltSeriesMontage",
@@ -114,9 +115,10 @@ class TomoMultiPanel(
 			lazyTab.elem.add(TomoSideViewImage(self.job.jobId, self.tiltSeries.id))
 		}
 
-		if (self.tiltSerieses.virusMode != null) {
+		if (self.tiltSerieses.particles is TiltSeriesesParticlesData.VirusMode) {
 			addTab("Segmentation") { lazyTab ->
-				lazyTab.elem.add(self.virionThresholds)
+				self.virionThresholds = TomoVirionThresholds(self.project, self.job, self.tiltSeries)
+					.also { lazyTab.elem.add(it) }
 			}
 		}
 	}
@@ -223,7 +225,7 @@ class TomoMultiPanel(
 		// load the particles image
 		particlesImage.load()
 
-		// load thresholds for the threshold picker
-		virionThresholds.load()
+		// load thresholds for the threshold picker, if needed
+		virionThresholds?.load()
     }
 }

@@ -105,7 +105,7 @@ object PreprocessingDataPropertyFormatters {
 		)
 
 		this[MicrographProp.NumParticles] = formatter<MicrographMetadata>(
-			{ it.numParticles?.toDouble() },
+			{ it.numAutoParticles?.toDouble() },
 			{ it.toString() },
 			intFormatter()
 		)
@@ -156,7 +156,7 @@ object PreprocessingDataPropertyFormatters {
 		)
 
 		this[TiltSeriesProp.NumParticles] = formatter<TiltSeriesData>(
-			{ it.numParticles?.toDouble() },
+			{ it.numAutoParticles?.toDouble() },
 			{ it.toString() },
 			intFormatter()
 		)

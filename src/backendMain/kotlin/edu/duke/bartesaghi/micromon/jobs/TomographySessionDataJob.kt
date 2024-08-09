@@ -70,7 +70,7 @@ class TomographySessionDataJob(
 			args,
 			diagramImageURL(),
 			Database.tiltSeries.count(idOrThrow),
-			Database.particles.countAllParticles(idOrThrow, ParticlesList.PypAutoParticles)
+			Database.particles.countAllParticles(idOrThrow, ParticlesList.AutoParticles)
 		)
 
 	override suspend fun launch(runId: Int) {
@@ -89,6 +89,7 @@ class TomographySessionDataJob(
 
 		// write out particles, if needed
 		val argValues = newestArgs.values.toArgValues(Backend.pypArgs)
+		ParticlesJobs.clear(project.osUsername, dir)
 		ParticlesJobs.writeTomography(project.osUsername, idOrThrow, dir, argValues, newestArgs.particlesName)
 
 		// build the args for PYP

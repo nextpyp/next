@@ -69,7 +69,7 @@ class SingleParticleSessionDataJob(
 			args,
 			diagramImageURL(),
 			Database.micrographs.count(idOrThrow),
-			Database.particles.countAllParticles(idOrThrow, ParticlesList.PypAutoParticles)
+			Database.particles.countAllParticles(idOrThrow, ParticlesList.AutoParticles)
 		)
 
 	override suspend fun launch(runId: Int) {
@@ -87,6 +87,7 @@ class SingleParticleSessionDataJob(
 		val session = user.authSessionForReadOrThrow(newestArgs.sessionId)
 
 		// if we've picked some particles, write those out to pyp
+		ParticlesJobs.clear(project.osUsername, dir)
 		newestArgs.particlesName
 			?.let { Database.particleLists.get(idOrThrow, it) }
 			?.let { ParticlesJobs.writeSingleParticle(project.osUsername, idOrThrow, dir, it) }

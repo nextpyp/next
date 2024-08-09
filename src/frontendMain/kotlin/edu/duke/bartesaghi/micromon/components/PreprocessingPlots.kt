@@ -134,7 +134,7 @@ class PreprocessingPlots<T:PreprocessingData>(
 				"plot-particles",
 				plotParticlesLabel
 			) {
-				it.numParticles
+				it.numAutoParticles
 			}
 		}
 	}
@@ -170,7 +170,7 @@ class PreprocessingPlots<T:PreprocessingData>(
 
 		// update particles info
 		plotParticles?.let { plot ->
-			updatePlotData(plot, data, plotParticlesLabel) { it.numParticles }
+			updatePlotData(plot, data, plotParticlesLabel) { it.numAutoParticles }
 		}
 	}
 
@@ -589,7 +589,7 @@ class PreprocessingPlots<T:PreprocessingData>(
 				}
 				tr {
 					td { +"Number Particles" }
-					td { +(datum.numParticles.toString()) }
+					td { +(datum.numAutoParticles.toString()) }
 				}
 			}
 			div("doorstop")

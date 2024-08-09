@@ -2,73 +2,111 @@ package edu.duke.bartesaghi.micromon.components
 
 import edu.duke.bartesaghi.micromon.formatWithDigitGroupsSeparator
 import edu.duke.bartesaghi.micromon.pyp.TiltSeriesesData
+import edu.duke.bartesaghi.micromon.pyp.TiltSeriesesParticlesData
+import edu.duke.bartesaghi.micromon.services.*
 import io.kvision.html.Div
 
 
 class TiltSeriesStats : Div(classes = setOf("tiltseries-stats")) {
 
+	private var virionsCount: Long = 0
+	private var particlesCount: Long = 0
+
 	init {
 		content = "(loading ...)"
 	}
 
-	private fun TiltSeriesesData.totalCount(): String =
-		"Total: ${tiltSerieses.size.formatWithDigitGroupsSeparator()} tilt-series"
+	suspend fun loadCounts(data: TiltSeriesesData, ownerType: OwnerType, ownerId: String, list: ParticlesList?) {
 
-	fun update(items: List<String>) {
+		if (list == null) {
+			set(data)
+			return
+		}
+
+		when (data.particles) {
+
+			null -> Unit
+
+			is TiltSeriesesParticlesData.VirusMode -> {
+
+				// list is the virions list
+				virionsCount = Services.particles.countParticles(ownerType, ownerId, list.name, null)
+					.unwrap()
+					?: 0
+
+				// load the spike count from the auto list too
+				particlesCount = Services.particles.countParticles(ownerType, ownerId, ParticlesList.AutoParticles, null)
+					.unwrap()
+					?: 0
+			}
+
+			is TiltSeriesesParticlesData.Data -> {
+				// just load the particles count
+				particlesCount = Services.particles.countParticles(ownerType, ownerId, list.name, null)
+					.unwrap()
+					?: 0
+			}
+		}
+
+		update(data)
+	}
+
+	fun set(
+		data: TiltSeriesesData,
+		particles: Long? = null,
+		virions: Long? = null
+	) {
+		virionsCount = virions ?: 0
+		particlesCount = particles ?: 0
+		update(data)
+	}
+
+	fun increment(data: TiltSeriesesData, tiltSeries: TiltSeriesData) {
+		virionsCount += tiltSeries.numAutoVirions
+		particlesCount += tiltSeries.numAutoParticles
+		update(data)
+	}
+
+	fun picked(data: TiltSeriesesData, pickingControls: ParticleControls) {
+
+		when (data.particles) {
+
+			null -> Unit
+
+			is TiltSeriesesParticlesData.VirusMode -> {
+				// in virus mode, picking only changes the number of virions
+				virionsCount = pickingControls.numParticles
+			}
+
+			is TiltSeriesesParticlesData.Data -> {
+				// otherwise, change the number of particles
+				particlesCount = pickingControls.numParticles
+			}
+		}
+
+		update(data)
+	}
+
+	private fun update(data: TiltSeriesesData) {
+
+		val items = ArrayList<String>()
+
+		items.add("Total: ${data.tiltSerieses.size.formatWithDigitGroupsSeparator()} tilt-series")
+
+		when (data.particles) {
+
+			null -> Unit
+
+			is TiltSeriesesParticlesData.VirusMode -> {
+				items.add("${virionsCount.formatWithDigitGroupsSeparator()} virion(s)")
+				items.add("${particlesCount.formatWithDigitGroupsSeparator()} spike(s)")
+			}
+
+			is TiltSeriesesParticlesData.Data -> {
+				items.add("${particlesCount.formatWithDigitGroupsSeparator()} particle(s)")
+			}
+		}
+
 		content = items.joinToString(", ")
-	}
-
-	fun updateCombined(data: TiltSeriesesData, pickingControls: ParticleControls? = null) {
-
-		val items = mutableListOf(data.totalCount())
-
-		val numPickedParticles = pickingControls?.numParticles
-
-		val virusMode = data.virusMode
-		if (virusMode != null) {
-			items.add("${virusMode.numAutoVirions?.formatWithDigitGroupsSeparator() ?: 0} auto virion(s)")
-			items.add("${data.detectMode?.numAutoParticles?.formatWithDigitGroupsSeparator() ?: 0} auto spike(s)")
-			if (numPickedParticles != null) {
-				items.add("${numPickedParticles.formatWithDigitGroupsSeparator()} picked virion(s)")
-			}
-		} else {
-			items.add("${data.detectMode?.numAutoParticles?.formatWithDigitGroupsSeparator() ?: 0} auto particle(s)")
-			if (numPickedParticles != null) {
-				items.add("${numPickedParticles.formatWithDigitGroupsSeparator()} picked particle(s)")
-			}
-		}
-
-		update(items)
-	}
-
-	fun updateSegmentation(data: TiltSeriesesData, pickingControls: ParticleControls) {
-
-		val items = mutableListOf(
-			data.totalCount(),
-			"${pickingControls.numParticles.formatWithDigitGroupsSeparator()} virion(s)"
-		)
-
-		data.virusMode?.let { virusMode ->
-			items.add("Virion radius: ${virusMode.virionRadiusA} A")
-		}
-
-		update(items)
-	}
-
-	fun updatePicking(data: TiltSeriesesData, pickingControls: ParticleControls) {
-
-		val items = mutableListOf(
-			data.totalCount(),
-			"${pickingControls.numParticles.formatWithDigitGroupsSeparator()} particles(s)"
-		)
-
-		data.detectMode?.let { mode ->
-			items.add("Particle radius: ${mode.particleRadiusA} A")
-		}
-		data.spikeMode?.let { mode ->
-			items.add("Spike radius: ${mode.spikeRadiusA} A")
-		}
-
-		update(items)
 	}
 }
