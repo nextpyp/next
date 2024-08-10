@@ -1235,7 +1235,7 @@ afterEvaluate {
 			}
 		}
 
-		fun vmRustc(projectDir: Path): Path {
+		fun vmRustc(projectDir: Path, clean: Boolean = true): Path {
 
 			checkContainer("rustc.sif")
 
@@ -1251,9 +1251,15 @@ afterEvaluate {
 			val vmProjectDir = vmDir.resolve(projectDir)
 			val vmCargoRegistryDir = vmDir.resolve(cargoRegistryDir)
 			val containerCargoHome = "/usr/local/cargo"
-			val binds = "--bind \"$vmCargoRegistryDir\":\"$containerCargoHome/registry\""
+			val binds = listOf(
+				vmCargoRegistryDir to "$containerCargoHome/registry"
+			).joinToString(" ") { (src, dst) -> "--bind=\"$src:$dst\"" }
 			val vmSifPath = vmDir.resolve("run/rustc.sif")
-			vboxrun(vmid, "cd \"$vmProjectDir\" && apptainer exec $binds \"$vmSifPath\" sh -c \"cargo clean && cargo build --release\"")
+			var buildScript = "cargo build --release"
+			if (clean) {
+				buildScript = "cargo clean && $buildScript"
+			}
+			vboxrun(vmid, "cd \"$vmProjectDir\" && apptainer exec $binds \"$vmSifPath\" sh -c \"$buildScript\"")
 
 			// return the out dir
 			return projectDir.resolve("target/release")
@@ -1294,7 +1300,7 @@ afterEvaluate {
 			description = "Build mock pyp in the rustc container"
 			doLast {
 
-				val outDir = vmRustc(Paths.get("src/mockPyp"))
+				val outDir = vmRustc(Paths.get("src/mockPyp"), clean = false)
 
 				// copy the executable into the run folder
 				copy {
