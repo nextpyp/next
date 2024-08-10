@@ -1,6 +1,6 @@
 
 pub mod logging;
 pub mod args;
-pub mod commands;
+pub mod blocks;
 
 mod image;

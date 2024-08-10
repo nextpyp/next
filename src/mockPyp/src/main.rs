@@ -8,7 +8,7 @@ use anyhow::{anyhow, Context, Result};
 use display_error_chain::ErrorChainExt;
 use tracing::{error, info, warn};
 
-use mock_pyp::{commands, logging};
+use mock_pyp::{blocks, logging};
 use mock_pyp::args::Args;
 use mock_pyp::logging::ResultExt;
 
@@ -33,17 +33,24 @@ fn main() -> ExitCode {
 #[tracing::instrument(skip_all, level = 5, name = "MockPyp", fields(u))]
 fn run() -> Result<()> {
 
-	// find the command to run
+	// find the pyp command to run
 	let mut args = env::args().into_iter().collect::<VecDeque<_>>();
 	args.pop_front(); // ignore the executable path, no info there
 	let cmd = args.pop_front()
 		.context("missing pyp command as first argument")?;
 	info!("command: {}", cmd);
 
-	// run the command with the rest of the args
+	// parse the arguments
 	let args = Args::from(args);
-	match cmd.as_str() {
-		"gyp" => commands::gyp::run(args),
+
+	// get the block
+	let block_id = args.get("micromon_block")
+		.require()?
+		.value();
+
+	// run the command with the rest of the args
+	match block_id {
+		"tomo-rawdata" => blocks::tomo_rawdata::run(args),
 		_ => Err(anyhow!("unrecognized pyp command: {}", cmd))
 	}?;
 

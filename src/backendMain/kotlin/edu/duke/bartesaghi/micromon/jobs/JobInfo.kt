@@ -2,10 +2,7 @@ package edu.duke.bartesaghi.micromon.jobs
 
 import edu.duke.bartesaghi.micromon.Backend
 import edu.duke.bartesaghi.micromon.nodes.NodeConfig
-import edu.duke.bartesaghi.micromon.pyp.ArgValues
-import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
-import edu.duke.bartesaghi.micromon.pyp.MicromonArgs
-import edu.duke.bartesaghi.micromon.pyp.toArgValues
+import edu.duke.bartesaghi.micromon.pyp.*
 import org.bson.Document
 
 
@@ -28,7 +25,12 @@ interface JobInfo {
 
 	fun launchArgValues(upstreamJob: Job?, currentValues: ArgValuesToml, prevValues: ArgValuesToml?): ArgValues {
 
-		val values = ArgValues(Backend.pypArgs)
+		val args = Backend.pypArgs
+			.appendAll(MicromonArgsForPyp.all)
+		val values = ArgValues(args)
+
+		// explicitly set the block id
+		values.micromonBlock = config.id
 
 		// forward upstream tabs, if needed
 		if (upstreamJob != null) {

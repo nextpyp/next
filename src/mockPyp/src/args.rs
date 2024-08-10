@@ -1,6 +1,6 @@
 
 use std::collections::{HashMap, VecDeque};
-
+use std::str::FromStr;
 use anyhow::{bail, Context, Result};
 
 
@@ -52,6 +52,10 @@ impl Args {
 				.map(String::as_ref)
 		}
 	}
+
+	pub fn get_from_group(&self, group: impl AsRef<str>, name: impl AsRef<str>) -> Arg<Option<&str>> {
+		self.get(&format!("{}_{}", group.as_ref(), name.as_ref()))
+	}
 }
 
 
@@ -60,15 +64,60 @@ pub struct Arg<T> {
 	value: T
 }
 
+impl<T> Arg<T> {
+
+	pub fn map<F,R>(self, f: F) -> Arg<R>
+	where
+		F: FnOnce(T) -> R
+	{
+		Arg {
+			name: self.name,
+			value: f(self.value)
+		}
+	}
+
+	pub fn try_map<F,R>(self, f: F) -> Result<Arg<R>>
+		where
+			F: FnOnce(T) -> Result<R>
+	{
+		let value = f(self.value)
+			.context(format!("Failed to map argument: {}", self.name))?;
+		Ok(Arg {
+			name: self.name,
+			value
+		})
+	}
+
+	pub fn value(self) -> T {
+		self.value
+	}
+}
+
 impl<T> Arg<Option<T>> {
 
 	pub fn require(self) -> Result<Arg<T>> {
-		let name = self.name;
-		let value = self.value
-			.context(format!("Missing required argument: {}", name))?;
-		Ok(Arg {
-			name,
+		self.try_map(|value| {
 			value
+				.context("Argument is required")
+		})
+	}
+
+	pub fn or(self, default: T) -> Arg<T> {
+		self.map(|value| {
+			value.unwrap_or(default)
+		})
+	}
+}
+
+impl<'a> Arg<Option<&'a str>> {
+
+	pub fn into_u32(self) -> Result<Arg<Option<u32>>> {
+		self.try_map(|value| {
+			value.map(|value| {
+				u32::from_str(value)
+					.context(format!("value was not an i32: {}", value))
+			})
+			.transpose()
 		})
 	}
 }

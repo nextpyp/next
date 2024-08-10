@@ -59,4 +59,7 @@ object NodeConfigs {
 				null
 			}
 		}
+
+	fun findByConfigId(configId: String): NodeConfig? =
+		nodes.find { it.configId == configId }
 }

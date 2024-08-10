@@ -4,6 +4,7 @@ import edu.duke.bartesaghi.micromon.linux.hostprocessor.HostProcessor
 import edu.duke.bartesaghi.micromon.linux.userprocessor.UserProcessors
 import edu.duke.bartesaghi.micromon.projects.ProjectEventListeners
 import edu.duke.bartesaghi.micromon.pyp.Args
+import edu.duke.bartesaghi.micromon.pyp.MockPyp
 import edu.duke.bartesaghi.micromon.pyp.fromToml
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -33,7 +34,11 @@ object Backend {
 
 	// load the pyp args
 	val pypArgs = try {
-		Args.fromToml(Paths.get("/opt/micromon/pyp_config.toml").readString())
+		var args = Args.fromToml(Paths.get("/opt/micromon/pyp_config.toml").readString())
+		if (config.pyp.mock != null) {
+			args = MockPyp.combineArgs(args)
+		}
+		args
 	} catch (t: Throwable) {
 		throw Error("Failed to parse pyp_config.toml. Aborting startup.", t)
 	}
