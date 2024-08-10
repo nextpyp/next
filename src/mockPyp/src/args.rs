@@ -1,7 +1,7 @@
 
 use std::collections::{HashMap, VecDeque};
 
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 
 
 pub struct Args {
@@ -44,14 +44,49 @@ impl Args {
 		}
 	}
 
-	pub fn find(&self, name: impl AsRef<str>) -> Option<&str> {
-		self.args.get(name.as_ref())
-			.map(String::as_ref)
-	}
-
-	pub fn require(&self, name: impl AsRef<str>) -> Result<&str> {
+	pub fn get(&self, name: impl AsRef<str>) -> Arg<Option<&str>> {
 		let name = name.as_ref();
-		self.find(name)
-			.context(format!("Missing required argument: {}", name))
+		Arg {
+			name: name.to_string(),
+			value: self.args.get(name)
+				.map(String::as_ref)
+		}
 	}
+}
+
+
+pub struct Arg<T> {
+	name: String,
+	value: T
+}
+
+impl<T> Arg<Option<T>> {
+
+	pub fn require(self) -> Result<Arg<T>> {
+		let name = self.name;
+		let value = self.value
+			.context(format!("Missing required argument: {}", name))?;
+		Ok(Arg {
+			name,
+			value
+		})
+	}
+}
+
+impl<'a> Arg<&'a str> {
+
+	pub fn data_mode(&self) -> Result<DataMode> {
+		match self.value {
+			"spr" => Ok(DataMode::Spr),
+			"tomo" => Ok(DataMode::Tomo),
+			_ => bail!("Unrecognized data_mode: {}", self.value)
+		}
+	}
+}
+
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DataMode {
+	Spr,
+	Tomo
 }

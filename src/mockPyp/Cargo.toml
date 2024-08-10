@@ -11,3 +11,6 @@ display-error-chain = "0.2.0" # MIT (or Apache-2)
 tracing = "0.1.40" # MIT
 tracing-subscriber = { version = "0.3.18", features = ["time", "env-filter"] } # MIT
 time = { version = "0.3.31", features = ["local-offset", "macros", "formatting"] } # MIT (or Apache-2)
+image = "0.25.2" # MIT (or Apache-2)
+imageproc = "0.25.0" # MIT
+ab_glyph = "0.2.28" # Apache 2.0
