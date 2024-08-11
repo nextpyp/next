@@ -14,3 +14,6 @@ time = { version = "0.3.31", features = ["local-offset", "macros", "formatting"]
 image = "0.25.2" # MIT (or Apache-2)
 imageproc = "0.25.0" # MIT
 ab_glyph = "0.2.28" # Apache 2.0
+toml = "0.8.19" # MIT (or Apache-2)
+reqwest = { version = "0.12.5", features = ["blocking", "json", "rustls-tls-webpki-roots"], default-features = false } # MIT (or Apache-2)
+serde_json = "1.0.122" # MIT (or Apache-2)

@@ -4,3 +4,4 @@ pub mod args;
 pub mod blocks;
 
 mod image;
+mod web;

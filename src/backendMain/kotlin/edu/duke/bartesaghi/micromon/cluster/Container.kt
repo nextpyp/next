@@ -119,6 +119,9 @@ sealed interface Container {
 		override val sifPath = configOrThrow.container
 
 		override val binds = listOf(
+			// add the pyp sources bind, so we can get the argument config file
+			"${Config.instance.pyp.sources}:/opt/pyp",
+			// and the mock pyp executable
 			"${configOrThrow.exec}:${exec}"
 		)
 

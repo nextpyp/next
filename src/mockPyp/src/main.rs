@@ -1,6 +1,6 @@
 
 use std::collections::VecDeque;
-use std::env;
+use std::{env, fs};
 use std::ops::Deref;
 use std::process::ExitCode;
 
@@ -9,7 +9,7 @@ use display_error_chain::ErrorChainExt;
 use tracing::{error, info, warn};
 
 use mock_pyp::{blocks, logging};
-use mock_pyp::args::Args;
+use mock_pyp::args::{Args, ArgsConfig};
 use mock_pyp::logging::ResultExt;
 
 
@@ -43,15 +43,26 @@ fn run() -> Result<()> {
 	// parse the arguments
 	let args = Args::from(args);
 
+	// load the arguments config
+	let args_config_path = "/opt/pyp/config/pyp_config.toml";
+	let args_config = fs::read_to_string(&args_config_path)
+		.context(format!("Failed to read args config file: {}", &args_config_path))?;
+	let args_config = ArgsConfig::from(args_config)
+		.context(format!("Failed to parse config file: {}", &args_config_path))?;
+
 	// get the block
 	let block_id = args.get("micromon_block")
 		.require()?
+		.into_str()?
 		.value();
+
+	info!("block id: {}", block_id);
 
 	// run the command with the rest of the args
 	match block_id {
-		"tomo-rawdata" => blocks::tomo_rawdata::run(args),
-		_ => Err(anyhow!("unrecognized pyp command: {}", cmd))
+		"tomo-rawdata" => blocks::tomo_rawdata::run(args, args_config),
+		"tomo-preprocessing" => blocks::tomo_preprocessing::run(args, args_config),
+		_ => Err(anyhow!("unrecognized block id"))
 	}?;
 
 	Ok(())

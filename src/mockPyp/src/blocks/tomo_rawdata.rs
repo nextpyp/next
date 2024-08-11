@@ -2,19 +2,20 @@
 use anyhow::Result;
 use image::Rgb;
 
-use crate::args::Args;
+use crate::args::{Args, ArgsConfig};
 use crate::image::Image;
 
 
 const GROUP_ID: &'static str = "tomo_rawdata_mock";
 
 
-pub fn run(args: Args) -> Result<()> {
+pub fn run(args: Args, _: ArgsConfig) -> Result<()> {
 
 	// get args
 	let mode = args.get("data_mode")
 		.require()?
-		.data_mode()?;
+		.into_data_mode()?
+		.value();
 	let size = args.get_from_group(GROUP_ID, "image_size")
 		.into_u32()?
 		.or(512)
