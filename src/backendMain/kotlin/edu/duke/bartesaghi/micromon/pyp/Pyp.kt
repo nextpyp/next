@@ -49,7 +49,7 @@ enum class Pyp(private val cmdName: String) {
 		val (containerId, runCmd) =
 			if (Config.instance.pyp.mock != null) {
 				// or mock pyp entirely, if configured for testing
-				Container.MockPyp.id to "${Container.MockPyp.exec} $cmdName"
+				Container.MockPyp.id to "RUST_BACKTRACE=1 ${Container.MockPyp.exec} $cmdName"
 			} else {
 				Container.Pyp.id to Container.Pyp.run(cmdName)
 			}

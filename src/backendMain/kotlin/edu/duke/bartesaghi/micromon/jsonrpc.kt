@@ -309,37 +309,37 @@ fun ArrayNode.getObjectOrThrow(index: Int, context: String? = null): ObjectNode 
 	getOrThrow(index)
 		.takeIf { it.isObject }
 		?.asObject()
-		?: throw BadJsonRpcRequestException("[$index] is not an object", context)
+		?: throw BadJsonRpcRequestException("[$index] is not an object, it's a(n) ${getOrThrow(index).nodeType}", context)
 
 fun ArrayNode.getArrayOrThrow(index: Int, context: String? = null): ArrayNode =
 	getOrThrow(index)
 		.takeIf { it.isArray }
 		?.asArray()
-		?: throw BadJsonRpcRequestException("[$index] is not an array", context)
+		?: throw BadJsonRpcRequestException("[$index] is not an array, it's a(n) ${getOrThrow(index).nodeType}", context)
 
 fun ArrayNode.getIntOrThrow(index: Int, context: String? = null): Int =
 	getOrThrow(index)
 		.takeIf { it.isIntegralNumber }
 		?.intValue()
-		?: throw BadJsonRpcRequestException("[$index] is not an int", context)
+		?: throw BadJsonRpcRequestException("[$index] is not an int, it's a(n) ${getOrThrow(index).nodeType}", context)
 
 fun ArrayNode.getDoubleOrThrow(index: Int, context: String? = null): Double =
 	getOrThrow(index)
 		.takeIf { it.isNumber }
 		?.doubleValue()
-		?: throw BadJsonRpcRequestException("[$index] is not a double", context)
+		?: throw BadJsonRpcRequestException("[$index] is not a double, it's a(n) ${getOrThrow(index).nodeType}", context)
 
 fun ArrayNode.getStringOrThrow(index: Int, context: String? = null): String =
 	getOrThrow(index)
 		.takeIf { it.isTextual }
 		?.textValue()
-		?: throw BadJsonRpcRequestException("[$index] is not a string", context)
+		?: throw BadJsonRpcRequestException("[$index] is not a string, it's a(n) ${getOrThrow(index).nodeType}", context)
 
 fun ArrayNode.getStringsOrThrow(index: Int, context: String? = null): List<String> =
 	getArrayOrThrow(index, context)
 		.mapIndexed { i, entry ->
 			if (!entry.isTextual) {
-				throw BadJsonRpcRequestException("[$index][$i] is not a string", context)
+				throw BadJsonRpcRequestException("[$index][$i] is not a string, it's a(n) ${getOrThrow(index).nodeType}", context)
 			}
 			entry.textValue()
 		}

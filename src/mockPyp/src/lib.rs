@@ -5,3 +5,5 @@ pub mod blocks;
 
 mod image;
 mod web;
+mod metadata;
+mod rand;

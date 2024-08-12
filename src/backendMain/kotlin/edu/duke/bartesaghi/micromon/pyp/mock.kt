@@ -1,6 +1,8 @@
 package edu.duke.bartesaghi.micromon.pyp
 
+import edu.duke.bartesaghi.micromon.Backend
 import edu.duke.bartesaghi.micromon.jobs.JobInfo
+import edu.duke.bartesaghi.micromon.jobs.TomographyPreprocessingJob
 import edu.duke.bartesaghi.micromon.jobs.TomographyRawDataJob
 import edu.duke.bartesaghi.micromon.jobs.jobInfo
 import edu.duke.bartesaghi.micromon.nodes.NodeConfig
@@ -52,6 +54,7 @@ object MockPyp {
 					)
 				}
 				+ TomographyRawDataJob.mockArgs()
+				+ TomographyPreprocessingJob.mockArgs()
 		)
 }
 
@@ -64,13 +67,29 @@ private val JobInfo.mockGroupId: String get() =
 	"${config.id.replace('-', '_')}_mock"
 
 
-private fun TomographyRawDataJob.Companion.mockArgs(): List<Arg> = listOf(
+private fun JobInfo.mockArg(id: String, type: ArgType, default: ArgValue? = null): Arg =
 	Arg(
 		groupId = mockGroupId,
-		argId = "image_size",
-		name = "Image Size",
+		argId = id,
+		name = id,
 		description = "",
-		type = ArgType.TInt(),
-		default = ArgValue.VInt(512)
+		type = type,
+		default = default
 	)
+
+
+private fun TomographyRawDataJob.Companion.mockArgs(): List<Arg> = listOf(
+	mockArg("image_size", ArgType.TInt(), ArgValue.VInt(512))
+)
+
+
+private fun TomographyPreprocessingJob.Companion.mockArgs(): List<Arg> = listOf(
+	mockArg("num_tilt_series", ArgType.TInt(), ArgValue.VInt(4)),
+	mockArg("num_tilts", ArgType.TInt(), ArgValue.VInt(4)),
+	mockArg("tomogram_width", ArgType.TInt(), ArgValue.VInt(1024)),
+	mockArg("tomogram_height", ArgType.TInt(), ArgValue.VInt(1024)),
+	mockArg("tomogram_depth", ArgType.TInt(), ArgValue.VInt(256)),
+	mockArg("tomogram_binning", ArgType.TInt(), ArgValue.VInt(2)),
+	mockArg("num_virions", ArgType.TInt(), ArgValue.VInt(5)),
+	mockArg("num_spikes", ArgType.TInt(), ArgValue.VInt(10))
 )

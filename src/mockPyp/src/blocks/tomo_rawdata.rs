@@ -3,7 +3,7 @@ use anyhow::Result;
 use image::Rgb;
 
 use crate::args::{Args, ArgsConfig};
-use crate::image::Image;
+use crate::image::{Image, ImageDrawing};
 
 
 const GROUP_ID: &'static str = "tomo_rawdata_mock";
@@ -23,9 +23,11 @@ pub fn run(args: Args, _: ArgsConfig) -> Result<()> {
 
 	// generate the gain-corrected image
 	let mut img = Image::new(size, size);
-	img.fill(Rgb([128, 128, 128]));
-	img.noise();
-	img.text(16, 16, 32, Rgb([255, 255, 255]), format!("Mode: {:?}", mode));
+	img.draw().fill(Rgb([128, 128, 128]));
+	img.draw().noise();
+	img.draw().text_lines(32, Rgb([255, 255, 255]), [
+		format!("Mode: {:?}", mode)
+	]);
 	img.save("gain_corrected.webp")?;
 
 	Ok(())
