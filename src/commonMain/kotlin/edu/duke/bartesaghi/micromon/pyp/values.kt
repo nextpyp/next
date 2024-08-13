@@ -176,17 +176,17 @@ val ArgValues.detectMethodOrDefault: DetectMethod
 		)
 
 @Serializable
-enum class DetectMethod(val id: String, val isEnabled: Boolean) {
+enum class DetectMethod(val id: String, val particlesList: (ownerId: String) -> ParticlesList?) {
 
-	None("none", false),
-	Auto("auto", true),
-	All("all", true),
-	Manual("manual", true),
-	Import("import", true),
-	PYPTrain("pyp-train", true),
-	PYPEval("pyp-eval", true),
-	TopazTrain("topaz-train", true),
-	TopazEval("topaz-eval", true);
+	None("none", { null }),
+	Auto("auto", { ParticlesList.autoParticles2D(it) }),
+	All("all", { ParticlesList.autoParticles2D(it) }),
+	Manual("manual", { ParticlesList.manualParticles2D(it) }),
+	Import("import", { ParticlesList.autoParticles2D(it) }),
+	PYPTrain("pyp-train", { ParticlesList.manualParticles2D(it) }),
+	PYPEval("pyp-eval", { ParticlesList.autoParticles2D(it) }),
+	TopazTrain("topaz-train", { ParticlesList.manualParticles2D(it) }),
+	TopazEval("topaz-eval", { ParticlesList.autoParticles2D(it) });
 
 	companion object {
 		operator fun get(id: String?): DetectMethod? =
@@ -219,12 +219,12 @@ val ArgValues.tomoVirMethodOrDefault: TomoVirMethod
 enum class TomoVirMethod(val id: String, val particlesList: (ownerId: String) -> ParticlesList?) {
 
 	None("none", { null }),
-	Auto("auto", ParticlesList::autoVirions),
-	Manual("manual", ParticlesList::manualVirions),
-	PYPTrain("pyp-train", ParticlesList::manualVirions),
-	PYPEval("pyp-eval", ParticlesList::autoVirions),
-	TopazTrain("topaz-train", ParticlesList::manualVirions),
-	TopazEval("topaz-eval", ParticlesList::autoVirions);
+	Auto("auto", { ParticlesList.autoVirions(it) }),
+	Manual("manual", { ParticlesList.manualVirions(it) }),
+	PYPTrain("pyp-train", { ParticlesList.manualVirions(it) }),
+	PYPEval("pyp-eval", { ParticlesList.autoVirions(it) }),
+	TopazTrain("topaz-train", { ParticlesList.manualVirions(it) }),
+	TopazEval("topaz-eval", { ParticlesList.autoVirions(it) });
 
 	companion object {
 		operator fun get(id: String?): TomoVirMethod? =
@@ -266,13 +266,13 @@ val ArgValues.tomoSpkMethodOrDefault: TomoSpkMethod
 enum class TomoSpkMethod(val id: String, val particlesList: (ownerId: String) -> ParticlesList?) {
 
 	None("none", { null }),
-	Auto("auto", ParticlesList::autoParticles3D),
-	Import("import", ParticlesList::autoParticles3D),
-	Manual("manual", ParticlesList::manualParticles3D),
-	MiloTrain("milo-train", ParticlesList::manualParticles3D),
-	MiloEval("milo-eval", ParticlesList::autoParticles3D),
-	PYPTrain("pyp-train", ParticlesList::manualParticles3D),
-	PYPEval("pyp-eval", ParticlesList::autoParticles3D);
+	Auto("auto", { ParticlesList.autoParticles3D(it) }),
+	Import("import", { ParticlesList.autoParticles3D(it) }),
+	Manual("manual", { ParticlesList.manualParticles3D(it) }),
+	MiloTrain("milo-train", { ParticlesList.manualParticles3D(it) }),
+	MiloEval("milo-eval", { ParticlesList.autoParticles3D(it) }),
+	PYPTrain("pyp-train", { ParticlesList.manualParticles3D(it) }),
+	PYPEval("pyp-eval", { ParticlesList.autoParticles3D(it) });
 
 	companion object {
 		operator fun get(id: String?): TomoSpkMethod? =
