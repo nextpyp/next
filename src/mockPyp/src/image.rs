@@ -7,7 +7,8 @@ use ab_glyph::{FontRef, PxScale};
 use anyhow::{Context, Result};
 use image::{GenericImage, Pixel, Rgb, RgbImage};
 use imageproc::definitions::Clamp;
-use imageproc::drawing::draw_text_mut;
+use imageproc::drawing::{draw_filled_rect_mut, draw_text_mut};
+use imageproc::rect::Rect;
 use tracing::info;
 
 use crate::rand::Gaussian;
@@ -36,6 +37,8 @@ pub trait ImageDrawing {
 	fn noise(&mut self);
 	fn text(&mut self, x: u32, y: u32, size: u32, color: Color, text: impl AsRef<str>);
 	fn text_lines(&mut self, size: u32, color: Color, lines: impl IntoIterator<Item=impl AsRef<str>>);
+	fn border(&mut self, size: u32, color: Color);
+	fn tile_border(&mut self, size: u32, tile_i: usize);
 	// other drawing commands: https://docs.rs/imageproc/latest/imageproc/drawing/index.html
 }
 
@@ -100,6 +103,38 @@ impl<T> ImageDrawing for T
 				line
 			);
 		}
+	}
+
+	fn border(&mut self, size: u32, color: Color) {
+		draw_filled_rect_mut(self, Rect::at(0, 0).of_size(self.width(), size), color);
+		draw_filled_rect_mut(self, Rect::at((self.width() - size) as i32, 0).of_size(size, self.height()), color);
+		draw_filled_rect_mut(self, Rect::at(0, (self.height() - size) as i32).of_size(self.width(), size), color);
+		draw_filled_rect_mut(self, Rect::at(0, 0).of_size(size, self.height()), color);
+	}
+
+	fn tile_border(&mut self, size: u32, tile_i: usize) {
+
+		// Montages are 2D square tilings, so for each tile to have a different border color than its neighbor,
+		// we need at least 4 unique colors. However, it's hard to actually compute that coloring. =(
+		// It's still non-trivial even if we use more than 4 colors, even on a simple graph like a square grid,
+		// so let's just do something really dumb and call it good enough. =P
+
+		const COLORS: [Color; 11] = [
+			Rgb([255, 0, 0]),
+			Rgb([0, 255, 0]),
+			Rgb([0, 0, 255]),
+			Rgb([255, 255, 0]),
+			Rgb([255, 0, 255]),
+			Rgb([0, 255, 255]),
+			Rgb([128, 0, 0]),
+			Rgb([0, 128, 0]),
+			Rgb([0, 0, 128]),
+			Rgb([128, 128, 0]),
+			Rgb([128, 0, 128]),
+			//Rgb([0, 128, 128]) // skip the last color in the pattern, to have a prime number of colors
+		];
+
+		self.border(size, COLORS[tile_i % COLORS.len()]);
 	}
 }
 

@@ -7,3 +7,4 @@ mod image;
 mod web;
 mod metadata;
 mod rand;
+mod scale;

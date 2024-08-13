@@ -1,4 +1,4 @@
-
+use crate::scale::{ValueA, ValueBinnedF, ValueUnbinnedF};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct TiltSeries {
@@ -20,12 +20,12 @@ pub struct Ctf {
 	pub defocus2: f64,
 	pub angast: f64,
 	pub ccc: f64,
-	pub x: f64,
-	pub y: f64,
-	pub z: f64,
-	pub pixel_size: f64,
+	pub x: ValueUnbinnedF,
+	pub y: ValueUnbinnedF,
+	pub z: ValueUnbinnedF,
+	pub pixel_size: ValueA,
 	pub voltage: f64,
-	pub binning_factor: f64,
+	pub binning_factor: u32,
 	pub cccc: f64,
 	pub counts: f64
 }
@@ -100,8 +100,8 @@ pub struct Virion3D {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Particle3D {
-	pub x: f64,
-	pub y: f64,
-	pub z: f64,
-	pub r: f64
+	pub x: ValueBinnedF,
+	pub y: ValueBinnedF,
+	pub z: ValueBinnedF,
+	pub r: ValueBinnedF
 }

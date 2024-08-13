@@ -133,12 +133,12 @@ impl Web {
 				ctf.defocus2,
 				ctf.angast,
 				ctf.ccc,
-				ctf.x,
-				ctf.y,
-				ctf.z,
-				ctf.pixel_size,
+				ctf.x.0,
+				ctf.y.0,
+				ctf.z.0,
+				ctf.pixel_size.0,
 				ctf.voltage,
-				ctf.binning_factor,
+				ctf.binning_factor as f64,
 				ctf.cccc,
 				ctf.counts
 			]);
@@ -232,10 +232,10 @@ impl Web {
 			let m = args.get_or_ins_object("metadata")?;
 			m.ins("virion_coordinates", virions.iter()
 				.map(|p| vec![
-					p.particle.x,
-					p.particle.y,
-					p.particle.z,
-					p.particle.r,
+					p.particle.x.0,
+					p.particle.y.0,
+					p.particle.z.0,
+					p.particle.r.0,
 					p.threshold
 				])
 				.collect::<Vec<_>>()
@@ -246,10 +246,10 @@ impl Web {
 			let m = args.get_or_ins_object("metadata")?;
 			m.ins("spike_coordinates", spikes.iter()
 				.map(|p| vec![
-					p.x,
-					p.y,
-					p.z,
-					p.r
+					p.x.0,
+					p.y.0,
+					p.z.0,
+					p.r.0
 				])
 				.collect::<Vec<_>>()
 			);

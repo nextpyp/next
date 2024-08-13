@@ -101,6 +101,14 @@ impl Args {
 		self.set_default_from(args_config, group_id, arg_id, group_id, arg_id)
 	}
 
+	pub fn set(&mut self, full_id: impl AsRef<str>, value: ArgValue) {
+		self.args.insert(full_id.as_ref().to_string(), value);
+	}
+
+	pub fn set_from_group(&mut self, group_id: impl AsRef<str>, arg_id: impl AsRef<str>, value: ArgValue) {
+		self.set(full_id(group_id, arg_id), value);
+	}
+
 	fn set_default_from(
 		&mut self,
 		args_config: &ArgsConfig,
@@ -132,7 +140,7 @@ impl Args {
 			}
 		};
 
-		self.args.insert(full_id(group_id, arg_id), default_value);
+		self.set_from_group(group_id, arg_id, default_value);
 
 		Ok(())
 	}

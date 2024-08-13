@@ -91,5 +91,6 @@ private fun TomographyPreprocessingJob.Companion.mockArgs(): List<Arg> = listOf(
 	mockArg("tomogram_depth", ArgType.TInt(), ArgValue.VInt(256)),
 	mockArg("tomogram_binning", ArgType.TInt(), ArgValue.VInt(2)),
 	mockArg("num_virions", ArgType.TInt(), ArgValue.VInt(5)),
-	mockArg("num_spikes", ArgType.TInt(), ArgValue.VInt(10))
+	mockArg("num_spikes", ArgType.TInt(), ArgValue.VInt(10)),
+	mockArg("tilt_angle_magnitude", ArgType.TInt(), ArgValue.VInt(45))
 )
