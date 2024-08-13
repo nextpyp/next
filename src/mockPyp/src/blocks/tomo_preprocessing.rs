@@ -13,7 +13,7 @@ use crate::web::Web;
 const GROUP_ID: &'static str = "tomo_preprocessing";
 
 
-pub fn run(args: Args, args_config: ArgsConfig) -> Result<()> {
+pub fn run(mut args: Args, args_config: ArgsConfig) -> Result<()> {
 
 	// get args
 	let num_tilt_series = args.get_from_group(GROUP_ID, "num_tilt_series")
@@ -48,6 +48,9 @@ pub fn run(args: Args, args_config: ArgsConfig) -> Result<()> {
 		.into_u32()?
 		.or(10)
 		.value();
+
+	// set default arg values that the website will use, but we won't
+	args.set_default(&args_config, "ctf", "min_res")?;
 
 	// create subfolders
 	fs::create_dir_all("mrc")

@@ -2,7 +2,7 @@
 use std::collections::{HashMap, VecDeque};
 use std::str::FromStr;
 use anyhow::{bail, Context, Result};
-use toml::Table;
+use toml::{Table, Value};
 
 pub struct Args {
 	args: HashMap<String,ArgValue>
@@ -85,6 +85,56 @@ impl Args {
 
 	pub fn get_from_group(&self, group_id: impl AsRef<str>, arg_id: impl AsRef<str>) -> Arg<Option<&ArgValue>> {
 		self.get(full_id(group_id, arg_id))
+	}
+
+	pub fn set_string(&mut self, group_id: impl AsRef<str>, arg_id: impl AsRef<str>, value: impl Into<String>) {
+		self.args.insert(full_id(group_id, arg_id), ArgValue::String(value.into()));
+	}
+
+	pub fn set_bool(&mut self, group_id: impl AsRef<str>, arg_id: impl AsRef<str>, value: bool) {
+		self.args.insert(full_id(group_id, arg_id), ArgValue::Bool(value));
+	}
+
+	pub fn set_default(&mut self, args_config: &ArgsConfig, group_id: impl AsRef<str>, arg_id: impl AsRef<str>) -> Result<()> {
+		let group_id = group_id.as_ref();
+		let arg_id = arg_id.as_ref();
+		self.set_default_from(args_config, group_id, arg_id, group_id, arg_id)
+	}
+
+	fn set_default_from(
+		&mut self,
+		args_config: &ArgsConfig,
+		group_id: impl AsRef<str>,
+		arg_id: impl AsRef<str>,
+		from_group_id: impl AsRef<str>,
+		from_arg_id: impl AsRef<str>
+	) -> Result<()> {
+
+		// find the default value
+		let from_full_id = full_id(from_group_id, from_arg_id);
+		let default = args_config.get(&from_full_id)
+			.context(format!("arg config not found: {}", &from_full_id))?
+			.default.as_ref()
+			.context(format!("arg config has no default value: {}", &from_full_id))?;
+
+		let default_value = match default {
+			ArgConfigValue::Bool(v) => ArgValue::Bool(*v),
+			ArgConfigValue::Int(v) => ArgValue::String(v.to_string()),
+			ArgConfigValue::Float(v) => ArgValue::String(v.to_string()),
+			ArgConfigValue::Float2(x, y) => ArgValue::String(format!("{},{}", x, y)),
+			ArgConfigValue::Str(v)
+			| ArgConfigValue::Enum(v)
+			| ArgConfigValue::Path(v) => ArgValue::String(v.clone()),
+			ArgConfigValue::Ref { src_group_id, src_arg_id, .. } => {
+				// recurse to ref source
+				return self.set_default_from(args_config, group_id, arg_id, src_group_id, src_arg_id)
+					.context(format!("failed to follow ref {}.{} to set default", src_group_id, src_arg_id))
+			}
+		};
+
+		self.args.insert(full_id(group_id, arg_id), default_value);
+
+		Ok(())
 	}
 }
 
@@ -366,6 +416,7 @@ impl ArgsConfig {
 				let arg = arg.as_table()
 					.context(format!("arg {}.{} is not a table", tab_id, arg_id))?;
 
+				// read the type
 				let arg_type = arg.get("type")
 					.context(format!("missing type for arg: {}.{}", tab_id, arg_id))?
 					.as_str()
@@ -389,10 +440,21 @@ impl ArgsConfig {
 					_ => bail!("Unrecognized arg type {} for arg: {}.{}", arg_type, tab_id, arg_id)
 				};
 
+				// read the default value, if any
+				let default = match arg.get("default") {
+					None => None,
+					Some(arg_default) => {
+						let value = read_config_value(tab_id.as_str(), arg_id.as_str(), &arg_type, arg_default)
+							.context(format!("invalid default for: {}.{}", tab_id, arg_id))?;
+						Some(value)
+					}
+				};
+
 				let arg_config = ArgConfig {
 					group_id: tab_id.to_string(),
 					arg_id: arg_id.to_string(),
-					arg_type
+					arg_type,
+					default
 				};
 
 				args.insert(arg_config.full_id(), arg_config);
@@ -419,10 +481,75 @@ fn full_id(group_id: impl AsRef<str>, arg_id: impl AsRef<str>) -> String {
 }
 
 
+fn read_config_value(group_id: &str, arg_id: &str, arg_type: &ArgType, value: &Value) -> Result<ArgConfigValue> {
+
+	// check for reference values
+	if let Some(table) = value.as_table() {
+		if let Some(ref_value) = table.get("ref") {
+			let src_arg_id = ref_value.as_str()
+				.context("default ref value was not a string")?;
+			return Ok(ArgConfigValue::Ref {
+				src_group_id: group_id.to_string(),
+				src_arg_id: src_arg_id.to_string(),
+				dst_group_id: group_id.to_string(),
+				dst_arg_id: arg_id.to_string()
+			});
+		}
+	}
+
+	// get the literal value
+	Ok(match &arg_type {
+		ArgType::Bool => value.as_bool()
+			.context("default value was not a bool")
+			.map(ArgConfigValue::Bool)?,
+		ArgType::Int => value.as_integer()
+			.context("default value was not an int")
+			.map(ArgConfigValue::Int)?,
+		ArgType::Float => value.as_float()
+			.or_else(|| value.as_integer().map(|i| i as f64))
+			.context("default value was not a float")
+			.map(ArgConfigValue::Float)?,
+		ArgType::Float2 => {
+			let arr = value.as_array()
+				.context("default value was not an array")?;
+			let x = arr.get(0)
+				.context("default float2 missing x value")?;
+			let x = x.as_float()
+				.or_else(|| x.as_integer().map(|i| i as f64))
+				.context("default float2 x was not a float")?;
+			let y = arr.get(1)
+				.context("default float2 missing y value")?;
+			let y = y.as_float()
+				.or_else(|| y.as_integer().map(|i| i as f64))
+				.context("default float2 y was not a float")?;
+			ArgConfigValue::Float2(x, y)
+		}
+		ArgType::Str => value.as_str()
+			.context("default value was not a str")
+			.map(|s| s.to_string())
+			.map(ArgConfigValue::Str)?,
+		ArgType::Enum { values } => {
+			let value = value.as_str()
+				.context("default value was not a str (for enum)")?
+				.to_string();
+			if !values.contains(&value) {
+				bail!("default enum value {:?} was not in list {:?}", value, values);
+			}
+			ArgConfigValue::Enum(value)
+		}
+		ArgType::Path => value.as_str()
+			.context("default value was not a str (for path)")
+			.map(|s| s.to_string())
+			.map(ArgConfigValue::Path)?
+	})
+}
+
+
 pub struct ArgConfig {
-	group_id: String,
-	arg_id: String,
-	arg_type: ArgType
+	pub group_id: String,
+	pub arg_id: String,
+	pub arg_type: ArgType,
+	pub default: Option<ArgConfigValue>
 }
 
 impl ArgConfig {
@@ -444,6 +571,7 @@ impl ArgConfig {
 	}
 }
 
+
 pub enum ArgType {
 	Bool,
 	Int,
@@ -454,4 +582,20 @@ pub enum ArgType {
 		values: Vec<String>
 	},
 	Path
+}
+
+pub enum ArgConfigValue {
+	Bool(bool),
+	Int(i64),
+	Float(f64),
+	Float2(f64, f64),
+	Str(String),
+	Enum(String),
+	Path(String),
+	Ref {
+		src_group_id: String,
+		src_arg_id: String,
+		dst_group_id: String,
+		dst_arg_id: String
+	}
 }
