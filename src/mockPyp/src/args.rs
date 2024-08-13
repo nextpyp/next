@@ -87,6 +87,10 @@ impl Args {
 		self.get(full_id(group_id, arg_id))
 	}
 
+	pub fn get_mock(&self, block_id: impl AsRef<str>, arg_id: impl AsRef<str>) -> Arg<Option<&ArgValue>> {
+		self.get(format!("{}_mock_{}", block_id.as_ref(), arg_id.as_ref()))
+	}
+
 	pub fn set_string(&mut self, group_id: impl AsRef<str>, arg_id: impl AsRef<str>, value: impl Into<String>) {
 		self.args.insert(full_id(group_id, arg_id), ArgValue::String(value.into()));
 	}
@@ -98,7 +102,9 @@ impl Args {
 	pub fn set_default(&mut self, args_config: &ArgsConfig, group_id: impl AsRef<str>, arg_id: impl AsRef<str>) -> Result<()> {
 		let group_id = group_id.as_ref();
 		let arg_id = arg_id.as_ref();
-		self.set_default_from(args_config, group_id, arg_id, group_id, arg_id)
+		let default = args_config.default_value(&full_id(group_id, arg_id))?;
+		self.set_from_group(group_id, arg_id, default);
+		Ok(())
 	}
 
 	pub fn set(&mut self, full_id: impl AsRef<str>, value: ArgValue) {
@@ -107,42 +113,6 @@ impl Args {
 
 	pub fn set_from_group(&mut self, group_id: impl AsRef<str>, arg_id: impl AsRef<str>, value: ArgValue) {
 		self.set(full_id(group_id, arg_id), value);
-	}
-
-	fn set_default_from(
-		&mut self,
-		args_config: &ArgsConfig,
-		group_id: impl AsRef<str>,
-		arg_id: impl AsRef<str>,
-		from_group_id: impl AsRef<str>,
-		from_arg_id: impl AsRef<str>
-	) -> Result<()> {
-
-		// find the default value
-		let from_full_id = full_id(from_group_id, from_arg_id);
-		let default = args_config.get(&from_full_id)
-			.context(format!("arg config not found: {}", &from_full_id))?
-			.default.as_ref()
-			.context(format!("arg config has no default value: {}", &from_full_id))?;
-
-		let default_value = match default {
-			ArgConfigValue::Bool(v) => ArgValue::Bool(*v),
-			ArgConfigValue::Int(v) => ArgValue::String(v.to_string()),
-			ArgConfigValue::Float(v) => ArgValue::String(v.to_string()),
-			ArgConfigValue::Float2(x, y) => ArgValue::String(format!("{},{}", x, y)),
-			ArgConfigValue::Str(v)
-			| ArgConfigValue::Enum(v)
-			| ArgConfigValue::Path(v) => ArgValue::String(v.clone()),
-			ArgConfigValue::Ref { src_group_id, src_arg_id, .. } => {
-				// recurse to ref source
-				return self.set_default_from(args_config, group_id, arg_id, src_group_id, src_arg_id)
-					.context(format!("failed to follow ref {}.{} to set default", src_group_id, src_arg_id))
-			}
-		};
-
-		self.set_from_group(group_id, arg_id, default_value);
-
-		Ok(())
 	}
 }
 
@@ -295,6 +265,16 @@ impl<'a> Arg<Option<&'a ArgValue>> {
 	pub fn into_data_mode(self) -> Result<Arg<Option<DataMode>>> {
 		self.try_map_option(<Arg<&'a ArgValue>>::into_data_mode)
 	}
+
+	pub fn or_default(self, args_config: &ArgsConfig) -> Result<Arg<ArgValue>> {
+		let full_id = self.name.clone();
+		self.try_map(|value| {
+			match value {
+				Some(v) => Ok(v.clone()),
+				None => args_config.default_value(&full_id)
+			}
+		})
+	}
 }
 
 
@@ -375,6 +355,60 @@ impl<'a> Arg<&'a ArgValue> {
 				_ => bail!("Unrecognized data_mode: {}", value)
 			}
 		})
+	}
+}
+
+
+impl Arg<ArgValue> {
+
+	fn as_ref(&self) -> Arg<&ArgValue> {
+		Arg {
+			name: self.name.clone(),
+			value: &self.value
+		}
+	}
+
+	fn try_map_string<T,F>(self, f: F) -> Result<Arg<T>>
+		where F: FnOnce(String) -> Result<T>
+	{
+		self.try_map(|value| {
+			match value {
+				ArgValue::String(value) => f(value),
+				ArgValue::Bool(_) => bail!("boolean flag value was not transformable")
+			}
+		})
+	}
+
+	pub fn into_string(self) -> Result<Arg<String>> {
+		self.try_map_string(|value| Ok(value))
+	}
+
+	pub fn into_bool(self) -> Result<Arg<bool>> {
+		self.as_ref().into_bool()
+	}
+
+	pub fn into_u32(self) -> Result<Arg<u32>> {
+		self.as_ref().into_u32()
+	}
+
+	pub fn into_u64(self) -> Result<Arg<u64>> {
+		self.as_ref().into_u64()
+	}
+
+	pub fn into_i64(self) -> Result<Arg<i64>> {
+		self.as_ref().into_i64()
+	}
+
+	pub fn into_f64(self) -> Result<Arg<f64>> {
+		self.as_ref().into_f64()
+	}
+
+	pub fn into_f64_2(self) -> Result<Arg<(f64,f64)>> {
+		self.as_ref().into_f64_2()
+	}
+
+	pub fn into_data_mode(self) -> Result<Arg<DataMode>> {
+		self.as_ref().into_data_mode()
 	}
 }
 
@@ -481,6 +515,30 @@ impl ArgsConfig {
 	pub fn get_from_group(&self, group_id: impl AsRef<str>, arg_id: impl AsRef<str>) -> Option<&ArgConfig> {
 		self.get(full_id(group_id, arg_id))
 	}
+
+	pub fn default_value(&self, from_full_id: &str) -> Result<ArgValue> {
+
+		let arg_config = self.get(from_full_id)
+			.context(format!("arg config not found: {}", from_full_id))?
+			.default.as_ref()
+			.context(format!("arg config has no default value: {}", from_full_id))?;
+
+		match arg_config {
+			ArgConfigValue::Bool(v) => Ok(ArgValue::Bool(*v)),
+			ArgConfigValue::Int(v) => Ok(ArgValue::String(v.to_string())),
+			ArgConfigValue::Float(v) => Ok(ArgValue::String(v.to_string())),
+			ArgConfigValue::Float2(x, y) => Ok(ArgValue::String(format!("{},{}", x, y))),
+			ArgConfigValue::Str(v)
+			| ArgConfigValue::Enum(v)
+			| ArgConfigValue::Path(v) => Ok(ArgValue::String(v.clone())),
+			ArgConfigValue::Ref { src_group_id, src_arg_id, .. } => {
+				// recurse to ref source
+				self.default_value(&full_id(src_group_id, src_arg_id))
+					.context(format!("failed to follow ref {}.{} to find default", src_group_id, src_arg_id))
+			}
+		}
+	}
+
 }
 
 

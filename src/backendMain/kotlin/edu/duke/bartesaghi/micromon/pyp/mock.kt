@@ -1,6 +1,5 @@
 package edu.duke.bartesaghi.micromon.pyp
 
-import edu.duke.bartesaghi.micromon.Backend
 import edu.duke.bartesaghi.micromon.jobs.JobInfo
 import edu.duke.bartesaghi.micromon.jobs.TomographyPreprocessingJob
 import edu.duke.bartesaghi.micromon.jobs.TomographyRawDataJob
@@ -86,10 +85,8 @@ private fun TomographyRawDataJob.Companion.mockArgs(): List<Arg> = listOf(
 private fun TomographyPreprocessingJob.Companion.mockArgs(): List<Arg> = listOf(
 	mockArg("num_tilt_series", ArgType.TInt(), ArgValue.VInt(4)),
 	mockArg("num_tilts", ArgType.TInt(), ArgValue.VInt(4)),
-	mockArg("tomogram_width", ArgType.TInt(), ArgValue.VInt(1024)),
-	mockArg("tomogram_height", ArgType.TInt(), ArgValue.VInt(1024)),
-	mockArg("tomogram_depth", ArgType.TInt(), ArgValue.VInt(256)),
-	mockArg("tomogram_binning", ArgType.TInt(), ArgValue.VInt(2)),
+	mockArg("tomogram_width", ArgType.TInt(), ArgValue.VInt(8192)),
+	mockArg("tomogram_height", ArgType.TInt(), ArgValue.VInt(8192)),
 	mockArg("num_virions", ArgType.TInt(), ArgValue.VInt(5)),
 	mockArg("num_spikes", ArgType.TInt(), ArgValue.VInt(10)),
 	mockArg("tilt_angle_magnitude", ArgType.TInt(), ArgValue.VInt(45))

@@ -112,12 +112,11 @@ object ParticlesJobs {
 				when (list.source) {
 
 					ParticlesSource.User -> {
-						// in manual virus mode, write the virion coordinates
+						// in manual virus mode, write the virion coordinates, if any
 						// NOTE: this will also write out empty thresholds, but that's ok
-						if (listName == null) {
-							throw IllegalArgumentException("manually-picked virions requires a list name")
+						if (listName != null) {
+							writeTomography(osUsername, jobId, dir, list.copy(name = listName))
 						}
-						writeTomography(osUsername, jobId, dir, list.copy(name = listName))
 					}
 
 					ParticlesSource.Pyp -> {

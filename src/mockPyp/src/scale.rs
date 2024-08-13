@@ -7,8 +7,8 @@ pub struct ValueA(pub f64);
 
 impl ValueA {
 
-	pub fn to_unbinned(self, pixel_a: f64) -> ValueUnbinnedF {
-		ValueUnbinnedF(self.0*pixel_a)
+	pub fn to_unbinned(self, pixel_size: ValueA) -> ValueUnbinnedF {
+		ValueUnbinnedF(self.0*pixel_size.0)
 	}
 }
 
@@ -41,8 +41,8 @@ impl ValueUnbinnedF {
 		ValueBinnedF(self.0/(binning_factor as f64))
 	}
 
-	pub fn to_a(self, pixel_a: f64) -> ValueA {
-		ValueA(self.0/pixel_a)
+	pub fn to_a(self, pixel_size: ValueA) -> ValueA {
+		ValueA(self.0/pixel_size.0)
 	}
 }
 
@@ -59,6 +59,14 @@ impl ValueBinnedU {
 	pub fn to_unbinned(self, binning_factor: u32) -> ValueUnbinnedU {
 		ValueUnbinnedU(self.0*binning_factor)
 	}
+
+	pub fn with_additional_binning(self, additional_binning: u32) -> Self {
+		Self(self.0/additional_binning)
+	}
+
+	pub fn without_additional_binning(self, additional_binning: u32) -> Self {
+		Self(self.0*additional_binning)
+	}
 }
 
 
@@ -73,6 +81,14 @@ impl ValueBinnedF {
 
 	pub fn to_unbinned(self, binning_factor: u32) -> ValueUnbinnedF {
 		ValueUnbinnedF(self.0*(binning_factor as f64))
+	}
+
+	pub fn with_additional_binning(self, additional_binning: u32) -> Self {
+		Self(self.0/(additional_binning as f64))
+	}
+
+	pub fn without_additional_binning(self, additional_binning: u32) -> Self {
+		Self(self.0*(additional_binning as f64))
 	}
 }
 

@@ -411,6 +411,7 @@ object PypService {
 				val jsonParticle = getArrayOrThrow(i, "Particles coordinates")
 				val particleId = i + 1
 				// NOTE: these particles come from pyp in binned coordinates
+				//       and virions may have extra binning
 				val particle = Particle3D(
 					x = jsonParticle.getDoubleOrThrow(0, "Particles coordinates [$i].x"),
 					y = jsonParticle.getDoubleOrThrow(1, "Particles coordinates [$i].y"),

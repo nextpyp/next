@@ -117,6 +117,10 @@ data class ParticlesList(
 		const val AutoParticles = "Auto Particles"
 		const val ManualParticles = "Manual"
 
+		/** for when the list name is user-generated */
+		const val UserGenerated = "__USER_GENERATED_LIST_NAME__"
+
+
 		fun autoParticles2D(ownerId: String): ParticlesList =
 			ParticlesList(
 				ownerId = ownerId,
@@ -162,7 +166,7 @@ data class ParticlesList(
 		fun manualVirions(ownerId: String): ParticlesList =
 			ParticlesList(
 				ownerId = ownerId,
-				name = "(unused)", // this name won't be used since these names are picked by the user
+				name = UserGenerated,
 				type = ParticlesType.Virions3D,
 				source = ParticlesSource.User
 			)

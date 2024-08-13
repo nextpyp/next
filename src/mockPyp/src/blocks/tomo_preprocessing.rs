@@ -11,58 +11,63 @@ use crate::scale::{ToValueF, ToValueU, ValueA};
 use crate::web::Web;
 
 
-const GROUP_ID: &'static str = "tomo_preprocessing";
+const BLOCK_ID: &'static str = "tomo_preprocessing";
 
 
 pub fn run(mut args: Args, args_config: ArgsConfig) -> Result<()> {
 
 	// get mock args
-	let num_tilt_series = args.get_from_group(GROUP_ID, "num_tilt_series")
+	let num_tilt_series = args.get_mock(BLOCK_ID, "num_tilt_series")
 		.into_u32()?
 		.or(4)
 		.value();
-	let num_tilts = args.get_from_group(GROUP_ID, "num_tilts")
+	let num_tilts = args.get_mock(BLOCK_ID, "num_tilts")
 		.into_u32()?
 		.or(4)
 		.value();
-	let tomogram_width = args.get_from_group(GROUP_ID, "tomogram_width")
+	let tomogram_width = args.get_mock(BLOCK_ID, "tomogram_width")
 		.into_u32()?
-		.or(1024)
+		.or(8192)
 		.value()
 		.to_unbinned();
-	let tomogram_height = args.get_from_group(GROUP_ID, "tomogram_height")
+	let tomogram_height = args.get_mock(BLOCK_ID, "tomogram_height")
 		.into_u32()?
-		.or(1024)
+		.or(8192)
 		.value()
 		.to_unbinned();
-	let tomogram_depth = args.get_from_group(GROUP_ID, "tomogram_depth")
-		.into_u32()?
-		.or(256)
-		.value()
-		.to_unbinned();
-	let tomogram_binning = args.get_from_group(GROUP_ID, "tomogram_binning")
-		.into_u32()?
-		.or(2)
-		.value();
-	let num_virions = args.get_from_group(GROUP_ID, "num_virions")
+	let num_virions = args.get_mock(BLOCK_ID, "num_virions")
 		.into_u32()?
 		.or(5)
 		.value();
-	let num_spikes = args.get_from_group(GROUP_ID, "num_spikes")
+	let num_spikes = args.get_mock(BLOCK_ID, "num_spikes")
 		.into_u32()?
 		.or(10)
 		.value();
-	let tilt_angle_magnitude = args.get_from_group(GROUP_ID, "tilt_angle_magnitude")
+	let tilt_angle_magnitude = args.get_mock(BLOCK_ID, "tilt_angle_magnitude")
 		.into_u32()?
 		.or(45)
 		.value();
 
-	// get pyp args, or make defaults
-	let pixel_a = args.get("")
+	// get pyp args (and write defaults not defined by the config)
+	let pixel_size = args.get("scope_pixel")
 		.into_f64()?
 		.or(1.0)
+		.value()
+		.to_a();
+	args.set("scope_pixel", ArgValue::String(pixel_size.0.to_string()));
+	let tomogram_depth = args.get_from_group("tomo_rec", "thickness")
+		.or_default(&args_config)?
+		.into_u32()?
+		.value()
+		.to_unbinned();
+	let tomogram_binning = args.get_from_group("tomo_rec", "binning")
+		.or_default(&args_config)?
+		.into_u32()?
 		.value();
-	args.set("scope_pixel", ArgValue::String(pixel_a.to_string()));
+	let additional_virion_binning = args.get_from_group("tomo_vir", "binn")
+		.or_default(&args_config)?
+		.into_u32()?
+		.value();
 
 	// set default arg values that the website will use, but we won't
 	args.set_default(&args_config, "ctf", "min_res")?;
@@ -98,19 +103,19 @@ pub fn run(mut args: Args, args_config: ArgsConfig) -> Result<()> {
 			.value();
 		let virions = match tomo_vir_method {
 			Some("auto") => {
-				let radius_binned = args.get("tomo_vir_rad")
+				let radius = args.get("tomo_vir_rad")
 					.into_f64()?
-					.or(500.0)
+					.or(150.0)
 					.value()
 					.to_a()
-					.to_unbinned(pixel_a)
+					.to_unbinned(pixel_size)
 					.to_binned(tomogram_binning);
 				let virions = (0 .. num_virions)
 					.map(|_| sample_virion(
-						tomogram_width.to_binned(tomogram_binning),
-						tomogram_height.to_binned(tomogram_binning),
-						tomogram_depth.to_binned(tomogram_binning),
-						radius_binned
+						tomogram_width.to_binned(tomogram_binning).with_additional_binning(additional_virion_binning),
+						tomogram_height.to_binned(tomogram_binning).with_additional_binning(additional_virion_binning),
+						tomogram_depth.to_binned(tomogram_binning).with_additional_binning(additional_virion_binning),
+						radius.with_additional_binning(additional_virion_binning)
 					))
 					.collect();
 				Some(virions)
@@ -129,7 +134,7 @@ pub fn run(mut args: Args, args_config: ArgsConfig) -> Result<()> {
 					.or(75.0)
 					.value()
 					.to_a()
-					.to_unbinned(pixel_a)
+					.to_unbinned(pixel_size)
 					.to_binned(tomogram_binning);
 				let spikes = (0 .. num_spikes)
 					.map(|_| sample_particle_3d(
@@ -166,10 +171,11 @@ pub fn run(mut args: Args, args_config: ArgsConfig) -> Result<()> {
 		};
 
 		// generate the tilt series image
-		let mut img = Image::new(tomogram_width.to_binned(tomogram_binning).0, tomogram_height.to_binned(tomogram_binning).0);
+		let mut img = Image::new(512, 512);
 		img.draw().fill(Rgb([128, 128, 128]));
 		img.draw().noise();
 		img.draw().text_lines(32, Rgb([255, 255, 255]), [
+			format!("Block: {}", BLOCK_ID),
 			"Type: Output".to_string(),
 			format!("Id: {}", &tilt_series.tilt_series_id),
 			format!("Tilt Series: {} of {}", tilt_series_i + 1, num_tilt_series)
@@ -181,6 +187,7 @@ pub fn run(mut args: Args, args_config: ArgsConfig) -> Result<()> {
 		img.draw().fill(Rgb([128, 128, 128]));
 		img.draw().noise();
 		img.draw().text_lines(32, Rgb([255, 255, 255]), [
+			format!("Block: {}", BLOCK_ID),
 			"Type: Sides".to_string(),
 			format!("Id: {}", &tilt_series.tilt_series_id),
 			format!("Tilt Series: {} of {}", tilt_series_i + 1, num_tilt_series)
@@ -192,78 +199,70 @@ pub fn run(mut args: Args, args_config: ArgsConfig) -> Result<()> {
 			.context("Failed to write rec file")?;
 
 		// write the raw tilts montage
-		{
-			let tile_width = 512u32;
-			let tile_height = 512u32;
-			Image::montage(num_tilts as usize, tile_width, tile_height, |tilt_i, mut tile| {
-				tile.draw().fill(Rgb([128, 128, 128]));
-				tile.draw().noise();
-				tile.draw().tile_border(2, tilt_i);
-				tile.draw().text_lines(24, Rgb([255, 255, 255]), [
-					"Type: Raw Tilt Montage".to_string(),
-					format!("Tilt Series: {} ({} of {})", &tilt_series.tilt_series_id, tilt_series_i + 1, num_tilt_series),
-					format!("Tilt: {} ({} of {})", interpolate_tilt_angle(tilt_angle_magnitude, tilt_i as u32, num_tilts), tilt_i + 1, num_tilts)
-				]);
-				Ok(())
-			}).context("Failed to make raw tilts montage")?
-				.save(format!("webp/{}_raw.webp", &tilt_series.tilt_series_id))?;
-		}
+		Image::montage(num_tilts as usize, 512, 512, |tilt_i, mut tile| {
+			tile.draw().fill(Rgb([128, 128, 128]));
+			tile.draw().noise();
+			tile.draw().tile_border(2, tilt_i);
+			tile.draw().text_lines(32, Rgb([255, 255, 255]), [
+				format!("Block: {}", BLOCK_ID),
+				"Type: Raw Tilt Montage".to_string(),
+				format!("Id: {}", &tilt_series.tilt_series_id),
+				format!("Tilt Series: {} of {}", tilt_series_i + 1, num_tilt_series),
+				format!("Tilt: {}° ({} of {})", interpolate_tilt_angle(tilt_angle_magnitude, tilt_i as u32, num_tilts), tilt_i + 1, num_tilts)
+			]);
+			Ok(())
+		}).context("Failed to make raw tilts montage")?
+			.save(format!("webp/{}_raw.webp", &tilt_series.tilt_series_id))?;
 
 		// write the aligned tilts montage
-		{
-			let tile_width = 512u32;
-			let tile_height = 512u32;
-			Image::montage(num_tilts as usize, tile_width, tile_height, |tilt_i, mut tile| {
-				tile.draw().fill(Rgb([128, 128, 128]));
-				tile.draw().noise();
-				tile.draw().tile_border(2, tilt_i);
-				tile.draw().text_lines(24, Rgb([255, 255, 255]), [
-					"Type: Aligned Tilt Montage".to_string(),
-					format!("Tilt Series: {} ({} of {})", &tilt_series.tilt_series_id, tilt_series_i + 1, num_tilt_series),
-					format!("Tilt: {} ({} of {})", interpolate_tilt_angle(tilt_angle_magnitude, tilt_i as u32, num_tilts), tilt_i + 1, num_tilts)
-				]);
-				Ok(())
-			}).context("Failed to make aligned tilts montage")?
-				.save(format!("webp/{}_ali.webp", &tilt_series.tilt_series_id))?;
-		}
+		Image::montage(num_tilts as usize, 512, 512, |tilt_i, mut tile| {
+			tile.draw().fill(Rgb([128, 128, 128]));
+			tile.draw().noise();
+			tile.draw().tile_border(2, tilt_i);
+			tile.draw().text_lines(32, Rgb([255, 255, 255]), [
+				format!("Block: {}", BLOCK_ID),
+				"Type: Aligned Tilt Montage".to_string(),
+				format!("Id: {}", &tilt_series.tilt_series_id),
+				format!("Tilt Series: {} of {}", tilt_series_i + 1, num_tilt_series),
+				format!("Tilt: {}° ({} of {})", interpolate_tilt_angle(tilt_angle_magnitude, tilt_i as u32, num_tilts), tilt_i + 1, num_tilts)
+			]);
+			Ok(())
+		}).context("Failed to make aligned tilts montage")?
+			.save(format!("webp/{}_ali.webp", &tilt_series.tilt_series_id))?;
 
 		// write the tilt 2D CTFs montage
-		{
-			let tile_width = 512u32;
-			let tile_height = 512u32;
-			Image::montage(num_tilts as usize, tile_width, tile_height, |tilt_i, mut tile| {
-				tile.draw().fill(Rgb([128, 128, 128]));
-				tile.draw().noise();
-				tile.draw().tile_border(2, tilt_i);
-				tile.draw().text_lines(24, Rgb([255, 255, 255]), [
-					"Type: Tilt 2D CTF Montage".to_string(),
-					format!("Tilt Series: {} ({} of {})", &tilt_series.tilt_series_id, tilt_series_i + 1, num_tilt_series),
-					format!("Tilt: {} ({} of {})", interpolate_tilt_angle(tilt_angle_magnitude, tilt_i as u32, num_tilts), tilt_i + 1, num_tilts)
-				]);
-				Ok(())
-			}).context("Failed to make tilts CTF montage")?
-				.save(format!("webp/{}_2D_ctftilt.webp", &tilt_series.tilt_series_id))?;
-		}
+		Image::montage(num_tilts as usize, 512, 512, |tilt_i, mut tile| {
+			tile.draw().fill(Rgb([128, 128, 128]));
+			tile.draw().noise();
+			tile.draw().tile_border(2, tilt_i);
+			tile.draw().text_lines(32, Rgb([255, 255, 255]), [
+				format!("Block: {}", BLOCK_ID),
+				"Type: Tilt 2D CTF Montage".to_string(),
+				format!("Id: {}", &tilt_series.tilt_series_id),
+				format!("Tilt Series: {} of {}", tilt_series_i + 1, num_tilt_series),
+				format!("Tilt: {}° ({} of {})", interpolate_tilt_angle(tilt_angle_magnitude, tilt_i as u32, num_tilts), tilt_i + 1, num_tilts)
+			]);
+			Ok(())
+		}).context("Failed to make tilts CTF montage")?
+			.save(format!("webp/{}_2D_ctftilt.webp", &tilt_series.tilt_series_id))?;
 
 		// write the reconstruction montage
-		{
-			let tile_width = tomogram_width.to_binned(tomogram_binning).0;
-			let tile_height = tomogram_height.to_binned(tomogram_binning).0;
-			const SLICE_FACTOR: u32 = 2;
-			let num_slices = (tomogram_depth.to_binned(tomogram_binning).0/SLICE_FACTOR) as usize;
-			Image::montage(num_slices, tile_width, tile_height, |slice_i, mut tile| {
-				tile.draw().fill(Rgb([128, 128, 128]));
-				tile.draw().noise();
-				tile.draw().tile_border(2, slice_i);
-				tile.draw().text_lines(24, Rgb([255, 255, 255]), [
-					"Type: Reconstruction Montage".to_string(),
-					format!("Tilt Series: {} ({} of {})", &tilt_series.tilt_series_id, tilt_series_i + 1, num_tilt_series),
-					format!("Slice: {} of {}", slice_i + 1, num_slices)
-				]);
-				Ok(())
-			}).context("Failed to make tomogram montage")?
-				.save(format!("webp/{}_rec.webp", &tilt_series.tilt_series_id))?;
-		}
+		const SLICE_FACTOR: u32 = 2;
+		let tomogram_slices = (tomogram_depth.to_binned(tomogram_binning).0/SLICE_FACTOR) as usize;
+		Image::montage(tomogram_slices, 512, 512, |slice_i, mut tile| {
+			tile.draw().fill(Rgb([128, 128, 128]));
+			tile.draw().noise();
+			tile.draw().tile_border(2, slice_i);
+			tile.draw().text_lines(32, Rgb([255, 255, 255]), [
+				format!("Block: {}", BLOCK_ID),
+				"Type: Reconstruction Montage".to_string(),
+				format!("Id: {}", &tilt_series.tilt_series_id),
+				format!("Tilt Series: {} of {}", tilt_series_i + 1, num_tilt_series),
+				format!("Slice: {} of {}", slice_i + 1, tomogram_slices)
+			]);
+			Ok(())
+		}).context("Failed to make tomogram montage")?
+			.save(format!("webp/{}_rec.webp", &tilt_series.tilt_series_id))?;
 
 		// tell the website
 		let web = Web::new()?;
