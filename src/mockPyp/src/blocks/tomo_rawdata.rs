@@ -6,17 +6,13 @@ use crate::args::{Args, ArgsConfig};
 use crate::image::{Image, ImageDrawing};
 
 
-const GROUP_ID: &'static str = "tomo_rawdata_mock";
+const BLOCK_ID: &'static str = "tomo_rawdata";
 
 
 pub fn run(args: Args, _: ArgsConfig) -> Result<()> {
 
 	// get args
-	let mode = args.get("data_mode")
-		.require()?
-		.into_data_mode()?
-		.value();
-	let size = args.get_from_group(GROUP_ID, "image_size")
+	let size = args.get_mock(BLOCK_ID, "image_size")
 		.into_u32()?
 		.or(512)
 		.value();
@@ -26,7 +22,8 @@ pub fn run(args: Args, _: ArgsConfig) -> Result<()> {
 	img.draw().fill(Rgb([128, 128, 128]));
 	img.draw().noise();
 	img.draw().text_lines(32, Rgb([255, 255, 255]), [
-		format!("Mode: {:?}", mode)
+		format!("Block: {}", BLOCK_ID),
+		"Type: Gain Corrected".to_string(),
 	]);
 	img.save("gain_corrected.webp")?;
 
