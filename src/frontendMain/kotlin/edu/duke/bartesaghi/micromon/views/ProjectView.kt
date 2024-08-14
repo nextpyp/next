@@ -1140,7 +1140,6 @@ class ProjectView(val project: ProjectData) : View {
 
 								// when the line is hovered, show a button that selects only this node
 								val onlyButton = button("Only", classes = setOf("only")).apply {
-									display = Display.NONE
 									onClick {
 										for ((k, v) in nodeFlags) {
 											v.value = k == node.jobId
@@ -1150,10 +1149,10 @@ class ProjectView(val project: ProjectData) : View {
 								}
 								onEvent {
 									mouseover = {
-										onlyButton.display = Display.INLINEBLOCK
+										onlyButton.addCssClass("show")
 									}
 									mouseout = {
-										onlyButton.display = Display.NONE
+										onlyButton.removeCssClass("show")
 									}
 								}
 							}

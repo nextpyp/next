@@ -1984,7 +1984,9 @@ div.project-view .websocket-control {
 }
 
 .project-run-popup .nodes-list .node-line .node-entry {
-	display: inline-block;
+	display: flex;
+	flex-direction: row;
+	align-items: baseline;
 	padding-left: 6px;
     padding-right: 6px;
 }
@@ -2014,6 +2016,11 @@ div.project-view .websocket-control {
 	height: 1lh;
 	padding-top: 0;
 	paddint-bottom: 0;
+	visibility: hidden;
+
+	&.show {
+		visibility: visible;
+	}
 }
 
 .project-run-popup .validation-message {
