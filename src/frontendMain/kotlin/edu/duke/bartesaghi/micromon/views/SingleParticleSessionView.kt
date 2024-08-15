@@ -203,8 +203,6 @@ class SingleParticleSessionView(
 			val initMsg = input.receiveMessage<RealTimeS2C.SessionStatus>()
 			try {
 				opsTab?.init(initMsg)
-				tableTab?.init(initMsg)
-				micrographsTab?.init(initMsg)
 			} catch (t: Throwable) {
 				t.reportError()
 				Toast.error("An error occurred while loading the session status.")
@@ -258,7 +256,6 @@ class SingleParticleSessionView(
 							}
 							is RealTimeS2C.UpdatedParameters -> {
 								micrographsTab?.update(msg)
-								tableTab?.update(msg)
 							}
 							is RealTimeS2C.SessionMicrograph -> {
 
@@ -450,8 +447,6 @@ class SingleParticleSessionView(
 
 		val loader = TabDataLoader<RealTimeS2C.SessionLargeData>()
 
-		private var imagesScale: ImagesScale? = null
-
 		private val table = FilterTable(
 			"Micrograph",
 			micrographs,
@@ -464,7 +459,7 @@ class SingleParticleSessionView(
 					link(micrograph.id, classes = setOf("link"))
 						.onClick { showMicrograph(index, true) }
 				}
-				elem.add(SessionMicrographImage(session, micrograph, imagesScale).apply {
+				elem.add(SessionMicrographImage(session, micrograph).apply {
 					loadParticles()
 				})
 				elem.add(SessionMicrograph1DPlot(session, micrograph).apply {
@@ -496,14 +491,6 @@ class SingleParticleSessionView(
 		fun show(lazyTab: LazyTabPanel.LazyTab) {
 			lazyTab.elem.add(this)
 			loader.init(lazyTab)
-		}
-
-		fun init(msg: RealTimeS2C.SessionStatus) {
-			imagesScale = msg.imagesScale
-		}
-
-		fun update(msg: RealTimeS2C.UpdatedParameters) {
-			imagesScale = msg.imagesScale
 		}
 
 		fun onMicrograph() {
@@ -552,8 +539,6 @@ class SingleParticleSessionView(
 
 		private val micrographElem = Div()
 
-		private var imagesScale: ImagesScale? = null
-
 		val listNav = BigListNav(micrographs) e@{ index ->
 
 			// clear the previous contents
@@ -581,7 +566,7 @@ class SingleParticleSessionView(
 			}
 
 			// show the micrograph image
-			micrographElem.add(SessionMicrographImage(session, micrograph, imagesScale).apply {
+			micrographElem.add(SessionMicrographImage(session, micrograph).apply {
 				loadParticles()
 			})
 
@@ -619,12 +604,7 @@ class SingleParticleSessionView(
 			loader.init(lazyTab)
 		}
 
-		fun init(msg: RealTimeS2C.SessionStatus) {
-			imagesScale = msg.imagesScale
-		}
-
 		fun update(msg: RealTimeS2C.UpdatedParameters) {
-			imagesScale = msg.imagesScale
 			listNav.reshow()
 		}
 	}

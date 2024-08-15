@@ -193,7 +193,6 @@ class TomographySessionView(
 			val initMsg = input.receiveMessage<RealTimeS2C.SessionStatus>()
 			try {
 				opsTab?.init(initMsg)
-				tableTab?.init(initMsg)
 			} catch (t: Throwable) {
 				t.reportError()
 				Toast.error("An error occurred while loading the session status.")
@@ -251,9 +250,7 @@ class TomographySessionView(
 								opsTab?.speedsMonitor?.transferFinished()
 							}
 							is RealTimeS2C.UpdatedParameters -> {
-								tiltSeriesesData.imagesScale = msg.imagesScale
 								tiltSeriesTab?.listNav?.reshow()
-								tableTab?.update(msg)
 							}
 							is RealTimeS2C.SessionTiltSeries -> {
 								tiltSeriesesData.update(msg.tiltSeries)
@@ -435,8 +432,6 @@ class TomographySessionView(
 
 		val loader = TabDataLoader<RealTimeS2C.SessionLargeData>()
 
-		private var imagesScale: ImagesScale? = null
-
 		private val table = FilterTable(
 			"Tilt Series",
 			tiltSeriesesData.tiltSerieses,
@@ -449,7 +444,7 @@ class TomographySessionView(
 					link(tiltSeries.id, classes = setOf("link"))
 						.onClick { showTiltSeries(index, true) }
 				}
-				elem.add(SessionTiltSeriesImage(session, tiltSeries, imagesScale).apply {
+				elem.add(SessionTiltSeriesImage(session, tiltSeries).apply {
 					loadParticles()
 				})
 				elem.add(SessionTiltSeries1DPlot(session, tiltSeries).apply {
@@ -481,14 +476,6 @@ class TomographySessionView(
 		fun show(lazyTab: LazyTabPanel.LazyTab) {
 			loader.init(lazyTab)
 			lazyTab.elem.add(this)
-		}
-
-		fun init(msg: RealTimeS2C.SessionStatus) {
-			imagesScale = msg.imagesScale
-		}
-
-		fun update(msg: RealTimeS2C.UpdatedParameters) {
-			imagesScale = msg.imagesScale
 		}
 
 		fun onTiltSeries() {

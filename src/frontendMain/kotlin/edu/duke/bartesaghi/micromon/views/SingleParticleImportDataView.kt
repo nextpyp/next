@@ -82,14 +82,12 @@ class SingleParticleImportDataView(val project: ProjectData, val job: SinglePart
 
 			// load all the micrographs
 			val loadingElem = elem.loading("Fetching micrographs ...")
-			val (micrographs, imagesScale, pypStats, args) = try {
+			val (micrographs, pypStats, args) = try {
 				delayAtLeast(200) {
-					Quad(
+					Triple(
 						Services.jobs.getMicrographs(job.jobId)
 							.sortedBy { it.timestamp }
 							.toMutableList(),
-						Services.jobs.getImagesScale(job.jobId)
-							.unwrap(),
 						Services.jobs.pypStats(job.jobId),
 						SingleParticleImportDataNode.pypArgs.get()
 					)
@@ -142,7 +140,7 @@ class SingleParticleImportDataView(val project: ProjectData, val job: SinglePart
 								link(micrograph.id, classes = setOf("link"))
 									.onClick { showMicrograph(index, true) }
 							}
-							elem.add(MicrographImage(project, job, micrograph, imagesScale, particleControls, null).apply {
+							elem.add(MicrographImage(project, job, micrograph, particleControls, null).apply {
 								loadParticles()
 							})
 							elem.add(Micrograph1DPlot(job, micrograph).apply {
@@ -175,7 +173,7 @@ class SingleParticleImportDataView(val project: ProjectData, val job: SinglePart
 					}
 				}
 
-				liveTab = LiveTab(job, micrographs, finishedValues?.detectRad, imagesScale)
+				liveTab = LiveTab(job, micrographs, finishedValues?.detectRad)
 				liveTabId = addTab("Micrographs", "fas fa-desktop") {
 					liveTab?.show(it.elem)
 				}.id
@@ -194,7 +192,6 @@ class SingleParticleImportDataView(val project: ProjectData, val job: SinglePart
 					when (val msg = RealTimeS2C.fromJson(msgstr)) {
 						is RealTimeS2C.UpdatedParameters -> {
 							statsLine?.stats = msg.pypStats
-							liveTab?.imagesScale = msg.imagesScale
 						}
 						is RealTimeS2C.UpdatedMicrograph -> updateMicrograph(msg.micrograph, micrographs)
 						else -> Unit
@@ -253,16 +250,8 @@ class SingleParticleImportDataView(val project: ProjectData, val job: SinglePart
 	private inner class LiveTab(
 		val job: SingleParticleImportDataData,
 		val micrographs: MutableList<MicrographMetadata>,
-		val newParticleRadiusA: Double?,
-		imagesScale: ImagesScale?
+		val newParticleRadiusA: ValueA?
 	) {
-
-		var imagesScale: ImagesScale? = imagesScale
-			set(value) {
-				field = value
-				// reload the current micrograph
-				listNav.reshow()
-			}
 
 		private val micrographElem = Div()
 
@@ -298,7 +287,6 @@ class SingleParticleImportDataView(val project: ProjectData, val job: SinglePart
 				project,
 				job,
 				micrograph,
-				this.imagesScale,
 				particleControls,
 				newParticleRadiusA
 			).apply {

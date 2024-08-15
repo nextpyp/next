@@ -175,7 +175,7 @@ class TiltSeries(private val doc: Document) {
 			xf.averageMotion(),
 			autoParticleCount,
 			autoVirionCount,
-			ctf.sourceImageDims()
+			ctf.imageDims()
 		)
 
 	fun getDriftMetadata(pypValues: ArgValues) =

@@ -64,17 +64,6 @@ var ArgValues.extractBox: Long?
 	get() = get(args.extractBox) as Long?
 	set(value) { set(args.extractBox, value) }
 
-val Args.extractBnd: Arg
-	get() = argOrThrow("extract", "bnd")
-fun Args.extractBndDefault(values: ArgValues): Long {
-		val src = (extractBnd.default as ArgValue.VRef).sourceArgOrThrow
-		return values[src] as Long?
-			?: (src.default as ArgValue.VInt).value
-	}
-var ArgValues.extractBnd: Long?
-	get() = get(args.extractBnd) as Long?
-	set(value) { set(args.extractBnd, value) }
-
 val Args.ctfMinRes: Arg
 	get() = argOrThrow("ctf", "min_res")
 val ArgValues.ctfMinResOrThrow: Double
@@ -82,10 +71,10 @@ val ArgValues.ctfMinResOrThrow: Double
 
 val Args.scopePixel: Arg
 	get() = argOrThrow("scope", "pixel")
-val ArgValues.scopePixel: Double?
-	get() = get(args.scopePixel) as Double?
-val ArgValues.scopePixelOrThrow: Double
-	get() = getOrThrow(args.scopePixel) as Double
+val ArgValues.scopePixel: ValueA?
+	get() = (get(args.scopePixel) as Double?)?.let { ValueA(it) }
+val ArgValues.scopePixelOrThrow: ValueA
+	get() = ValueA(getOrThrow(args.scopePixel) as Double)
 
 val Args.scopeVoltage: Arg
 	get() = argOrThrow("scope", "voltage")
@@ -98,6 +87,20 @@ val ArgValues.scopeDoseRate: Double?
 	get() = get(args.scopeDoseRate) as Double?
 val ArgValues.scopeDoseRateOrDefault: Double
 	get() = getOrDefault(args.scopeDoseRate) as Double
+
+val Args.movieBin: Arg
+	get() = argOrThrow("movie", "bin")
+val ArgValues.movieBin: Int?
+	get() = get(args.movieBin) as Int?
+val ArgValues.movieBinOrDefault: Int
+	get() = getOrDefault(args.movieBin) as Int
+
+val Args.tomoRecBinning: Arg
+	get() = argOrThrow("tomo_rec", "binning")
+val ArgValues.tomoRecBinning: Int?
+	get() = get(args.tomoRecBinning) as Int?
+val ArgValues.tomoRecBinningOrDefault: Int
+	get() = getOrDefault(args.tomoRecBinning) as Int
 
 val Args.refineMode: Arg
 	get() = argOrThrow("refine", "mode")
@@ -196,10 +199,10 @@ enum class DetectMethod(val id: String, val particlesList: (ownerId: String) -> 
 
 val Args.detectRad: Arg
 	get() = argOrThrow("detect", "rad")
-val ArgValues.detectRad: Double?
-	get() = get(args.detectRad) as Double?
-val ArgValues.detectRadOrThrow: Double
-	get() = getOrThrow(args.detectRad) as Double
+val ArgValues.detectRad: ValueA?
+	get() = (get(args.detectRad) as Double?)?.let { ValueA(it) }
+val ArgValues.detectRadOrThrow: ValueA
+	get() = ValueA(getOrThrow(args.detectRad) as Double)
 
 
 val Args.tomoVirMethodExists: Boolean
@@ -234,10 +237,10 @@ enum class TomoVirMethod(val id: String, val particlesList: (ownerId: String) ->
 
 val Args.tomoVirRad: Arg
 	get() = argOrThrow("tomo_vir", "rad")
-val ArgValues.tomoVirRad: Double?
-	get() = get(args.tomoVirRad) as Double?
-val ArgValues.tomoVirRadOrDefault: Double
-	get() = getOrDefault(args.tomoVirRad) as Double
+val ArgValues.tomoVirRad: ValueA?
+	get() = (get(args.tomoVirRad) as Double?)?.let { ValueA(it) }
+val ArgValues.tomoVirRadOrDefault: ValueA
+	get() = ValueA(getOrDefault(args.tomoVirRad) as Double)
 
 
 val Args.tomoVirBinn: Arg
@@ -283,10 +286,10 @@ enum class TomoSpkMethod(val id: String, val particlesList: (ownerId: String) ->
 
 val Args.tomoSpkRad: Arg
 	get() = argOrThrow("tomo_spk", "rad")
-val ArgValues.tomoSpkRad: Double?
-	get() = get(args.tomoSpkRad) as Double?
-val ArgValues.tomoSpkRadOrDefault: Double
-	get() = getOrDefault(args.tomoSpkRad) as Double
+val ArgValues.tomoSpkRad: ValueA?
+	get() = (get(args.tomoSpkRad) as Double?)?.let { ValueA(it) }
+val ArgValues.tomoSpkRadOrDefault: ValueA
+	get() = ValueA(getOrDefault(args.tomoSpkRad) as Double)
 
 
 

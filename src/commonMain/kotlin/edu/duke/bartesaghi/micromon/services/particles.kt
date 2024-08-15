@@ -1,5 +1,9 @@
 package edu.duke.bartesaghi.micromon.services
 
+import edu.duke.bartesaghi.micromon.pyp.ValueBinnedF
+import edu.duke.bartesaghi.micromon.pyp.ValueBinnedI
+import edu.duke.bartesaghi.micromon.pyp.ValueUnbinnedF
+import edu.duke.bartesaghi.micromon.pyp.ValueUnbinnedI
 import io.kvision.annotations.KVBindingRoute
 import io.kvision.annotations.KVService
 import io.kvision.remote.RemoteOption
@@ -174,11 +178,12 @@ data class ParticlesList(
 }
 
 
+// NOTE: pyp sends particles for micrographs in unbinned coordinates, so we'll store them that way internally as well
 @Serializable
 data class Particle2D(
-	val x: Double,
-	val y: Double,
-	val r: Double
+	val x: ValueUnbinnedI,
+	val y: ValueUnbinnedI,
+	val r: ValueUnbinnedF
 ) {
 
 	companion object {
@@ -186,12 +191,13 @@ data class Particle2D(
 	}
 }
 
+// NOTE: pyp sends particles for tomograms in binned coordinates, so we'll store them that way internally as well
 @Serializable
 data class Particle3D(
-	val x: Double,
-	val y: Double,
-	val z: Double,
-	val r: Double
+	val x: ValueBinnedI,
+	val y: ValueBinnedI,
+	val z: ValueBinnedI,
+	val r: ValueBinnedF
 ) {
 
 	companion object {
@@ -226,19 +232,20 @@ class IndicesById(val ids: List<Int>) {
 @Serializable
 data class Particles2DData(
 	val ids: List<Int>,
-	/** packed x, y, radius */
-	val coords: List<Double>
+	/** packed x, y */
+	val coords: List<Int>,
+	val radii: List<Double>
 ) : Iterable<Pair<Int,Particle2D>> {
 
 	@Transient
 	private var indicesById = IndicesById(ids)
 
 	private fun particle(i: Int): Particle2D {
-		val i3 = i*3
+		val i2 = i*2
 		return Particle2D(
-			x = coords[i3],
-			y = coords[i3 + 1],
-			r = coords[i3 + 2]
+			x = ValueUnbinnedI(coords[i2]),
+			y = ValueUnbinnedI(coords[i2 + 1]),
+			r = ValueUnbinnedF(radii[i])
 		)
 	}
 
@@ -259,18 +266,20 @@ data class Particles2DData(
 fun Map<Int,Particle2D>.toData(): Particles2DData {
 
 	val ids = ArrayList<Int>()
-	val coords = ArrayList<Double>()
+	val coords = ArrayList<Int>()
+	val radii = ArrayList<Double>()
 
 	for ((id, particle) in this) {
 		ids.add(id)
-		coords.add(particle.x)
-		coords.add(particle.y)
-		coords.add(particle.r)
+		coords.add(particle.x.v)
+		coords.add(particle.y.v)
+		radii.add(particle.r.v)
 	}
 
 	return Particles2DData(
 		ids = ids,
-		coords = coords
+		coords = coords,
+		radii = radii
 	)
 }
 
@@ -281,20 +290,21 @@ fun Map<Int,Particle2D>.toData(): Particles2DData {
 @Serializable
 data class Particles3DData(
 	val ids: List<Int>,
-	/** packed x, y, z, radius */
-	val coords: List<Double>
+	/** packed x, y, z */
+	val coords: List<Int>,
+	val radii: List<Double>
 ) : Iterable<Pair<Int,Particle3D>> {
 
 	@Transient
 	private var indicesById = IndicesById(ids)
 
 	private fun particle(i: Int): Particle3D {
-		val i4 = i*4
+		val i3 = i*3
 		return Particle3D(
-			x = coords[i4],
-			y = coords[i4 + 1],
-			z = coords[i4 + 2],
-			r = coords[i4 + 3]
+			x = ValueBinnedI(coords[i3]),
+			y = ValueBinnedI(coords[i3 + 1]),
+			z = ValueBinnedI(coords[i3 + 2]),
+			r = ValueBinnedF(radii[i])
 		)
 	}
 
@@ -314,19 +324,21 @@ data class Particles3DData(
 fun Map<Int,Particle3D>.toData(): Particles3DData {
 
 	val ids = ArrayList<Int>()
-	val coords = ArrayList<Double>()
+	val coords = ArrayList<Int>()
+	val radii = ArrayList<Double>()
 
 	for ((id, particle) in this) {
 		ids.add(id)
-		coords.add(particle.x)
-		coords.add(particle.y)
-		coords.add(particle.z)
-		coords.add(particle.r)
+		coords.add(particle.x.v)
+		coords.add(particle.y.v)
+		coords.add(particle.z.v)
+		radii.add(particle.r.v)
 	}
 
 	return Particles3DData(
 		ids = ids,
-		coords = coords
+		coords = coords,
+		radii = radii
 	)
 }
 

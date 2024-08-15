@@ -53,7 +53,7 @@ data class MicrographMetadata(
 	override val angleAstig: Double,
 	override val averageMotion: Double,
 	override val numAutoParticles: Int,
-	override val sourceDims: ImageDims?
+	override val imageDims: ImageDims
 ) : PreprocessingData {
 
 	fun imageUrl(job: JobData, size: ImageSize): String =

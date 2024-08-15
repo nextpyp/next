@@ -4,9 +4,7 @@ import edu.duke.bartesaghi.micromon.jobs.Job
 import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.mongo.getMap
 import edu.duke.bartesaghi.micromon.mongo.useCursor
-import edu.duke.bartesaghi.micromon.pyp.aToUnbinned
-import edu.duke.bartesaghi.micromon.pyp.detectRad
-import edu.duke.bartesaghi.micromon.pyp.imagesScale
+import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.*
 import org.bson.Document
 import org.slf4j.Logger
@@ -20,7 +18,18 @@ fun migrationParticles(database: Database, log: Logger) {
 	// phase 1: particlepickings
 	run {
 		var numParticles = 0L
-		migrate(database, log, "particlepickings", ParticlesType.Particles2D) { list, doc, radiusUnbinned ->
+		migrate(database, log, "particlepickings", ParticlesType.Particles2D) f@{ job, list, doc ->
+
+			// get the particle radius from the job,
+			// since the old particle system didn't save the radius with the particles
+			val argValues = job.pypParametersOrNewestArgs()
+			val radius = argValues
+				.detectRad
+				?.toUnbinned(argValues.scopePixel ?: ValueA(1.0))
+				?: run {
+					log.info("Failed to find particle radius for job=${job.idOrThrow}. Skipping this job")
+					return@f
+				}
 
 			// migrate the particles coords for each micrograph
 			for ((micrographId, coords) in doc.getMap<List<Document>>("pickings")) {
@@ -29,9 +38,9 @@ fun migrationParticles(database: Database, log: Logger) {
 				var nextId = 1
 				for (coordDoc in coords) {
 					particles[nextId] = Particle2D(
-						x = coordDoc.getDouble("x"),
-						y = coordDoc.getDouble("y"),
-						r = radiusUnbinned
+						x = ValueUnbinnedI(coordDoc.getDouble("x").toInt()),
+						y = ValueUnbinnedI(coordDoc.getDouble("y").toInt()),
+						r = radius
 					)
 					nextId += 1
 					numParticles += 1
@@ -45,7 +54,19 @@ fun migrationParticles(database: Database, log: Logger) {
 	// phase 2: tomoparticlepickings
 	run {
 		var numParticles = 0L
-		migrate(database, log, "tomoparticlepickings", ParticlesType.Particles3D) { list, doc, radiusUnbinned ->
+		migrate(database, log, "tomoparticlepickings", ParticlesType.Particles3D) f@{ job, list, doc ->
+
+			// get the particle radius from the job,
+			// since the old particle system didn't save the radius with the particles
+			val argValues = job.pypParametersOrNewestArgs()
+			val radius = argValues
+				.detectRad
+				?.toUnbinned(argValues.scopePixel ?: ValueA(1.0))
+				?.toBinned(argValues.tomoRecBinningOrDefault)
+				?: run {
+					log.info("Failed to find particle radius for job=${job.idOrThrow}. Skipping this job")
+					return@f
+				}
 
 			// migrate the particle coords for each tilt series
 			for ((tiltSeriesId, coords) in doc.getMap<List<Document>>("tomopickings")) {
@@ -54,10 +75,10 @@ fun migrationParticles(database: Database, log: Logger) {
 				var nextId = 1
 				for (coordDoc in coords) {
 					particles[nextId] = Particle3D(
-						x = coordDoc.getDouble("x"),
-						y = coordDoc.getDouble("y"),
-						z = coordDoc.getDouble("z"),
-						r = radiusUnbinned
+						x = ValueBinnedI(coordDoc.getDouble("x").toInt()),
+						y = ValueBinnedI(coordDoc.getDouble("y").toInt()),
+						z = ValueBinnedI(coordDoc.getDouble("z").toInt()),
+						r = radius
 					)
 					nextId += 1
 					numParticles += 1
@@ -75,7 +96,7 @@ private fun migrate(
 	log: Logger,
 	collectionName: String,
 	particlesType: ParticlesType,
-	block: (list: ParticlesList, doc: Document, radiusUnbinned: Double) -> Unit
+	block: (job: Job, list: ParticlesList, doc: Document) -> Unit
 ) {
 
 	val pickings = database.db.getCollection(collectionName)
@@ -97,17 +118,6 @@ private fun migrate(
 				continue
 			}
 
-			// get the particle radius from the job,
-			// since the old particle system didn't save the radius with the particles
-			val argValues = job.pypParametersOrNewestArgs()
-			val radiusUnbinned = argValues
-				.detectRad
-				?.aToUnbinned(argValues.imagesScale())
-			if (radiusUnbinned == null) {
-				log.info("Failed to find particle radius for job=$jobId. Skipping this job")
-				continue
-			}
-
 			// migrate the particles list
 			val list = ParticlesList(
 				ownerId = jobId,
@@ -117,7 +127,7 @@ private fun migrate(
 			)
 			database.particleLists.createIfNeeded(list)
 
-			block(list, doc, radiusUnbinned)
+			block(job, list, doc)
 		}
 	}
 }

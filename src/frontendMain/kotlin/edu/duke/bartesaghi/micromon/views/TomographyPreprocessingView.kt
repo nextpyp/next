@@ -151,7 +151,7 @@ class TomographyPreprocessingView(val project: ProjectData, val job: TomographyP
 								link(tiltSeries.id, classes = setOf("link"))
 									.onClick { showTiltSeries(index, true) }
 							}
-							elem.add(TiltSeriesImage(project, job, tiltSeries, data.imagesScale).apply {
+							elem.add(TiltSeriesImage(project, job, tiltSeries).apply {
 								loadParticles()
 							})
 							elem.add(TiltSeries1DPlot(job, tiltSeries).apply {
@@ -203,7 +203,6 @@ class TomographyPreprocessingView(val project: ProjectData, val job: TomographyP
 					when (val msg = RealTimeS2C.fromJson(msgstr)) {
 						is RealTimeS2C.UpdatedParameters -> {
 							statsLine?.stats = msg.pypStats
-							data.imagesScale = msg.imagesScale
 							liveTab?.listNav?.reshow()
 						}
 						is RealTimeS2C.UpdatedTiltSeries -> {

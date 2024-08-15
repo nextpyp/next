@@ -28,14 +28,12 @@ open class ParticlesImage(
 	val ownerType: OwnerType,
 	val ownerId: String,
 	val datumId: String,
-	val imagesScale: ImagesScale?,
-	val sourceDims: ImageDims?,
+	val imageDims: ImageDims,
 	val particleControls: ParticleControls,
-	val newParticleRadiusA: Double?
+	val newParticleRadius: ValueA?
 ) : SizedPanel(title, sizeStorage.get()) {
 
-	val scaler = Scaler.of(imagesScale, sourceDims)
-	val scaleBar = ScaleBar(scaler)
+	val scaleBar = ScaleBar(imageDims)
 
 	var onParticlesChange: (() -> Unit)? = null
 
@@ -108,9 +106,7 @@ open class ParticlesImage(
 		}
 
 		// add the measure tool
-		scaler?.let {
-			rightDiv.add(0, MeasureTool.button(imageContainerElem, it, MeasureTool.showIn(scaleBar)))
-		}
+		rightDiv.add(0, MeasureTool.button(imageContainerElem, imageDims, MeasureTool.showIn(scaleBar)))
 	}
 
 	fun loadParticles() {
@@ -134,9 +130,6 @@ open class ParticlesImage(
 
 	private fun Particle2D.makeMarker(particleId: Int) {
 
-		val scaler = scaler
-			?: return
-
 		val marker = ParticleMarker(
 			onClick = {
 				// do nothing, just prevent the usual click handler from happening
@@ -152,10 +145,10 @@ open class ParticlesImage(
 
 		imageContainerElem.add(marker)
 		marker.place(
-			x.unbinnedToNormalizedX(scaler),
-			y.unbinnedToNormalizedY(scaler),
-			r.unbinnedToNormalizedX(scaler),
-			r.unbinnedToNormalizedY(scaler)
+			x.toF().toNormalizedX(imageDims),
+			y.toF().toNormalizedY(imageDims),
+			r.toNormalizedX(imageDims),
+			r.toNormalizedY(imageDims)
 		)
 	}
 
@@ -211,10 +204,7 @@ open class ParticlesImage(
 		val particles = particles
 			?: return
 
-		val scaler = scaler
-			?: return
-		val radius = newParticleRadiusA
-			?.aToUnbinned(scaler)
+		val radius = newParticleRadius
 			?: return
 		val click = event.clickRelativeTo(imageContainerElem, true)
 			?: return
@@ -225,9 +215,9 @@ open class ParticlesImage(
 
 		// convert mouse coords from screen space to unbinned pixels space
 		val particle = Particle2D(
-			x = click.x.normalizedToUnbinnedX(scaler),
-			y = click.y.flipNormalized().normalizedToUnbinnedY(scaler),
-			r = radius
+			x = click.x.normalizedToUnbinnedX(imageDims).toI(),
+			y = click.y.flipNormalized().normalizedToUnbinnedY(imageDims).toI(),
+			r = radius.toUnbinned(imageDims)
 		)
 
 		// make a new particle and save the changes on the server
@@ -280,9 +270,8 @@ class MicrographImage(
 	val project: ProjectData,
 	val job: JobData,
 	val micrograph: MicrographMetadata,
-	imagesScale: ImagesScale?,
 	particleControls: MultiListParticleControls,
-	newParticleRadiusA: Double?
+	newParticleRadius: ValueA?
 ) : ParticlesImage(
 	"Micrograph",
 	Storage::micrographSize,
@@ -290,10 +279,9 @@ class MicrographImage(
 	ownerType = OwnerType.Project,
 	ownerId = job.jobId,
 	datumId = micrograph.id,
-	imagesScale,
-	micrograph.sourceDims,
+	micrograph.imageDims,
 	particleControls,
-	newParticleRadiusA
+	newParticleRadius
 )
 
 
@@ -301,7 +289,6 @@ class TiltSeriesImage(
 	val project: ProjectData,
 	val job: JobData,
 	val tiltSeries: TiltSeriesData,
-	imagesScale: ImagesScale?
 ) : ParticlesImage(
 	"TiltSeries",
 	Storage::tiltSeriesSize,
@@ -309,8 +296,7 @@ class TiltSeriesImage(
 	ownerType = OwnerType.Project,
 	ownerId = job.jobId,
 	datumId = tiltSeries.id,
-	imagesScale,
-	tiltSeries.sourceDims,
+	tiltSeries.imageDims,
 	NoneParticleControls(),
 	null
 )
@@ -319,7 +305,6 @@ class TiltSeriesImage(
 class SessionMicrographImage(
 	val session: SessionData,
 	val micrograph: MicrographMetadata,
-	imagesScale: ImagesScale?
 ) : ParticlesImage(
 	"Micrograph",
 	Storage::micrographSize,
@@ -327,8 +312,7 @@ class SessionMicrographImage(
 	ownerType = OwnerType.Session,
 	ownerId = session.sessionId,
 	datumId = micrograph.id,
-	imagesScale,
-	micrograph.sourceDims,
+	micrograph.imageDims,
 	ShowListParticleControls(ParticlesList.autoParticles2D(session.sessionId)),
 	null
 )
@@ -337,7 +321,6 @@ class SessionMicrographImage(
 class SessionTiltSeriesImage(
 	val session: SessionData,
 	val tiltSeries: TiltSeriesData,
-	imagesScale: ImagesScale?
 ) : ParticlesImage(
 	"Tilt Series",
 	Storage::tiltSeriesSize,
@@ -345,8 +328,7 @@ class SessionTiltSeriesImage(
 	ownerType = OwnerType.Session,
 	ownerId = session.sessionId,
 	datumId = tiltSeries.id,
-	imagesScale,
-	tiltSeries.sourceDims,
+	tiltSeries.imageDims,
 	NoneParticleControls(),
 	null
 )

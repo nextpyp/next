@@ -143,7 +143,7 @@ class Micrograph(doc: Document) {
 			ctf.angast,
 			xf.averageMotion(),
 			autoParticleCount,
-			ctf.sourceImageDims()
+			ctf.imageDims()
 		)
 
 	fun isInRanges(filter: PreprocessingFilter): Boolean =

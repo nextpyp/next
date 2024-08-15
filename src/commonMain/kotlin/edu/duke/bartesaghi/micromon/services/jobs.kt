@@ -9,9 +9,6 @@ import kotlinx.serialization.Serializable
 @KVService
 interface IJobsService {
 
-	@KVBindingRoute("jobs/imagesScale")
-	suspend fun getImagesScale(jobId: String): Option<ImagesScale>
-
 	@KVBindingRoute("jobs/micrograph")
 	suspend fun getMicrograph(jobId: String, micrographId: String): MicrographMetadata
 
@@ -55,7 +52,7 @@ data class TiltExclusions(
 @Serializable
 data class PypStats(
 	val scopeVoltage: Double?,
-	val scopePixel: Double?,
+	val scopePixel: ValueA?,
 	val scopeDoseRate: Double?
 ) {
 

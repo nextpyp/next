@@ -6,7 +6,6 @@ import edu.duke.bartesaghi.micromon.services.*
 
 data class TiltSeriesesData(
 	val tiltSerieses: MutableList<TiltSeriesData> = ArrayList(),
-	var imagesScale: ImagesScale? = null,
 	var particles: TiltSeriesesParticlesData? = null
 ) {
 
@@ -17,9 +16,6 @@ data class TiltSeriesesData(
 		Services.jobs.getTiltSerieses(jobId)
 			.sortedBy { it.timestamp }
 			.forEach { tiltSerieses.add(it) }
-
-		imagesScale = Services.jobs.getImagesScale(jobId)
-			.unwrap()
 
 		// get the job's finished pyp arg values, if any
 		val args = nodeClientInfo.pypArgs.get()
@@ -38,14 +34,14 @@ data class TiltSeriesesData(
 				particles = TiltSeriesesParticlesData.VirusMode(
 					virions = TiltSeriesesParticlesData.Data(
 						list = virionsList,
-						radiusA = values.tomoVirRadOrDefault,
-						binning = values.tomoVirBinnOrDefault.toInt()
+						radius = values.tomoVirRadOrDefault,
+						extraBinning = values.tomoVirBinnOrDefault.toInt()
 					),
 					spikes = particlesList?.let {
 						TiltSeriesesParticlesData.Data(
 							list = it,
-							radiusA = values.tomoSpkRadOrDefault,
-							binning = null
+							radius = values.tomoSpkRadOrDefault,
+							extraBinning = null
 						)
 					}
 				)
@@ -55,8 +51,8 @@ data class TiltSeriesesData(
 				particles = particlesList?.let {
 					TiltSeriesesParticlesData.Data(
 						list = it,
-						radiusA = values.tomoSpkRadOrDefault,
-						binning = null
+						radius = values.tomoSpkRadOrDefault,
+						extraBinning = null
 					)
 				}
 			}
@@ -67,8 +63,8 @@ data class TiltSeriesesData(
 			particles = values.tomoSpkMethodOrDefault.particlesList(jobId)?.let {
 				TiltSeriesesParticlesData.Data(
 					list = it,
-					radiusA = values.tomoSpkRadOrDefault,
-					binning = null
+					radius = values.tomoSpkRadOrDefault,
+					extraBinning = null
 				)
 			}
 
@@ -78,8 +74,8 @@ data class TiltSeriesesData(
 			particles = values.tomoSrfMethodOrDefault.particlesList(jobId)?.let {
 				TiltSeriesesParticlesData.Data(
 					list = it,
-					radiusA = null,
-					binning = null
+					radius = null,
+					extraBinning = null // TODO: need extra binning here?
 				)
 			}
 		}
@@ -91,8 +87,6 @@ data class TiltSeriesesData(
 		tiltSerieses.clear()
 		tiltSerieses.addAll(dataMsg.tiltSerieses)
 
-		imagesScale = initMsg.imagesScale
-
 		// sessions work in combined mode
 		val virionsList = initMsg.tomoVirMethod.particlesList(session.sessionId)
 		val particlesList = initMsg.tomoSpkMethod.particlesList(session.sessionId)
@@ -102,14 +96,14 @@ data class TiltSeriesesData(
 			particles = TiltSeriesesParticlesData.VirusMode(
 				virions = TiltSeriesesParticlesData.Data(
 					list = virionsList,
-					radiusA = initMsg.tomoVirRad,
-					binning = initMsg.tomoVirBinn.toInt()
+					radius = initMsg.tomoVirRad,
+					extraBinning = initMsg.tomoVirBinn.toInt()
 				),
 				spikes = particlesList?.let {
 					TiltSeriesesParticlesData.Data(
 						list = it,
-						radiusA = initMsg.tomoSpkRad,
-						binning = null
+						radius = initMsg.tomoSpkRad,
+						extraBinning = null
 					)
 				}
 			)
@@ -119,8 +113,8 @@ data class TiltSeriesesData(
 			particles = particlesList?.let {
 				TiltSeriesesParticlesData.Data(
 					list = it,
-					radiusA = initMsg.tomoSpkRad,
-					binning = null
+					radius = initMsg.tomoSpkRad,
+					extraBinning = null
 				)
 			}
 		}
@@ -159,7 +153,7 @@ sealed interface TiltSeriesesParticlesData {
 		 * name should be used to load the particles instead.
 		 */
 		val list: ParticlesList?,
-		val radiusA: Double?,
-		var binning: Int?
+		val radius: ValueA?,
+		var extraBinning: Int?
 	) : TiltSeriesesParticlesData
 }

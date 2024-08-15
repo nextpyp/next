@@ -1,9 +1,9 @@
 package edu.duke.bartesaghi.micromon.services
 
 import edu.duke.bartesaghi.micromon.pyp.Block
-import edu.duke.bartesaghi.micromon.pyp.ImagesScale
 import edu.duke.bartesaghi.micromon.pyp.TomoSpkMethod
 import edu.duke.bartesaghi.micromon.pyp.TomoVirMethod
+import edu.duke.bartesaghi.micromon.pyp.ValueA
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
@@ -320,8 +320,7 @@ sealed class RealTimeS2C {
 
 	@Serializable
 	data class UpdatedParameters(
-		val pypStats: PypStats,
-		val imagesScale: ImagesScale
+		val pypStats: PypStats
 	) : RealTimeS2C()
 
 	@Serializable
@@ -384,12 +383,11 @@ sealed class RealTimeS2C {
 		/** in order of SessionDaemon.values() */
 		val daemonsRunning: List<Boolean>,
 		val jobsRunning: List<SessionRunningJob>,
-		val imagesScale: ImagesScale?,
 		val tomoVirMethod: TomoVirMethod,
-		val tomoVirRad: Double,
+		val tomoVirRad: ValueA,
 		val tomoVirBinn: Long,
 		val tomoSpkMethod: TomoSpkMethod,
-		val tomoSpkRad: Double,
+		val tomoSpkRad: ValueA,
 	) : RealTimeS2C() {
 
 		fun isRunning(daemon: SessionDaemon): Boolean

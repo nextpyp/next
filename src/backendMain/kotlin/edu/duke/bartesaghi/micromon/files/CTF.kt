@@ -2,7 +2,10 @@ package edu.duke.bartesaghi.micromon.files
 
 import com.fasterxml.jackson.databind.node.ArrayNode
 import edu.duke.bartesaghi.micromon.getDoubleOrThrow
+import edu.duke.bartesaghi.micromon.mongo.getNumberAsIntOrThrow
 import edu.duke.bartesaghi.micromon.pyp.ImageDims
+import edu.duke.bartesaghi.micromon.pyp.ValueA
+import edu.duke.bartesaghi.micromon.pyp.ValueUnbinnedI
 import org.bson.Document
 
 
@@ -17,13 +20,13 @@ data class CTF(
 	val angast: Double,
 	val ccc: Double,
 	/** width of the source image, in unbinned pixels */
-	val x: Double,
+	val x: ValueUnbinnedI,
 	/** height of the source image, in unbinned pixels */
-	val y: Double,
+	val y: ValueUnbinnedI,
 	/** depth of the source image, in unbinned pixels */
-	val z: Double,
+	val z: ValueUnbinnedI,
 	/** size of a single source image pixel, in angstroms */
-	val pixelSize: Double,
+	val pixelSize: ValueA,
 	val voltage: Double,
 	/** the binning factor, same in x, y, and z */
 	val binningFactor: Double,
@@ -58,10 +61,10 @@ data class CTF(
 				defocus2 = numbers[3],
 				angast = numbers[4],
 				ccc = numbers[5],
-				x = numbers[6],
-				y = numbers[7],
-				z = numbers[8],
-				pixelSize = numbers[9],
+				x = ValueUnbinnedI(numbers[6].toInt()),
+				y = ValueUnbinnedI(numbers[7].toInt()),
+				z = ValueUnbinnedI(numbers[8].toInt()),
+				pixelSize = ValueA(numbers[9]),
 				voltage = numbers[10],
 				binningFactor = numbers[11],
 				// apparently, sometimes these last two aren't in the CTF files at all
@@ -78,10 +81,10 @@ data class CTF(
 				defocus2 = json.getDoubleOrThrow(3, "CTF.defocus2"),
 				angast = json.getDoubleOrThrow(4, "CTF.angast"),
 				ccc = json.getDoubleOrThrow(5, "CTF.ccc"),
-				x = json.getDoubleOrThrow(6, "CTF.x"),
-				y = json.getDoubleOrThrow(7, "CTF.y"),
-				z = json.getDoubleOrThrow(8, "CTF.z"),
-				pixelSize = json.getDoubleOrThrow(9, "CTF.pixelSize"),
+				x = ValueUnbinnedI(json.getDoubleOrThrow(6, "CTF.x").toInt()),
+				y = ValueUnbinnedI(json.getDoubleOrThrow(7, "CTF.y").toInt()),
+				z = ValueUnbinnedI(json.getDoubleOrThrow(8, "CTF.z").toInt()),
+				pixelSize = ValueA(json.getDoubleOrThrow(9, "CTF.pixelSize")),
 				voltage = json.getDoubleOrThrow(10, "CTF.voltage"),
 				binningFactor = json.getDoubleOrThrow(11, "CTF.binningFactor"),
 				cccc = if (json.size() > 12) json.getDoubleOrThrow(12, "CTF.cccc") else 0.0,
@@ -96,10 +99,10 @@ data class CTF(
 				0.0,
 				0.0,
 				0.0,
-				0.0,
-				0.0,
-				0.0,
-				0.0,
+				ValueUnbinnedI(0),
+				ValueUnbinnedI(0),
+				ValueUnbinnedI(0),
+				ValueA(0.0),
 				0.0,
 				0.0,
 				0.0,
@@ -108,14 +111,15 @@ data class CTF(
 	}
 
 	/**
-	 * The dimensions of the source image, ie before binning
+	 * The dimensions of the source image
 	 */
-	fun sourceImageDims(): ImageDims =
+	fun imageDims(): ImageDims =
 		ImageDims(
-			x.toInt(),
-			y.toInt(),
-			z.toInt(),
-			binningFactor.toInt()
+			x,
+			y,
+			z,
+			binningFactor.toInt(),
+			pixelSize
 		)
 }
 
@@ -127,10 +131,10 @@ fun Document.readCTF() =
 		defocus2 = getDouble("df2"),
 		angast = getDouble("angast"),
 		ccc = getDouble("ccc"),
-		x = getDouble("x"),
-		y = getDouble("y"),
-		z = getDouble("z"),
-		pixelSize = getDouble("pixel_size"),
+		x = ValueUnbinnedI(getNumberAsIntOrThrow("x")),
+		y = ValueUnbinnedI(getNumberAsIntOrThrow("y")),
+		z = ValueUnbinnedI(getNumberAsIntOrThrow("z")),
+		pixelSize = ValueA(getDouble("pixel_size")),
 		voltage = getDouble("voltage"),
 		binningFactor = getDouble("binning_factor") ?: 1.0,
 		cccc = getDouble("cccc"),
@@ -144,10 +148,10 @@ fun CTF.toDoc() = Document().apply {
 	set("df2", defocus2)
 	set("angast", angast)
 	set("ccc", ccc)
-	set("x", x)
-	set("y", y)
-	set("z", z)
-	set("pixel_size", pixelSize)
+	set("x", x.v)
+	set("y", y.v)
+	set("z", z.v)
+	set("pixel_size", pixelSize.v)
 	set("voltage", voltage)
 	set("binning_factor", binningFactor)
 	set("cccc", cccc)

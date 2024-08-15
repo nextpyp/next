@@ -144,7 +144,6 @@ class TomographyPickingView(val project: ProjectData, val job: TomographyPicking
 				for (msgstr in input) {
 					when (val msg = RealTimeS2C.fromJson(msgstr)) {
 						is RealTimeS2C.UpdatedParameters -> {
-							data.imagesScale = msg.imagesScale
 							listNav.reshow()
 						}
 						is RealTimeS2C.UpdatedTiltSeries -> {

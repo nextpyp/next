@@ -249,10 +249,9 @@ object PypService {
 					is Owner.Job -> owner.job.pypParameters()
 					is Owner.Session -> owner.session.pypParameters()
 				} ?: return JsonRpcFailure("can't import boxx particles: no pyp parameters sent")
-
-				val imagesScale = values.imagesScale()
+				val dims = ctf.imageDims()
 				val r = values.detectRad
-					?.aToUnbinned(imagesScale)
+					?.toUnbinned(dims)
 					?: return JsonRpcFailure("can't import boxx particles: pyp parameters have no detect_rad")
 
 				boxx.indices().associate { i ->
@@ -262,8 +261,8 @@ object PypService {
 					// read the x,y coords
 					// NOTE: w,h components have no information and are always zero
 					// NOTE: these particles come from pyp in unbinned coordinates
-					val x = jsonParticle.getDoubleOrThrow(0, "Particles coordinates [$i].x")
-					val y = jsonParticle.getDoubleOrThrow(1, "Particles coordinates [$i].y")
+					val x = ValueUnbinnedI(jsonParticle.getNumberAsIntOrThrow(0, "Particles coordinates [$i].x"))
+					val y = ValueUnbinnedI(jsonParticle.getNumberAsIntOrThrow(1, "Particles coordinates [$i].y"))
 
 					val particleId = i + 1
 
@@ -413,10 +412,10 @@ object PypService {
 				// NOTE: these particles come from pyp in binned coordinates
 				//       and virions may have extra binning
 				val particle = Particle3D(
-					x = jsonParticle.getDoubleOrThrow(0, "Particles coordinates [$i].x"),
-					y = jsonParticle.getDoubleOrThrow(1, "Particles coordinates [$i].y"),
-					z = jsonParticle.getDoubleOrThrow(2, "Particles coordinates [$i].z"),
-					r = jsonParticle.getDoubleOrThrow(3, "Particles coordinates [$i].radius"),
+					x = ValueBinnedI(jsonParticle.getNumberAsIntOrThrow(0, "Particles coordinates [$i].x")),
+					y = ValueBinnedI(jsonParticle.getNumberAsIntOrThrow(1, "Particles coordinates [$i].y")),
+					z = ValueBinnedI(jsonParticle.getNumberAsIntOrThrow(2, "Particles coordinates [$i].z")),
+					r = ValueBinnedF(jsonParticle.getDoubleOrThrow(3, "Particles coordinates [$i].radius")),
 				)
 				particleId to particle
 			}

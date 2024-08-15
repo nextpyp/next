@@ -260,13 +260,6 @@ actual class JobsService : IJobsService, Service {
 		TiltSeries.get(jobId, tiltSeries)
 			?: throw NoSuchElementException("no tilt series with id $tiltSeries found in job $jobId")
 
-	override suspend fun getImagesScale(jobId: String): Option<ImagesScale> = sanitizeExceptions {
-		val job = jobId.authJob(ProjectPermission.Read).job
-		job.pypParameters()
-			?.imagesScale()
-			.toOption()
-	}
-
 	fun getMicrographs(jobId: String): List<MicrographMetadata> {
 		jobId.authJob(ProjectPermission.Read).job.hasMicrographsOrThrow()
 		return Micrograph.getAll(jobId) { cursor ->

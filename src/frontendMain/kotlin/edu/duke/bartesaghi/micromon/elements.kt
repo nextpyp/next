@@ -11,6 +11,7 @@ import io.kvision.navbar.*
 import io.kvision.navbar.Nav
 import io.kvision.panel.SimplePanel
 import io.kvision.toast.Toast
+import io.kvision.utils.perc
 import js.getHTMLElement
 import kotlinext.js.jsObject
 import kotlinx.browser.window
@@ -579,3 +580,6 @@ var Td.rowspan by HtmlIntAttribute("rowspan")
 
 
 var Link.download by HtmlStringAttribute("download")
+
+
+fun Double.normalizedToPercent() = (this*100).perc

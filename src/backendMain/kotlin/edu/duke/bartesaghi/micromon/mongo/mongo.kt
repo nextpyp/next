@@ -162,6 +162,23 @@ fun Document.getStringId(key: String): String =
 fun Document.getDocument(key: String) =
 	get(key, Document::class.java)
 
+/**
+ * Gets any number type, but converts to an integer first if needed
+ */
+fun Document.getNumberAsInt(key: String): Int? =
+	when (val v = get(key)) {
+		null -> null
+		is Int -> v
+		is Long -> v.toInt()
+		is Float -> v.toInt()
+		is Double -> v.toInt()
+		else -> throw IllegalArgumentException("value could not be converted to an int: ${v::class.simpleName}")
+	}
+
+fun Document.getNumberAsIntOrThrow(key: String): Int =
+	getNumberAsInt(key)
+		?: throw NoSuchElementException("Document had no value for key: $key")
+
 fun Document.getListOfDocuments(key: String): List<Document>? =
 	getList(key, Document::class.java)
 

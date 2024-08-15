@@ -175,7 +175,6 @@ class TomographyDenoisingView(val project: ProjectData, val job: TomographyDenoi
 					when (val msg = RealTimeS2C.fromJson(msgstr)) {
 						is RealTimeS2C.UpdatedParameters -> {
 							statsLine?.stats = msg.pypStats
-							data.imagesScale = msg.imagesScale
 							listNav.reshow()
 						}
 						is RealTimeS2C.UpdatedTiltSeries -> {

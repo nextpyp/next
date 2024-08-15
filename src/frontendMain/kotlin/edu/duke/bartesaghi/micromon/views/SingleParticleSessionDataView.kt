@@ -3,7 +3,6 @@ package edu.duke.bartesaghi.micromon.views
 import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.components.*
 import edu.duke.bartesaghi.micromon.diagram.nodes.SingleParticleSessionDataNode
-import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.*
 import io.kvision.core.*
 import io.kvision.html.*
@@ -82,16 +81,13 @@ class SingleParticleSessionDataView(val project: ProjectData, val job: SinglePar
 
 			// load all the micrographs
 			val loadingElem = elem.loading("Fetching micrographs ...")
-			val (micrographs, imagesScale, pypStats, args) = try {
+			val (micrographs, pypStats) = try {
 				delayAtLeast(200) {
-					Quad(
+					Pair(
 						Services.jobs.getMicrographs(job.jobId)
 							.sortedBy { it.timestamp }
 							.toMutableList(),
-						Services.jobs.getImagesScale(job.jobId)
-							.unwrap(),
-						Services.jobs.pypStats(job.jobId),
-						SingleParticleSessionDataNode.pypArgs.get()
+						Services.jobs.pypStats(job.jobId)
 					)
 				}
 			} catch (t: Throwable) {
@@ -100,8 +96,6 @@ class SingleParticleSessionDataView(val project: ProjectData, val job: SinglePar
 			} finally {
 				elem.remove(loadingElem)
 			}
-
-			val finishedValues = job.args.finished?.values?.toArgValues(args)
 
 			// show micrograph stats
 			micrographStatsElem = elem.div("", classes = setOf("micrograph-stats"))
@@ -142,7 +136,7 @@ class SingleParticleSessionDataView(val project: ProjectData, val job: SinglePar
 								link(micrograph.id, classes = setOf("link"))
 									.onClick { showMicrograph(index, true) }
 							}
-							elem.add(MicrographImage(project, job, micrograph, imagesScale, particleControls, null).apply {
+							elem.add(MicrographImage(project, job, micrograph, particleControls, null).apply {
 								loadParticles()
 							})
 							elem.add(Micrograph1DPlot(job, micrograph).apply {
@@ -175,7 +169,7 @@ class SingleParticleSessionDataView(val project: ProjectData, val job: SinglePar
 					}
 				}
 
-				liveTab = LiveTab(job, micrographs, finishedValues?.detectRad, imagesScale)
+				liveTab = LiveTab(job, micrographs)
 				liveTabId = addTab("Micrographs", "fas fa-desktop") {
 					liveTab?.show(it.elem)
 				}.id
@@ -194,7 +188,6 @@ class SingleParticleSessionDataView(val project: ProjectData, val job: SinglePar
 					when (val msg = RealTimeS2C.fromJson(msgstr)) {
 						is RealTimeS2C.UpdatedParameters -> {
 							statsLine?.stats = msg.pypStats
-							liveTab?.imagesScale = msg.imagesScale
 						}
 						is RealTimeS2C.UpdatedMicrograph -> updateMicrograph(msg.micrograph, micrographs)
 						else -> Unit
@@ -252,17 +245,8 @@ class SingleParticleSessionDataView(val project: ProjectData, val job: SinglePar
 	// TODO: this shares a lot of code with the other proprocessing views... could it be refactored?
 	private inner class LiveTab(
 		val job: SingleParticleSessionDataData,
-		val micrographs: MutableList<MicrographMetadata>,
-		val newParticleRadiusA: Double?,
-		imagesScale: ImagesScale?
+		val micrographs: MutableList<MicrographMetadata>
 	) {
-
-		var imagesScale: ImagesScale? = imagesScale
-			set(value) {
-				field = value
-				// reload the current micrograph
-				listNav.reshow()
-			}
 
 		private val micrographElem = Div()
 
@@ -298,9 +282,8 @@ class SingleParticleSessionDataView(val project: ProjectData, val job: SinglePar
 				project,
 				job,
 				micrograph,
-				this.imagesScale,
 				particleControls,
-				newParticleRadiusA
+				null
 			).apply {
 				loadParticles()
 				onParticlesChange = {

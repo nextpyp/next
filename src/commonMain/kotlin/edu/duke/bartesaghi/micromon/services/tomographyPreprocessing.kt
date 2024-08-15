@@ -56,7 +56,7 @@ data class TiltSeriesData(
 	override val numAutoParticles: Int,
 	/** used only by older combined preprocessing blocks */
 	val numAutoVirions: Int,
-	override val sourceDims: ImageDims?
+	override val imageDims: ImageDims
 ) : PreprocessingData {
 
 	fun imageUrl(job: JobData, imageSize: ImageSize): String =

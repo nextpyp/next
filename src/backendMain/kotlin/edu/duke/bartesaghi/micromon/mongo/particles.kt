@@ -1,6 +1,10 @@
 package edu.duke.bartesaghi.micromon.mongo
 
 import com.mongodb.client.model.*
+import edu.duke.bartesaghi.micromon.pyp.ValueBinnedF
+import edu.duke.bartesaghi.micromon.pyp.ValueBinnedI
+import edu.duke.bartesaghi.micromon.pyp.ValueUnbinnedF
+import edu.duke.bartesaghi.micromon.pyp.ValueUnbinnedI
 import edu.duke.bartesaghi.micromon.services.*
 import org.bson.Document
 
@@ -356,27 +360,27 @@ private object ParticleIdsLock
 
 
 private fun Particle2D.toDoc(doc: Document) {
-	doc["x"] = x
-	doc["y"] = y
-	doc["r"] = r
+	doc["x"] = x.v
+	doc["y"] = y.v
+	doc["r"] = r.v
 }
 private fun Particle2D.Companion.fromDoc(doc: Document) =
 	Particle2D(
-		x = doc.getDouble("x"),
-		y = doc.getDouble("y"),
-		r = doc.getDouble("r")
+		x = ValueUnbinnedI(doc.getNumberAsIntOrThrow("x")),
+		y = ValueUnbinnedI(doc.getNumberAsIntOrThrow("y")),
+		r = ValueUnbinnedF(doc.getDouble("r")),
 	)
 
 private fun Particle3D.toDoc(doc: Document) {
-	doc["x"] = x
-	doc["y"] = y
-	doc["z"] = z
-	doc["r"] = r
+	doc["x"] = x.v
+	doc["y"] = y.v
+	doc["z"] = z.v
+	doc["r"] = r.v
 }
 private fun Particle3D.Companion.fromDoc(doc: Document) =
 	Particle3D(
-		x = doc.getDouble("x"),
-		y = doc.getDouble("y"),
-		z = doc.getDouble("z"),
-		r = doc.getDouble("r")
+		x = ValueBinnedI(doc.getNumberAsIntOrThrow("x")),
+		y = ValueBinnedI(doc.getNumberAsIntOrThrow("y")),
+		z = ValueBinnedI(doc.getNumberAsIntOrThrow("z")),
+		r = ValueBinnedF(doc.getDouble("r"))
 	)

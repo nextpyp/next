@@ -128,7 +128,6 @@ object RealTimeService {
 
 					onParams = { values ->
 						outgoing.trySendMessage(RealTimeS2C.UpdatedParameters(
-							imagesScale = values.imagesScale(),
 							pypStats = PypStats.fromArgValues(values)
 						))
 					}
@@ -179,7 +178,6 @@ object RealTimeService {
 
 					onParams = { values ->
 						outgoing.trySendMessage(RealTimeS2C.UpdatedParameters(
-							imagesScale = values.imagesScale(),
 							pypStats = PypStats.fromArgValues(values)
 						))
 					}
@@ -235,7 +233,6 @@ object RealTimeService {
 			val listener = RefinementJobs.eventListeners.add(job.idOrThrow)
 			listener.onParams = { values ->
 				outgoing.trySendMessage(RealTimeS2C.UpdatedParameters(
-					imagesScale = values.imagesScale(),
 					pypStats = PypStats.fromArgValues(values)
 				))
 			}
@@ -341,7 +338,6 @@ object RealTimeService {
 			// set up single-particle events
 			listener.onParams = { values ->
 				outgoing.trySendMessage(RealTimeS2C.UpdatedParameters(
-					imagesScale = values.imagesScale(),
 					pypStats = PypStats.fromArgValues(values)
 				))
 			}
@@ -421,7 +417,6 @@ object RealTimeService {
 			// set up tomography events
 			listener.onParams = { values ->
 				outgoing.trySendMessage(RealTimeS2C.UpdatedParameters(
-					imagesScale = values.imagesScale(),
 					pypStats = PypStats.fromArgValues(values)
 				))
 			}
@@ -506,7 +501,6 @@ object RealTimeService {
 					)
 				},
 
-			imagesScale = values?.imagesScale(),
 			tomoVirMethod = (values ?: defaults).tomoVirMethodOrDefault,
 			tomoVirRad = (values ?: defaults).tomoVirRadOrDefault,
 			tomoVirBinn = (values ?: defaults).tomoVirBinnOrDefault,

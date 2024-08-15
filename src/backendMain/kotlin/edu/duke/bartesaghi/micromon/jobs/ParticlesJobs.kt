@@ -92,9 +92,9 @@ object ParticlesJobs {
 								for (particleId in particles.keys.sorted()) {
 									val particle = particles[particleId]
 										?: continue
-									// TODO: should we write the particle radius?
-									writerCoords.write("${micrograph.micrographId}\t${particle.x}\t${particle.y}\n")
-									writerBox.write("${particle.x.toInt()}\t${particle.y.toInt()}\n")
+									// write the particles in unbinned coordinates
+									writerCoords.write("${micrograph.micrographId}\t${particle.x.v}\t${particle.y.v}\n")
+									writerBox.write("${particle.x.v}\t${particle.y.v}\n")
 								}
 							}
 						}
@@ -199,9 +199,9 @@ object ParticlesJobs {
 										val particle = particles[particleId]
 											?: continue
 										indicesById[particleId] = particleIndex
-										// TODO: are these supposed to be truncated to integers?
-										writerCoords.write("${tiltSeries.tiltSeriesId}\t${particle.x.toInt()}\t${particle.z.toInt()}\t${particle.y.toInt()}\n")
-										writerBox.write("${particle.x.toInt()}\t${particle.y.toInt()}\t${particle.z.toInt()}\n")
+										// write the particles in unbinned coordinates
+										writerCoords.write("${tiltSeries.tiltSeriesId}\t${particle.x.v}\t${particle.z.v}\t${particle.y.v}\n")
+										writerBox.write("${particle.x.v}\t${particle.y.v}\t${particle.z.v}\n")
 									}
 								}
 

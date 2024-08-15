@@ -329,6 +329,12 @@ fun ArrayNode.getDoubleOrThrow(index: Int, context: String? = null): Double =
 		?.doubleValue()
 		?: throw BadJsonRpcRequestException("[$index] is not a double, it's a(n) ${getOrThrow(index).nodeType}", context)
 
+fun ArrayNode.getNumberAsIntOrThrow(index: Int, context: String? = null): Int =
+	getOrThrow(index)
+		.takeIf { it.isNumber }
+		?.intValue()
+		?: throw BadJsonRpcRequestException("[$index] is not an int, it's a(n) ${getOrThrow(index).nodeType}", context)
+
 fun ArrayNode.getStringOrThrow(index: Int, context: String? = null): String =
 	getOrThrow(index)
 		.takeIf { it.isTextual }
