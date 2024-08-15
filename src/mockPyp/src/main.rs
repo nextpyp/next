@@ -4,7 +4,7 @@ use std::{env, fs};
 use std::ops::Deref;
 use std::process::ExitCode;
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result};
 use display_error_chain::ErrorChainExt;
 use tracing::{error, info, warn};
 
@@ -54,16 +54,13 @@ fn run() -> Result<()> {
 	let block_id = args.get("micromon_block")
 		.require()?
 		.into_str()?
-		.value();
+		.value()
+		.to_string();
 
 	info!("block id: {}", block_id);
 
 	// run the command with the rest of the args
-	match block_id {
-		"tomo-rawdata" => blocks::tomo_rawdata::run(args, args_config),
-		"tomo-preprocessing" => blocks::tomo_preprocessing::run(args, args_config),
-		_ => Err(anyhow!("unrecognized block id"))
-	}?;
+	blocks::run(block_id.as_str(), args, args_config)?;
 
 	Ok(())
 }

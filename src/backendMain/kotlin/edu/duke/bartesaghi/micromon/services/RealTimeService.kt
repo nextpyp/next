@@ -129,7 +129,7 @@ object RealTimeService {
 					onParams = { values ->
 						outgoing.trySendMessage(RealTimeS2C.UpdatedParameters(
 							imagesScale = values.imagesScale(),
-							pypStats = PypStats.fromSingleParticle(values)
+							pypStats = PypStats.fromArgValues(values)
 						))
 					}
 
@@ -180,7 +180,7 @@ object RealTimeService {
 					onParams = { values ->
 						outgoing.trySendMessage(RealTimeS2C.UpdatedParameters(
 							imagesScale = values.imagesScale(),
-							pypStats = PypStats.fromTomography(values)
+							pypStats = PypStats.fromArgValues(values)
 						))
 					}
 
@@ -236,13 +236,7 @@ object RealTimeService {
 			listener.onParams = { values ->
 				outgoing.trySendMessage(RealTimeS2C.UpdatedParameters(
 					imagesScale = values.imagesScale(),
-					pypStats = when (job.baseConfig.jobInfo.dataType) {
-						// reconstructions could be for either single particle jobs or tomography jobs,
-						// so we need to pick the correct version of the stats here
-						JobInfo.DataType.Micrograph -> PypStats.fromSingleParticle(values)
-						JobInfo.DataType.TiltSeries -> PypStats.fromTomography(values)
-						else -> throw NoSuchElementException("job ${job.baseConfig.id} has no data type")
-					}
+					pypStats = PypStats.fromArgValues(values)
 				))
 			}
 			listener.onReconstruction = { reconstruction ->
@@ -348,7 +342,7 @@ object RealTimeService {
 			listener.onParams = { values ->
 				outgoing.trySendMessage(RealTimeS2C.UpdatedParameters(
 					imagesScale = values.imagesScale(),
-					pypStats = PypStats.fromSingleParticle(values)
+					pypStats = PypStats.fromArgValues(values)
 				))
 			}
 			listener.onMicrograph = listener@{ micrographId ->
@@ -428,7 +422,7 @@ object RealTimeService {
 			listener.onParams = { values ->
 				outgoing.trySendMessage(RealTimeS2C.UpdatedParameters(
 					imagesScale = values.imagesScale(),
-					pypStats = PypStats.fromTomography(values)
+					pypStats = PypStats.fromArgValues(values)
 				))
 			}
 			listener.onTiltSeries = listener@{ tiltSeriesId ->

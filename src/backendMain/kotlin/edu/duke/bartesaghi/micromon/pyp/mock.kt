@@ -1,9 +1,6 @@
 package edu.duke.bartesaghi.micromon.pyp
 
-import edu.duke.bartesaghi.micromon.jobs.JobInfo
-import edu.duke.bartesaghi.micromon.jobs.TomographyPreprocessingJob
-import edu.duke.bartesaghi.micromon.jobs.TomographyRawDataJob
-import edu.duke.bartesaghi.micromon.jobs.jobInfo
+import edu.duke.bartesaghi.micromon.jobs.*
 import edu.duke.bartesaghi.micromon.nodes.NodeConfig
 import edu.duke.bartesaghi.micromon.nodes.NodeConfigs
 
@@ -54,6 +51,8 @@ object MockPyp {
 				}
 				+ TomographyRawDataJob.mockArgs()
 				+ TomographyPreprocessingJob.mockArgs()
+				+ TomographyPurePreprocessingJob.mockArgs()
+				+ TomographyDenoisingJob.mockArgs()
 		)
 }
 
@@ -90,4 +89,20 @@ private fun TomographyPreprocessingJob.Companion.mockArgs(): List<Arg> = listOf(
 	mockArg("num_virions", ArgType.TInt(), ArgValue.VInt(5)),
 	mockArg("num_spikes", ArgType.TInt(), ArgValue.VInt(10)),
 	mockArg("tilt_angle_magnitude", ArgType.TInt(), ArgValue.VInt(45))
+)
+
+
+private fun TomographyPurePreprocessingJob.Companion.mockArgs(): List<Arg> = listOf(
+	mockArg("num_tilt_series", ArgType.TInt(), ArgValue.VInt(4)),
+	mockArg("num_tilts", ArgType.TInt(), ArgValue.VInt(4)),
+	mockArg("tomogram_width", ArgType.TInt(), ArgValue.VInt(8192)),
+	mockArg("tomogram_height", ArgType.TInt(), ArgValue.VInt(8192)),
+	mockArg("tilt_angle_magnitude", ArgType.TInt(), ArgValue.VInt(45))
+)
+
+
+private fun TomographyDenoisingJob.Companion.mockArgs(): List<Arg> = listOf(
+	mockArg("num_tilt_series", ArgType.TInt(), ArgValue.VInt(4)),
+	mockArg("tomogram_width", ArgType.TInt(), ArgValue.VInt(8192)),
+	mockArg("tomogram_height", ArgType.TInt(), ArgValue.VInt(8192)),
 )

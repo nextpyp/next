@@ -35,6 +35,7 @@ fn clamp_channel<T>(c: T) -> u8
 pub trait ImageDrawing {
 	fn fill(&mut self, color: Color);
 	fn noise(&mut self);
+	fn noise_gaussian(&mut self, dist: &Gaussian);
 	fn text(&mut self, x: u32, y: u32, size: u32, color: Color, text: impl AsRef<str>);
 	fn text_lines(&mut self, size: u32, color: Color, lines: impl IntoIterator<Item=impl AsRef<str>>);
 	fn border(&mut self, size: u32, color: Color);
@@ -58,12 +59,15 @@ impl<T> ImageDrawing for T
 	}
 
 	fn noise(&mut self) {
+		self.noise_gaussian(&Gaussian::new(0.0, 30.0));
+	}
+
+	fn noise_gaussian(&mut self, dist: &Gaussian) {
 
 		// tragically, the library's `gaussian_noise_mut` function can't operate on a GenericImage,
 		// so we'll just have to implement our own gaussian noise here =(
 		// it's easy enough tho
 
-		let dist = Gaussian::new(0.0, 30.0);
 		let (w, h) = self.dimensions();
 		for y in 0 .. h {
 			for x in 0 .. w {

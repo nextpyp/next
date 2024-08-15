@@ -740,8 +740,14 @@ class SingleParticleSessionView(
 			val argsValues = session?.newestArgs?.values?.toArgValues(args)
 
 			statsElem.removeAll()
-			statsElem.div("Total: ${numMicrographs.formatWithDigitGroupsSeparator()} micrograph(s), ${numParticles.formatWithDigitGroupsSeparator()} particle(s)")
-			statsElem.add(PypStatsLine(PypStats.fromSingleParticle(argsValues)))
+			statsElem.div {
+				content = listOf(
+					"Total: ${numMicrographs.formatWithDigitGroupsSeparator()} micrograph(s)",
+					"${numParticles.formatWithDigitGroupsSeparator()} particle(s)",
+					"Radius: ${argsValues?.detectRad ?: "(unknown)"} A"
+				).joinToString(", ")
+			}
+			statsElem.add(PypStatsLine(PypStats.fromArgValues(argsValues)))
 		}
 	}
 }

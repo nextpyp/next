@@ -90,6 +90,7 @@ class TomographyDenoisingView(val project: ProjectData, val job: TomographyDenoi
 			val live = elem.div(classes = setOf("live"))
 
 			// show tilt series stats
+			tiltSeriesStats.loadCounts(data, OwnerType.Project, job.jobId, null)
 			live.add(tiltSeriesStats)
 
 			// show PYP stats

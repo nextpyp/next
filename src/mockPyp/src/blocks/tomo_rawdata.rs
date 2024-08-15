@@ -6,7 +6,7 @@ use crate::args::{Args, ArgsConfig};
 use crate::image::{Image, ImageDrawing};
 
 
-const BLOCK_ID: &'static str = "tomo_rawdata";
+pub const BLOCK_ID: &'static str = "tomo-rawdata";
 
 
 pub fn run(args: Args, _: ArgsConfig) -> Result<()> {

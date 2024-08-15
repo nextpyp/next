@@ -40,7 +40,5 @@ class PypStatsLine(stats: PypStats? = null) : Div(classes = setOf("pyp-stats")) 
 		addStat("Pixel size", stats?.scopePixel, "A")
 		textNode(", ")
 		addStat("Dose rate", stats?.scopeDoseRate, "e<sup>-</sup>/A<sup>2</sup>")
-		textNode(", ")
-		addStat("Particle radius", stats?.particleRadius, "A")
 	}
 }

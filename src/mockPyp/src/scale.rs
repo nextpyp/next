@@ -8,7 +8,7 @@ pub struct ValueA(pub f64);
 impl ValueA {
 
 	pub fn to_unbinned(self, pixel_size: ValueA) -> ValueUnbinnedF {
-		ValueUnbinnedF(self.0*pixel_size.0)
+		ValueUnbinnedF(self.0/pixel_size.0)
 	}
 }
 
@@ -42,7 +42,7 @@ impl ValueUnbinnedF {
 	}
 
 	pub fn to_a(self, pixel_size: ValueA) -> ValueA {
-		ValueA(self.0/pixel_size.0)
+		ValueA(self.0*pixel_size.0)
 	}
 }
 

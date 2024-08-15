@@ -10,7 +10,7 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 data class ImagesScale(
-	/** The size, in Angstroms, of one pixel in the source image, as defined by pyp's scope_pixel */
+	/** The size, in Angstroms, of one pixel in the microgram or a voxel in a tomogram, as defined by pyp's scope_pixel */
 	val pixelA: Double
 )
 

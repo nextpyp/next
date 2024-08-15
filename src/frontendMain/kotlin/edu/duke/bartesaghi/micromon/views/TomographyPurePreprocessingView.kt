@@ -97,6 +97,7 @@ class TomographyPurePreprocessingView(val project: ProjectData, val job: Tomogra
 			}
 
 			// show tilt series stats
+			tiltSeriesStats.loadCounts(data, OwnerType.Project, job.jobId, null)
 			elem.add(tiltSeriesStats)
 
 			// show PYP stats

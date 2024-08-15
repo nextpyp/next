@@ -608,7 +608,7 @@ class TomographySessionView(
 
 			statsElem.removeAll()
 			statsElem.add(tiltSeriesStats)
-			statsElem.add(PypStatsLine(PypStats.fromTomography(argsValues)))
+			statsElem.add(PypStatsLine(PypStats.fromArgValues(argsValues)))
 		}
 	}
 }

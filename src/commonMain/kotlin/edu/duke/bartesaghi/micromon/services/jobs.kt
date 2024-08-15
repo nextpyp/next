@@ -56,26 +56,16 @@ data class TiltExclusions(
 data class PypStats(
 	val scopeVoltage: Double?,
 	val scopePixel: Double?,
-	val scopeDoseRate: Double?,
-	val particleRadius: Double?
+	val scopeDoseRate: Double?
 ) {
 
 	companion object {
 
-		fun fromSingleParticle(values: ArgValues?) =
+		fun fromArgValues(values: ArgValues?) =
 			PypStats(
 				values?.scopeVoltage,
 				values?.scopePixel,
-				values?.scopeDoseRateOrDefault,
-				values?.detectRad
-			)
-
-		fun fromTomography(values: ArgValues?) =
-			PypStats(
-				values?.scopeVoltage,
-				values?.scopePixel,
-				values?.scopeDoseRateOrDefault,
-				values?.tomoSpkRad
+				values?.scopeDoseRateOrDefault
 			)
 	}
 }

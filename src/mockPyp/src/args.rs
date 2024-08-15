@@ -88,7 +88,7 @@ impl Args {
 	}
 
 	pub fn get_mock(&self, block_id: impl AsRef<str>, arg_id: impl AsRef<str>) -> Arg<Option<&ArgValue>> {
-		self.get(format!("{}_mock_{}", block_id.as_ref(), arg_id.as_ref()))
+		self.get(format!("{}_mock_{}", block_id.as_ref().replace('-', "_"), arg_id.as_ref()))
 	}
 
 	pub fn set_string(&mut self, group_id: impl AsRef<str>, arg_id: impl AsRef<str>, value: impl Into<String>) {
