@@ -67,7 +67,11 @@ class TomographyPickingOpenJob(
 		TomographyPickingOpenData(
 			commonData(),
 			args,
-			diagramImageURL()
+			diagramImageURL(),
+			args.finished
+				?.particlesList(args(), idOrThrow)
+				?.let { Database.particles.countAllParticles(idOrThrow, it.name) }
+				?: 0
 		)
 
 	override suspend fun launch(runId: Int) {

@@ -4,12 +4,14 @@ import edu.duke.bartesaghi.micromon.AppScope
 import edu.duke.bartesaghi.micromon.components.forms.*
 import edu.duke.bartesaghi.micromon.diagram.Diagram
 import edu.duke.bartesaghi.micromon.dynamicImageClassName
+import edu.duke.bartesaghi.micromon.formatWithDigitGroupsSeparator
 import edu.duke.bartesaghi.micromon.nodes.TomographyPickingOpenNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
 import edu.duke.bartesaghi.micromon.pyp.Args
 import edu.duke.bartesaghi.micromon.pyp.filterForDownstreamCopy
 import edu.duke.bartesaghi.micromon.refreshDynamicImages
 import edu.duke.bartesaghi.micromon.services.*
+import edu.duke.bartesaghi.micromon.views.TomographyPickingOpenView
 import edu.duke.bartesaghi.micromon.views.Viewport
 import io.kvision.form.formPanel
 import io.kvision.modal.Modal
@@ -104,10 +106,12 @@ class TomographyPickingOpenNode(
 
 		content {
 			button(className = "image-button", onClick = {
-				// TODO: make a view
-				//TomographyPickingOpenView.go(viewport, project, job)
+				TomographyPickingOpenView.go(viewport, project, job)
 			}) {
 				img(job.imageUrl, className = dynamicImageClassName)
+			}
+			div(className = "count") {
+				text("${job.numParticles.formatWithDigitGroupsSeparator()} particles")
 			}
 		}
 

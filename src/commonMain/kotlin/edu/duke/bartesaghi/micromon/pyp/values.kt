@@ -310,8 +310,8 @@ val ArgValues.tomoSrfMethodOrDefault: TomoSrfMethod
 enum class TomoSrfMethod(val id: String, val particlesList: (ownerId: String) -> ParticlesList?) {
 
 	None("none", { null }),
-	Template("template", ParticlesList::autoParticles3D),
-	Mesh("mesh", ParticlesList::autoParticles3D);
+	Template("template", { ParticlesList.autoParticles3D(it) }),
+	Mesh("mesh", { ParticlesList.autoParticles3D(it) });
 
 	companion object {
 		operator fun get(id: String?): TomoSrfMethod? =

@@ -1,7 +1,7 @@
 package edu.duke.bartesaghi.micromon.services
 
 import edu.duke.bartesaghi.micromon.nodes.TomographyPickingOpenNodeConfig
-import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
+import edu.duke.bartesaghi.micromon.pyp.*
 import io.kvision.annotations.KVBindingRoute
 import io.kvision.annotations.KVService
 import kotlinx.serialization.Serializable
@@ -27,13 +27,20 @@ interface ITomographyPickingOpenService {
 @Serializable
 data class TomographyPickingOpenArgs(
 	val values: ArgValuesToml
-)
+) {
+
+	fun particlesList(args: Args, jobId: String): ParticlesList? =
+		values.toArgValues(args)
+			.tomoSrfMethodOrDefault
+			.particlesList(jobId)
+}
 
 @Serializable
 data class TomographyPickingOpenData(
 	override val common: CommonJobData,
 	val args: JobArgs<TomographyPickingOpenArgs>,
-	val imageUrl: String
+	val imageUrl: String,
+	val numParticles: Long
 ) : JobData {
 	override fun isChanged() = args.hasNext()
 }
