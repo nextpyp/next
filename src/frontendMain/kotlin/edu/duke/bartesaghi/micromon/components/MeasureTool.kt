@@ -9,7 +9,6 @@ import io.kvision.html.Div
 import js.ScreenPos
 import js.clickRelativeTo
 import org.w3c.dom.events.MouseEvent
-import kotlin.math.sqrt
 
 
 class MeasureTool private constructor(
@@ -18,37 +17,44 @@ class MeasureTool private constructor(
 	init: (MeasureTool) -> Unit = {}
 ) {
 
+	class ActivateButton(
+		imageContainerElem: Div,
+		dims: ImageDims,
+		init: (MeasureTool) -> Unit = {}
+	) : Button("", icon = ICON_RULER) {
+
+		private var tool: MeasureTool? = null
+
+		val isActive: Boolean get() = tool != null
+
+		init {
+			val titleStart = "Turn on Measurement Tool"
+			val titleEnd = "Turn off Measurement Tool"
+			title = titleStart
+
+			setAttribute("isMeasureButton", "yup")
+
+			onClick {
+				if (tool == null) {
+					// start measuring
+					icon = ICON_POINTER
+					title = titleEnd
+					tool = MeasureTool(imageContainerElem, dims, init)
+				} else {
+					// end measuring
+					tool?.end()
+					tool = null
+					icon = ICON_RULER
+					title = titleStart
+				}
+			}
+		}
+	}
+
 	companion object {
 
 		private const val ICON_RULER = "fas fa-ruler"
 		private const val ICON_POINTER = "fas fa-mouse-pointer"
-
-		fun button(imageContainerElem: Div, dims: ImageDims, init: (MeasureTool) -> Unit = {}): Button {
-			var tool: MeasureTool? = null
-			return Button("", icon = ICON_RULER).apply {
-
-				val titleStart = "Turn on Measurement Tool"
-				val titleEnd = "Turn off Measurement Tool"
-				title = titleStart
-
-				setAttribute("isMeasureButton", "yup")
-
-				onClick {
-					if (tool == null) {
-						// start measuring
-						icon = ICON_POINTER
-						title = titleEnd
-						tool = MeasureTool(imageContainerElem, dims, init)
-					} else {
-						// end measuring
-						tool?.end()
-						tool = null
-						icon = ICON_RULER
-						title = titleStart
-					}
-				}
-			}
-		}
 
 		fun isButton(comp: Component): Boolean =
 			comp.getAttribute("isMeasureButton") == "yup"

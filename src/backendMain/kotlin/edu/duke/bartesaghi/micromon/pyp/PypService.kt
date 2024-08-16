@@ -403,7 +403,9 @@ object PypService {
 		val xf = params.getArray("xf")?.let { XF.from(it) }
 		val avgrot = params.getArray("avgrot")?.let { AVGROT.from(it) }
 		val metadata = params.getObject("metadata")
-		val dmd = metadata?.let { DMD.from(it) }
+		val dmd = metadata
+			?.takeIf { it.has("drift") }
+			?.let { DMD.from(it) }
 
 		fun ArrayNode.readParticles(): Map<Int,Particle3D> =
 			indices().associate { i ->

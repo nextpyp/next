@@ -127,6 +127,9 @@ class TomoParticlesImage(
 	private val showSpikesCheck = ParticlesCheckBox("spikes", Storage::showSpikes)
     private val showParticlesCheck = ParticlesCheckBox("particles", Storage::showParticles)
 
+	private val scaleBar = ScaleBar(tiltSeries.imageDims)
+	private var measureTool: MeasureTool.ActivateButton? = null
+
     private val playableSprite = PlayableSpritePanel(
         spriteUrl,
         "Tomogram Slices",
@@ -196,7 +199,6 @@ class TomoParticlesImage(
 		playableSprite.load(numSlices, numSlices/2 - 1) { sprite ->
 
 			// show the scale bar
-			val scaleBar = ScaleBar(tiltSeries.imageDims)
 			sprite.add(scaleBar)
 
 			// add the measure tool
@@ -205,7 +207,9 @@ class TomoParticlesImage(
 				.filter { MeasureTool.isButton(it) }
 				.forEach { remove(it) }
 			// add the new one
-			playableSprite.rightDiv.add(0, MeasureTool.button(sprite, tiltSeries.imageDims, MeasureTool.showIn(scaleBar)))
+			val measureTool = MeasureTool.ActivateButton(sprite, tiltSeries.imageDims, MeasureTool.showIn(scaleBar))
+			playableSprite.rightDiv.add(0, measureTool)
+			this.measureTool = measureTool
 
 			// attach the click handler to the sprite image
 			sprite.onClick { event ->
@@ -420,6 +424,11 @@ class TomoParticlesImage(
 		val particlesInfo = particlesInfos
 			.firstOrNull { it.editable }
 			?: return
+
+		// ignore clicks in measure tool mode
+		if (measureTool?.isActive == true) {
+			return
+		}
 
 		if (particleControls?.list?.source != ParticlesSource.User) {
 			return

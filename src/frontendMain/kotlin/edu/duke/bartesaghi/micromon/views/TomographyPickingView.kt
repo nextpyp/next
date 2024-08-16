@@ -75,7 +75,11 @@ class TomographyPickingView(val project: ProjectData, val job: TomographyPicking
 			try {
 				delayAtLeast(200) {
 					data.loadForProject(job.jobId, job.clientInfo, job.args.finished?.values)
-					// TODO: load a particles list here?
+					when (val particles = data.particles) {
+						null -> Unit
+						is TiltSeriesesParticlesData.Data -> particles.list?.let { pickingControls.load(it) }
+						else -> console.warn("Unexpected particles data: ${particles::class.simpleName}, skipping particles list")
+					}
 				}
 			} catch (t: Throwable) {
 				elem.errorMessage(t)
@@ -86,6 +90,7 @@ class TomographyPickingView(val project: ProjectData, val job: TomographyPicking
 
 			// show tilt series stats
 			val tiltSeriesStats = TiltSeriesStats()
+			tiltSeriesStats.loadCounts(data, OwnerType.Project, job.jobId, pickingControls.list)
 			elem.add(tiltSeriesStats)
 
 

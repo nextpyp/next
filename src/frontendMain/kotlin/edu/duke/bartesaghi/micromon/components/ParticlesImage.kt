@@ -34,6 +34,7 @@ open class ParticlesImage(
 ) : SizedPanel(title, sizeStorage.get()) {
 
 	val scaleBar = ScaleBar(imageDims)
+	var measureTool: MeasureTool.ActivateButton? = null
 
 	var onParticlesChange: (() -> Unit)? = null
 
@@ -106,7 +107,9 @@ open class ParticlesImage(
 		}
 
 		// add the measure tool
-		rightDiv.add(0, MeasureTool.button(imageContainerElem, imageDims, MeasureTool.showIn(scaleBar)))
+		val measureTool = MeasureTool.ActivateButton(imageContainerElem, imageDims, MeasureTool.showIn(scaleBar))
+		rightDiv.add(0, measureTool)
+		this.measureTool = measureTool
 	}
 
 	fun loadParticles() {
@@ -198,6 +201,11 @@ open class ParticlesImage(
 			return
 		}
 		if (particleControls.list?.source != ParticlesSource.User) {
+			return
+		}
+
+		// ignore clicks in measure tool mode
+		if (measureTool?.isActive == true) {
 			return
 		}
 
