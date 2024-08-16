@@ -82,7 +82,9 @@ class Particles {
 			const val datumId = "datumId"
 			const val nextId = "nextId"
 			const val particles = "particles"
-			const val virionThreshold = "virionThreshold"
+			// NOTE: this used to be used for this virions, but now it's for any particle with segmentation thresholds
+			//       but don't change database keys unless you really need to
+			const val threshold = "virionThreshold"
 		}
 	}
 
@@ -321,19 +323,19 @@ class Particles {
 	}
 
 
-	fun importVirionThresholds(ownerId: String, name: String, datumId: String, thresholds: Map<Int,Int>) =
+	fun importThresholds(ownerId: String, name: String, datumId: String, thresholds: Map<Int,Int>) =
 		importMetadata(ownerId, name, datumId, thresholds) { threshold ->
 			listOf(
-				Keys.virionThreshold to threshold
+				Keys.threshold to threshold
 			)
 		}
 
-	fun setVirionThreshold(ownerId: String, name: String, datumId: String, particleId: Int, threshold: Int?) =
-		setMetadata(ownerId, name, datumId, particleId, Keys.virionThreshold, threshold)
+	fun setThreshold(ownerId: String, name: String, datumId: String, particleId: Int, threshold: Int?) =
+		setMetadata(ownerId, name, datumId, particleId, Keys.threshold, threshold)
 
-	fun getVirionThresholds(ownerId: String, name: String, datumId: String): Map<Int,Int> =
+	fun getThresholds(ownerId: String, name: String, datumId: String): Map<Int,Int> =
 		getParticles(ownerId, name, datumId) { doc ->
-			doc.getInteger(Keys.virionThreshold)
+			doc.getInteger(Keys.threshold)
 		}
 
 	fun copyAllParticles(ownerId: String, name: String, newName: String) {

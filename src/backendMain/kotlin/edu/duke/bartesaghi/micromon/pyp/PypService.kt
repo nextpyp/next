@@ -421,7 +421,7 @@ object PypService {
 				)
 				particleId to particle
 			}
-		fun ArrayNode.readVirionThresholds(): Map<Int,Int> =
+		fun ArrayNode.readThresholds(): Map<Int,Int> =
 			indices().associate { i ->
 				val virionId = i + 1
 				val threshold = getArrayOrThrow(i, "Particles coordinates")
@@ -433,11 +433,13 @@ object PypService {
 			}
 		val virionsAndThresholds = metadata
 			?.getArray("virion_coordinates")
-			?.let { it.readParticles() to it.readVirionThresholds() }
+			?.let { it.readParticles() to it.readThresholds() }
 		val particles = metadata
 			?.getArray("spike_coordinates")
 			?.readParticles()
-		// TODO: what keys will the new pyp picking commands use for particles?
+		val particleThresholds = metadata
+			?.getArray("spike_coordinates")
+			?.readThresholds()
 		log.debug("tilt series metadata keys: {}", metadata?.fieldNames()?.asSequence()?.toList())
 
 		// update the database
@@ -458,18 +460,23 @@ object PypService {
 			val list = ParticlesList.autoVirions(owner.id)
 			Database.particleLists.createIfNeeded(list)
 			Database.particles.importParticles3D(list.ownerId, list.name, tiltSeriesId, virions)
-			Database.particles.importVirionThresholds(list.ownerId, list.name, tiltSeriesId, thresholds)
+			Database.particles.importThresholds(list.ownerId, list.name, tiltSeriesId, thresholds)
 		}
 		if (particles != null) {
 			val list = ParticlesList.autoParticles3D(owner.id)
 			Database.particleLists.createIfNeeded(list)
 			Database.particles.importParticles3D(list.ownerId, list.name, tiltSeriesId, particles)
+			if (particleThresholds != null) {
+				Database.particles.importThresholds(list.ownerId, list.name, tiltSeriesId, particleThresholds)
+			}
 		}
 
-		log.debug("writeTiltSeries: {}: id={}, virions={}, thresholds={}, particles={}", owner, tiltSeriesId,
+		log.debug("writeTiltSeries: {}: id={}, virions={}, virionThresholds={}, particles={}, particleThresholds={}",
+			owner, tiltSeriesId,
 			virionsAndThresholds?.first?.size?.toString() ?: "none",
 			virionsAndThresholds?.second?.size?.toString() ?: "none",
-			particles?.size?.toString() ?: "none"
+			particles?.size?.toString() ?: "none",
+			particleThresholds?.size?.toString() ?: "none"
 		)
 
 		when (owner) {

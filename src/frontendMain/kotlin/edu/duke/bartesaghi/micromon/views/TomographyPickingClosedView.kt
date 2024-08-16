@@ -75,7 +75,11 @@ class TomographyPickingClosedView(val project: ProjectData, val job: TomographyP
 			try {
 				delayAtLeast(200) {
 					data.loadForProject(job.jobId, job.clientInfo, job.args.finished?.values)
-					// TODO: load a particles list?
+					when (val particles = data.particles) {
+						null -> Unit
+						is TiltSeriesesParticlesData.Data -> particles.list?.let { pickingControls.load(it) }
+						else -> console.warn("Unexpected particles data: ${particles::class.simpleName}, skipping particles list")
+					}
 				}
 			} catch (t: Throwable) {
 				elem.errorMessage(t)
@@ -86,6 +90,7 @@ class TomographyPickingClosedView(val project: ProjectData, val job: TomographyP
 
 			// show tilt series stats
 			val tiltSeriesStats = TiltSeriesStats()
+			tiltSeriesStats.loadCounts(data, OwnerType.Project, job.jobId, pickingControls.list)
 			elem.add(tiltSeriesStats)
 
 			val tiltSeriesesElem = Div()
@@ -114,11 +119,26 @@ class TomographyPickingClosedView(val project: ProjectData, val job: TomographyP
 				}
 
 				tiltSeriesesElem.add(pickingControls)
-				val particlesImage = TomoParticlesImage.forProject(project, job, data, tiltSeries, pickingControls)
-				tiltSeriesesElem.add(particlesImage)
 
-				AppScope.launch {
-					particlesImage.load()
+				// show the tilt series content in tabs
+				tiltSeriesesElem.lazyTabPanel {
+
+					persistence = Storage::tomographyPickingOpenTabIndex
+
+					addTab("Reconstruction", "fas fa-desktop") { lazyTab ->
+
+						val particlesImage = TomoParticlesImage.forProject(project, job, data, tiltSeries, pickingControls)
+						particlesImage.onParticlesChange = {
+							tiltSeriesStats.picked(data, pickingControls)
+						}
+						lazyTab.elem.add(particlesImage)
+
+						AppScope.launch {
+							particlesImage.load()
+						}
+					}
+
+					// TODO: segmentation tab
 				}
 			}
 

@@ -243,12 +243,12 @@ actual class ParticlesService : IParticlesService, Service {
 
 	override suspend fun getVirionThresholds(ownerType: OwnerType, ownerId: String, name: String, datumId: String): VirionThresholdData = sanitizeExceptions {
 		authRead(ownerType, ownerId)
-		Database.particles.getVirionThresholds(ownerId, name, datumId)
+		Database.particles.getThresholds(ownerId, name, datumId)
 			.toVirionThresholdData()
 	}
 
 	override suspend fun setVirionThreshold(ownerType: OwnerType, ownerId: String, name: String, datumId: String, virionId: Int, threshold: Int?) = sanitizeExceptions {
 		authWrite(ownerType, ownerId)
-		Database.particles.setVirionThreshold(ownerId, name, datumId, virionId, threshold)
+		Database.particles.setThreshold(ownerId, name, datumId, virionId, threshold)
 	}
 }

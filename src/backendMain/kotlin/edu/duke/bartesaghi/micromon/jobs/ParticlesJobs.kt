@@ -182,7 +182,7 @@ object ParticlesJobs {
 						for (tiltSeries in cursor) {
 
 							val particles = Database.particles.getParticles3D(jobId, particlesList.name, tiltSeries.tiltSeriesId)
-							val thresholds = Database.particles.getVirionThresholds(jobId, particlesList.name, tiltSeries.tiltSeriesId)
+							val thresholds = Database.particles.getThresholds(jobId, particlesList.name, tiltSeries.tiltSeriesId)
 							if (particles.isNotEmpty()) {
 
 								writerImages.write("${tiltSeries.tiltSeriesId}\t$dir/mrc/${tiltSeries.tiltSeriesId}.rec\n")
@@ -199,7 +199,7 @@ object ParticlesJobs {
 										val particle = particles[particleId]
 											?: continue
 										indicesById[particleId] = particleIndex
-										// write the particles in unbinned coordinates
+										// write the particles in binned coordinates
 										writerCoords.write("${tiltSeries.tiltSeriesId}\t${particle.x.v}\t${particle.z.v}\t${particle.y.v}\n")
 										writerBox.write("${particle.x.v}\t${particle.y.v}\t${particle.z.v}\n")
 									}

@@ -245,12 +245,18 @@ impl Web {
 		if let Some(spikes) = &tilt_series.spikes {
 			let m = args.get_or_ins_object("metadata")?;
 			m.ins("spike_coordinates", spikes.iter()
-				.map(|p| vec![
-					p.x.0,
-					p.y.0,
-					p.z.0,
-					p.r.0
-				])
+				.map(|p| {
+					let mut coords = vec![
+						Value::from(p.x.0),
+						Value::from(p.y.0),
+						Value::from(p.z.0),
+						Value::from(p.r.0)
+					];
+					if let Some(threshold) = p.threshold {
+						coords.push(Value::from(threshold))
+					}
+					coords
+				})
 				.collect::<Vec<_>>()
 			);
 		}

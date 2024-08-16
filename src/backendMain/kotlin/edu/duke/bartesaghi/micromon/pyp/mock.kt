@@ -55,6 +55,7 @@ object MockPyp {
 				+ TomographyDenoisingJob.mockArgs()
 				+ TomographyPickingJob.mockArgs()
 				+ TomographyPickingOpenJob.mockArgs()
+				+ TomographyPickingClosedJob.mockArgs()
 		)
 }
 
@@ -119,6 +120,14 @@ private fun TomographyPickingJob.Companion.mockArgs(): List<Arg> = listOf(
 
 
 private fun TomographyPickingOpenJob.Companion.mockArgs(): List<Arg> = listOf(
+	mockArg("num_tilt_series", ArgType.TInt(), ArgValue.VInt(4)),
+	mockArg("tomogram_width", ArgType.TInt(), ArgValue.VInt(8192)),
+	mockArg("tomogram_height", ArgType.TInt(), ArgValue.VInt(8192)),
+	mockArg("num_particles", ArgType.TInt(), ArgValue.VInt(20))
+)
+
+
+private fun TomographyPickingClosedJob.Companion.mockArgs(): List<Arg> = listOf(
 	mockArg("num_tilt_series", ArgType.TInt(), ArgValue.VInt(4)),
 	mockArg("tomogram_width", ArgType.TInt(), ArgValue.VInt(8192)),
 	mockArg("tomogram_height", ArgType.TInt(), ArgValue.VInt(8192)),

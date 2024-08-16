@@ -103,5 +103,6 @@ pub struct Particle3D {
 	pub x: ValueBinnedF,
 	pub y: ValueBinnedF,
 	pub z: ValueBinnedF,
-	pub r: ValueBinnedF
+	pub r: ValueBinnedF,
+	pub threshold: Option<u32>
 }

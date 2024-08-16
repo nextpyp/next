@@ -1,6 +1,7 @@
 package edu.duke.bartesaghi.micromon.jobs
 
 import com.mongodb.client.model.Updates
+import edu.duke.bartesaghi.micromon.Backend
 import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.mongo.getDocument
 import edu.duke.bartesaghi.micromon.nodes.TomographyPickingClosedNodeConfig
@@ -67,7 +68,11 @@ class TomographyPickingClosedJob(
 		TomographyPickingClosedData(
 			commonData(),
 			args,
-			diagramImageURL()
+			diagramImageURL(),
+			args.finished
+				?.particlesList(args(), idOrThrow)
+				?.let { Database.particles.countAllParticles(idOrThrow, it.name) }
+				?: 0
 		)
 
 	override suspend fun launch(runId: Int) {
@@ -77,9 +82,15 @@ class TomographyPickingClosedJob(
 		// clear caches
 		wwwDir.recreateAs(project.osUsername)
 
-		// build the args for PYP
 		val upstreamJob = inMovieRefinement?.resolveJob<Job>()
 			?: throw IllegalStateException("no movie refinement input configured")
+
+		// write out particles from the upstream job, if needed
+		ParticlesJobs.clear(project.osUsername, dir)
+		val upstreamArgValues = upstreamJob.finishedArgValuesOrThrow().toArgValues(Backend.pypArgs)
+		ParticlesJobs.writeTomography(project.osUsername, idOrThrow, dir, upstreamArgValues)
+
+		// build the args for PYP
 		val pypArgs = launchArgValues(upstreamJob, args.newestOrThrow().args.values, args.finished?.values)
 
 		// set the hidden args

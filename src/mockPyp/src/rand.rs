@@ -130,7 +130,8 @@ pub fn sample_particle_3d(width: ValueBinnedU, height: ValueBinnedU, depth: Valu
 		x: fastrand::u32(0 ..= width.0).to_binned().to_f(),
 		y: fastrand::u32(0 ..= height.0).to_binned().to_f(),
 		z: fastrand::u32(0 ..= depth.0).to_binned().to_f(),
-		r: radius
+		r: radius,
+		threshold: None
 	}
 }
 
