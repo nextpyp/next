@@ -270,7 +270,6 @@ enum class TomoSpkMethod(val id: String, val particlesList: (ownerId: String) ->
 
 	None("none", { null }),
 	Auto("auto", { ParticlesList.autoParticles3D(it) }),
-	Spherical("spherical", { ParticlesList.autoParticles3D(it) }),
 	Import("import", { ParticlesList.autoParticles3D(it) }),
 	Manual("manual", { ParticlesList.manualParticles3D(it) }),
 	MiloTrain("milo-train", { ParticlesList.manualParticles3D(it) }),
