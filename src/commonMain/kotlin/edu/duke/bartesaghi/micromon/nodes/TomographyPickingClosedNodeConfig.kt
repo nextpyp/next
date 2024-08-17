@@ -12,7 +12,7 @@ object TomographyPickingClosedNodeConfig : NodeConfig {
 	// TEMP: preview status during development
 	override val status = NodeConfig.NodeStatus.Preview
 
-	val inMovieRefinement = NodeConfig.Data("inMovieRefinement", NodeConfig.Data.Type.MovieRefinement)
+	val inMovieRefinement = NodeConfig.Data("inMovieRefinement", NodeConfig.Data.Type.Tomograms)
 	val outMovieRefinement = NodeConfig.Data("outMovieRefinement", NodeConfig.Data.Type.MovieRefinement)
 
 	override val inputs = listOf(inMovieRefinement)
