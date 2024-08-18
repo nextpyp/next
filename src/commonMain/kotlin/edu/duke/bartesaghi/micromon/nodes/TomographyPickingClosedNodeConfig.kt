@@ -7,7 +7,7 @@ object TomographyPickingClosedNodeConfig : NodeConfig {
 
 	override val id = ID
 	override val configId = "tomo_segment_close"
-	override val name = "Particle-Picking on Closed Surfaces"
+	override val name = "Particle-Picking (closed surfaces)"
 	override val hasFiles = true
 	// TEMP: preview status during development
 	override val status = NodeConfig.NodeStatus.Preview
