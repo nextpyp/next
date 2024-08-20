@@ -5,9 +5,9 @@ use std::sync::LazyLock;
 
 use ab_glyph::{FontRef, PxScale};
 use anyhow::{Context, Result};
-use image::{GenericImage, Pixel, Rgb, RgbImage};
+use image::{GenericImage, Pixel, Rgb, Rgba, RgbImage};
 use imageproc::definitions::Clamp;
-use imageproc::drawing::{draw_filled_rect_mut, draw_text_mut};
+use imageproc::drawing::{draw_filled_rect_mut, draw_filled_circle_mut, draw_text_mut, Canvas};
 use imageproc::rect::Rect;
 use tracing::info;
 
@@ -21,6 +21,7 @@ static FONT: LazyLock<FontRef> = LazyLock::new(|| {
 
 
 type Color = Rgb<u8>;
+type BlendedColor = Rgba<u8>;
 
 
 fn clamp_channel<T>(c: T) -> u8
@@ -34,6 +35,7 @@ fn clamp_channel<T>(c: T) -> u8
 
 pub trait ImageDrawing {
 	fn fill(&mut self, color: Color);
+	fn fill_circle_blended(&mut self, x: u32, y: u32, r: u32, color: BlendedColor);
 	fn noise(&mut self);
 	fn noise_gaussian(&mut self, dist: &Gaussian);
 	fn text(&mut self, x: u32, y: u32, size: u32, color: Color, text: impl AsRef<str>);
@@ -56,6 +58,16 @@ impl<T> ImageDrawing for T
 				self.put_pixel(x, y, color);
 			}
 		}
+	}
+
+	fn fill_circle_blended(&mut self, x: u32, y: u32, r: u32, color: BlendedColor) {
+		let mut blended_img = BlendRgba(self);
+		draw_filled_circle_mut(
+			&mut blended_img,
+			(x as i32, y as i32),
+			r as i32,
+			color
+		);
 	}
 
 	fn noise(&mut self) {
@@ -215,5 +227,30 @@ impl<'a> SubImage<'a> {
 
 	pub fn draw(&mut self) -> &mut (impl ImageDrawing + 'a) {
 		self.sub_img.deref_mut()
+	}
+}
+
+
+pub struct BlendRgba<T>(T);
+
+impl<'a,T> Canvas for BlendRgba<&'a mut T>
+	where
+		T: GenericImage<Pixel=Color>
+{
+	type Pixel = BlendedColor;
+
+	fn dimensions(&self) -> (u32, u32) {
+		self.0.dimensions()
+	}
+
+	fn get_pixel(&self, x: u32, y: u32) -> Self::Pixel {
+		let p = self.0.get_pixel(x, y);
+		Rgba([p[0], p[1], p[2], 255])
+	}
+
+	fn draw_pixel(&mut self, x: u32, y: u32, color: Self::Pixel) {
+		let mut p = self.get_pixel(x, y);
+		p.blend(&color);
+		self.0.put_pixel(x, y, Rgb([p[0], p[1], p[2]]));
 	}
 }

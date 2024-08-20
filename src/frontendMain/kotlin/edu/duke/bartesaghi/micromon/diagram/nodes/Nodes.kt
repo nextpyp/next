@@ -31,6 +31,7 @@ object Nodes {
 		TomographyPickingNodeConfig to TomographyPickingNode.Companion,
 		TomographyPickingOpenNodeConfig to TomographyPickingOpenNode.Companion,
 		TomographyPickingClosedNodeConfig to TomographyPickingClosedNode.Companion,
+		TomographyPickingModelNodeConfig to TomographyPickingModelNode.Companion,
 		TomographyDrgnNodeConfig to TomographyDrgnNode.Companion,
 		TomographyCoarseRefinementNodeConfig to TomographyCoarseRefinementNode.Companion,
 		TomographyFineRefinementNodeConfig to TomographyFineRefinementNode.Companion,

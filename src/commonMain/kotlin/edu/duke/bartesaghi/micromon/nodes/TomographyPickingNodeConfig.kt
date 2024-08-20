@@ -13,8 +13,9 @@ object TomographyPickingNodeConfig : NodeConfig {
 	override val status = NodeConfig.NodeStatus.Preview
 
 	val tomograms = NodeConfig.Data("tomograms", NodeConfig.Data.Type.Tomograms)
+	val particlesModel = NodeConfig.Data("particlesModel", NodeConfig.Data.Type.ParticlesModel)
 	val movieRefinement = NodeConfig.Data("movieRefinement", NodeConfig.Data.Type.MovieRefinement)
 
-	override val inputs = listOf(tomograms)
+	override val inputs = listOf(tomograms, particlesModel)
 	override val outputs = listOf(movieRefinement)
 }

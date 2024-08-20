@@ -371,6 +371,7 @@ interface JobData {
 					subclass(TomographyPickingData::class)
 					subclass(TomographyPickingOpenData::class)
 					subclass(TomographyPickingClosedData::class)
+					subclass(TomographyPickingModelData::class)
 					subclass(TomographyDrgnData::class)
 					subclass(TomographyCoarseRefinementData::class)
 					subclass(TomographyFineRefinementData::class)

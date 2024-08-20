@@ -28,6 +28,7 @@ object NodeConfigs {
 		TomographyPickingNodeConfig,
 		TomographyPickingOpenNodeConfig,
 		TomographyPickingClosedNodeConfig,
+		TomographyPickingModelNodeConfig,
 		TomographyDrgnNodeConfig,
 		TomographyCoarseRefinementNodeConfig,
 		TomographyFineRefinementNodeConfig,

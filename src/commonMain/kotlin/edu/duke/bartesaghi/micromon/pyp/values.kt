@@ -320,6 +320,31 @@ enum class TomoSrfMethod(val id: String, val particlesList: (ownerId: String) ->
 }
 
 
+val Args.tomoPartrainMethod: Arg
+	get() = argOrThrow("tomo_partrain", "method")
+val ArgValues.tomoPartrainMethod: TomoPartrainMethod?
+	get() = TomoPartrainMethod[get(args.tomoPartrainMethod) as String?]
+val ArgValues.tomoPartrainMethodOrDefault: TomoPartrainMethod
+	get() = TomoPartrainMethod[getOrDefault(args.tomoPartrainMethod) as String]
+		?: throw NoSuchElementException(
+			"tomoPartrainMethod default ${getOrDefault(args.tomoPartrainMethod)} is invalid."
+				+ " Need one of ${TomoPartrainMethod.values().map { it.id }}"
+		)
+
+
+@Serializable
+enum class TomoPartrainMethod(val id: String) {
+
+	None("none"),
+	Pyp("pyp"),
+	Milo("milo");
+
+	companion object {
+		operator fun get(id: String?): TomoPartrainMethod? =
+			values().find { it.id == id }
+	}
+}
+
 
 /**
  * arguments for micromon itself and not pyp

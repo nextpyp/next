@@ -15,6 +15,7 @@ import io.ktor.util.*
 import io.ktor.util.pipeline.*
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlin.io.path.div
 
 
 actual class JobsService : IJobsService, Service {
@@ -223,6 +224,46 @@ actual class JobsService : IJobsService, Service {
 							val dataId = parseDataId()
 
 							val bytes = service.tiltSeriesMetadataContent(jobId, dataId)
+							call.respondBytes(bytes, ContentType.Application.OctetStream)
+						}
+					}
+				}
+
+				route("milo") {
+
+					get("results_2d/{size}") {
+						call.respondExceptions {
+
+							// parse args
+							val jobId = parseJobId()
+							val size = parseSize()
+
+							val bytes = service.getMiloResults2d(jobId, size)
+
+							call.respondBytes(bytes, ContentType.Image.WebP)
+						}
+					}
+
+					get("results_3d/{size}") {
+						call.respondExceptions {
+
+							// parse args
+							val jobId = parseJobId()
+							val size = parseSize()
+
+							val bytes = service.getMiloResults3d(jobId, size)
+
+							call.respondBytes(bytes, ContentType.Image.WebP)
+						}
+					}
+
+					get("data") {
+						call.respondExceptions {
+
+							// parse args
+							val jobId = parseJobId()
+
+							val bytes = service.miloDataContent(jobId)
 							call.respondBytes(bytes, ContentType.Application.OctetStream)
 						}
 					}
@@ -459,5 +500,43 @@ actual class JobsService : IJobsService, Service {
 		//       so don't try to look for it here. Just look for the metadata file among this job's files
 		return TiltSeries.metadataPath(job.dir, tiltSeriesId)
 			.readBytes()
+	}
+
+	suspend fun getMiloResults2d(jobId: String, size: ImageSize): ByteArray {
+
+		val job = jobId.authJob(ProjectPermission.Read).job
+
+		val imagePath = job.dir / "webp/results_2d.webp"
+		val cacheInfo = ImageCacheInfo(job.wwwDir, "milo-results-2d")
+
+		return size.readResize(imagePath, ImageType.Webp, cacheInfo)
+			// no image, return a placeholder
+			?: Resources.placeholderJpg(size)
+	}
+
+	suspend fun getMiloResults3d(jobId: String, size: ImageSize): ByteArray {
+
+		val job = jobId.authJob(ProjectPermission.Read).job
+
+		val imagePath = job.dir / "webp/results_3d.webp"
+		val cacheInfo = ImageCacheInfo(job.wwwDir, "milo-results-3d")
+
+		return size.readResize(imagePath, ImageType.Webp, cacheInfo)
+		// no image, return a placeholder
+			?: Resources.placeholderJpg(size)
+	}
+
+	override suspend fun miloData(jobId: String): Option<FileDownloadData> = sanitizeExceptions {
+		val job = jobId.authJob(ProjectPermission.Read).job
+		val path = job.dir / "download.dat"
+		path
+			.toFileDownloadData()
+			.toOption()
+	}
+
+	fun miloDataContent(jobId: String): ByteArray {
+		val job = jobId.authJob(ProjectPermission.Read).job
+		val path = job.dir / "download.dat"
+		return path.readBytes()
 	}
 }

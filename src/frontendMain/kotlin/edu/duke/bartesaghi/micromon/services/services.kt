@@ -50,6 +50,7 @@ object Services {
 	val tomographyPicking = TomographyPickingService()
 	val tomographyPickingOpen = TomographyPickingOpenService()
 	val tomographyPickingClosed = TomographyPickingClosedService()
+	val tomographyPickingModel = TomographyPickingModelService()
 	val tomographyDrgn = TomographyDrgnService()
 	val tomographyCoarseRefinement = TomographyCoarseRefinementService()
 	val tomographyFineRefinement = TomographyFineRefinementService()

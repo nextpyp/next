@@ -50,7 +50,10 @@ interface NodeConfig {
 			MovieFrameAfterRefinement("Frames"),
 
 			/** Mutiple movie frame refinements */
-			MovieFrameAfterRefinements("Frames")
+			MovieFrameAfterRefinements("Frames"),
+
+			/** A trained model for picking particles */
+			ParticlesModel("Particles Model")
 		}
 	}
 

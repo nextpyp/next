@@ -126,4 +126,6 @@ object Storage {
 	var twodClassesImageSize by ImageSizeStorageItem("twodClassesImageSize")
 	var classesMovieSize by ImageSizeStorageItem("classesMovieSize")
 	var perParticleScoresSize by ImageSizeStorageItem("perParticleScoresSize")
+	var miloResults2dSize by ImageSizeStorageItem("miloResults2dSize")
+	var miloResults3dSize by ImageSizeStorageItem("miloResults3dSize")
 }

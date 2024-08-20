@@ -31,6 +31,7 @@ object Jobs {
 		TomographyPickingNodeConfig to TomographyPickingJob.Companion,
 		TomographyPickingOpenNodeConfig to TomographyPickingOpenJob.Companion,
 		TomographyPickingClosedNodeConfig to TomographyPickingClosedJob.Companion,
+		TomographyPickingModelNodeConfig to TomographyPickingModelJob.Companion,
 		TomographyDrgnNodeConfig to TomographyDrgnJob.Companion,
 		TomographyCoarseRefinementNodeConfig to TomographyCoarseRefinementJob.Companion,
 		TomographyFineRefinementNodeConfig to TomographyFineRefinementJob.Companion,
