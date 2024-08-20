@@ -84,6 +84,23 @@ button.image-button.reconstruction-node img {
     margin-left: 5px;
 }
 
+/**
+ * Work around bug where bootstrap dropdown menus can be clipped by parent overflow settings.
+ * But only inside of modal dialogs.
+ *
+ * In a better universe than this one, KVision would use built-in browser components (that have excellent usability!)
+ * instead of Boostrap re-creations of basic components, which have usability issues like this that we need to work around.
+ * Alas. =(
+ */
+.modal-dialog .modal-body {
+	.dropdown.bootstrap-select {
+		&> .dropdown-menu.show {
+			position: relative !important;
+			top: -2.2em !important;
+		}
+	}
+}
+
 
 /* VIEWPORT */
 
