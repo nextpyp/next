@@ -100,7 +100,12 @@ class ArgsForm(
 				// show the arg in a tab panel, one tab for each group
 				tabPanel {
 					for (group in form.args.groups) {
-						val tab = ArgsInputs(form.args.args(group), values, controls, form.outNodes, form.enabled, ::showAdvanced)
+						val groupArgs = form.args.args(group)
+						if (groupArgs.isEmpty()) {
+							// hide empty groups
+							continue
+						}
+						val tab = ArgsInputs(groupArgs, values, controls, form.outNodes, form.enabled, ::showAdvanced)
 						tabs[group.groupId] = tab
 						addTab(group.name, tab)
 					}
