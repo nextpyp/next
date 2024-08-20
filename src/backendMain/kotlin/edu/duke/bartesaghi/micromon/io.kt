@@ -184,8 +184,11 @@ fun Path.createDirsIfNeeded() = apply {
 	}
 }
 
-fun Path.delete() =
-	Files.delete(this)
+fun Path.delete() {
+	if (exists()) {
+		Files.delete(this)
+	}
+}
 
 fun Path.deleteDirRecursively() = apply {
 	if (exists() && isDirectory()) {
