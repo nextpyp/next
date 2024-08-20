@@ -2,42 +2,42 @@ package edu.duke.bartesaghi.micromon.jobs
 
 import com.mongodb.client.model.Updates
 import edu.duke.bartesaghi.micromon.mongo.getDocument
-import edu.duke.bartesaghi.micromon.nodes.TomographyPickingModelNodeConfig
+import edu.duke.bartesaghi.micromon.nodes.TomographyParticlesTrainNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.*
 import org.bson.Document
 import org.bson.conversions.Bson
 
 
-class TomographyPickingModelJob(
+class TomographyParticlesTrainJob(
 	userId: String,
 	projectId: String
 ) : Job(userId, projectId, config) {
 
-	val args = JobArgs<TomographyPickingModelArgs>()
+	val args = JobArgs<TomographyParticlesTrainArgs>()
 
 	var inParticles: CommonJobData.DataId? by InputProp(config.particles)
 
 	companion object : JobInfo {
 
-		override val config = TomographyPickingModelNodeConfig
+		override val config = TomographyParticlesTrainNodeConfig
 		override val dataType = JobInfo.DataType.TiltSeries
 
-		override fun fromDoc(doc: Document) = TomographyPickingModelJob(
+		override fun fromDoc(doc: Document) = TomographyParticlesTrainJob(
 			doc.getString("userId"),
 			doc.getString("projectId")
 		).apply {
-			args.finished = doc.getDocument("finishedArgs")?.let { TomographyPickingModelArgs.fromDoc(it) }
-			args.next = doc.getDocument("nextArgs")?.let { TomographyPickingModelArgs.fromDoc(it) }
+			args.finished = doc.getDocument("finishedArgs")?.let { TomographyParticlesTrainArgs.fromDoc(it) }
+			args.next = doc.getDocument("nextArgs")?.let { TomographyParticlesTrainArgs.fromDoc(it) }
 			fromDoc(doc)
 		}
 
-		private fun TomographyPickingModelArgs.toDoc() = Document().also { doc ->
+		private fun TomographyParticlesTrainArgs.toDoc() = Document().also { doc ->
 			doc["values"] = values
 		}
 
-		private fun TomographyPickingModelArgs.Companion.fromDoc(doc: Document) =
-			TomographyPickingModelArgs(
+		private fun TomographyParticlesTrainArgs.Companion.fromDoc(doc: Document) =
+			TomographyParticlesTrainArgs(
 				doc.getString("values")
 			)
 
@@ -59,7 +59,7 @@ class TomographyPickingModelJob(
 	override fun isChanged() = args.hasNext()
 
 	override suspend fun data() =
-		TomographyPickingModelData(
+		TomographyParticlesTrainData(
 			commonData(),
 			args,
 			diagramImageURL()
@@ -74,7 +74,7 @@ class TomographyPickingModelJob(
 
 		// build the args for PYP
 		val upstreamJob = inParticles?.resolveJob<Job>()
-			?: throw IllegalStateException("no tomograms input configured")
+			?: throw IllegalStateException("no particles input configured")
 		val pypArgs = launchArgValues(upstreamJob, args.newestOrThrow().args.values, args.finished?.values)
 
 		// set the hidden args
@@ -89,7 +89,7 @@ class TomographyPickingModelJob(
 	}
 
 	fun diagramImageURL(): String =
-		IJobsService.miloResults2dPath(idOrThrow, ImageSize.Small)
+		IJobsService.outputImage(idOrThrow, ImageSize.Small)
 
 	override fun wipeData() {
 

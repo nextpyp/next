@@ -57,6 +57,9 @@ interface IJobsService {
 
 		fun miloDataPath(jobId: String): String =
 			"/kv/jobs/$jobId/milo/data"
+
+		fun outputImage(jobId: String, size: ImageSize): String =
+			"/kv/jobs/$jobId/image/${size.id}"
 	}
 }
 

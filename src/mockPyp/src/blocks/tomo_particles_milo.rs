@@ -3,39 +3,15 @@ use std::fs;
 
 use anyhow::{Context, Result};
 use image::{Rgb, Rgba};
-use tracing::info;
 
 use crate::args::{Args, ArgsConfig};
 use crate::image::{Image, ImageDrawing};
 
 
-pub const BLOCK_ID: &'static str = "tomo-picking-model";
+pub const BLOCK_ID: &'static str = "tomo-milo";
 
 
-pub fn run(args: Args, args_config: ArgsConfig) -> Result<()> {
-
-	// get the training method
-	let tomo_partrain_method = args.get("tomo_partrain_method")
-		.into_str()?
-		.value();
-	info!("Training particles: {:?}", tomo_partrain_method);
-	match tomo_partrain_method {
-		Some("pyp") => run_pyp(args, args_config),
-		Some("milo") => run_milo(args, args_config),
-		_ => Ok(()) // do nothing for other, eg `none`
-	}
-}
-
-
-fn run_pyp(_args: Args, _args_config: ArgsConfig) -> Result<()> {
-
-	// TODO: anything to do here?
-
-	Ok(())
-}
-
-
-fn run_milo(_args: Args, _args_config: ArgsConfig) -> Result<()> {
+pub fn run(_args: Args, _args_config: ArgsConfig) -> Result<()> {
 
 	// create subfolders
 	fs::create_dir_all("webp")

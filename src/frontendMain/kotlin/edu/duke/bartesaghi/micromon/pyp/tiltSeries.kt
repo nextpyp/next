@@ -1,6 +1,8 @@
 package edu.duke.bartesaghi.micromon.pyp
 
 import edu.duke.bartesaghi.micromon.diagram.nodes.NodeClientInfo
+import edu.duke.bartesaghi.micromon.diagram.nodes.TomographyParticlesEvalNode
+import edu.duke.bartesaghi.micromon.nodes.TomographyParticlesEvalNodeConfig
 import edu.duke.bartesaghi.micromon.services.*
 
 
@@ -40,8 +42,7 @@ data class TiltSeriesesData(
 					spikes = particlesList?.let {
 						TiltSeriesesParticlesData.Data(
 							list = it,
-							radius = values.tomoSpkRadOrDefault,
-							extraBinning = null
+							radius = values.tomoSpkRadOrDefault
 						)
 					}
 				)
@@ -51,8 +52,7 @@ data class TiltSeriesesData(
 				particles = particlesList?.let {
 					TiltSeriesesParticlesData.Data(
 						list = it,
-						radius = values.tomoSpkRadOrDefault,
-						extraBinning = null
+						radius = values.tomoSpkRadOrDefault
 					)
 				}
 			}
@@ -63,8 +63,7 @@ data class TiltSeriesesData(
 			particles = values.tomoSpkMethodOrDefault.particlesList(jobId)?.let {
 				TiltSeriesesParticlesData.Data(
 					list = it,
-					radius = values.tomoSpkRadOrDefault,
-					extraBinning = null
+					radius = values.tomoSpkRadOrDefault
 				)
 			}
 
@@ -77,6 +76,12 @@ data class TiltSeriesesData(
 					radius = null,
 					extraBinning = null // TODO: need extra binning here?
 				)
+			}
+
+		} else {
+			when (nodeClientInfo) {
+				is TomographyParticlesEvalNode.Companion -> particles = TiltSeriesesParticlesData.Data(ParticlesList.autoParticles3D(jobId))
+				else -> console.warn("No particles for unrecognized block: ${nodeClientInfo.config.id}")
 			}
 		}
 	}
@@ -153,7 +158,7 @@ sealed interface TiltSeriesesParticlesData {
 		 * name should be used to load the particles instead.
 		 */
 		val list: ParticlesList?,
-		val radius: ValueA?,
-		var extraBinning: Int?
+		val radius: ValueA? = null,
+		var extraBinning: Int? = null
 	) : TiltSeriesesParticlesData
 }

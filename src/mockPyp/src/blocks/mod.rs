@@ -6,8 +6,9 @@ mod tomo_denoising;
 mod tomo_picking;
 mod tomo_picking_open;
 mod tomo_picking_closed;
-mod tomo_picking_model;
-
+mod tomo_particles_milo;
+mod tomo_particles_eval;
+mod tomo_particles_train;
 
 use anyhow::{anyhow, Result};
 
@@ -30,8 +31,12 @@ pub fn run(block_id: &str, args: Args, args_config: ArgsConfig) -> Result<()> {
 		tomo_picking_open::run(args, args_config)
 	} else if block_id == tomo_picking_closed::BLOCK_ID {
 		tomo_picking_closed::run(args, args_config)
-	} else if block_id == tomo_picking_model::BLOCK_ID {
-		tomo_picking_model::run(args, args_config)
+	} else if block_id == tomo_particles_milo::BLOCK_ID {
+		tomo_particles_milo::run(args, args_config)
+	} else if block_id == tomo_particles_train::BLOCK_ID {
+		tomo_particles_train::run(args, args_config)
+	} else if block_id == tomo_particles_eval::BLOCK_ID {
+		tomo_particles_eval::run(args, args_config)
 	} else {
 		Err(anyhow!("unrecognized block id: {}", block_id))
 	}

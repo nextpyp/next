@@ -52,6 +52,9 @@ interface NodeConfig {
 			/** Mutiple movie frame refinements */
 			MovieFrameAfterRefinements("Frames"),
 
+			/** Particle coordinates from Phoenix a parquet file */
+			ParticlesParquet("Particles (Parquet)"),
+
 			/** A trained model for picking particles */
 			ParticlesModel("Particles Model")
 		}
