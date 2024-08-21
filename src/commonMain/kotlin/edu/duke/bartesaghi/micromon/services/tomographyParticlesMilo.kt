@@ -26,7 +26,8 @@ interface ITomographyParticlesMiloService {
 
 @Serializable
 data class TomographyParticlesMiloArgs(
-	val values: ArgValuesToml
+	val values: ArgValuesToml,
+	val filter: String?
 )
 
 @Serializable

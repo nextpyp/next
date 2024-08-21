@@ -1,12 +1,15 @@
 package edu.duke.bartesaghi.micromon.jobs
 
 import com.mongodb.client.model.Updates
+import edu.duke.bartesaghi.micromon.linux.userprocessor.createDirsIfNeededAs
+import edu.duke.bartesaghi.micromon.linux.userprocessor.writeStringAs
 import edu.duke.bartesaghi.micromon.mongo.getDocument
 import edu.duke.bartesaghi.micromon.nodes.TomographyParticlesMiloNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.*
 import org.bson.Document
 import org.bson.conversions.Bson
+import kotlin.io.path.div
 
 
 class TomographyParticlesMiloJob(
@@ -34,11 +37,13 @@ class TomographyParticlesMiloJob(
 
 		private fun TomographyParticlesMiloArgs.toDoc() = Document().also { doc ->
 			doc["values"] = values
+			doc["filter"] = filter
 		}
 
 		private fun TomographyParticlesMiloArgs.Companion.fromDoc(doc: Document) =
 			TomographyParticlesMiloArgs(
-				doc.getString("values")
+				doc.getString("values"),
+				doc.getString("filter")
 			)
 
 		val eventListeners = TiltSeriesEventListeners(this)
@@ -75,6 +80,21 @@ class TomographyParticlesMiloJob(
 		// build the args for PYP
 		val upstreamJob = inTomograms?.resolveJob<Job>()
 			?: throw IllegalStateException("no tomograms input configured")
+
+		// are we using a tomogram filter?
+		if (upstreamJob is FilteredJob) {
+			val filter = args.newestOrThrow().args.filter
+				?.let { filter -> upstreamJob.filters[filter] }
+			if (filter != null) {
+
+				// write out the micrographs file to the job folder before starting pyp
+				val dir = dir.createDirsIfNeededAs(project.osUsername)
+				val file = dir / "${dir.fileName}.micrographs"
+				val micrographIds = upstreamJob.resolveFilter(filter)
+				file.writeStringAs(project.osUsername, micrographIds.joinToString("\n"))
+			}
+		}
+
 		val pypArgs = launchArgValues(upstreamJob, args.newestOrThrow().args.values, args.finished?.values)
 
 		// set the hidden args
