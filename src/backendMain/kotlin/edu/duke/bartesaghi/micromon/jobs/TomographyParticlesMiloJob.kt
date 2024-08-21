@@ -89,7 +89,7 @@ class TomographyParticlesMiloJob(
 
 				// write out the micrographs file to the job folder before starting pyp
 				val dir = dir.createDirsIfNeededAs(project.osUsername)
-				val file = dir / "${dir.fileName}.micrographs"
+				val file = dir / "${dir.fileName}.micrographs_subset"
 				val micrographIds = upstreamJob.resolveFilter(filter)
 				file.writeStringAs(project.osUsername, micrographIds.joinToString("\n"))
 			}
