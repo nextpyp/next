@@ -19,6 +19,7 @@ class TomographyDenoisingJob(
 	override var latestTiltSeriesId: String? = null
 	override val eventListeners get() = Companion.eventListeners
 
+	var inTomograms: CommonJobData.DataId? by InputProp(config.inTomograms)
 	var inModel: CommonJobData.DataId? by InputProp(config.model)
 
 	companion object : JobInfo {
@@ -80,8 +81,8 @@ class TomographyDenoisingJob(
 		wwwDir.recreateAs(project.osUsername)
 
 		// build the args for PYP
-		val upstreamJob = inModel?.resolveJob<Job>()
-			?: throw IllegalStateException("no tomograms input configured")
+		val upstreamJob = (inModel ?: inTomograms)?.resolveJob<Job>()
+			?: throw IllegalStateException("no input configured")
 
 		val pypArgs = launchArgValues(upstreamJob, newestArgs.values, args.finished?.values)
 

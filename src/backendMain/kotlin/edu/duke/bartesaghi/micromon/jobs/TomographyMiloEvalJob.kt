@@ -17,6 +17,7 @@ class TomographyMiloEvalJob(
 
 	val args = JobArgs<TomographyMiloEvalArgs>()
 
+	var inTomograms: CommonJobData.DataId? by InputProp(config.tomograms)
 	var inModel: CommonJobData.DataId? by InputProp(config.model)
 
 	companion object : JobInfo {
@@ -78,8 +79,8 @@ class TomographyMiloEvalJob(
 		wwwDir.recreateAs(project.osUsername)
 
 		// build the args for PYP
-		val upstreamJob = inModel?.resolveJob<Job>()
-			?: throw IllegalStateException("no model input configured")
+		val upstreamJob = (inModel ?: inTomograms)?.resolveJob<Job>()
+			?: throw IllegalStateException("no input configured")
 
 		val pypArgs = launchArgValues(upstreamJob, newestArgs.values, args.finished?.values)
 

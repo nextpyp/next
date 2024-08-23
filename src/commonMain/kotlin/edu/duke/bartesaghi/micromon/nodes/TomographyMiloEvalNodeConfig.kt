@@ -13,8 +13,9 @@ object TomographyMiloEvalNodeConfig : NodeConfig {
 	override val status = NodeConfig.NodeStatus.Preview
 
 	val model = NodeConfig.Data("model", NodeConfig.Data.Type.MiloModel)
+	val tomograms = NodeConfig.Data("tomograms", NodeConfig.Data.Type.Tomograms)
 	val particles = NodeConfig.Data("particles", NodeConfig.Data.Type.ParticlesParquet)
 
-	override val inputs = listOf(model)
+	override val inputs = listOf(tomograms, model)
 	override val outputs = listOf(particles)
 }
