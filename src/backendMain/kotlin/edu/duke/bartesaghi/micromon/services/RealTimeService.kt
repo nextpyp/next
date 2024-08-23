@@ -70,8 +70,8 @@ object RealTimeService {
 						outgoing.trySendMessage(RealTimeS2C.JobUpdate(job))
 					}
 
-					override suspend fun onJobFinish(runId: Int, job: JobData, status: RunStatus) {
-						outgoing.trySendMessage(RealTimeS2C.JobFinish(runId, job, status))
+					override suspend fun onJobFinish(runId: Int, job: JobData, status: RunStatus, errorMessage: String?) {
+						outgoing.trySendMessage(RealTimeS2C.JobFinish(runId, job, status, errorMessage))
 					}
 
 					override suspend fun onRunFinish(runId: Int, status: RunStatus) {

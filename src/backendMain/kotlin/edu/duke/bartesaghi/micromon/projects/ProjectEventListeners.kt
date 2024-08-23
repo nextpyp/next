@@ -22,7 +22,7 @@ class ProjectEventListeners {
 		suspend fun onRunStart(runId: Int)
 		suspend fun onJobStart(runId: Int, jobId: String)
 		suspend fun onJobUpdate(job: JobData)
-		suspend fun onJobFinish(runId: Int, job: JobData, status: RunStatus)
+		suspend fun onJobFinish(runId: Int, job: JobData, status: RunStatus, errorMessage: String?)
 		suspend fun onRunFinish(runId: Int, status: RunStatus)
 		suspend fun onClusterJobSubmit(runId: Int, jobId: String, clusterJobId: String, clusterJobWebName: String?, arraySize: Int?)
 		suspend fun onClusterJobStart(runId: Int, jobId: String, clusterJobId: String)
@@ -68,9 +68,9 @@ class ProjectEventListeners {
 		// NOTE: onJobUpdate isn't called by JobRunner.Listener or ClusterJob.Listener
 		//       those events come from different sources
 
-		override suspend fun onFinishJob(userId: String, projectId: String, runId: Int, job: JobData, status: RunStatus) {
+		override suspend fun onFinishJob(userId: String, projectId: String, runId: Int, job: JobData, status: RunStatus, errorMessage: String?) {
 			if (!matchesProject(userId, projectId)) return
-			listeners.onJobFinish(runId, job, status)
+			listeners.onJobFinish(runId, job, status, errorMessage)
 		}
 
 		override suspend fun onFinish(userId: String, projectId: String, runId: Int, status: RunStatus) {

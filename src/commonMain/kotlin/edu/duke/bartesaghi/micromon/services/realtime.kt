@@ -259,10 +259,11 @@ sealed class RealTimeS2C {
 		val runId: Int,
 		val jobId: String,
 		val jobString: String, /*JobData, but serialized outside of KVision*/
-		val status: RunStatus
+		val status: RunStatus,
+		val errorMessage: String?
 	) : RealTimeS2C() {
 
-		constructor(runId: Int, job: JobData, status: RunStatus): this(runId, job.jobId, job.serialize(), status)
+		constructor(runId: Int, job: JobData, status: RunStatus, errorMessage: String?): this(runId, job.jobId, job.serialize(), status, errorMessage)
 		fun job() = JobData.deserialize(jobString)
 	}
 

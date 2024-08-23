@@ -10,6 +10,7 @@ import edu.duke.bartesaghi.micromon.services.ClusterJobResultType
 import edu.duke.bartesaghi.micromon.services.JobData
 import edu.duke.bartesaghi.micromon.services.RunStatus
 import edu.duke.bartesaghi.micromon.uniqueKey
+import io.kvision.remote.ServiceException
 import java.time.Instant
 import java.util.*
 
@@ -133,12 +134,20 @@ class JobRunner(val project: Project) {
 			job.launch(run.idOrThrow)
 		} catch (t: Throwable) {
 
-			Backend.log.error("Job failed to launch", t.cleanupStackTrace())
+			// if the error is a ServiceException, show it to the user
+			val errorMessage = when (t) {
+				is ServiceException -> t.message
+				else -> {
+					// otherwise, only show it to admins
+					Backend.log.error("Job failed to launch", t.cleanupStackTrace())
+					null
+				}
+			}
 
 			// job couldn't be launched, so the whole run is stalled now
 			// best thing we can do is mark the job as failed
 			try {
-				finished(run.idOrThrow, job.idOrThrow, RunStatus.Failed)
+				finished(run.idOrThrow, job.idOrThrow, RunStatus.Failed, errorMessage)
 			} catch (t2: Throwable) {
 				Backend.log.error("Failed to finish failed job run", t2)
 			}
@@ -168,7 +177,7 @@ class JobRunner(val project: Project) {
 	 * Finishes the job run, and the project run too if needed.
 	 * Tries to run the next job after finish tasks are complete.
 	 */
-	suspend fun finished(runId: Int, jobId: String, status: RunStatus) {
+	suspend fun finished(runId: Int, jobId: String, status: RunStatus, errorMessage: String? = null) {
 
 		val run = project.getRun(runId)
 			?: run {
@@ -203,7 +212,7 @@ class JobRunner(val project: Project) {
 
 		// notify listeners
 		for (listener in listeners.values) {
-			listener.onFinishJob(project.userId, project.projectId, run.idOrThrow, jobData, status)
+			listener.onFinishJob(project.userId, project.projectId, run.idOrThrow, jobData, status, errorMessage)
 		}
 
 		// finish the run if needed
@@ -235,7 +244,7 @@ class JobRunner(val project: Project) {
 
 				// notify listeners
 				for (listener in listeners.values) {
-					listener.onFinishJob(project.userId, project.projectId, run.idOrThrow, jobData, job.status)
+					listener.onFinishJob(project.userId, project.projectId, run.idOrThrow, jobData, job.status, null)
 				}
 			}
 		}
@@ -286,7 +295,7 @@ class JobRunner(val project: Project) {
 		suspend fun onInit(userId: String, projectId: String, runId: Int, timestamp: Instant, jobIds: List<String>)
 		suspend fun onStart(userId: String, projectId: String, runId: Int)
 		suspend fun onStartJob(userId: String, projectId: String, runId: Int, jobId: String)
-		suspend fun onFinishJob(userId: String, projectId: String, runId: Int, job: JobData, status: RunStatus)
+		suspend fun onFinishJob(userId: String, projectId: String, runId: Int, job: JobData, status: RunStatus, launchError: String?)
 		suspend fun onFinish(userId: String, projectId: String, runId: Int, status: RunStatus)
 	}
 
