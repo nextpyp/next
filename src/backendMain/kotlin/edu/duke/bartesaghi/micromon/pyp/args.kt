@@ -221,7 +221,6 @@ fun TomlTable.getInput(key: String): ArgInput? {
 		ArgInput.IsonetTrainedModel.id -> ArgInput.IsonetTrainedModel()
 		ArgInput.TrainedModel2D.id -> ArgInput.TrainedModel2D()
 		ArgInput.TrainedModel3D.id -> ArgInput.TrainedModel3D()
-		ArgInput.IsonetTrainedModel.id -> ArgInput.IsonetTrainedModel()
 
 		ArgInput.ClusterQueue.id -> {
 			val groupStr = inputTable.getStringOrThrow("group")
