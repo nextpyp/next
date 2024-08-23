@@ -22,11 +22,13 @@ class ArgInputParFile(
 	companion object {
 
 		fun initialFolder(outNodes: List<Node>): String? =
-			// TODO: how to handle multiple inputs?
 			when (val node = outNodes.firstOrNull()) {
 
 				is SingleParticlePreprocessingNode,
-				is TomographyPreprocessingNode -> PathType.Project.make("${node.dir}/frealign")
+				is TomographyPreprocessingNode,
+				is TomographyPickingNode,
+				// TODO: segmented picking blocks, when they're ready
+				is TomographyParticlesEvalNode-> PathType.Project.make("${node.dir}/frealign")
 
 				is SingleParticleCoarseRefinementNode,
 				is SingleParticleFineRefinementNode,
