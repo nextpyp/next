@@ -22,12 +22,8 @@ class ArgInputTrainedModel3D(
 	companion object {
 
 		fun initialFolder(outNodes: List<Node>): String? =
-			when (val node = outNodes.firstOrNull()) {
-
-				is TomographyParticlesTrainNode -> PathType.Project.make("${node.dir}/train")
-
-				else -> null
-			}
+			outNodes.firstOrNull()
+				?.let { PathType.Project.make("${it.dir}/train") }
 	}
 
 	val default: String? get() = null

@@ -22,13 +22,8 @@ class ArgInputIsonetTrainedModel(
 	companion object {
 
 		fun initialFolder(outNodes: List<Node>): String? =
-			when (val node = outNodes.firstOrNull()) {
-
-				is TomographyPreprocessingNode,
-				is TomographyPurePreprocessingNode -> PathType.Project.make(node.projectFolder)
-
-				else -> null
-			}
+			outNodes.firstOrNull()
+				?.let { PathType.Project.make(it.dir) }
 	}
 
 	val default: String? get() = null
