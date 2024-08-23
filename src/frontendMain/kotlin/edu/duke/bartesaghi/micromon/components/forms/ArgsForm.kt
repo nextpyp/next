@@ -230,6 +230,7 @@ class ArgsInputs(
 					is ArgInput.InitialModel -> ArgInputInitialModel(arg, outNodes)
 					is ArgInput.HalfMap -> ArgInputHalfMap(arg, outNodes)
 					is ArgInput.TopazTrainedModel -> ArgInputTopazTrainedModel(arg, outNodes)
+					is ArgInput.IsonetTrainedModel -> ArgInputIsonetTrainedModel(arg, outNodes)
 					is ArgInput.TrainedModel2D -> ArgInputTrainedModel2D(arg, outNodes)
 					is ArgInput.TrainedModel3D -> ArgInputTrainedModel3D(arg, outNodes)
 					is ArgInput.IsonetTrainedModel -> ArgInputIsonetTrainedModel(arg, outNodes)
