@@ -2,6 +2,7 @@
 mod tomo_rawdata;
 mod tomo_preprocessing;
 mod tomo_pure_preprocessing;
+mod tomo_denoising_training;
 mod tomo_denoising;
 mod tomo_picking;
 mod tomo_picking_open;
@@ -24,6 +25,8 @@ pub fn run(block_id: &str, args: Args, args_config: ArgsConfig) -> Result<()> {
 		tomo_preprocessing::run(args, args_config)
 	} else if block_id == tomo_pure_preprocessing::BLOCK_ID {
 		tomo_pure_preprocessing::run(args, args_config)
+	} else if block_id == tomo_denoising_training::BLOCK_ID {
+		tomo_denoising_training::run(args, args_config)
 	} else if block_id == tomo_denoising::BLOCK_ID {
 		tomo_denoising::run(args, args_config)
 	} else if block_id == tomo_picking::BLOCK_ID {

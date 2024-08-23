@@ -1,8 +1,6 @@
 package edu.duke.bartesaghi.micromon.jobs
 
 import com.mongodb.client.model.Updates
-import edu.duke.bartesaghi.micromon.linux.userprocessor.createDirsIfNeededAs
-import edu.duke.bartesaghi.micromon.linux.userprocessor.writeStringAs
 import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.mongo.getDocument
 import edu.duke.bartesaghi.micromon.nodes.TomographyCoarseRefinementNodeConfig
@@ -14,7 +12,6 @@ import edu.duke.bartesaghi.micromon.services.*
 import io.kvision.remote.ServiceException
 import org.bson.Document
 import org.bson.conversions.Bson
-import kotlin.io.path.div
 
 
 class TomographyCoarseRefinementJob(
@@ -93,18 +90,9 @@ class TomographyCoarseRefinementJob(
 		val upstreamJob = inMovieRefinement?.resolveJob<Job>()
 			?: throw IllegalStateException("no movie refinement input configured")
 
-		// are we using a tilt series filter?
-		if (upstreamJob is FilteredJob) {
-			val filter = newestArgs.filter
-				?.let { filter -> upstreamJob.filters[filter] }
-			if (filter != null) {
-
-				// write out the micrographs file to the job folder before starting pyp
-				val dir = dir.createDirsIfNeededAs(project.osUsername)
-				val file = dir / "${dir.fileName}.micrographs"
-				val tiltSeriesIds = upstreamJob.resolveFilter(filter)
-				file.writeStringAs(project.osUsername, tiltSeriesIds.joinToString("\n"))
-			}
+		// write out the filter from the upstream job, if needed
+		if (upstreamJob is FilteredJob && newestArgs.filter != null) {
+			upstreamJob.writeFilter(newestArgs.filter, dir, project.osUsername)
 		}
 
 		// write out particles from the upstream job, if needed

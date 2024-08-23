@@ -1,8 +1,6 @@
 package edu.duke.bartesaghi.micromon.jobs
 
 import com.mongodb.client.model.Updates
-import edu.duke.bartesaghi.micromon.linux.userprocessor.createDirsIfNeededAs
-import edu.duke.bartesaghi.micromon.linux.userprocessor.writeStringAs
 import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.mongo.getDocument
 import edu.duke.bartesaghi.micromon.nodes.TomographyParticlesMiloNodeConfig
@@ -10,7 +8,6 @@ import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.*
 import org.bson.Document
 import org.bson.conversions.Bson
-import kotlin.io.path.div
 
 
 class TomographyParticlesMiloJob(
@@ -77,6 +74,7 @@ class TomographyParticlesMiloJob(
 	override suspend fun launch(runId: Int) {
 
 		val project = projectOrThrow()
+		val newestArgs = args.newestOrThrow().args
 
 		// clear caches
 		wwwDir.recreateAs(project.osUsername)
@@ -85,21 +83,12 @@ class TomographyParticlesMiloJob(
 		val upstreamJob = inTomograms?.resolveJob<Job>()
 			?: throw IllegalStateException("no tomograms input configured")
 
-		// are we using a tomogram filter?
-		if (upstreamJob is FilteredJob) {
-			val filter = args.newestOrThrow().args.filter
-				?.let { filter -> upstreamJob.filters[filter] }
-			if (filter != null) {
-
-				// write out the micrographs file to the job folder before starting pyp
-				val dir = dir.createDirsIfNeededAs(project.osUsername)
-				val file = dir / "${dir.fileName}.micrographs_subset"
-				val micrographIds = upstreamJob.resolveFilter(filter)
-				file.writeStringAs(project.osUsername, micrographIds.joinToString("\n"))
-			}
+		// write out the filter from the upstream job, if needed
+		if (upstreamJob is FilteredJob && newestArgs.filter != null) {
+			upstreamJob.writeFilter(newestArgs.filter, dir, project.osUsername)
 		}
 
-		val pypArgs = launchArgValues(upstreamJob, args.newestOrThrow().args.values, args.finished?.values)
+		val pypArgs = launchArgValues(upstreamJob, newestArgs.values, args.finished?.values)
 
 		// set the hidden args
 		pypArgs.dataMode = "tomo"

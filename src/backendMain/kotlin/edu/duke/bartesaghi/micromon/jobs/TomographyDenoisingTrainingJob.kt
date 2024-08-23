@@ -1,48 +1,49 @@
 package edu.duke.bartesaghi.micromon.jobs
 
 import com.mongodb.client.model.Updates
-import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.mongo.getDocument
-import edu.duke.bartesaghi.micromon.nodes.TomographyDenoisingNodeConfig
+import edu.duke.bartesaghi.micromon.nodes.TomographyDenoisingTrainingNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.*
 import org.bson.Document
 import org.bson.conversions.Bson
 
 
-class TomographyDenoisingJob(
+class TomographyDenoisingTrainingJob(
 	userId: String,
 	projectId: String
 ) : Job(userId, projectId, config), TiltSeriesesJob {
 
-	val args = JobArgs<TomographyDenoisingArgs>()
+	val args = JobArgs<TomographyDenoisingTrainingArgs>()
 	override var latestTiltSeriesId: String? = null
 	override val eventListeners get() = Companion.eventListeners
 
-	var inModel: CommonJobData.DataId? by InputProp(config.model)
+	var inTomograms: CommonJobData.DataId? by InputProp(config.tomograms)
 
 	companion object : JobInfo {
 
-		override val config = TomographyDenoisingNodeConfig
+		override val config = TomographyDenoisingTrainingNodeConfig
 		override val dataType = JobInfo.DataType.TiltSeries
 
-		override fun fromDoc(doc: Document) = TomographyDenoisingJob(
+		override fun fromDoc(doc: Document) = TomographyDenoisingTrainingJob(
 			doc.getString("userId"),
 			doc.getString("projectId")
 		).apply {
-			args.finished = doc.getDocument("finishedArgs")?.let { TomographyDenoisingArgs.fromDoc(it) }
-			args.next = doc.getDocument("nextArgs")?.let { TomographyDenoisingArgs.fromDoc(it) }
+			args.finished = doc.getDocument("finishedArgs")?.let { TomographyDenoisingTrainingArgs.fromDoc(it) }
+			args.next = doc.getDocument("nextArgs")?.let { TomographyDenoisingTrainingArgs.fromDoc(it) }
 			latestTiltSeriesId = doc.getString("latestTiltSeriesId")
 			fromDoc(doc)
 		}
 
-		private fun TomographyDenoisingArgs.toDoc() = Document().also { doc ->
+		private fun TomographyDenoisingTrainingArgs.toDoc() = Document().also { doc ->
 			doc["values"] = values
+			doc["filter"] = filter
 		}
 
-		private fun TomographyDenoisingArgs.Companion.fromDoc(doc: Document) =
-			TomographyDenoisingArgs(
-				doc.getString("values")
+		private fun TomographyDenoisingTrainingArgs.Companion.fromDoc(doc: Document) =
+			TomographyDenoisingTrainingArgs(
+				doc.getString("values"),
+				doc.getString("filter")
 			)
 
 		val eventListeners = TiltSeriesEventListeners(this)
@@ -64,11 +65,10 @@ class TomographyDenoisingJob(
 	override fun isChanged() = args.hasNext()
 
 	override suspend fun data() =
-		TomographyDenoisingData(
+		TomographyDenoisingTrainingData(
 			commonData(),
 			args,
-			diagramImageURL(),
-			Database.tiltSeries.count(idOrThrow)
+			diagramImageURL()
 		)
 
 	override suspend fun launch(runId: Int) {
@@ -80,8 +80,13 @@ class TomographyDenoisingJob(
 		wwwDir.recreateAs(project.osUsername)
 
 		// build the args for PYP
-		val upstreamJob = inModel?.resolveJob<Job>()
+		val upstreamJob = inTomograms?.resolveJob<Job>()
 			?: throw IllegalStateException("no tomograms input configured")
+
+		// write out the filter from the upstream job, if needed
+		if (upstreamJob is FilteredJob && newestArgs.filter != null) {
+			upstreamJob.writeFilter(newestArgs.filter, dir, project.osUsername)
+		}
 
 		val pypArgs = launchArgValues(upstreamJob, newestArgs.values, args.finished?.values)
 
@@ -113,8 +118,7 @@ class TomographyDenoisingJob(
 
 	override fun wipeData() {
 
-		// also delete any associated data
-		Database.tiltSeries.deleteAll(idOrThrow)
+		// TODO: also delete any associated data
 	}
 
 	override fun newestArgValues(): ArgValuesToml? =

@@ -12,9 +12,9 @@ object TomographyDenoisingNodeConfig : NodeConfig {
 	// TEMP: preview status during development
 	override val status = NodeConfig.NodeStatus.Preview
 
-	val inTomograms = NodeConfig.Data("inTomograms", NodeConfig.Data.Type.Tomograms)
-	val outTomograms = NodeConfig.Data("outTomograms", NodeConfig.Data.Type.Tomograms)
+	val model = NodeConfig.Data("model", NodeConfig.Data.Type.DenoisingModel)
+	val tomograms = NodeConfig.Data("outTomograms", NodeConfig.Data.Type.Tomograms)
 
-	override val inputs = listOf(inTomograms)
-	override val outputs = listOf(outTomograms)
+	override val inputs = listOf(model)
+	override val outputs = listOf(tomograms)
 }

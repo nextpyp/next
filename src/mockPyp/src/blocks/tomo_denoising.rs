@@ -1,8 +1,8 @@
 
 use std::fs;
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use image::Rgb;
-
+use tracing::info;
 use crate::args::{Args, ArgsConfig, ArgValue};
 use crate::image::{Image, ImageDrawing};
 use crate::metadata::TiltSeries;
@@ -51,6 +51,26 @@ pub fn run(mut args: Args, args_config: ArgsConfig) -> Result<()> {
 
 	// set default arg values that the website will use, but we won't
 	args.set_default(&args_config, "ctf", "min_res")?;
+
+	// look for the model file, if needed
+	// TODO: update this to use the new training tab arg
+	let method = args.get("tomo_denoise_method")
+		.into_str()?
+		.value();
+	match method {
+		Some("isonet-predict") => {
+			// look for the model file
+			let model_path = args.get("tomo_denoise_isonet_model")
+				.require()?
+				.into_path()?
+				.value();
+			match model_path.exists() {
+				false => bail!("Missing model: {}", model_path.to_string_lossy()),
+				true => info!("Found model: {}", model_path.to_string_lossy())
+			}
+		}
+		_ => () // no model needed
+	}
 
 	// create subfolders
 	fs::create_dir_all("mrc")

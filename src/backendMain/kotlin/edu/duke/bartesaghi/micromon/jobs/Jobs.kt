@@ -27,6 +27,7 @@ object Jobs {
 		TomographySessionDataNodeConfig to TomographySessionDataJob.Companion,
 		TomographyPreprocessingNodeConfig to TomographyPreprocessingJob.Companion,
 		TomographyPurePreprocessingNodeConfig to TomographyPurePreprocessingJob.Companion,
+		TomographyDenoisingTrainingNodeConfig to TomographyDenoisingTrainingJob.Companion,
 		TomographyDenoisingNodeConfig to TomographyDenoisingJob.Companion,
 		TomographyPickingNodeConfig to TomographyPickingJob.Companion,
 		TomographyPickingOpenNodeConfig to TomographyPickingOpenJob.Companion,

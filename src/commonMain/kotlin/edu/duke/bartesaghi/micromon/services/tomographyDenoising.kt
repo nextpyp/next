@@ -11,7 +11,7 @@ import kotlinx.serialization.Serializable
 interface ITomographyDenoisingService {
 
 	@KVBindingRoute("node/${TomographyDenoisingNodeConfig.ID}/addNode")
-	suspend fun addNode(userId: String, projectId: String, inTomograms: CommonJobData.DataId, args: TomographyDenoisingArgs): TomographyDenoisingData
+	suspend fun addNode(userId: String, projectId: String, inModel: CommonJobData.DataId, args: TomographyDenoisingArgs): TomographyDenoisingData
 
 	@KVBindingRoute("node/${TomographyDenoisingNodeConfig.ID}/edit")
 	suspend fun edit(jobId: String, args: TomographyDenoisingArgs?): TomographyDenoisingData
@@ -26,8 +26,7 @@ interface ITomographyDenoisingService {
 
 @Serializable
 data class TomographyDenoisingArgs(
-	val values: ArgValuesToml,
-	val filter: String?
+	val values: ArgValuesToml
 )
 
 @Serializable

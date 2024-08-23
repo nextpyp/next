@@ -1,5 +1,6 @@
 
 use std::collections::{HashMap, VecDeque};
+use std::path::PathBuf;
 use std::str::FromStr;
 use anyhow::{bail, Context, Result};
 use toml::{Table, Value};
@@ -354,6 +355,13 @@ impl<'a> Arg<&'a ArgValue> {
 				"tomo" => Ok(DataMode::Tomo),
 				_ => bail!("Unrecognized data_mode: {}", value)
 			}
+		})
+	}
+
+	pub fn into_path(self) -> Result<Arg<PathBuf>> {
+		self.try_map_string(|value| {
+			PathBuf::from_str(value)
+				.context(format!("value was not a valid path: {}", value))
 		})
 	}
 }

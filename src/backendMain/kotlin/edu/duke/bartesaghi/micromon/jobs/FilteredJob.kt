@@ -1,10 +1,15 @@
 package edu.duke.bartesaghi.micromon.jobs
 
+import edu.duke.bartesaghi.micromon.linux.userprocessor.createDirsIfNeededAs
+import edu.duke.bartesaghi.micromon.linux.userprocessor.writeStringAs
 import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.pyp.Micrograph
 import edu.duke.bartesaghi.micromon.pyp.TiltSeries
 import edu.duke.bartesaghi.micromon.services.PreprocessingFilter
 import edu.duke.bartesaghi.micromon.services.PreprocessingFilters
+import io.kvision.remote.ServiceException
+import java.nio.file.Path
+import kotlin.io.path.div
 
 
 interface FilteredJob {
@@ -13,6 +18,17 @@ interface FilteredJob {
 
 	fun resolveFilter(filter: PreprocessingFilter): List<String>
 
+	suspend fun writeFilter(name: String, dir: Path, osUsername: String?) {
+
+		// look for the filter in the upstream block
+		val filter = filters[name]
+			?: throw ServiceException("unrecognized filter: $name")
+
+		// write out the micrographs file to the job folder
+		dir.createDirsIfNeededAs(osUsername)
+		val file = dir / "${dir.fileName}.micrographs"
+		file.writeStringAs(osUsername, resolveFilter(filter).joinToString("\n"))
+	}
 
 	companion object {
 

@@ -56,7 +56,10 @@ interface NodeConfig {
 			ParticlesParquet("Particles (Parquet)"),
 
 			/** A trained model for picking particles */
-			ParticlesModel("Particles Model")
+			ParticlesModel("Particles Model"),
+
+			/** A trained model for denoising */
+			DenoisingModel("Denoising Model")
 		}
 	}
 
