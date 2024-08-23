@@ -232,6 +232,7 @@ class ArgsInputs(
 					is ArgInput.TopazTrainedModel -> ArgInputTopazTrainedModel(arg, outNodes)
 					is ArgInput.TrainedModel2D -> ArgInputTrainedModel2D(arg, outNodes)
 					is ArgInput.TrainedModel3D -> ArgInputTrainedModel3D(arg, outNodes)
+					is ArgInput.IsonetTrainedModel -> ArgInputIsonetTrainedModel(arg, outNodes)
 					is ArgInput.ClusterQueue -> ArgInputClusterQueue(arg)
 				}
 			} else {

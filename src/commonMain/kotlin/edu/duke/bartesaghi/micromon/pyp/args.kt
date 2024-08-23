@@ -799,6 +799,19 @@ sealed class ArgInput {
 	}
 
 	/**
+	 * Helps the user pick a trained model from previous job outputs
+	 */
+	@Serializable
+	class IsonetTrainedModel : ArgInput() {
+
+		companion object {
+			const val id = "isonetTrainedModel"
+		}
+
+		override val argInputId = id
+	}
+
+	/**
 	 * Helps the user pick a cluster queue
 	 */
 	@Serializable
