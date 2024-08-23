@@ -4,14 +4,12 @@ import edu.duke.bartesaghi.micromon.AppScope
 import edu.duke.bartesaghi.micromon.components.forms.*
 import edu.duke.bartesaghi.micromon.diagram.Diagram
 import edu.duke.bartesaghi.micromon.dynamicImageClassName
-import edu.duke.bartesaghi.micromon.formatWithDigitGroupsSeparator
-import edu.duke.bartesaghi.micromon.nodes.TomographyParticlesMiloNodeConfig
+import edu.duke.bartesaghi.micromon.nodes.TomographyMiloTrainNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
 import edu.duke.bartesaghi.micromon.pyp.Args
 import edu.duke.bartesaghi.micromon.pyp.filterForDownstreamCopy
 import edu.duke.bartesaghi.micromon.refreshDynamicImages
 import edu.duke.bartesaghi.micromon.services.*
-import edu.duke.bartesaghi.micromon.views.TomographyParticlesMiloView
 import edu.duke.bartesaghi.micromon.views.Viewport
 import io.kvision.form.select.SelectRemote
 import io.kvision.form.formPanel
@@ -20,35 +18,35 @@ import js.micromondiagrams.MicromonDiagrams
 import js.micromondiagrams.nodeType
 
 
-class TomographyParticlesMiloNode(
+class TomographyMiloTrainNode(
 	viewport: Viewport,
 	diagram: Diagram,
 	project: ProjectData,
-	job: TomographyParticlesMiloData
+	job: TomographyMiloTrainData
 ) : Node(viewport, diagram, type, config, project, job) {
 
-	val job get() = baseJob as TomographyParticlesMiloData
+	val job get() = baseJob as TomographyMiloTrainData
 
 	companion object : NodeClientInfo {
 
-		override val config = TomographyParticlesMiloNodeConfig
+		override val config = TomographyMiloTrainNodeConfig
 		override val type = MicromonDiagrams.nodeType(config, "fas fa-robot")
-		override val jobClass = TomographyParticlesMiloData::class
+		override val jobClass = TomographyMiloTrainData::class
 		override val urlFragment = null
 
 		override fun makeNode(viewport: Viewport, diagram: Diagram, project: ProjectData, job: JobData) =
-			TomographyParticlesMiloNode(viewport, diagram, project, job as TomographyParticlesMiloData)
+			TomographyMiloTrainNode(viewport, diagram, project, job as TomographyMiloTrainData)
 
 		override fun showUseDataForm(viewport: Viewport, diagram: Diagram, project: ProjectData, outNode: Node, input: CommonJobData.DataId, copyFrom: Node?, callback: (Node) -> Unit) {
-			val defaultArgs = (copyFrom as TomographyParticlesMiloNode?)?.job?.args
+			val defaultArgs = (copyFrom as TomographyMiloTrainNode?)?.job?.args
 			form(config.name, outNode, defaultArgs, true) { args ->
 
 				// save the node to the server
 				AppScope.launch {
-					val data = Services.tomographyParticlesMilo.addNode(project.owner.id, project.projectId, input, args)
+					val data = Services.tomographyMiloTrain.addNode(project.owner.id, project.projectId, input, args)
 
 					// send the node back to the diagram
-					callback(TomographyParticlesMiloNode(viewport, diagram, project, data))
+					callback(TomographyMiloTrainNode(viewport, diagram, project, data))
 				}
 			}
 		}
@@ -57,21 +55,21 @@ class TomographyParticlesMiloNode(
 			@Suppress("NAME_SHADOWING")
 			val input = input
 				?: throw IllegalArgumentException("input required to make job for ${config.id}")
-			val args = TomographyParticlesMiloArgs(
+			val args = TomographyMiloTrainArgs(
 				values = argValues,
 				filter = null
 			)
-			return Services.tomographyParticlesMilo.addNode(project.owner.id, project.projectId, input, args)
+			return Services.tomographyMiloTrain.addNode(project.owner.id, project.projectId, input, args)
 		}
 
-		override suspend fun getJob(jobId: String): TomographyParticlesMiloData =
-			Services.tomographyParticlesMilo.get(jobId)
+		override suspend fun getJob(jobId: String): TomographyMiloTrainData =
+			Services.tomographyMiloTrain.get(jobId)
 
 		override val pypArgs = ServerVal {
-			Args.fromJson(Services.tomographyParticlesMilo.getArgs())
+			Args.fromJson(Services.tomographyMiloTrain.getArgs())
 		}
 
-		private fun form(caption: String, upstreamNode: Node, args: JobArgs<TomographyParticlesMiloArgs>?, enabled: Boolean, onDone: (TomographyParticlesMiloArgs) -> Unit) = AppScope.launch {
+		private fun form(caption: String, upstreamNode: Node, args: JobArgs<TomographyMiloTrainArgs>?, enabled: Boolean, onDone: (TomographyMiloTrainArgs) -> Unit) = AppScope.launch {
 
 			val pypArgs = pypArgs.get()
 
@@ -82,7 +80,7 @@ class TomographyParticlesMiloNode(
 				classes = setOf("dashboard-popup", "args-form-popup", "max-height-dialog")
 			)
 
-			val form = win.formPanel<TomographyParticlesMiloArgs>().apply {
+			val form = win.formPanel<TomographyMiloTrainArgs>().apply {
 
 				val upstreamIsPreprocessing =
 					upstreamNode is TomographyPreprocessingNode
@@ -91,7 +89,7 @@ class TomographyParticlesMiloNode(
 					|| upstreamNode is TomographySessionDataNode
 					|| upstreamNode is TomographyRelionDataNode
 
-				add(TomographyParticlesMiloArgs::filter,
+				add(TomographyMiloTrainArgs::filter,
 					// look for the preprocessing job in the upstream node to get the filter
 					if (upstreamIsPreprocessing) {
 						SelectRemote(
@@ -106,12 +104,12 @@ class TomographyParticlesMiloNode(
 					}
 				)
 
-				add(TomographyParticlesMiloArgs::values, ArgsForm(pypArgs, listOf(upstreamNode), enabled, config.configId))
+				add(TomographyMiloTrainArgs::values, ArgsForm(pypArgs, listOf(upstreamNode), enabled, config.configId))
 			}
 
 			// use the none filter option for the particles name in the form,
 			// since the control can't handle nulls
-			val mapper = ArgsMapper<TomographyParticlesMiloArgs>(
+			val mapper = ArgsMapper<TomographyMiloTrainArgs>(
 				toForm = { args ->
 					if (args.filter == null) {
 						args.copy(filter = NoneFilterOption)
@@ -129,8 +127,8 @@ class TomographyParticlesMiloNode(
 			)
 
 			// by default, copy args values from the upstream node
-			val argsOrCopy: JobArgs<TomographyParticlesMiloArgs> = args
-				?: JobArgs.fromNext(TomographyParticlesMiloArgs(
+			val argsOrCopy: JobArgs<TomographyMiloTrainArgs> = args
+				?: JobArgs.fromNext(TomographyMiloTrainArgs(
 					filter = null,
 					values = upstreamNode.newestArgValues()?.filterForDownstreamCopy(pypArgs) ?: ""
 				))
@@ -151,12 +149,10 @@ class TomographyParticlesMiloNode(
 
 		content {
 			button(className = "image-button", onClick = {
-				TomographyParticlesMiloView.go(viewport, project, job)
+				// TODO: view?
+				//TomographyParticlesMiloView.go(viewport, project, job)
 			}) {
 				img(job.imageUrl, className = dynamicImageClassName)
-			}
-			div(className = "count") {
-				text("${job.numParticles.formatWithDigitGroupsSeparator()} particles")
 			}
 		}
 
@@ -176,7 +172,7 @@ class TomographyParticlesMiloNode(
 			val diff = job.args.diff(newArgs)
 			if (diff.shouldSave) {
 				AppScope.launch {
-					baseJob = Services.tomographyParticlesMilo.edit(baseJob.jobId, diff.newNextArgs(newArgs))
+					baseJob = Services.tomographyMiloTrain.edit(baseJob.jobId, diff.newNextArgs(newArgs))
 					edited()
 				}
 			}

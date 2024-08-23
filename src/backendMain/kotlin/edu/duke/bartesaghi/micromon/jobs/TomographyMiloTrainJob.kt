@@ -3,43 +3,43 @@ package edu.duke.bartesaghi.micromon.jobs
 import com.mongodb.client.model.Updates
 import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.mongo.getDocument
-import edu.duke.bartesaghi.micromon.nodes.TomographyParticlesMiloNodeConfig
+import edu.duke.bartesaghi.micromon.nodes.TomographyMiloTrainNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.*
 import org.bson.Document
 import org.bson.conversions.Bson
 
 
-class TomographyParticlesMiloJob(
+class TomographyMiloTrainJob(
 	userId: String,
 	projectId: String
-) : Job(userId, projectId, config), ParticlesJob {
+) : Job(userId, projectId, config) {
 
-	val args = JobArgs<TomographyParticlesMiloArgs>()
+	val args = JobArgs<TomographyMiloTrainArgs>()
 
 	var inTomograms: CommonJobData.DataId? by InputProp(config.tomograms)
 
 	companion object : JobInfo {
 
-		override val config = TomographyParticlesMiloNodeConfig
+		override val config = TomographyMiloTrainNodeConfig
 		override val dataType = JobInfo.DataType.TiltSeries
 
-		override fun fromDoc(doc: Document) = TomographyParticlesMiloJob(
+		override fun fromDoc(doc: Document) = TomographyMiloTrainJob(
 			doc.getString("userId"),
 			doc.getString("projectId")
 		).apply {
-			args.finished = doc.getDocument("finishedArgs")?.let { TomographyParticlesMiloArgs.fromDoc(it) }
-			args.next = doc.getDocument("nextArgs")?.let { TomographyParticlesMiloArgs.fromDoc(it) }
+			args.finished = doc.getDocument("finishedArgs")?.let { TomographyMiloTrainArgs.fromDoc(it) }
+			args.next = doc.getDocument("nextArgs")?.let { TomographyMiloTrainArgs.fromDoc(it) }
 			fromDoc(doc)
 		}
 
-		private fun TomographyParticlesMiloArgs.toDoc() = Document().also { doc ->
+		private fun TomographyMiloTrainArgs.toDoc() = Document().also { doc ->
 			doc["values"] = values
 			doc["filter"] = filter
 		}
 
-		private fun TomographyParticlesMiloArgs.Companion.fromDoc(doc: Document) =
-			TomographyParticlesMiloArgs(
+		private fun TomographyMiloTrainArgs.Companion.fromDoc(doc: Document) =
+			TomographyMiloTrainArgs(
 				doc.getString("values"),
 				doc.getString("filter")
 			)
@@ -62,13 +62,10 @@ class TomographyParticlesMiloJob(
 	override fun isChanged() = args.hasNext()
 
 	override suspend fun data() =
-		TomographyParticlesMiloData(
+		TomographyMiloTrainData(
 			commonData(),
 			args,
-			diagramImageURL(),
-			args.finished
-				?.let { Database.particles.countAllParticles(idOrThrow, ParticlesList.AutoParticles) }
-				?: 0
+			diagramImageURL()
 		)
 
 	override suspend fun launch(runId: Int) {
@@ -115,7 +112,4 @@ class TomographyParticlesMiloJob(
 
 	override fun finishedArgValues(): ArgValuesToml? =
 		args.finished?.values
-
-	override fun particlesList(): ParticlesList =
-		ParticlesList.autoParticles3D(idOrThrow)
 }

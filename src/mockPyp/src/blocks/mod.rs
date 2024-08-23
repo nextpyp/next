@@ -7,7 +7,8 @@ mod tomo_denoising;
 mod tomo_picking;
 mod tomo_picking_open;
 mod tomo_picking_closed;
-mod tomo_particles_milo;
+mod tomo_milo_train;
+mod tomo_milo_eval;
 mod tomo_particles_eval;
 mod tomo_particles_train;
 mod tomo_coarse_refinement;
@@ -35,8 +36,10 @@ pub fn run(block_id: &str, args: Args, args_config: ArgsConfig) -> Result<()> {
 		tomo_picking_open::run(args, args_config)
 	} else if block_id == tomo_picking_closed::BLOCK_ID {
 		tomo_picking_closed::run(args, args_config)
-	} else if block_id == tomo_particles_milo::BLOCK_ID {
-		tomo_particles_milo::run(args, args_config)
+	} else if block_id == tomo_milo_train::BLOCK_ID {
+		tomo_milo_train::run(args, args_config)
+	} else if block_id == tomo_milo_eval::BLOCK_ID {
+		tomo_milo_eval::run(args, args_config)
 	} else if block_id == tomo_particles_train::BLOCK_ID {
 		tomo_particles_train::run(args, args_config)
 	} else if block_id == tomo_particles_eval::BLOCK_ID {

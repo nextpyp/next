@@ -2,20 +2,20 @@ package edu.duke.bartesaghi.micromon.views
 
 import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.components.*
-import edu.duke.bartesaghi.micromon.diagram.nodes.TomographyParticlesMiloNode
+import edu.duke.bartesaghi.micromon.diagram.nodes.TomographyMiloEvalNode
 import edu.duke.bartesaghi.micromon.services.*
 import io.kvision.core.Widget
 import io.kvision.html.*
 import io.kvision.navbar.navLink
 
 
-fun Widget.onGoToTomographyParticlesMilo(viewport: Viewport, project: ProjectData, job: TomographyParticlesMiloData) {
-	onShow(TomographyParticlesMiloView.path(project, job)) {
-		viewport.setView(TomographyParticlesMiloView(project, job))
+fun Widget.onGoToTomographyParticlesMilo(viewport: Viewport, project: ProjectData, job: TomographyMiloEvalData) {
+	onShow(TomographyMiloEvalView.path(project, job)) {
+		viewport.setView(TomographyMiloEvalView(project, job))
 	}
 }
 
-class TomographyParticlesMiloView(val project: ProjectData, val job: TomographyParticlesMiloData) : View {
+class TomographyMiloEvalView(val project: ProjectData, val job: TomographyMiloEvalData) : View {
 
 	companion object : Routed {
 
@@ -24,8 +24,8 @@ class TomographyParticlesMiloView(val project: ProjectData, val job: TomographyP
 				AppScope.launch {
 					try {
 						val project = Services.projects.get(userId, projectId)
-						val job = Services.tomographyParticlesMilo.get(jobId)
-						viewport.setView(TomographyParticlesMiloView(project, job))
+						val job = Services.tomographyMiloEval.get(jobId)
+						viewport.setView(TomographyMiloEvalView(project, job))
 					} catch (t: Throwable) {
 						viewport.setView(ErrorView(t))
 					}
@@ -33,11 +33,11 @@ class TomographyParticlesMiloView(val project: ProjectData, val job: TomographyP
 			}
 		}
 
-		fun path(project: ProjectData, job: TomographyParticlesMiloData) = "/project/${project.owner.id}/${project.projectId}/tomographyParticlesMilo/${job.jobId}"
+		fun path(project: ProjectData, job: TomographyMiloEvalData) = "/project/${project.owner.id}/${project.projectId}/tomographyParticlesMilo/${job.jobId}"
 
-		fun go(viewport: Viewport, project: ProjectData, job: TomographyParticlesMiloData) {
+		fun go(viewport: Viewport, project: ProjectData, job: TomographyMiloEvalData) {
 			routing.show(path(project, job))
-			viewport.setView(TomographyParticlesMiloView(project, job))
+			viewport.setView(TomographyMiloEvalView(project, job))
 		}
 	}
 
@@ -53,7 +53,7 @@ class TomographyParticlesMiloView(val project: ProjectData, val job: TomographyP
 					.onGoToDashboard()
 				navLink(project.numberedName, icon = "fas fa-project-diagram")
 					.onGoToProject(project)
-				navLink(job.numberedName, icon = TomographyParticlesMiloNode.type.iconClass)
+				navLink(job.numberedName, icon = TomographyMiloEvalNode.type.iconClass)
 					.onGoToTomographyParticlesMilo(viewport, project, job)
 			}
 		}

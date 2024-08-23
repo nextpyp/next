@@ -56,7 +56,7 @@ class App : Application() {
 			TomographyPickingView.Companion,
 			TomographyPickingOpenView.Companion,
 			TomographyPickingClosedView.Companion,
-			TomographyParticlesMiloView.Companion,
+			TomographyMiloEvalView.Companion,
 			TomographyParticlesEvalView.Companion,
 			IntegratedRefinementView.Companion,
 			SessionsView.Companion,

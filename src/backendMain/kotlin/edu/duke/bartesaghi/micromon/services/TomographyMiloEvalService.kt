@@ -8,29 +8,29 @@ import edu.duke.bartesaghi.micromon.mongo.authProjectOrThrow
 import io.ktor.application.*
 
 
-actual class TomographyParticlesMiloService : ITomographyParticlesMiloService, Service {
+actual class TomographyMiloEvalService : ITomographyMiloEvalService, Service {
 
 	@Inject
 	override lateinit var call: ApplicationCall
 
-	override suspend fun addNode(userId: String, projectId: String, inData: CommonJobData.DataId, args: TomographyParticlesMiloArgs): TomographyParticlesMiloData = sanitizeExceptions {
+	override suspend fun addNode(userId: String, projectId: String, inData: CommonJobData.DataId, args: TomographyMiloEvalArgs): TomographyMiloEvalData = sanitizeExceptions {
 
 		val user = call.authOrThrow()
 		user.authProjectOrThrow(ProjectPermission.Write, userId, projectId)
 
 		// make the job
-		val job = TomographyParticlesMiloJob(userId, projectId)
+		val job = TomographyMiloEvalJob(userId, projectId)
 		job.args.next = args
-		job.inTomograms = inData
+		job.inModel = inData
 		job.create()
 
 		return job.data()
 	}
 
-	private fun String.authJob(permission: ProjectPermission): AuthInfo<TomographyParticlesMiloJob> =
+	private fun String.authJob(permission: ProjectPermission): AuthInfo<TomographyMiloEvalJob> =
 		authJob(permission, this)
 
-	override suspend fun edit(jobId: String, args: TomographyParticlesMiloArgs?): TomographyParticlesMiloData = sanitizeExceptions {
+	override suspend fun edit(jobId: String, args: TomographyMiloEvalArgs?): TomographyMiloEvalData = sanitizeExceptions {
 
 		val job = jobId.authJob(ProjectPermission.Write).job
 
@@ -41,7 +41,7 @@ actual class TomographyParticlesMiloService : ITomographyParticlesMiloService, S
 		return job.data()
 	}
 
-	override suspend fun get(jobId: String): TomographyParticlesMiloData = sanitizeExceptions {
+	override suspend fun get(jobId: String): TomographyMiloEvalData = sanitizeExceptions {
 
 		val job = jobId.authJob(ProjectPermission.Read).job
 
@@ -49,6 +49,6 @@ actual class TomographyParticlesMiloService : ITomographyParticlesMiloService, S
 	}
 
 	override suspend fun getArgs(): String = sanitizeExceptions {
-		return TomographyParticlesMiloJob.args().toJson()
+		return TomographyMiloEvalJob.args().toJson()
 	}
 }

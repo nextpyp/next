@@ -59,7 +59,10 @@ interface NodeConfig {
 			ParticlesModel("Particles Model"),
 
 			/** A trained model for denoising */
-			DenoisingModel("Denoising Model")
+			DenoisingModel("Denoising Model"),
+
+			/** A trained model for MiLoPYP */
+			MiloModel("MiLoPYP Model")
 		}
 	}
 
