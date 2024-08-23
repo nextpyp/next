@@ -232,11 +232,11 @@ impl Web {
 			let m = args.get_or_ins_object("metadata")?;
 			m.ins("virion_coordinates", virions.iter()
 				.map(|p| vec![
-					p.particle.x.0,
-					p.particle.y.0,
-					p.particle.z.0,
-					p.particle.r.0,
-					p.threshold
+					Value::from(p.particle.x.0),
+					Value::from(p.particle.y.0),
+					Value::from(p.particle.z.0),
+					Value::from(p.particle.r.0),
+					Value::from(p.threshold)
 				])
 				.collect::<Vec<_>>()
 			);

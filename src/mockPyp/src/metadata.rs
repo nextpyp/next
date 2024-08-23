@@ -1,4 +1,6 @@
-use crate::scale::{ValueA, ValueBinnedF, ValueUnbinnedF};
+
+use crate::scale::{ValueA, ValueBinnedF, ValueBinnedU, ValueUnbinnedF};
+
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct TiltSeries {
@@ -94,15 +96,15 @@ pub struct DriftCtf {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Virion3D {
 	pub particle: Particle3D,
-	pub threshold: f64
+	pub threshold: u32
 }
 
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Particle3D {
-	pub x: ValueBinnedF,
-	pub y: ValueBinnedF,
-	pub z: ValueBinnedF,
+	pub x: ValueBinnedU,
+	pub y: ValueBinnedU,
+	pub z: ValueBinnedU,
 	pub r: ValueBinnedF,
 	pub threshold: Option<u32>
 }
