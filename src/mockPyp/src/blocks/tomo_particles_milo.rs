@@ -54,8 +54,8 @@ pub fn run(mut args: Args, args_config: ArgsConfig) -> Result<()> {
 		.value();
 
 	// create subfolders
-	fs::create_dir_all("webp")
-		.context("Failed to create webp dir")?;
+	fs::create_dir_all("train")
+		.context("Failed to create train dir")?;
 
 	const RESULTS_IMG_SIZE: u32 = 512;
 
@@ -80,7 +80,16 @@ pub fn run(mut args: Args, args_config: ArgsConfig) -> Result<()> {
 		format!("Block: {}", BLOCK_ID),
 		"Type: 2D Results".to_string()
 	]);
-	img.save("webp/results_2d.webp")?;
+	img.save("train/2d_visualization_out.webp")?;
+
+	// generate the results 2D labels image
+	let mut img = Image::new(RESULTS_IMG_SIZE, RESULTS_IMG_SIZE);
+	img.draw().fill(Rgb([255, 255, 255]));
+	img.draw().text_lines(32, Rgb([0, 0, 0]), [
+		format!("Block: {}", BLOCK_ID),
+		"Type: 2D Results Labels".to_string()
+	]);
+	img.save("train/2d_visualization_labels.webp")?;
 
 	// generate the results 3D image
 	let mut img = Image::new(RESULTS_IMG_SIZE, RESULTS_IMG_SIZE);
@@ -97,11 +106,11 @@ pub fn run(mut args: Args, args_config: ArgsConfig) -> Result<()> {
 		format!("Block: {}", BLOCK_ID),
 		"Type: 3D Results".to_string()
 	]);
-	img.save("webp/results_3d.webp")?;
+	img.save("train/3d_visualization_out.webp")?;
 
-	// generate a generic downloadable file
-	fs::write("download.dat", "download me!")
-		.context("Failed to write the downloadable file")?;
+	// generate the downloadable file
+	fs::write("train/all_output_info.npz", "just NPZ things")
+		.context("Failed to write the NPZ file")?;
 
 	let web = Web::new()?;
 	web.write_parameters(&args, &args_config)?;

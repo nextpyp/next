@@ -63,7 +63,7 @@ class TomographyParticlesMiloView(val project: ProjectData, val job: TomographyP
 			elem.h1("Milo-PYP Particle Picking Model")
 
 			// show the file download
-			val fileDownload = FileDownloadBadge(".dat file")
+			val fileDownload = FileDownloadBadge(".npz file")
 			elem.div {
 				add(fileDownload)
 			}
@@ -73,7 +73,7 @@ class TomographyParticlesMiloView(val project: ProjectData, val job: TomographyP
 			fileDownload.show(FileDownloadBadge.Info(
 				fileData,
 				IJobsService.miloDataPath(job.jobId),
-				"${job.jobId}_milo.dat"
+				"${job.jobId}_milo.npz"
 			))
 
 			// show the 2D results
@@ -82,6 +82,15 @@ class TomographyParticlesMiloView(val project: ProjectData, val job: TomographyP
 				// set the panel resize handler
 				onResize = { newSize: ImageSize ->
 					img.src = IJobsService.miloResults2dPath(job.jobId, size)
+					Storage.miloResults2dSize = newSize
+				}
+			})
+
+			elem.add(SizedPanel("2D Results Labels", Storage.miloResults2dSize).apply {
+				val img = image(IJobsService.miloResults2dLabelsPath(job.jobId, size), classes = setOf("full-width-image"))
+				// set the panel resize handler
+				onResize = { newSize: ImageSize ->
+					img.src = IJobsService.miloResults2dLabelsPath(job.jobId, size)
 					Storage.miloResults2dSize = newSize
 				}
 			})

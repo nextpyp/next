@@ -257,6 +257,19 @@ actual class JobsService : IJobsService, Service {
 						}
 					}
 
+					get("results_2d_labels/{size}") {
+						call.respondExceptions {
+
+							// parse args
+							val jobId = parseJobId()
+							val size = parseSize()
+
+							val bytes = service.getMiloResults2dLabels(jobId, size)
+
+							call.respondBytes(bytes, ContentType.Image.WebP)
+						}
+					}
+
 					get("results_3d/{size}") {
 						call.respondExceptions {
 
@@ -519,8 +532,20 @@ actual class JobsService : IJobsService, Service {
 
 		val job = jobId.authJob(ProjectPermission.Read).job
 
-		val imagePath = job.dir / "webp/results_2d.webp"
+		val imagePath = job.dir / "train" / "2d_visualization_out.webp"
 		val cacheInfo = ImageCacheInfo(job.wwwDir, "milo-results-2d")
+
+		return size.readResize(imagePath, ImageType.Webp, cacheInfo)
+			// no image, return a placeholder
+			?: Resources.placeholderJpg(size)
+	}
+
+	suspend fun getMiloResults2dLabels(jobId: String, size: ImageSize): ByteArray {
+
+		val job = jobId.authJob(ProjectPermission.Read).job
+
+		val imagePath = job.dir / "train" / "2d_visualization_labels.webp"
+		val cacheInfo = ImageCacheInfo(job.wwwDir, "milo-results-2d-labels")
 
 		return size.readResize(imagePath, ImageType.Webp, cacheInfo)
 			// no image, return a placeholder
@@ -531,7 +556,7 @@ actual class JobsService : IJobsService, Service {
 
 		val job = jobId.authJob(ProjectPermission.Read).job
 
-		val imagePath = job.dir / "webp/results_3d.webp"
+		val imagePath = job.dir / "train" / "3d_visualization_out.webp"
 		val cacheInfo = ImageCacheInfo(job.wwwDir, "milo-results-3d")
 
 		return size.readResize(imagePath, ImageType.Webp, cacheInfo)
@@ -541,7 +566,7 @@ actual class JobsService : IJobsService, Service {
 
 	override suspend fun miloData(jobId: String): Option<FileDownloadData> = sanitizeExceptions {
 		val job = jobId.authJob(ProjectPermission.Read).job
-		val path = job.dir / "download.dat"
+		val path = job.dir / "train" / "all_output_info.npz"
 		path
 			.toFileDownloadData()
 			.toOption()
@@ -549,7 +574,7 @@ actual class JobsService : IJobsService, Service {
 
 	fun miloDataContent(jobId: String): ByteArray {
 		val job = jobId.authJob(ProjectPermission.Read).job
-		val path = job.dir / "download.dat"
+		val path = job.dir / "train" / "all_output_info.npz"
 		return path.readBytes()
 	}
 
