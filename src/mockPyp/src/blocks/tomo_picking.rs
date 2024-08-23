@@ -53,6 +53,9 @@ pub fn run(mut args: Args, args_config: ArgsConfig) -> Result<()> {
 		.into_u32()?
 		.value();
 
+	let web = Web::new()?;
+	web.write_parameters(&args, &args_config)?;
+
 	// create subfolders
 	fs::create_dir_all("webp")
 		.context("Failed to create webp dir")?;
@@ -138,8 +141,6 @@ pub fn run(mut args: Args, args_config: ArgsConfig) -> Result<()> {
 			.save(format!("webp/{}_rec.webp", &tilt_series.tilt_series_id))?;
 
 		// tell the website
-		let web = Web::new()?;
-		web.write_parameters(&args, &args_config)?;
 		web.write_tilt_series(&tilt_series)?;
 	}
 

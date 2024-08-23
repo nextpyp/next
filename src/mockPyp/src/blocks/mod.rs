@@ -9,6 +9,7 @@ mod tomo_picking_closed;
 mod tomo_particles_milo;
 mod tomo_particles_eval;
 mod tomo_particles_train;
+mod tomo_coarse_refinement;
 
 use anyhow::{anyhow, Result};
 
@@ -37,6 +38,8 @@ pub fn run(block_id: &str, args: Args, args_config: ArgsConfig) -> Result<()> {
 		tomo_particles_train::run(args, args_config)
 	} else if block_id == tomo_particles_eval::BLOCK_ID {
 		tomo_particles_eval::run(args, args_config)
+	} else if block_id == tomo_coarse_refinement::BLOCK_ID {
+		tomo_coarse_refinement::run(args, args_config)
 	} else {
 		Err(anyhow!("unrecognized block id: {}", block_id))
 	}

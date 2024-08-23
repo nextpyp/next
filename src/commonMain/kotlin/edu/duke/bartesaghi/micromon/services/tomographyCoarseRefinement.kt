@@ -27,7 +27,8 @@ interface ITomographyCoarseRefinementService {
 @Serializable
 data class TomographyCoarseRefinementArgs(
 	val values: ArgValuesToml,
-	val filter: String?
+	val filter: String?,
+	val particlesName: String?
 )
 
 @Serializable

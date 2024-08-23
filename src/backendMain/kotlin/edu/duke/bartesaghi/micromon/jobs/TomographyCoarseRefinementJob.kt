@@ -11,6 +11,7 @@ import edu.duke.bartesaghi.micromon.projects.RepresentativeImage
 import edu.duke.bartesaghi.micromon.projects.RepresentativeImageType
 import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.*
+import io.kvision.remote.ServiceException
 import org.bson.Document
 import org.bson.conversions.Bson
 import kotlin.io.path.div
@@ -45,12 +46,14 @@ class TomographyCoarseRefinementJob(
 		private fun TomographyCoarseRefinementArgs.toDoc() = Document().also { doc ->
 			doc["values"] = values
 			doc["filter"] = filter
+			doc["particlesName"] = particlesName
 		}
 
 		private fun TomographyCoarseRefinementArgs.Companion.fromDoc(doc: Document) =
 			TomographyCoarseRefinementArgs(
 				doc.getString("values"),
-				doc.getString("filter")
+				doc.getString("filter"),
+				doc.getString("particlesName")
 			)
 	}
 
@@ -81,6 +84,7 @@ class TomographyCoarseRefinementJob(
 	override suspend fun launch(runId: Int) {
 
 		val project = projectOrThrow()
+		val newestArgs = args.newestOrThrow().args
 
 		// clear caches
 		wwwDir.recreateAs(project.osUsername)
@@ -91,7 +95,7 @@ class TomographyCoarseRefinementJob(
 
 		// are we using a tilt series filter?
 		if (upstreamJob is FilteredJob) {
-			val filter = args.newestOrThrow().args.filter
+			val filter = newestArgs.filter
 				?.let { filter -> upstreamJob.filters[filter] }
 			if (filter != null) {
 
@@ -103,8 +107,23 @@ class TomographyCoarseRefinementJob(
 			}
 		}
 
+		// write out particles from the upstream job, if needed
+		ParticlesJobs.clear(project.osUsername, dir)
+		when (upstreamJob) {
+			is CombinedParticlesJob -> {
+				val listName = newestArgs.particlesName
+					?: throw ServiceException("No particles list chosen")
+				ParticlesJobs.writeTomography(project.osUsername, upstreamJob.idOrThrow, dir, upstreamJob.particlesList(listName))
+			}
+			is ParticlesJob -> {
+				upstreamJob.particlesList()
+					?.let { ParticlesJobs.writeTomography(project.osUsername, upstreamJob.idOrThrow, dir, it) }
+			}
+			else -> throw IllegalStateException("upstream job has no particles")
+		}
+
 		// build the args for PYP
-		val pypArgs = launchArgValues(upstreamJob, args.newestOrThrow().args.values, args.finished?.values)
+		val pypArgs = launchArgValues(upstreamJob, newestArgs.values, args.finished?.values)
 
 		// set the hidden args
 		pypArgs.dataParent = upstreamJob.dir.toString()

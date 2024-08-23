@@ -1,8 +1,8 @@
 package edu.duke.bartesaghi.micromon.jobs
 
 import com.mongodb.client.model.Updates
-import edu.duke.bartesaghi.micromon.Backend
 import edu.duke.bartesaghi.micromon.globCountOrNull
+import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.mongo.getDocument
 import edu.duke.bartesaghi.micromon.nodes.TomographyRelionDataNodeConfig
 import edu.duke.bartesaghi.micromon.projects.Project
@@ -20,7 +20,7 @@ import kotlin.time.Duration.Companion.seconds
 class TomographyRelionDataJob(
 	userId: String,
 	projectId: String
-) : Job(userId, projectId, config), FilteredJob {
+) : Job(userId, projectId, config), FilteredJob, CombinedParticlesJob {
 
 	val args = JobArgs<TomographyRelionDataArgs>()
 
@@ -96,9 +96,9 @@ class TomographyRelionDataJob(
 		val newestArgs = args.newestOrThrow().args
 
 		// write out particles, if needed
-		val argValues = newestArgs.values.toArgValues(Backend.pypArgs)
 		ParticlesJobs.clear(project.osUsername, dir)
-		ParticlesJobs.writeTomography(project.osUsername, idOrThrow, dir, argValues, newestArgs.particlesName)
+		newestArgs.particlesName
+			?.let { ParticlesJobs.writeTomography(project.osUsername, idOrThrow, dir, particlesList(it)) }
 
 		// build the args for PYP
 		val pypArgs = launchArgValues(null, newestArgs.values, args.finished?.values)
@@ -146,4 +146,8 @@ class TomographyRelionDataJob(
 
 	override fun finishedArgValues(): ArgValuesToml? =
 		args.finished?.values
+
+	override fun particlesList(listName: String): ParticlesList =
+		Database.particleLists.get(idOrThrow, listName)
+			?: throw NoSuchElementException("no particles list named $listName")
 }

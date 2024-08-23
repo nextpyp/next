@@ -104,57 +104,40 @@ object ParticlesJobs {
 		}
 	}
 
-	suspend fun writeTomography(osUsername: String?, jobId: String, dir: Path, argValues: ArgValues, listName: String? = null) {
-
-		// first, look for virions (only used by older combined preprocessing blocks)
-		argValues.tomoVirMethodOrDefault.particlesList(jobId)
-			?.let { list ->
-				when (list.source) {
-
-					ParticlesSource.User -> {
-						// in manual virus mode, write the virion coordinates, if any
-						// NOTE: this will also write out empty thresholds, but that's ok
-						if (listName != null) {
-							writeTomography(osUsername, jobId, dir, list.copy(name = listName))
-						}
-					}
-
-					ParticlesSource.Pyp -> {
-						// in auto virus mode, just write the particle thresholds for the virions
-						// NOTE: this will also write out the coordinates, but that's ok
-						writeTomography(osUsername, jobId, dir, list)
-					}
-				}
-				return
-			}
-
-		// next, look for particles
-		argValues.tomoSpkMethodOrDefault.particlesList(jobId)
-			?.let { list ->
-				when (list.source) {
-
-					ParticlesSource.User -> {
-						// for manually picked particles, write out the coordinates
-						// use list name if provided (it will only be provided by the older combined preprocessing blocks)
-						if (listName != null) {
-							writeTomography(osUsername, jobId, dir, list.copy(name = listName))
-						} else {
-							writeTomography(osUsername, jobId, dir, list)
-						}
-					}
-
-					ParticlesSource.Pyp -> Unit // don't write anything for auto particles
-				}
-				return
-			}
-
-		// NOTE: we don't have to write out anything for segmented particles, since they always run in auto mode
-	}
-
 	private fun thresholdsFile(jobDir: Path): Path =
 		nextDir(jobDir) / "virion_thresholds.next"
 
-	private suspend fun writeTomography(osUsername: String?, jobId: String, dir: Path, particlesList: ParticlesList) {
+	/**
+	 * used by older combined preprocessing blocks
+	 */
+	fun combinedParticlesList(jobId: String, argValues: ArgValues, listName: String): ParticlesList? {
+
+		Database.particleLists.get(jobId, listName)
+
+		// first, look for virions
+		argValues.tomoVirMethodOrDefault.particlesList(jobId)
+			?.let { list ->
+				// apply the user-chosen list name
+				return list.copy(name = listName)
+			}
+
+		// next, look for spikes ("spikes" is also used for generic particles here)
+		argValues.tomoSpkMethodOrDefault.particlesList(jobId)
+			?.let { list ->
+
+				// apply the user-chosen list name, if needed
+				if (list.source == ParticlesSource.User && listName != null) {
+					return list.copy(name = listName)
+				}
+
+				return list
+			}
+
+		// no particles
+		return null
+	}
+
+	suspend fun writeTomography(osUsername: String?, jobId: String, dir: Path, particlesList: ParticlesList) {
 
 		// write out the particles name
 		val listFile = listFile(dir)
@@ -223,4 +206,16 @@ object ParticlesJobs {
 			}
 		}
 	}
+}
+
+
+/**
+ * Only used by older combined preprocessing blocks that required user-chosen particles list names
+ */
+interface CombinedParticlesJob {
+	fun particlesList(listName: String): ParticlesList
+}
+
+interface ParticlesJob {
+	fun particlesList(): ParticlesList?
 }

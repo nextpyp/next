@@ -1,7 +1,6 @@
 package edu.duke.bartesaghi.micromon.jobs
 
 import com.mongodb.client.model.Updates
-import edu.duke.bartesaghi.micromon.Backend
 import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.mongo.getDocument
 import edu.duke.bartesaghi.micromon.nodes.TomographySessionDataNodeConfig
@@ -16,7 +15,7 @@ import org.bson.conversions.Bson
 class TomographySessionDataJob(
 	userId: String,
 	projectId: String
-) : Job(userId, projectId, config), FilteredJob {
+) : Job(userId, projectId, config), FilteredJob, CombinedParticlesJob {
 
 	val args = JobArgs<TomographySessionDataArgs>()
 	var latestTiltSeriesId: String? = null
@@ -88,9 +87,9 @@ class TomographySessionDataJob(
 		val session = user.authSessionForReadOrThrow(newestArgs.sessionId)
 
 		// write out particles, if needed
-		val argValues = newestArgs.values.toArgValues(Backend.pypArgs)
 		ParticlesJobs.clear(project.osUsername, dir)
-		ParticlesJobs.writeTomography(project.osUsername, idOrThrow, dir, argValues, newestArgs.particlesName)
+		newestArgs.particlesName
+			?.let { ParticlesJobs.writeTomography(project.osUsername, idOrThrow, dir, particlesList(it)) }
 
 		// build the args for PYP
 		val pypArgs = launchArgValues(null, newestArgs.values, args.finished?.values)
@@ -132,4 +131,8 @@ class TomographySessionDataJob(
 
 	override fun finishedArgValues(): ArgValuesToml? =
 		args.finished?.values
+
+	override fun particlesList(listName: String): ParticlesList =
+		Database.particleLists.get(idOrThrow, listName)
+			?: throw NoSuchElementException("no particles list named $listName")
 }

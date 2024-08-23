@@ -34,7 +34,8 @@ data class TomographyParticlesMiloArgs(
 data class TomographyParticlesMiloData(
 	override val common: CommonJobData,
 	val args: JobArgs<TomographyParticlesMiloArgs>,
-	val imageUrl: String
+	val imageUrl: String,
+	val numParticles: Long
 ) : JobData {
 	override fun isChanged() = args.hasNext()
 }

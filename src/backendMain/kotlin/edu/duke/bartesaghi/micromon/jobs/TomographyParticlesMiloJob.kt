@@ -3,6 +3,7 @@ package edu.duke.bartesaghi.micromon.jobs
 import com.mongodb.client.model.Updates
 import edu.duke.bartesaghi.micromon.linux.userprocessor.createDirsIfNeededAs
 import edu.duke.bartesaghi.micromon.linux.userprocessor.writeStringAs
+import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.mongo.getDocument
 import edu.duke.bartesaghi.micromon.nodes.TomographyParticlesMiloNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.*
@@ -15,7 +16,7 @@ import kotlin.io.path.div
 class TomographyParticlesMiloJob(
 	userId: String,
 	projectId: String
-) : Job(userId, projectId, config) {
+) : Job(userId, projectId, config), ParticlesJob {
 
 	val args = JobArgs<TomographyParticlesMiloArgs>()
 
@@ -67,7 +68,10 @@ class TomographyParticlesMiloJob(
 		TomographyParticlesMiloData(
 			commonData(),
 			args,
-			diagramImageURL()
+			diagramImageURL(),
+			args.finished
+				?.let { Database.particles.countAllParticles(idOrThrow, ParticlesList.AutoParticles) }
+				?: 0
 		)
 
 	override suspend fun launch(runId: Int) {
@@ -113,7 +117,8 @@ class TomographyParticlesMiloJob(
 
 	override fun wipeData() {
 
-		// TODO: also delete any associated data?
+		Database.particles.deleteAllParticles(idOrThrow)
+		Database.particleLists.deleteAll(idOrThrow)
 	}
 
 	override fun newestArgValues(): ArgValuesToml? =
@@ -121,4 +126,7 @@ class TomographyParticlesMiloJob(
 
 	override fun finishedArgValues(): ArgValuesToml? =
 		args.finished?.values
+
+	override fun particlesList(): ParticlesList =
+		ParticlesList.autoParticles3D(idOrThrow)
 }

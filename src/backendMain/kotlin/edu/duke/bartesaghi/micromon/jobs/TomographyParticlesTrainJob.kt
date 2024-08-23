@@ -5,6 +5,7 @@ import edu.duke.bartesaghi.micromon.mongo.getDocument
 import edu.duke.bartesaghi.micromon.nodes.TomographyParticlesTrainNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.*
+import io.kvision.remote.ServiceException
 import org.bson.Document
 import org.bson.conversions.Bson
 
@@ -68,14 +69,27 @@ class TomographyParticlesTrainJob(
 	override suspend fun launch(runId: Int) {
 
 		val project = projectOrThrow()
+		val newestArgs = args.newestOrThrow().args
 
 		// clear caches
 		wwwDir.recreateAs(project.osUsername)
 
-		// build the args for PYP
 		val upstreamJob = inParticles?.resolveJob<Job>()
 			?: throw IllegalStateException("no particles input configured")
-		val pypArgs = launchArgValues(upstreamJob, args.newestOrThrow().args.values, args.finished?.values)
+
+		// write out particles from the upstream job, if needed
+		ParticlesJobs.clear(project.osUsername, dir)
+		when (upstreamJob) {
+			is CombinedParticlesJob -> throw ServiceException("Particle training is not implemented from legacy preprocessing blocks")
+			is ParticlesJob -> {
+				upstreamJob.particlesList()
+					?.let { ParticlesJobs.writeTomography(project.osUsername, upstreamJob.idOrThrow, dir, it) }
+			}
+			else -> throw IllegalStateException("upstream job has no particles")
+		}
+
+		// build the args for PYP
+		val pypArgs = launchArgValues(upstreamJob, newestArgs.values, args.finished?.values)
 
 		// set the hidden args
 		pypArgs.dataMode = "tomo"

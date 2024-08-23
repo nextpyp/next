@@ -58,7 +58,8 @@ class TomographyCoarseRefinementNode(
 				?: throw IllegalArgumentException("input required to make job for ${config.id}")
 			val args = TomographyCoarseRefinementArgs(
 				values = argValues,
-				filter = null
+				filter = null,
+				particlesName = null
 			)
 			return Services.tomographyCoarseRefinement.addNode(project.owner.id, project.projectId, input, args)
 		}
@@ -88,7 +89,8 @@ class TomographyCoarseRefinementNode(
 					|| upstreamNode is TomographyImportDataNode
 					|| upstreamNode is TomographySessionDataNode
 					|| upstreamNode is TomographyRelionDataNode
-
+					|| upstreamNode is TomographyPurePreprocessingNode
+					|| upstreamNode is TomographyDenoisingNode
 				add(TomographyCoarseRefinementArgs::filter,
 					// look for the preprocessing job in the upstream node to get the filter
 					if (upstreamIsPreprocessing) {
@@ -104,6 +106,25 @@ class TomographyCoarseRefinementNode(
 					}
 				)
 
+				val upstreamIsCombinedPreprocessing =
+					upstreamNode is TomographyPreprocessingNode
+					|| upstreamNode is TomographyImportDataNode
+					|| upstreamNode is TomographySessionDataNode
+					|| upstreamNode is TomographyRelionDataNode
+				add(TomographyCoarseRefinementArgs::particlesName,
+					if (upstreamIsCombinedPreprocessing) {
+						SelectRemote(
+							serviceManager = ParticlesServiceManager,
+							function = IParticlesService::getListOptions,
+							stateFunction = { "${OwnerType.Project.id}/${upstreamNode.jobId}" },
+							label = "Select list of particles",
+							preload = true
+						)
+					} else {
+						HiddenString()
+					}
+				)
+
 				add(TomographyCoarseRefinementArgs::values, ArgsForm(pypArgs, listOf(upstreamNode), enabled, config.configId))
 			}
 
@@ -111,18 +132,24 @@ class TomographyCoarseRefinementNode(
 			// since the control can't handle nulls
 			val mapper = ArgsMapper<TomographyCoarseRefinementArgs>(
 				toForm = { args ->
-					if (args.filter == null) {
-						args.copy(filter = NoneFilterOption)
-					} else {
-						args
+					var a = args
+					if (a.filter == null) {
+						a = a.copy(filter = NoneFilterOption)
 					}
+					if (a.particlesName == null) {
+						a = a.copy(particlesName = NoneFilterOption)
+					}
+					a
 				},
 				fromForm = { args ->
-					if (args.filter == NoneFilterOption) {
-						args.copy(filter = null)
-					} else {
-						args
+					var a = args
+					if (a.filter == NoneFilterOption) {
+						a = a.copy(filter = null)
 					}
+					if (a.particlesName == NoneFilterOption) {
+						a = a.copy(particlesName = null)
+					}
+					a
 				}
 			)
 
@@ -130,7 +157,8 @@ class TomographyCoarseRefinementNode(
 			val argsOrCopy: JobArgs<TomographyCoarseRefinementArgs> = args
 				?: JobArgs.fromNext(TomographyCoarseRefinementArgs(
 					filter = null,
-					values = upstreamNode.newestArgValues()?.filterForDownstreamCopy(pypArgs) ?: ""
+					values = upstreamNode.newestArgValues()?.filterForDownstreamCopy(pypArgs) ?: "",
+					particlesName = null
 				))
 
 			form.init(argsOrCopy, mapper)

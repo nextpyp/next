@@ -85,10 +85,9 @@ class TomographyPickingClosedJob(
 		val upstreamJob = inMovieRefinement?.resolveJob<Job>()
 			?: throw IllegalStateException("no movie refinement input configured")
 
-		// write out particles from the upstream job, if needed
+		// TODO: write out particles from the upstream job, if needed?
+		//       segmentation jobs are still being redesigned, so wait for that to settle before implementing this
 		ParticlesJobs.clear(project.osUsername, dir)
-		val upstreamArgValues = upstreamJob.finishedArgValuesOrThrow().toArgValues(Backend.pypArgs)
-		ParticlesJobs.writeTomography(project.osUsername, idOrThrow, dir, upstreamArgValues)
 
 		// build the args for PYP
 		val pypArgs = launchArgValues(upstreamJob, args.newestOrThrow().args.values, args.finished?.values)
