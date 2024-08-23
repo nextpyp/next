@@ -12,7 +12,7 @@ import org.bson.conversions.Bson
 class TomographyPickingJob(
 	userId: String,
 	projectId: String
-) : Job(userId, projectId, config), TiltSeriesesJob {
+) : Job(userId, projectId, config), TiltSeriesesJob, ParticlesJob {
 
 	val args = JobArgs<TomographyPickingArgs>()
 	override var latestTiltSeriesId: String? = null
@@ -125,4 +125,7 @@ class TomographyPickingJob(
 
 	override fun finishedArgValues(): ArgValuesToml? =
 		args.finished?.values
+
+	override fun particlesList(): ParticlesList? =
+		args.finished?.particlesList(args(), idOrThrow)
 }
