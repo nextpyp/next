@@ -21,7 +21,6 @@ actual class TomographyDenoisingService : ITomographyDenoisingService, Service {
 		// make the job
 		val job = TomographyDenoisingJob(userId, projectId)
 		job.args.next = args
-		job.inModel = inModel
 		job.create()
 
 		return job.data()
