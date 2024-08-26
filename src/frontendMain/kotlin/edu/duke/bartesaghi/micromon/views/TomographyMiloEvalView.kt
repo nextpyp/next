@@ -60,7 +60,7 @@ class TomographyMiloEvalView(val project: ProjectData, val job: TomographyMiloEv
 
 		AppScope.launch {
 
-			elem.h1("Milo-PYP Particle Picking Model")
+			elem.h1("Milo-PYP Pattern Mining")
 
 			// show the file download
 			val fileDownload = FileDownloadBadge(".npz file")
