@@ -28,6 +28,7 @@ object Nodes {
 		TomographyPreprocessingNodeConfig to TomographyPreprocessingNode.Companion,
 		TomographyPurePreprocessingNodeConfig to TomographyPurePreprocessingNode.Companion,
 		TomographyDenoisingTrainingNodeConfig to TomographyDenoisingTrainingNode.Companion,
+		TomographyDenoisingEvalNodeConfig to TomographyDenoisingEvalNode.Companion,
 		TomographyDenoisingNodeConfig to TomographyDenoisingNode.Companion,
 		TomographyPickingNodeConfig to TomographyPickingNode.Companion,
 		TomographySegmentationOpenNodeConfig to TomographySegmentationOpenNode.Companion,

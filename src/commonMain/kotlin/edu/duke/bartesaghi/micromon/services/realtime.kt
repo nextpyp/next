@@ -51,6 +51,7 @@ object RealTimeServices {
 	val tomographyPreprocessing by RealTimeService()
 	val tomographyPurePreprocessing by RealTimeService()
 	val tomographyDenoising by RealTimeService()
+	val tomographyDenoisingEval by RealTimeService()
 	val tomographyPicking by RealTimeService()
 	val tomographyPickingOpen by RealTimeService()
 	val tomographyPickingClosed by RealTimeService()

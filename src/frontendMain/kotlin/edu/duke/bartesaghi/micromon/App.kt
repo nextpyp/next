@@ -53,6 +53,7 @@ class App : Application() {
 			TomographyPreprocessingView.Companion,
 			TomographyPurePreprocessingView.Companion,
 			TomographyDenoisingView.Companion,
+			TomographyDenoisingEvalView.Companion,
 			TomographyPickingView.Companion,
 			TomographyPickingOpenView.Companion,
 			TomographyPickingClosedView.Companion,

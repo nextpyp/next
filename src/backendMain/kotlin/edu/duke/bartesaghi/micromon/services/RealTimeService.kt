@@ -206,6 +206,10 @@ object RealTimeService {
 			tiltSeriesesService()
 		}
 
+		routing.webSocket(RealTimeServices.tomographyDenoisingEval) {
+			tiltSeriesesService()
+		}
+
 		routing.webSocket(RealTimeServices.tomographyPicking) {
 			tiltSeriesesService()
 		}
