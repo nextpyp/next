@@ -7,7 +7,7 @@ object TomographyDenoisingTrainingNodeConfig : NodeConfig {
 
 	override val id = ID
 	override val configId = "tomo_denoise_train"
-	override val name = "Denoising Training"
+	override val name = "Denoising (training)"
 	override val hasFiles = true
 	// TEMP: preview status during development
 	override val status = NodeConfig.NodeStatus.Preview

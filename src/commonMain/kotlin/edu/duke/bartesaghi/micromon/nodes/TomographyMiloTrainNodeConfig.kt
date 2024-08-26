@@ -7,7 +7,7 @@ object TomographyMiloTrainNodeConfig : NodeConfig {
 
 	override val id = ID
 	override val configId = "tomo_milo_train"
-	override val name = "MiLoPYP Training"
+	override val name = "MiLoPYP (training)"
 	override val hasFiles = true
 	// TEMP: preview status during development
 	override val status = NodeConfig.NodeStatus.Preview

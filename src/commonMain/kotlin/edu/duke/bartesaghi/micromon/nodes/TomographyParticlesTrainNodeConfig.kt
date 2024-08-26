@@ -7,7 +7,7 @@ object TomographyParticlesTrainNodeConfig : NodeConfig {
 
 	override val id = ID
 	override val configId = "tomo_particles_train"
-	override val name = "Particle Model Training"
+	override val name = "Particle-Picking (training)"
 	override val hasFiles = true
 	// TEMP: preview status during development
 	override val status = NodeConfig.NodeStatus.Preview
