@@ -23,7 +23,7 @@ class ArgInputIsonetTrainedModel(
 
 		fun initialFolder(outNodes: List<Node>): String? =
 			outNodes.firstOrNull()
-				?.let { PathType.Project.make(it.dir) }
+				?.let { PathType.Project.make("${it.dir}/train") }
 	}
 
 	val default: String? get() = null
