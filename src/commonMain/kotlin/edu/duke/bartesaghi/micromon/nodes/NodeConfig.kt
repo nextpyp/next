@@ -62,7 +62,13 @@ interface NodeConfig {
 			DenoisingModel("Denoising Model"),
 
 			/** A trained model for MiLoPYP */
-			MiloModel("MiLoPYP Model")
+			MiloModel("MiLoPYP Model"),
+
+			/** Segmentation model for open surfaces */
+			SegmentationOpen("Segmentation (open)"),
+
+			/** Segmentation model for closed surfaces */
+			SegmentationClosed("Segmentation (closed)")
 		}
 	}
 

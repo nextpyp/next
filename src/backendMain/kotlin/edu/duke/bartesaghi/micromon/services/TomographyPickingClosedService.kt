@@ -21,7 +21,7 @@ actual class TomographyPickingClosedService : ITomographyPickingClosedService, S
 		// make the job
 		val job = TomographyPickingClosedJob(userId, projectId)
 		job.args.next = args
-		job.inMovieRefinement = inData
+		job.inSegmentation = inData
 		job.create()
 
 		return job.data()

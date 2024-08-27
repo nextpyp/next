@@ -30,6 +30,8 @@ object Nodes {
 		TomographyDenoisingTrainingNodeConfig to TomographyDenoisingTrainingNode.Companion,
 		TomographyDenoisingNodeConfig to TomographyDenoisingNode.Companion,
 		TomographyPickingNodeConfig to TomographyPickingNode.Companion,
+		TomographySegmentationOpenNodeConfig to TomographySegmentationOpenNode.Companion,
+		TomographySegmentationClosedNodeConfig to TomographySegmentationClosedNode.Companion,
 		TomographyPickingOpenNodeConfig to TomographyPickingOpenNode.Companion,
 		TomographyPickingClosedNodeConfig to TomographyPickingClosedNode.Companion,
 		TomographyMiloTrainNodeConfig to TomographyMiloTrainNode.Companion,

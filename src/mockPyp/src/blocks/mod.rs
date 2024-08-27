@@ -5,6 +5,8 @@ mod tomo_pure_preprocessing;
 mod tomo_denoising_training;
 mod tomo_denoising;
 mod tomo_picking;
+mod tomo_segmentation_open;
+mod tomo_segmentation_closed;
 mod tomo_picking_open;
 mod tomo_picking_closed;
 mod tomo_milo_train;
@@ -32,6 +34,10 @@ pub fn run(block_id: &str, args: Args, args_config: ArgsConfig) -> Result<()> {
 		tomo_denoising::run(args, args_config)
 	} else if block_id == tomo_picking::BLOCK_ID {
 		tomo_picking::run(args, args_config)
+	} else if block_id == tomo_segmentation_open::BLOCK_ID {
+		tomo_segmentation_open::run(args, args_config)
+	} else if block_id == tomo_segmentation_closed::BLOCK_ID {
+		tomo_segmentation_closed::run(args, args_config)
 	} else if block_id == tomo_picking_open::BLOCK_ID {
 		tomo_picking_open::run(args, args_config)
 	} else if block_id == tomo_picking_closed::BLOCK_ID {

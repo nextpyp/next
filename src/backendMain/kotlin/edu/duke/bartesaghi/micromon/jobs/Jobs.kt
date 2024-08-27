@@ -30,6 +30,8 @@ object Jobs {
 		TomographyDenoisingTrainingNodeConfig to TomographyDenoisingTrainingJob.Companion,
 		TomographyDenoisingNodeConfig to TomographyDenoisingJob.Companion,
 		TomographyPickingNodeConfig to TomographyPickingJob.Companion,
+		TomographySegmentationOpenNodeConfig to TomographySegmentationOpenJob.Companion,
+		TomographySegmentationClosedNodeConfig to TomographySegmentationClosedJob.Companion,
 		TomographyPickingOpenNodeConfig to TomographyPickingOpenJob.Companion,
 		TomographyPickingClosedNodeConfig to TomographyPickingClosedJob.Companion,
 		TomographyMiloTrainNodeConfig to TomographyMiloTrainJob.Companion,

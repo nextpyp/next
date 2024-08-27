@@ -8,29 +8,29 @@ import edu.duke.bartesaghi.micromon.mongo.authProjectOrThrow
 import io.ktor.application.*
 
 
-actual class TomographyPickingOpenService : ITomographyPickingOpenService, Service {
+actual class TomographySegmentationClosedService : ITomographySegmentationClosedService, Service {
 
 	@Inject
 	override lateinit var call: ApplicationCall
 
-	override suspend fun addNode(userId: String, projectId: String, inData: CommonJobData.DataId, args: TomographyPickingOpenArgs): TomographyPickingOpenData = sanitizeExceptions {
+	override suspend fun addNode(userId: String, projectId: String, inData: CommonJobData.DataId, args: TomographySegmentationClosedArgs): TomographySegmentationClosedData = sanitizeExceptions {
 
 		val user = call.authOrThrow()
 		user.authProjectOrThrow(ProjectPermission.Write, userId, projectId)
 
 		// make the job
-		val job = TomographyPickingOpenJob(userId, projectId)
+		val job = TomographySegmentationClosedJob(userId, projectId)
 		job.args.next = args
-		job.inSegmentation = inData
+		job.inParticles = inData
 		job.create()
 
 		return job.data()
 	}
 
-	private fun String.authJob(permission: ProjectPermission): AuthInfo<TomographyPickingOpenJob> =
+	private fun String.authJob(permission: ProjectPermission): AuthInfo<TomographySegmentationClosedJob> =
 		authJob(permission, this)
 
-	override suspend fun edit(jobId: String, args: TomographyPickingOpenArgs?): TomographyPickingOpenData = sanitizeExceptions {
+	override suspend fun edit(jobId: String, args: TomographySegmentationClosedArgs?): TomographySegmentationClosedData = sanitizeExceptions {
 
 		val job = jobId.authJob(ProjectPermission.Write).job
 
@@ -41,7 +41,7 @@ actual class TomographyPickingOpenService : ITomographyPickingOpenService, Servi
 		return job.data()
 	}
 
-	override suspend fun get(jobId: String): TomographyPickingOpenData = sanitizeExceptions {
+	override suspend fun get(jobId: String): TomographySegmentationClosedData = sanitizeExceptions {
 
 		val job = jobId.authJob(ProjectPermission.Read).job
 
@@ -49,6 +49,6 @@ actual class TomographyPickingOpenService : ITomographyPickingOpenService, Servi
 	}
 
 	override suspend fun getArgs(): String = sanitizeExceptions {
-		return TomographyPickingOpenJob.args().toJson()
+		return TomographySegmentationClosedJob.args().toJson()
 	}
 }

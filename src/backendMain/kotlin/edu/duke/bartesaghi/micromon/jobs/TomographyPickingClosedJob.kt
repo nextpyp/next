@@ -1,7 +1,6 @@
 package edu.duke.bartesaghi.micromon.jobs
 
 import com.mongodb.client.model.Updates
-import edu.duke.bartesaghi.micromon.Backend
 import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.mongo.getDocument
 import edu.duke.bartesaghi.micromon.nodes.TomographyPickingClosedNodeConfig
@@ -20,7 +19,7 @@ class TomographyPickingClosedJob(
 	override var latestTiltSeriesId: String? = null
 	override val eventListeners get() = Companion.eventListeners
 
-	var inMovieRefinement: CommonJobData.DataId? by InputProp(config.inMovieRefinement)
+	var inSegmentation: CommonJobData.DataId? by InputProp(config.segmentation)
 
 	companion object : JobInfo {
 
@@ -82,8 +81,8 @@ class TomographyPickingClosedJob(
 		// clear caches
 		wwwDir.recreateAs(project.osUsername)
 
-		val upstreamJob = inMovieRefinement?.resolveJob<Job>()
-			?: throw IllegalStateException("no movie refinement input configured")
+		val upstreamJob = inSegmentation?.resolveJob<Job>()
+			?: throw IllegalStateException("no segmentation input configured")
 
 		// TODO: write out particles from the upstream job, if needed?
 		//       segmentation jobs are still being redesigned, so wait for that to settle before implementing this
