@@ -13,7 +13,7 @@ actual class TomographyDenoisingService : ITomographyDenoisingService, Service {
 	@Inject
 	override lateinit var call: ApplicationCall
 
-	override suspend fun addNode(userId: String, projectId: String, inModel: CommonJobData.DataId, args: TomographyDenoisingArgs): TomographyDenoisingData = sanitizeExceptions {
+	override suspend fun addNode(userId: String, projectId: String, inTomograms: CommonJobData.DataId, args: TomographyDenoisingArgs): TomographyDenoisingData = sanitizeExceptions {
 
 		val user = call.authOrThrow()
 		user.authProjectOrThrow(ProjectPermission.Write, userId, projectId)
@@ -21,6 +21,7 @@ actual class TomographyDenoisingService : ITomographyDenoisingService, Service {
 		// make the job
 		val job = TomographyDenoisingJob(userId, projectId)
 		job.args.next = args
+		job.inTomograms = inTomograms
 		job.create()
 
 		return job.data()

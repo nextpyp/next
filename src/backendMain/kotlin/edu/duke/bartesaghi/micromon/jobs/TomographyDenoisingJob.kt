@@ -80,8 +80,8 @@ class TomographyDenoisingJob(
 		wwwDir.recreateAs(project.osUsername)
 
 		// build the args for PYP
-		val upstreamJob = (inTomograms)?.resolveJob<Job>()
-			?: throw IllegalStateException("no input configured")
+		val upstreamJob = inTomograms?.resolveJob<Job>()
+			?: throw IllegalStateException("no tomograms input configured")
 
 		val pypArgs = launchArgValues(upstreamJob, newestArgs.values, args.finished?.values)
 
