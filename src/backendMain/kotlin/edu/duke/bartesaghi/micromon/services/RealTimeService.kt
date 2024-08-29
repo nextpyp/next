@@ -218,6 +218,10 @@ object RealTimeService {
 			tiltSeriesesService()
 		}
 
+		routing.webSocket(RealTimeServices.tomographySegmentationOpen) {
+			tiltSeriesesService()
+		}
+
 		routing.webSocket(RealTimeServices.tomographyPickingClosed) {
 			tiltSeriesesService()
 		}
