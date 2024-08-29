@@ -194,9 +194,15 @@ class TomoVirionThresholds(
 				event.stopPropagation()
 				event.preventDefault()
 
-				fun select(threshold: Int?) {
+				fun select(threshold: Int?, all: Boolean = false) {
 					selectRadio(threshold)
-					currentThreshold = threshold
+					if (all) {
+						for (virionId in virions.keys) {
+							setThreshold(virionId, threshold)
+						}
+					} else {
+						currentThreshold = threshold
+					}
 				}
 
 				when (event.key) {
@@ -212,15 +218,15 @@ class TomoVirionThresholds(
 						in 1 .. 7 -> t + 1
 						else -> null
 					})
-					Keys.num1 -> select(1)
-					Keys.num2 -> select(2)
-					Keys.num3 -> select(3)
-					Keys.num4 -> select(4)
-					Keys.num5 -> select(5)
-					Keys.num6 -> select(6)
-					Keys.num7 -> select(7)
-					Keys.num8 -> select(8)
-					Keys.num9, Keys.delete -> select(null)
+					Keys.num1 -> select(1, all=event.altKey)
+					Keys.num2 -> select(2, all=event.altKey)
+					Keys.num3 -> select(3, all=event.altKey)
+					Keys.num4 -> select(4, all=event.altKey)
+					Keys.num5 -> select(5, all=event.altKey)
+					Keys.num6 -> select(6, all=event.altKey)
+					Keys.num7 -> select(7, all=event.altKey)
+					Keys.num8 -> select(8, all=event.altKey)
+					Keys.num9, Keys.delete -> select(null, all=event.altKey)
 				}
 			}
 		}
@@ -347,6 +353,7 @@ class TomoVirionThresholds(
 					li("Left and right arrows move to different thresholds")
 					li("1-8 also pick the thresholds")
 					li("Delete and 9 pick the no-threshold option")
+					li("alt + 1-9 (or delete) applies the threshold to all virons in this tilt series")
 				}
 			}
 		).apply {
@@ -371,31 +378,33 @@ class TomoVirionThresholds(
 			return thresholdsByVirionId?.get(virionId)
 		}
 		set(threshold) {
-
-			val particlesListName = particlesListName
-				?: return
-			val virionId = currentRow?.virionId
-				?: return
-
-			if (threshold != null) {
-				thresholdsByVirionId?.set(virionId, threshold)
-			} else {
-				thresholdsByVirionId?.remove(virionId)
-			}
-
-			// update the table too
-			rowIndicesByVirionId[virionId]
-				?.let { rowIndex ->
-					table?.jsTabulator?.getRowFromPosition(rowIndex, true)
-						.falseToNull()
-						?.let { it.reformat() }
-				}
-
-			// and update the server
-			AppScope.launch {
-				Services.particles.setVirionThreshold(OwnerType.Project, job.jobId, particlesListName, tiltSeries.id, virionId, threshold)
-			}
+			currentRow?.let { setThreshold(it.virionId, threshold) }
 		}
+
+	private fun setThreshold(virionId: Int, threshold: Int?) {
+
+		val particlesListName = particlesListName
+			?: return
+
+		if (threshold != null) {
+			thresholdsByVirionId?.set(virionId, threshold)
+		} else {
+			thresholdsByVirionId?.remove(virionId)
+		}
+
+		// update the table too
+		rowIndicesByVirionId[virionId]
+			?.let { rowIndex ->
+				table?.jsTabulator?.getRowFromPosition(rowIndex, true)
+					.falseToNull()
+					?.let { it.reformat() }
+			}
+
+		// and update the server
+		AppScope.launch {
+			Services.particles.setVirionThreshold(OwnerType.Project, job.jobId, particlesListName, tiltSeries.id, virionId, threshold)
+		}
+	}
 
 	private fun advance(deltaIndex: Int) {
 
