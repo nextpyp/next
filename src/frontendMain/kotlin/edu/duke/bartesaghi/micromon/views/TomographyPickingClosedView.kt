@@ -133,6 +133,8 @@ class TomographyPickingClosedView(val project: ProjectData, val job: TomographyP
 						}
 						lazyTab.elem.add(particlesImage)
 
+						lazyTab.elem.add(TomoSideViewImage(job.jobId, tiltSeries.id))
+
 						AppScope.launch {
 							particlesImage.load()
 						}
