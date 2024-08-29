@@ -2,7 +2,6 @@ package edu.duke.bartesaghi.micromon.pyp
 
 import edu.duke.bartesaghi.micromon.diagram.nodes.NodeClientInfo
 import edu.duke.bartesaghi.micromon.diagram.nodes.TomographyParticlesEvalNode
-import edu.duke.bartesaghi.micromon.nodes.TomographyParticlesEvalNodeConfig
 import edu.duke.bartesaghi.micromon.services.*
 
 
@@ -16,6 +15,10 @@ data class TiltSeriesesData(
 		// load the tilt series
 		tiltSerieses.clear()
 		Services.jobs.getTiltSerieses(jobId)
+			// sort tilt series by id, then timestamp
+			// that way, the overall sort is by timestamp, but ids can break ties if for some reason tilt series have the same timestamp
+			// (since sortedBy() claims to be a stable sort, this should work)
+			.sortedBy { it.id }
 			.sortedBy { it.timestamp }
 			.forEach { tiltSerieses.add(it) }
 
