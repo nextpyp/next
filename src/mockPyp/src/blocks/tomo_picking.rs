@@ -140,6 +140,18 @@ pub fn run(mut args: Args, args_config: ArgsConfig) -> Result<()> {
 		}).context("Failed to make tomogram montage")?
 			.save(format!("webp/{}_rec.webp", &tilt_series.tilt_series_id))?;
 
+		// generate the sides image
+		let mut img = Image::new(512, 1024);
+		img.draw().fill(Rgb([128, 128, 128]));
+		img.draw().noise();
+		img.draw().text_lines(32, Rgb([255, 255, 255]), [
+			format!("Block: {}", BLOCK_ID),
+			"Type: Sides".to_string(),
+			format!("Id: {}", &tilt_series.tilt_series_id),
+			format!("Tilt Series: {} of {}", tilt_series_i + 1, num_tilt_series)
+		]);
+		img.save(format!("webp/{}_sides.webp", &tilt_series.tilt_series_id))?;
+
 		// tell the website
 		web.write_tilt_series(&tilt_series)?;
 	}

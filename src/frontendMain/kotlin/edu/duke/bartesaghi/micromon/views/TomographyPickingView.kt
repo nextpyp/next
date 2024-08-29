@@ -126,6 +126,8 @@ class TomographyPickingView(val project: ProjectData, val job: TomographyPicking
 				}
 				tiltSeriesesElem.add(particlesImage)
 
+				tiltSeriesesElem.add(TomoSideViewImage(job.jobId, tiltSeries.id))
+
 				AppScope.launch {
 					particlesImage.load()
 				}
