@@ -56,6 +56,7 @@ class App : Application() {
 			TomographyDenoisingEvalView.Companion,
 			TomographyPickingView.Companion,
 			TomographySegmentationOpenView.Companion,
+			TomographySegmentationClosedView.Companion,
 			TomographyPickingOpenView.Companion,
 			TomographyPickingClosedView.Companion,
 			TomographyMiloEvalView.Companion,

@@ -214,11 +214,15 @@ object RealTimeService {
 			tiltSeriesesService()
 		}
 
-		routing.webSocket(RealTimeServices.tomographyPickingOpen) {
+		routing.webSocket(RealTimeServices.tomographySegmentationOpen) {
 			tiltSeriesesService()
 		}
 
-		routing.webSocket(RealTimeServices.tomographySegmentationOpen) {
+		routing.webSocket(RealTimeServices.tomographySegmentationClosed) {
+			tiltSeriesesService()
+		}
+
+		routing.webSocket(RealTimeServices.tomographyPickingOpen) {
 			tiltSeriesesService()
 		}
 

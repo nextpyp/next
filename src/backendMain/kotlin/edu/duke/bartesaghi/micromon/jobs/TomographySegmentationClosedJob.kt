@@ -1,6 +1,7 @@
 package edu.duke.bartesaghi.micromon.jobs
 
 import com.mongodb.client.model.Updates
+import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.mongo.getDocument
 import edu.duke.bartesaghi.micromon.nodes.TomographySegmentationClosedNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.*
@@ -13,9 +14,11 @@ import org.bson.conversions.Bson
 class TomographySegmentationClosedJob(
 	userId: String,
 	projectId: String
-) : Job(userId, projectId, config) {
+) : Job(userId, projectId, config), TiltSeriesesJob, ParticlesJob {
 
 	val args = JobArgs<TomographySegmentationClosedArgs>()
+	override var latestTiltSeriesId: String? = null
+	override val eventListeners get() = Companion.eventListeners
 
 	var inParticles: CommonJobData.DataId? by InputProp(config.particles)
 
@@ -30,6 +33,7 @@ class TomographySegmentationClosedJob(
 		).apply {
 			args.finished = doc.getDocument("finishedArgs")?.let { TomographySegmentationClosedArgs.fromDoc(it) }
 			args.next = doc.getDocument("nextArgs")?.let { TomographySegmentationClosedArgs.fromDoc(it) }
+			latestTiltSeriesId = doc.getString("latestTiltSeriesId")
 			fromDoc(doc)
 		}
 
@@ -55,6 +59,7 @@ class TomographySegmentationClosedJob(
 		super.updateDoc(updates)
 		updates.add(Updates.set("finishedArgs", args.finished?.toDoc()))
 		updates.add(Updates.set("nextArgs", args.next?.toDoc()))
+		updates.add(Updates.set("latestTiltSeriesId", latestTiltSeriesId))
 	}
 
 	override fun isChanged() = args.hasNext()
@@ -99,6 +104,8 @@ class TomographySegmentationClosedJob(
 
 		// job was launched, move the args over
 		args.run()
+		// and wipe the latest tilt series id, so we can detect when the first one comes in next time
+		latestTiltSeriesId = null
 		update()
 	}
 
@@ -106,13 +113,19 @@ class TomographySegmentationClosedJob(
 
 		val size = ImageSize.Small
 
-		// TEMP: use a placeholder for now
-		return "/img/placeholder/${size.id}"
+		// find an arbitrary (but deterministic) tilt series for this job
+		// like the newest tilt series written for this job
+		return latestTiltSeriesId
+			?.let { "/kv/jobs/$idOrThrow/data/$it/image/${size.id}" }
+
+			// or just use a placeholder
+			?: return "/img/placeholder/${size.id}"
 	}
 
 	override fun wipeData() {
 
-		// TODO: also delete any associated data
+		// also delete any associated data
+		Database.tiltSeries.deleteAll(idOrThrow)
 	}
 
 	override fun newestArgValues(): ArgValuesToml? =
@@ -120,4 +133,7 @@ class TomographySegmentationClosedJob(
 
 	override fun finishedArgValues(): ArgValuesToml? =
 		args.finished?.values
+
+	override fun particlesList(): ParticlesList =
+		ParticlesList.autoVirions(idOrThrow)
 }

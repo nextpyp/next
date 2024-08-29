@@ -113,6 +113,7 @@ object Storage {
 	var tomographyPurePreprocessingTabIndex by IntStorageItem("tomographyPurePreprocessingTabIndex")
 	var tomographyPreprocessingMultiPanelTabIndex by IntStorageItem("tomographyPreprocessingMultiPanelTabIndex")
 	var tomographySegmentationOpenTabIndex by IntStorageItem("tomographySegmentationOpenTabIndex")
+	var tomographySegmentationClosedTabIndex by IntStorageItem("tomographySegmentationClosedTabIndex")
 	var tomographyPickingOpenTabIndex by IntStorageItem("tomographyPickingOpenTabIndex")
 	var tomographyPickingClosedTabIndex by IntStorageItem("tomographyPickingClosedTabIndex")
 	var threeJsDoubleViews by BoolStorageItem("threeJsDoubleViews")

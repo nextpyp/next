@@ -1,7 +1,6 @@
 package edu.duke.bartesaghi.micromon.components
 
 import edu.duke.bartesaghi.micromon.*
-import edu.duke.bartesaghi.micromon.diagram.nodes.TomographyPickingClosedNode
 import edu.duke.bartesaghi.micromon.diagram.nodes.TomographyPreprocessingNode
 import edu.duke.bartesaghi.micromon.pyp.toArgValues
 import edu.duke.bartesaghi.micromon.pyp.tomoVirMethodOrDefault
@@ -20,7 +19,7 @@ class TomoVirionThresholds(
 	val project: ProjectData,
 	val job: JobData,
 	val tiltSeries: TiltSeriesData
-) : Div(classes = setOf("tomo-virion-thresholds")) {
+) : Div(classes = setOf("tomo-virion-thresholds", "spaced")) {
 
 	companion object {
 
@@ -89,33 +88,26 @@ class TomoVirionThresholds(
 		try {
 
 			// load the virions most recently used by pyp: either the auto list or a manually-picked list
-			val (finishedValues, userListName) = when (job) {
+			particlesListName = when (job) {
 
 				// older combined preprocessing blocks had user-chosen list names
 				is TomographyPreprocessingData -> {
 					val args = job.args.finished
 					val values = args?.values?.toArgValues(TomographyPreprocessingNode.pypArgs.get())
-					values to args?.tomolist
+					values?.tomoVirMethodOrDefault
+						?.particlesList?.invoke(job.jobId)
+						?.let { list ->
+							when (list.source) {
+								ParticlesSource.User -> args.tomolist
+								ParticlesSource.Pyp -> list.name
+							}
+						}
 				}
 
 				// newer more specialized blocks use constant list names
-				is TomographyPickingClosedData -> {
-					val args = job.args.finished
-					val values = args?.values?.toArgValues(TomographyPickingClosedNode.pypArgs.get())
-					values to null
-				}
+				is TomographySegmentationClosedData -> ParticlesList.AutoVirions
 
-				else -> null to null
-			}
-
-			if (finishedValues != null) {
-				particlesListName = finishedValues.tomoVirMethodOrDefault.particlesList(job.jobId)
-					?.let { list ->
-						when (list.source) {
-							ParticlesSource.User -> userListName
-							ParticlesSource.Pyp -> list.name
-						}
-					}
+				else -> null
 			}
 
 			// load the virions and thresholds, if possible
