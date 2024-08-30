@@ -20,7 +20,6 @@ import edu.duke.bartesaghi.micromon.pyp.Block
 import edu.duke.bartesaghi.micromon.pyp.toArgValues
 import edu.duke.bartesaghi.micromon.services.*
 import io.kvision.core.Container
-import io.kvision.core.Display
 import io.kvision.core.Widget
 import io.kvision.core.onEvent
 import io.kvision.dropdown.ddLink
@@ -495,7 +494,7 @@ class ProjectView(val project: ProjectData) : View {
 				val nodes = NodeConfigs.nodes
 					.filter { it.inputs.isEmpty() }
 
-				// TODO: add toggle to show obsolete nodes?
+				// TODO: add toggle to show legacy nodes?
 
 				// show the changed nodes
 				win.h1 {
@@ -736,11 +735,11 @@ class ProjectView(val project: ProjectData) : View {
 				}
 
 				// what nodes can use this port?
-				val (obsoleteNodes, regularNodes, previewNodes) = NodeConfigs.findNodesUsing(data)
+				val (legacyNodes, regularNodes, previewNodes) = NodeConfigs.findNodesUsing(data)
 					.groupBy { (config, _) -> config.status }
 					.let {
 						listOf(
-							it[NodeConfig.NodeStatus.Obsolete] ?: emptyList(),
+							it[NodeConfig.NodeStatus.Legacy] ?: emptyList(),
 							it[NodeConfig.NodeStatus.Regular] ?: emptyList(),
 							it[NodeConfig.NodeStatus.Preview] ?: emptyList()
 						)
@@ -750,34 +749,34 @@ class ProjectView(val project: ProjectData) : View {
 					showNodes(regularNodes)
 				}
 
-				// show the obsolete,preview nodes, if needed
-				val obsoleteCheck = CheckBox(value = false, label = "Show obsolete blocks")
-				val obsoleteSection = Div()
+				// show the legacy,preview nodes, if needed
+				val legacyCheck = CheckBox(value = false, label = "Show legacy blocks")
+				val legacySection = Div()
 				val previewCheck = CheckBox(value = false, label = "Show preview blocks")
 				val previewSection = Div()
 
 				fun updateVisibility() {
-					obsoleteSection.visible = obsoleteCheck.value
+					legacySection.visible = legacyCheck.value
 					previewSection.visible = previewCheck.value
 				}
 
-				if (obsoleteNodes.isNotEmpty()) {
+				// if dev mode, also show legacy and preview blocks
+				AppScope.launch {
+					if (adminInfo.get().debug) {
+						if (legacyNodes.isNotEmpty()) {
 
-					div {
-						add(obsoleteCheck)
-					}
-					obsoleteCheck.onClick {
-						updateVisibility()
-					}
+							div {
+								add(legacyCheck)
+							}
+							legacyCheck.onClick {
+								updateVisibility()
+							}
 
-					add(obsoleteSection)
-					obsoleteSection.showNodes(obsoleteNodes)
-				}
+							add(legacySection)
+							legacySection.showNodes(legacyNodes)
+						}
 
-				// show the preview nodes, if any, but only in dev mode
-				if (previewNodes.isNotEmpty()) {
-					AppScope.launch {
-						if (adminInfo.get().debug) {
+						if (previewNodes.isNotEmpty()) {
 							div {
 								add(previewCheck)
 							}

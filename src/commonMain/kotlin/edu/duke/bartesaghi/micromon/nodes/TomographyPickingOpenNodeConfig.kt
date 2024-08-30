@@ -9,8 +9,6 @@ object TomographyPickingOpenNodeConfig : NodeConfig {
 	override val configId = "tomo_par_open"
 	override val name = "Particle-Picking (open surfaces)"
 	override val hasFiles = true
-	// TEMP: preview status during development
-	override val status = NodeConfig.NodeStatus.Preview
 
 	val segmentation = NodeConfig.Data("segmentation", NodeConfig.Data.Type.SegmentationOpen)
 	val particles = NodeConfig.Data("particles", NodeConfig.Data.Type.MovieRefinement)

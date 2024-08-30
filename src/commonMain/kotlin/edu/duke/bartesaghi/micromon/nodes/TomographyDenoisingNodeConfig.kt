@@ -9,8 +9,6 @@ object TomographyDenoisingNodeConfig : NodeConfig {
 	override val configId = "tomo_denoise"
 	override val name = "Denoising"
 	override val hasFiles = true
-	// TEMP: preview status during development
-	override val status = NodeConfig.NodeStatus.Preview
 
 	val inTomograms = NodeConfig.Data("inTomograms", NodeConfig.Data.Type.Tomograms)
 	val outTomograms = NodeConfig.Data("outTomograms", NodeConfig.Data.Type.Tomograms)

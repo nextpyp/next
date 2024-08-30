@@ -9,8 +9,6 @@ object TomographyMiloEvalNodeConfig : NodeConfig {
 	override val configId = "tomo_milo_eval"
 	override val name = "MiLoPYP Evaluation"
 	override val hasFiles = true
-	// TEMP: preview status during development
-	override val status = NodeConfig.NodeStatus.Preview
 
 	val model = NodeConfig.Data("model", NodeConfig.Data.Type.MiloModel)
 	val tomograms = NodeConfig.Data("tomograms", NodeConfig.Data.Type.Tomograms)

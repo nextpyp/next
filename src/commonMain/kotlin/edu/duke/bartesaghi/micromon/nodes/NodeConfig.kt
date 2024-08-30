@@ -78,8 +78,8 @@ interface NodeConfig {
 	}
 
 	enum class NodeStatus {
-		/** an old, retired node */
-		Obsolete,
+		/** an old, retired node: only supported on existing projects, but not new ones */
+		Legacy,
 		/** normal everyday nodes, ready for production use */
 		Regular,
 		/** a new, in-development node, not ready for general use just yet */

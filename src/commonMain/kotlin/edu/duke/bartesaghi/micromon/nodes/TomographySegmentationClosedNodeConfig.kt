@@ -9,8 +9,6 @@ object TomographySegmentationClosedNodeConfig : NodeConfig {
 	override val configId = "tomo_segment_close"
 	override val name = "Segmentation (closed surfaces)"
 	override val hasFiles = true
-	// TEMP: preview status during development
-	override val status = NodeConfig.NodeStatus.Preview
 
 	val particles = NodeConfig.Data("particles", NodeConfig.Data.Type.MovieRefinement)
 	val segmentation = NodeConfig.Data("segmentation", NodeConfig.Data.Type.SegmentationClosed)

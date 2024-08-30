@@ -9,8 +9,6 @@ object TomographyParticlesEvalNodeConfig : NodeConfig {
 	override val configId = "tomo_particles_eval"
 	override val name = "Model-Based Particle Picking"
 	override val hasFiles = true
-	// TEMP: preview status during development
-	override val status = NodeConfig.NodeStatus.Preview
 
 	val model = NodeConfig.Data("model", NodeConfig.Data.Type.ParticlesModel)
 	val particles = NodeConfig.Data("particles", NodeConfig.Data.Type.MovieRefinement)
