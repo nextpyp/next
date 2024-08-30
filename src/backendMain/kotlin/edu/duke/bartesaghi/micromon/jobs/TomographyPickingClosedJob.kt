@@ -6,6 +6,7 @@ import edu.duke.bartesaghi.micromon.mongo.getDocument
 import edu.duke.bartesaghi.micromon.nodes.TomographyPickingClosedNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.*
+import io.kvision.remote.ServiceException
 import org.bson.Document
 import org.bson.conversions.Bson
 
@@ -84,9 +85,16 @@ class TomographyPickingClosedJob(
 		val upstreamJob = inSegmentation?.resolveJob<Job>()
 			?: throw IllegalStateException("no segmentation input configured")
 
-		// TODO: write out particles from the upstream job, if needed?
-		//       segmentation jobs are still being redesigned, so wait for that to settle before implementing this
+		// write out particles from the upstream job, if needed
 		ParticlesJobs.clear(project.osUsername, dir)
+		when (upstreamJob) {
+			is CombinedParticlesJob -> throw ServiceException("Closed segmentation is not implemented from legacy preprocessing blocks")
+			is ParticlesJob -> {
+				upstreamJob.particlesList()
+					?.let { ParticlesJobs.writeTomography(project.osUsername, upstreamJob.idOrThrow, dir, it) }
+			}
+			else -> throw IllegalStateException("upstream job has no particles")
+		}
 
 		// build the args for PYP
 		val pypArgs = launchArgValues(upstreamJob, args.newestOrThrow().args.values, args.finished?.values)
