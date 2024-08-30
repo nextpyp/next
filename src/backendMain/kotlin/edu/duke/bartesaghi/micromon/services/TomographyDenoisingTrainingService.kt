@@ -94,7 +94,6 @@ actual class TomographyDenoisingTrainingService : ITomographyDenoisingTrainingSe
 
 	suspend fun getTrainResults(jobId: String): ByteArray {
 		val job = jobId.authJob(ProjectPermission.Read).job
-		// TODO: should this be method-specific?
 		val path = job.dir / "train" / "training_loss.svgz"
 		return path.readBytes()
 	}

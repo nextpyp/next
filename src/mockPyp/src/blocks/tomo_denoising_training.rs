@@ -44,7 +44,7 @@ fn run_isonet(_args: Args, _args_config: ArgsConfig) -> Result<()> {
 		format!("Block: {}", BLOCK_ID),
 		"Type: Training Results".to_string()
 	]);
-	img.save("train/isonet_refine.svgz")?;
+	img.save("train/training_loss.svgz")?;
 
 	Ok(())
 }
