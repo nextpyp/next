@@ -99,7 +99,7 @@ class TomographyMiloTrainJob(
 	}
 
 	fun diagramImageURL(): String =
-		IJobsService.miloResults3dPath(idOrThrow, ImageSize.Small)
+		IJobsService.miloTrainResultsPath(idOrThrow)
 
 	override fun wipeData() {
 

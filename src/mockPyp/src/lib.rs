@@ -4,6 +4,7 @@ pub mod args;
 pub mod blocks;
 
 mod image;
+mod svg;
 mod web;
 mod metadata;
 mod rand;

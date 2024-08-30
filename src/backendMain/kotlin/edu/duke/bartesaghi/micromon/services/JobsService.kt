@@ -283,6 +283,19 @@ actual class JobsService : IJobsService, Service {
 						}
 					}
 
+					get("train_results") {
+						call.respondExceptions {
+
+							// parse args
+							val jobId = parseJobId()
+
+							val bytes = service.getMiloTrainResults(jobId)
+
+							call.response.headers.append(HttpHeaders.ContentEncoding, "gzip")
+							call.respondBytes(bytes, ContentType.Image.Svgz)
+						}
+					}
+
 					get("data") {
 						call.respondExceptions {
 
@@ -562,6 +575,12 @@ actual class JobsService : IJobsService, Service {
 		return size.readResize(imagePath, ImageType.Webp, cacheInfo)
 			// no image, return a placeholder
 			?: Resources.placeholderJpg(size)
+	}
+
+	suspend fun getMiloTrainResults(jobId: String): ByteArray {
+		val job = jobId.authJob(ProjectPermission.Read).job
+		val path = job.dir / "train" / "milo_training.svgz"
+		return path.readBytes()
 	}
 
 	override suspend fun miloData(jobId: String): Option<FileDownloadData> = sanitizeExceptions {

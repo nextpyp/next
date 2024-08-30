@@ -1681,6 +1681,10 @@ div.project-view div.diagram div.node div.title span.buttons button {
 
 div.project-view div.diagram div.node div.content {
 	padding: 8px;
+
+	img.thumbnail {
+		width: 256px;
+	}
 }
 
 .project-view .diagram .node .ports {

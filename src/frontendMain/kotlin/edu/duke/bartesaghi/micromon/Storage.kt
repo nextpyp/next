@@ -131,4 +131,5 @@ object Storage {
 	var miloResults2dSize by ImageSizeStorageItem("miloResults2dSize")
 	var miloResults2dLabelsSize by ImageSizeStorageItem("miloResults2dLabelsSize")
 	var miloResults3dSize by ImageSizeStorageItem("miloResults3dSize")
+	var miloTrainResultsSize by ImageSizeStorageItem("miloTrainResultsSize")
 }

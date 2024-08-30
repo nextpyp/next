@@ -10,6 +10,7 @@ import edu.duke.bartesaghi.micromon.pyp.Args
 import edu.duke.bartesaghi.micromon.pyp.filterForDownstreamCopy
 import edu.duke.bartesaghi.micromon.refreshDynamicImages
 import edu.duke.bartesaghi.micromon.services.*
+import edu.duke.bartesaghi.micromon.views.TomographyMiloTrainView
 import edu.duke.bartesaghi.micromon.views.Viewport
 import io.kvision.form.select.SelectRemote
 import io.kvision.form.formPanel
@@ -149,10 +150,9 @@ class TomographyMiloTrainNode(
 
 		content {
 			button(className = "image-button", onClick = {
-				// TODO: view?
-				//TomographyParticlesMiloView.go(viewport, project, job)
+				TomographyMiloTrainView.go(viewport, project, job)
 			}) {
-				img(job.imageUrl, className = dynamicImageClassName)
+				img(job.imageUrl, className = "$dynamicImageClassName thumbnail")
 			}
 		}
 

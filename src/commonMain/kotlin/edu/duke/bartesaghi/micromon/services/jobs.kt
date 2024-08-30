@@ -58,6 +58,9 @@ interface IJobsService {
 		fun miloResults3dPath(jobId: String, size: ImageSize): String =
 			"/kv/jobs/$jobId/milo/results_3d/${size.id}"
 
+		fun miloTrainResultsPath(jobId: String): String =
+			"/kv/jobs/$jobId/milo/train_results"
+
 		fun miloDataPath(jobId: String): String =
 			"/kv/jobs/$jobId/milo/data"
 
