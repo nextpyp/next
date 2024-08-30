@@ -139,8 +139,12 @@ class TomographySegmentationOpenView(val project: ProjectData, val job: Tomograp
 							add(recDownloadBadge)
 						}
 
+						// show the tomogram reconstruction
 						val particlesImage = TomoParticlesImage.forProject(project, job, data, tiltSeries)
 						lazyTab.elem.add(particlesImage)
+
+						// show the side view
+						lazyTab.elem.add(TomoSideViewImage(job.jobId, tiltSeries.id))
 
 						AppScope.launch {
 

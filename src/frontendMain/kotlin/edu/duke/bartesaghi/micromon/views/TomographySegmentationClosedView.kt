@@ -133,8 +133,12 @@ class TomographySegmentationClosedView(val project: ProjectData, val job: Tomogr
 
 					addTab("Reconstruction", "fas fa-desktop") { lazyTab ->
 
+						// show the tomogram reconstruction
 						val particlesImage = TomoParticlesImage.forProject(project, job, data, tiltSeries)
 						lazyTab.elem.add(particlesImage)
+
+						// show the side view
+						lazyTab.elem.add(TomoSideViewImage(job.jobId, tiltSeries.id))
 
 						AppScope.launch {
 							particlesImage.load()
