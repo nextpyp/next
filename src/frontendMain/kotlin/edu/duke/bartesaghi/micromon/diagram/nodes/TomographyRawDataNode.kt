@@ -42,7 +42,7 @@ class TomographyRawDataNode(
 		override fun makeNode(viewport: Viewport, diagram: Diagram, project: ProjectData, job: JobData) =
 			TomographyRawDataNode(viewport, diagram, project, job as TomographyRawDataData)
 
-		override fun showImportForm(viewport: Viewport, diagram: Diagram, project: ProjectData, copyFrom: Node?, callback: (Node) -> Unit) {
+		override fun showImportForm(viewport: Viewport, diagram: Diagram, project: ProjectData, copyFrom: Node?, andCopyData: Boolean, callback: (Node) -> Unit) {
 			val defaultArgs = (copyFrom as TomographyRawDataNode?)?.job?.args
 			form(config.name, defaultArgs, true) { args ->
 				AppScope.launch {

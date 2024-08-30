@@ -28,12 +28,12 @@ interface NodeClientInfo {
 			?: throw NoSuchElementException("block ${config.id} has no URL fragment")
 
 	/** create a node from nothing but new user input */
-	fun showImportForm(viewport: Viewport, diagram: Diagram, project: ProjectData, copyFrom: Node?, callback: (Node) -> Unit) {
+	fun showImportForm(viewport: Viewport, diagram: Diagram, project: ProjectData, copyFrom: Node?, andCopyData: Boolean, callback: (Node) -> Unit) {
 		// no implementation by default
 	}
 
 	/** create a node from new user input, and the output of another node */
-	fun showUseDataForm(viewport: Viewport, diagram: Diagram, project: ProjectData, outNode: Node, input: CommonJobData.DataId, copyFrom: Node?, callback: (Node) -> Unit) {
+	fun showUseDataForm(viewport: Viewport, diagram: Diagram, project: ProjectData, outNode: Node, input: CommonJobData.DataId, copyFrom: Node?, andCopyData: Boolean, callback: (Node) -> Unit) {
 		// no implementation by default
 	}
 

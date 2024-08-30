@@ -14,7 +14,7 @@ import kotlinx.serialization.Serializable
 interface ITomographyPickingService {
 
 	@KVBindingRoute("node/${TomographyPickingNodeConfig.ID}/addNode")
-	suspend fun addNode(userId: String, projectId: String, inData: CommonJobData.DataId, args: TomographyPickingArgs): TomographyPickingData
+	suspend fun addNode(userId: String, projectId: String, inData: CommonJobData.DataId, args: TomographyPickingArgs, copyFromJobId: String?): TomographyPickingData
 
 	@KVBindingRoute("node/${TomographyPickingNodeConfig.ID}/edit")
 	suspend fun edit(jobId: String, args: TomographyPickingArgs?): TomographyPickingData

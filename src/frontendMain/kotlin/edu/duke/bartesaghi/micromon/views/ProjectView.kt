@@ -390,22 +390,29 @@ class ProjectView(val project: ProjectData) : View {
 
 			if (project.canWrite()) {
 
-				// allow copying all nodes
-				node.onCopyClick = e@{
+				fun copyBlock(andData: Boolean = false) {
 
 					if (node.config.inputs.isNotEmpty()) {
 
 						// find our upstream node
 						val upstream = node.getUpstreams()
 							.firstOrNull()
-							?: return@e
+							?: return
 
-						showUseDataForm(upstream.node, upstream.outData, upstream.inData, node.config, node)
+						showUseDataForm(upstream.node, upstream.outData, upstream.inData, node.config, node, andData)
 
 					} else {
 
-						node.config.clientInfo.showImportForm(viewport, diagram, project, node, ::addSourceNode)
+						node.config.clientInfo.showImportForm(viewport, diagram, project, node, andData, ::addSourceNode)
 					}
+				}
+
+				// allow copying all nodes
+				node.onCopySettingsClick = { copyBlock() }
+
+				// allow copying only some nodes with data (since it's not implemented on the server for every node just yet)
+				if (node.config.supportsCopyData) {
+					node.onCopySettingsDataClick = { copyBlock(andData = true) }
 				}
 
 				node.onMakeRunnableClick = {
@@ -507,7 +514,7 @@ class ProjectView(val project: ProjectData) : View {
 								win.hide()
 
 								// show the node's import form
-								node.clientInfo.showImportForm(viewport, diagram, project, null, ::addSourceNode)
+								node.clientInfo.showImportForm(viewport, diagram, project, null, false, ::addSourceNode)
 							}
 						}
 					}
@@ -524,7 +531,7 @@ class ProjectView(val project: ProjectData) : View {
 								win.hide()
 
 								// show the node's import form
-								node.clientInfo.showImportForm(viewport, diagram, project, null, ::addSourceNode)
+								node.clientInfo.showImportForm(viewport, diagram, project, null, false, ::addSourceNode)
 							}
 						}
 					}
@@ -794,17 +801,27 @@ class ProjectView(val project: ProjectData) : View {
 			}
 		}
 
-		fun showUseDataForm(outNode: Node, outData: NodeConfig.Data, inData: NodeConfig.Data, inConfig: NodeConfig, copyFrom: Node? = null) {
+		fun showUseDataForm(
+			outNode: Node,
+			outData: NodeConfig.Data,
+			inData: NodeConfig.Data,
+			inConfig: NodeConfig,
+			copyFrom: Node? = null,
+			andCopyData: Boolean = false
+		) {
 
 			val output = CommonJobData.DataId(outNode.jobId, outData.id)
-			inConfig.clientInfo.showUseDataForm(viewport, diagram, project, outNode, output, copyFrom) { inNode ->
+			inConfig.clientInfo.showUseDataForm(viewport, diagram, project, outNode, output, copyFrom, andCopyData) { inNode ->
 
 				// wire up events before doing anything to the node that would trigger a render,
 				// since the render logic depends on which events are connected
 				wireEvents(inNode)
 
 				// add the node to the diagram
-				inNode.status = Node.Status.Changed
+				inNode.status = when (inNode.baseJob.isChanged()) {
+					true -> Node.Status.Changed
+					false -> Node.Status.Ended
+				}
 				diagram.addNode(inNode)
 
 				// add a linker to the source node

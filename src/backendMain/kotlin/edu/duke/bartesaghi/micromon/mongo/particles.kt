@@ -53,6 +53,23 @@ class ParticleLists {
 		collection.deleteMany(filterOwner(ownerId))
 	}
 
+	fun copyAll(srcOwnerId: String, dstOwnerId: String) {
+		collection
+			.find(filterOwner(srcOwnerId))
+			.useCursor { docs ->
+				for (doc in docs) {
+					val name = doc.getString("name")
+					collection.replaceOne(
+						filter(dstOwnerId, name),
+						doc.apply {
+							set("_id", "$dstOwnerId/$name")
+							set("ownerId", dstOwnerId)
+						},
+						ReplaceOptions().upsert(true)
+					)
+				}
+			}
+	}
 
 	private fun ParticlesList.toDoc() = Document().apply {
 		this["_id"] = "$ownerId/$name"
@@ -352,6 +369,25 @@ class Particles {
 					doc[Keys.name] = newName
 
 					collection.insertOne(doc)
+				}
+			}
+	}
+
+	fun copyAllParticles(srcOwnerId: String, dstOwnerId: String) {
+		collection
+			.find(filterOwner(srcOwnerId))
+			.useCursor { docs ->
+				for (doc in docs) {
+					val name = doc.getString(Keys.name)
+					val datumId = doc.getString(Keys.datumId)
+					collection.replaceOne(
+						filter(dstOwnerId, name, datumId),
+						doc.apply {
+							set("_id", "$dstOwnerId/$name/$datumId")
+							set(Keys.ownerId, dstOwnerId)
+						},
+						ReplaceOptions().upsert(true)
+					)
 				}
 			}
 	}

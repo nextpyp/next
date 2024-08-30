@@ -103,6 +103,7 @@ interface NodeConfig {
 	val status: NodeStatus get() = NodeStatus.Regular
 	val inputs: List<Data>
 	val outputs: List<Data>
+	val supportsCopyData: Boolean get() = false
 
 	/**
 	 * True if only one input should be used at a time,

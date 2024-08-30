@@ -38,7 +38,7 @@ class TomographySessionDataNode(
 		override fun makeNode(viewport: Viewport, diagram: Diagram, project: ProjectData, job: JobData) =
 			TomographySessionDataNode(viewport, diagram, project, job as TomographySessionDataData)
 
-		override fun showImportForm(viewport: Viewport, diagram: Diagram, project: ProjectData, copyFrom: Node?, callback: (Node) -> Unit) {
+		override fun showImportForm(viewport: Viewport, diagram: Diagram, project: ProjectData, copyFrom: Node?, andCopyData: Boolean, callback: (Node) -> Unit) {
 
 			val win = Modal(
 				caption = config.name,

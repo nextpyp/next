@@ -38,7 +38,7 @@ class TomographyParticlesEvalNode(
 		override fun makeNode(viewport: Viewport, diagram: Diagram, project: ProjectData, job: JobData) =
 			TomographyParticlesEvalNode(viewport, diagram, project, job as TomographyParticlesEvalData)
 
-		override fun showUseDataForm(viewport: Viewport, diagram: Diagram, project: ProjectData, outNode: Node, input: CommonJobData.DataId, copyFrom: Node?, callback: (Node) -> Unit) {
+		override fun showUseDataForm(viewport: Viewport, diagram: Diagram, project: ProjectData, outNode: Node, input: CommonJobData.DataId, copyFrom: Node?, andCopyData: Boolean, callback: (Node) -> Unit) {
 			val defaultArgs = (copyFrom as TomographyParticlesEvalNode?)?.job?.args
 			form(config.name, outNode, defaultArgs, true) { args ->
 

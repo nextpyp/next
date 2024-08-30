@@ -38,7 +38,7 @@ class SingleParticleImportDataNode(
 		override fun makeNode(viewport: Viewport, diagram: Diagram, project: ProjectData, job: JobData) =
 			SingleParticleImportDataNode(viewport, diagram, project, job as SingleParticleImportDataData)
 
-		override fun showImportForm(viewport: Viewport, diagram: Diagram, project: ProjectData, copyFrom: Node?, callback: (Node) -> Unit) {
+		override fun showImportForm(viewport: Viewport, diagram: Diagram, project: ProjectData, copyFrom: Node?, andCopyData: Boolean, callback: (Node) -> Unit) {
 
 			val defaultArgs = (copyFrom as SingleParticleImportDataNode?)?.job?.args
 			form(config.name, defaultArgs, true) { args ->

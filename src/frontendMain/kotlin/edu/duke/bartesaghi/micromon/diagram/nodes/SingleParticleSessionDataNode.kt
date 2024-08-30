@@ -38,7 +38,7 @@ class SingleParticleSessionDataNode(
 		override fun makeNode(viewport: Viewport, diagram: Diagram, project: ProjectData, job: JobData) =
 			SingleParticleSessionDataNode(viewport, diagram, project, job as SingleParticleSessionDataData)
 
-		override fun showImportForm(viewport: Viewport, diagram: Diagram, project: ProjectData, copyFrom: Node?, callback: (Node) -> Unit) {
+		override fun showImportForm(viewport: Viewport, diagram: Diagram, project: ProjectData, copyFrom: Node?, andCopyData: Boolean, callback: (Node) -> Unit) {
 
 			val win = Modal(
 				caption = config.name,

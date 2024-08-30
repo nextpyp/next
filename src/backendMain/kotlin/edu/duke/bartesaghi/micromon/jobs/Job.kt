@@ -241,6 +241,15 @@ abstract class Job(
 		// nothing to do by default
 	}
 
+	open fun copyDataFrom(otherJobId: String) {
+		throw UnsupportedOperationException("not implemented")
+	}
+
+	suspend fun copyFilesFrom(osUsername: String?, otherJobId: String) {
+		val otherJob = fromIdOrThrow(otherJobId)
+		otherJob.dir.copyDirRecursivelyAs(osUsername, dir)
+	}
+
 	/** return true iff this job has pending changes that need to be run */
 	open fun isChanged(): Boolean = false
 

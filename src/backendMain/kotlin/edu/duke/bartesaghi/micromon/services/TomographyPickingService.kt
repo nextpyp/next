@@ -13,7 +13,7 @@ actual class TomographyPickingService : ITomographyPickingService, Service {
 	@Inject
 	override lateinit var call: ApplicationCall
 
-	override suspend fun addNode(userId: String, projectId: String, inData: CommonJobData.DataId, args: TomographyPickingArgs): TomographyPickingData = sanitizeExceptions {
+	override suspend fun addNode(userId: String, projectId: String, inData: CommonJobData.DataId, args: TomographyPickingArgs, copyFromJobId: String?): TomographyPickingData = sanitizeExceptions {
 
 		val user = call.authOrThrow()
 		user.authProjectOrThrow(ProjectPermission.Write, userId, projectId)
@@ -23,6 +23,14 @@ actual class TomographyPickingService : ITomographyPickingService, Service {
 		job.args.next = args
 		job.inTomograms = inData
 		job.create()
+
+		copyFromJobId?.let {
+			job.args.run()
+			job.stale = false
+			job.update()
+			job.copyDataFrom(it)
+			job.copyFilesFrom(user.osUsername, it)
+		}
 
 		return job.data()
 	}

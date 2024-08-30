@@ -39,7 +39,7 @@ class TomographyRelionDataNode(
 		override fun makeNode(viewport: Viewport, diagram: Diagram, project: ProjectData, job: JobData) =
 			TomographyRelionDataNode(viewport, diagram, project, job as TomographyRelionDataData)
 
-		override fun showImportForm(viewport: Viewport, diagram: Diagram, project: ProjectData, copyFrom: Node?, callback: (Node) -> Unit) {
+		override fun showImportForm(viewport: Viewport, diagram: Diagram, project: ProjectData, copyFrom: Node?, andCopyData: Boolean, callback: (Node) -> Unit) {
 			val defaultArgs = (copyFrom as TomographyRelionDataNode?)?.job?.args
 			form(config.name, defaultArgs, true) { args ->
 				AppScope.launch {

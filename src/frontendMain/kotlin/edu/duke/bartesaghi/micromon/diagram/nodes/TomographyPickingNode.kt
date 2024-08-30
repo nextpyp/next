@@ -38,13 +38,13 @@ class TomographyPickingNode(
 		override fun makeNode(viewport: Viewport, diagram: Diagram, project: ProjectData, job: JobData) =
 			TomographyPickingNode(viewport, diagram, project, job as TomographyPickingData)
 
-		override fun showUseDataForm(viewport: Viewport, diagram: Diagram, project: ProjectData, outNode: Node, input: CommonJobData.DataId, copyFrom: Node?, callback: (Node) -> Unit) {
+		override fun showUseDataForm(viewport: Viewport, diagram: Diagram, project: ProjectData, outNode: Node, input: CommonJobData.DataId, copyFrom: Node?, andCopyData: Boolean, callback: (Node) -> Unit) {
 			val defaultArgs = (copyFrom as TomographyPickingNode?)?.job?.args
 			form(config.name, outNode, defaultArgs, true) { args ->
 
 				// save the node to the server
 				AppScope.launch {
-					val data = Services.tomographyPicking.addNode(project.owner.id, project.projectId, input, args)
+					val data = Services.tomographyPicking.addNode(project.owner.id, project.projectId, input, args, copyFrom?.takeIf { andCopyData }?.jobId)
 
 					// send the node back to the diagram
 					callback(TomographyPickingNode(viewport, diagram, project, data))
@@ -59,7 +59,7 @@ class TomographyPickingNode(
 			val args = TomographyPickingArgs(
 				values = argValues
 			)
-			return Services.tomographyPicking.addNode(project.owner.id, project.projectId, input, args)
+			return Services.tomographyPicking.addNode(project.owner.id, project.projectId, input, args, null)
 		}
 
 		override suspend fun getJob(jobId: String): TomographyPickingData =

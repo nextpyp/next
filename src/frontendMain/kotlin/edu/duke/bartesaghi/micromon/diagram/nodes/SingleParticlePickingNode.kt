@@ -37,7 +37,7 @@ class SingleParticlePickingNode(
 		override fun makeNode(viewport: Viewport, diagram: Diagram, project: ProjectData, job: JobData) =
 			SingleParticlePickingNode(viewport, diagram, project, job as SingleParticlePickingData)
 
-		override fun showUseDataForm(viewport: Viewport, diagram: Diagram, project: ProjectData, outNode: Node, input: CommonJobData.DataId, copyFrom: Node?, callback: (Node) -> Unit) {
+		override fun showUseDataForm(viewport: Viewport, diagram: Diagram, project: ProjectData, outNode: Node, input: CommonJobData.DataId, copyFrom: Node?, andCopyData: Boolean, callback: (Node) -> Unit) {
 			val defaultArgs = (copyFrom as SingleParticlePickingNode?)?.job?.args
 			form(config.name, outNode, defaultArgs, true) { args ->
 

@@ -198,6 +198,22 @@ class Parameters {
 	fun delete(ownerId: String) {
 		collection.deleteOne(filter(ownerId))
 	}
+
+	fun copy(srcOwnerId: String, dstOwnerId: String) {
+		collection
+			.find(filter(srcOwnerId))
+			.useCursor { docs ->
+				for (doc in docs) {
+					collection.replaceOne(
+						filter(dstOwnerId),
+						doc.apply {
+							set("_id", dstOwnerId)
+						},
+						ReplaceOptions().upsert(true)
+					)
+				}
+			}
+	}
 }
 
 class Micrographs {
@@ -414,6 +430,24 @@ class TiltSerieses {
 		collection.deleteMany(
 			Filters.eq("jobId", jobId)
 		)
+	}
+
+	fun copyAll(srcJobId: String, dstJobId: String) {
+		collection
+			.find(filterAll(srcJobId))
+			.useCursor { docs ->
+				for (doc in docs) {
+					val tiltSeriesId = doc.getString("tiltSeriesId")
+					collection.replaceOne(
+						filter(dstJobId, tiltSeriesId),
+						doc.apply {
+							set("_id", "$dstJobId/$tiltSeriesId")
+							set("jobId", dstJobId)
+						},
+						ReplaceOptions().upsert(true)
+					)
+				}
+			}
 	}
 }
 

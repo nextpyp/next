@@ -39,7 +39,7 @@ class TomographyMovieCleaningNode(
 		override fun makeNode(viewport: Viewport, diagram: Diagram, project: ProjectData, job: JobData) =
 			TomographyMovieCleaningNode(viewport, diagram, project, job as TomographyMovieCleaningData)
 
-		override fun showUseDataForm(viewport: Viewport, diagram: Diagram, project: ProjectData, outNode: Node, input: CommonJobData.DataId, copyFrom: Node?, callback: (Node) -> Unit) {
+		override fun showUseDataForm(viewport: Viewport, diagram: Diagram, project: ProjectData, outNode: Node, input: CommonJobData.DataId, copyFrom: Node?, andCopyData: Boolean, callback: (Node) -> Unit) {
 			val defaultArgs = (copyFrom as TomographyMovieCleaningNode?)?.job?.args
 			form(config.name, outNode, defaultArgs, true) { args ->
 

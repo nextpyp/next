@@ -118,6 +118,18 @@ class TomographyPickingJob(
 		Database.tiltSeries.deleteAll(idOrThrow)
 		Database.particleLists.deleteAll(idOrThrow)
 		Database.particles.deleteAllParticles(idOrThrow)
+		Database.parameters.delete(idOrThrow)
+	}
+
+	override fun copyDataFrom(otherJobId: String) {
+
+		Database.tiltSeries.copyAll(otherJobId, idOrThrow)
+		Database.particleLists.copyAll(otherJobId, idOrThrow)
+		Database.particles.copyAllParticles(otherJobId, idOrThrow)
+		Database.parameters.copy(otherJobId, idOrThrow)
+
+		latestTiltSeriesId = fromIdOrThrow(otherJobId).cast<TomographyPickingJob>().latestTiltSeriesId
+		update()
 	}
 
 	override fun newestArgValues(): ArgValuesToml? =
