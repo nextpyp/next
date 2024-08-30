@@ -106,9 +106,13 @@ sealed interface Response {
 		const val ID: UInt = 9u
 	}
 
+	object CopyFolder : Response {
+		const val ID: UInt = 10u
+	}
+
 	data class Stat(val response: Response) : Response {
 		companion object {
-			const val ID: UInt = 10u
+			const val ID: UInt = 11u
 		}
 
 		sealed interface Response
@@ -159,11 +163,11 @@ sealed interface Response {
 	}
 
 	object Rename : Response {
-		const val ID: UInt = 11u
+		const val ID: UInt = 12u
 	}
 
 	object Symlink : Response {
-		const val ID: UInt = 12u
+		const val ID: UInt = 13u
 	}
 }
 
@@ -293,6 +297,10 @@ class ResponseEnvelope(
 				out.writeU32(Response.DeleteFolder.ID)
 			}
 
+			is Response.CopyFolder -> {
+				out.writeU32(Response.CopyFolder.ID)
+			}
+
 			is Response.Stat -> {
 				out.writeU32(Response.Stat.ID)
 				when (response.response) {
@@ -409,6 +417,8 @@ class ResponseEnvelope(
 				Response.CreateFolder.ID -> Response.CreateFolder
 
 				Response.DeleteFolder.ID -> Response.DeleteFolder
+
+				Response.CopyFolder.ID -> Response.CopyFolder
 
 				Response.Stat.ID -> Response.Stat(run {
 					when (val lstatTypeId = input.readU32()) {

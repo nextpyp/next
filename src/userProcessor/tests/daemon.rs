@@ -517,7 +517,6 @@ fn delete_folder() {
 }
 
 
-
 #[test]
 fn list_folder() {
 	let _logging = logging::init_test();
@@ -574,6 +573,43 @@ fn list_folder() {
 	user_processor.disconnect(socket);
 	user_processor.stop();
 	fs::remove_dir_all(path)
+		.unwrap();
+}
+
+
+#[test]
+fn copy_folder() {
+	let _logging = logging::init_test();
+
+	// create a folder we can delete, put stuff in it too
+	let src_path = PathBuf::from(SOCKET_DIR).join("copy_folder_src_test");
+	fs::create_dir_all(&src_path)
+		.ok();
+	fs::write(src_path.join("file"), "hello")
+		.unwrap();
+
+	let dst_path = PathBuf::from(SOCKET_DIR).join("copy_folder_dst_test");
+
+	let user_processor = UserProcessor::start();
+	let mut socket = user_processor.connect();
+
+	let response = request(&mut socket, 5, Request::CopyFolder {
+		src: src_path.to_string_lossy().to_string(),
+		dst: dst_path.to_string_lossy().to_string()
+	});
+	assert_that!(&response, eq(Response::CopyFolder));
+
+	// check dst folder contents
+	assert_that!(&dst_path.exists(), eq(true));
+	let dst_file = dst_path.join("file");
+	assert_that!(&dst_file.exists(), eq(true));
+	assert_that!(&fs::read_to_string(&dst_file).unwrap(), eq("hello".to_string()));
+
+	user_processor.disconnect(socket);
+	user_processor.stop();
+	fs::remove_dir_all(src_path)
+		.unwrap();
+	fs::remove_dir_all(dst_path)
 		.unwrap();
 }
 

@@ -518,6 +518,13 @@ class UserProcessor(
 		return FileEntry.reader(list)
 	}
 
+	suspend fun copyFolder(src: Path, dst: Path) {
+		request(Request.CopyFolder(src.toString(), dst.toString()))
+			.use { responder ->
+				responder.recv().cast<Response.CopyFolder>()
+			}
+	}
+
 	suspend fun stat(path: Path): Response.Stat.Response =
 		request(Request.Stat(path.toString()))
 			.use { responder ->

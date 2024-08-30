@@ -71,6 +71,8 @@ class TestUserProcessor : DescribeSpec({
 			roundtrip(Request.DeleteFile("path"))
 			roundtrip(Request.CreateFolder("path"))
 			roundtrip(Request.DeleteFolder("path"))
+			roundtrip(Request.ListFolder("path"))
+			roundtrip(Request.CopyFolder("src", "dst"))
 			roundtrip(Request.Stat("path"))
 			roundtrip(Request.Rename("foo", "bar"))
 			roundtrip(Request.Symlink("cow", "moo"))
@@ -101,6 +103,7 @@ class TestUserProcessor : DescribeSpec({
 			roundtrip(Response.DeleteFile)
 			roundtrip(Response.CreateFolder)
 			roundtrip(Response.DeleteFolder)
+			roundtrip(Response.CopyFolder)
 
 			roundtrip(Response.Stat.NotFound.into())
 			roundtrip(Response.Stat.File(5u).into())
@@ -346,6 +349,28 @@ class TestUserProcessor : DescribeSpec({
 				}
 
 				client.deleteFolder(path)
+			}
+		}
+
+		it("copy folder").config(invocations = testCount) {
+			withUserProcessor(username) { _, client ->
+
+				// create a folder to copy, with stuff in it
+				val src = Paths.get("/tmp/nextpyp-user-processor-folder-src-test")
+				client.createFolder(src)
+				client.writeFile(src.resolve("file"))
+					.use { writer ->
+						writer.writeAll(byteArrayOf(1, 2, 3))
+					}
+
+				val dst = Paths.get("/tmp/nextpyp-user-processor-folder-dst-test")
+
+				client.copyFolder(src, dst)
+
+				dst.exists().shouldBe(true)
+				val dstFile = dst / "file"
+				dstFile.exists().shouldBe(true)
+				client.readFile(dstFile).shouldBe(byteArrayOf(1, 2, 3))
 			}
 		}
 

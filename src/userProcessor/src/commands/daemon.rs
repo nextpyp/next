@@ -276,6 +276,10 @@ async fn drive_connection(socket: UnixStream) {
 						dispatch_list_folder(socket_write, request.id, path)
 							.await,
 
+					Request::CopyFolder { src, dst } =>
+						dispatch_copy_folder(socket_write, request.id, src, dst)
+							.await,
+
 					Request::Stat { path } =>
 						dispatch_stat(socket_write, request.id, path)
 							.await,
@@ -724,6 +728,38 @@ async fn dispatch_delete_folder(socket: Rc<RefCell<OwnedWriteHalf>>, request_id:
 	}
 
 	write_response(&socket, request_id, Response::DeleteFolder)
+		.await
+		.ok();
+}
+
+
+#[tracing::instrument(skip_all, level = 5, name = "CopyFolder")]
+async fn dispatch_copy_folder(socket: Rc<RefCell<OwnedWriteHalf>>, request_id: u32, src: String, dst: String) {
+
+	debug!(src, dst, "Request");
+
+	fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> io::Result<()> {
+		fs::create_dir_all(&dst)?;
+		for entry in fs::read_dir(src)? {
+			let entry = entry?;
+			let ty = entry.file_type()?;
+			if ty.is_dir() {
+				copy_dir_all(entry.path(), dst.as_ref().join(entry.file_name()))?;
+			} else {
+				fs::copy(entry.path(), dst.as_ref().join(entry.file_name()))?;
+			}
+		}
+		Ok(())
+	}
+
+	let Some(()) = copy_dir_all(&src, &dst)
+		.or_respond_error(&socket, request_id, |e|
+			format!("Failed to copy folder: {}\n\tfrom: {}\n\t  to: {}", e, &src, &dst)
+		)
+		.await
+		else { return };
+
+	write_response(&socket, request_id, Response::CopyFolder)
 		.await
 		.ok();
 }

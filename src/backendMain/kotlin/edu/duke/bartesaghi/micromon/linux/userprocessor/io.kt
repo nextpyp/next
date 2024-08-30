@@ -10,10 +10,8 @@ import java.nio.file.Path
 import java.nio.file.StandardOpenOption
 import java.nio.file.attribute.PosixFilePermission
 import java.util.HashSet
-import kotlin.io.path.div
-import kotlin.io.path.outputStream
+import kotlin.io.path.*
 import kotlin.io.path.readBytes
-import kotlin.io.path.writeBytes
 
 
 suspend fun Path.writeBytesAs(username: String?, content: ByteArray) {
@@ -158,6 +156,16 @@ fun Path.deleteDirRecursivelyAsyncAs(username: String?) {
 		}
 	} else {
 		deleteDirRecursivelyAsync()
+	}
+}
+
+
+suspend fun Path.copyDirRecursivelyAs(username: String?, dst: Path) {
+	if (username != null) {
+		Backend.userProcessors.get(username)
+			.copyFolder(this, dst)
+	} else {
+		copyTo(dst, true)
 	}
 }
 
