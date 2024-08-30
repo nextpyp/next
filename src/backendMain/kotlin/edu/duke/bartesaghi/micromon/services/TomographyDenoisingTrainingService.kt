@@ -5,10 +5,50 @@ import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.auth.authOrThrow
 import edu.duke.bartesaghi.micromon.jobs.*
 import edu.duke.bartesaghi.micromon.mongo.authProjectOrThrow
+import edu.duke.bartesaghi.micromon.nodes.TomographyDenoisingTrainingNodeConfig
 import io.ktor.application.*
+import io.ktor.http.*
+import io.ktor.response.*
+import io.ktor.routing.*
+import io.ktor.util.*
+import io.ktor.util.pipeline.*
+import java.io.FileNotFoundException
+import kotlin.io.path.div
 
 
 actual class TomographyDenoisingTrainingService : ITomographyDenoisingTrainingService, Service {
+
+	companion object {
+
+		fun init(routing: Routing) {
+
+			routing.route("kv/node/${TomographyDenoisingTrainingNodeConfig.ID}/{jobId}") {
+
+				fun PipelineContext<Unit, ApplicationCall>.parseJobId(): String =
+					call.parameters.getOrFail("jobId")
+
+				get("train_results") {
+					call.respondExceptions {
+
+						val jobId = parseJobId()
+
+						val bytes = try {
+							service.getTrainResults(jobId)
+						} catch (ex: FileNotFoundException) {
+							Resources.placeholderSvgz()
+						}
+
+						call.response.headers.append(HttpHeaders.ContentEncoding, "gzip")
+						call.respondBytes(bytes, ContentType.Image.Svgz)
+					}
+				}
+			}
+		}
+
+		private val PipelineContext<Unit, ApplicationCall>.service get() =
+			getService<TomographyDenoisingTrainingService>()
+	}
+
 
 	@Inject
 	override lateinit var call: ApplicationCall
@@ -50,5 +90,12 @@ actual class TomographyDenoisingTrainingService : ITomographyDenoisingTrainingSe
 
 	override suspend fun getArgs(): String = sanitizeExceptions {
 		return TomographyDenoisingTrainingJob.args().toJson()
+	}
+
+	suspend fun getTrainResults(jobId: String): ByteArray {
+		val job = jobId.authJob(ProjectPermission.Read).job
+		// TODO: should this be method-specific?
+		val path = job.dir / "train" / "isonet_refine.svgz"
+		return path.readBytes()
 	}
 }

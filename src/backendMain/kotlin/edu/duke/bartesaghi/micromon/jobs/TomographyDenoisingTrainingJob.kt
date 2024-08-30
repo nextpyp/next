@@ -103,18 +103,8 @@ class TomographyDenoisingTrainingJob(
 		update()
 	}
 
-	fun diagramImageURL(): String {
-
-		val size = ImageSize.Small
-
-		// find an arbitrary (but deterministic) tilt series for this job
-		// like the newest tilt series written for this job
-		return latestTiltSeriesId
-			?.let { "/kv/jobs/$idOrThrow/data/$it/image/${size.id}" }
-
-			// or just use a placeholder
-			?: return "/img/placeholder/${size.id}"
-	}
+	fun diagramImageURL(): String =
+		ITomographyDenoisingTrainingService.trainResultsPath(idOrThrow)
 
 	override fun wipeData() {
 

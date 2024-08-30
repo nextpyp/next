@@ -241,72 +241,6 @@ actual class JobsService : IJobsService, Service {
 						call.respondBytes(bytes, ContentType.Image.WebP)
 					}
 				}
-
-				route("milo") {
-
-					get("results_2d/{size}") {
-						call.respondExceptions {
-
-							// parse args
-							val jobId = parseJobId()
-							val size = parseSize()
-
-							val bytes = service.getMiloResults2d(jobId, size)
-
-							call.respondBytes(bytes, ContentType.Image.WebP)
-						}
-					}
-
-					get("results_2d_labels/{size}") {
-						call.respondExceptions {
-
-							// parse args
-							val jobId = parseJobId()
-							val size = parseSize()
-
-							val bytes = service.getMiloResults2dLabels(jobId, size)
-
-							call.respondBytes(bytes, ContentType.Image.WebP)
-						}
-					}
-
-					get("results_3d/{size}") {
-						call.respondExceptions {
-
-							// parse args
-							val jobId = parseJobId()
-							val size = parseSize()
-
-							val bytes = service.getMiloResults3d(jobId, size)
-
-							call.respondBytes(bytes, ContentType.Image.WebP)
-						}
-					}
-
-					get("train_results") {
-						call.respondExceptions {
-
-							// parse args
-							val jobId = parseJobId()
-
-							val bytes = service.getMiloTrainResults(jobId)
-
-							call.response.headers.append(HttpHeaders.ContentEncoding, "gzip")
-							call.respondBytes(bytes, ContentType.Image.Svgz)
-						}
-					}
-
-					get("data") {
-						call.respondExceptions {
-
-							// parse args
-							val jobId = parseJobId()
-
-							val bytes = service.miloDataContent(jobId)
-							call.respondBytes(bytes, ContentType.Application.OctetStream)
-						}
-					}
-				}
 			}
 		}
 
@@ -539,62 +473,6 @@ actual class JobsService : IJobsService, Service {
 		//       so don't try to look for it here. Just look for the metadata file among this job's files
 		return TiltSeries.metadataPath(job.dir, tiltSeriesId)
 			.readBytes()
-	}
-
-	suspend fun getMiloResults2d(jobId: String, size: ImageSize): ByteArray {
-
-		val job = jobId.authJob(ProjectPermission.Read).job
-
-		val imagePath = job.dir / "train" / "2d_visualization_out.webp"
-		val cacheInfo = ImageCacheInfo(job.wwwDir, "milo-results-2d")
-
-		return size.readResize(imagePath, ImageType.Webp, cacheInfo)
-			// no image, return a placeholder
-			?: Resources.placeholderJpg(size)
-	}
-
-	suspend fun getMiloResults2dLabels(jobId: String, size: ImageSize): ByteArray {
-
-		val job = jobId.authJob(ProjectPermission.Read).job
-
-		val imagePath = job.dir / "train" / "2d_visualization_labels.webp"
-		val cacheInfo = ImageCacheInfo(job.wwwDir, "milo-results-2d-labels")
-
-		return size.readResize(imagePath, ImageType.Webp, cacheInfo)
-			// no image, return a placeholder
-			?: Resources.placeholderJpg(size)
-	}
-
-	suspend fun getMiloResults3d(jobId: String, size: ImageSize): ByteArray {
-
-		val job = jobId.authJob(ProjectPermission.Read).job
-
-		val imagePath = job.dir / "train" / "3d_visualization_out.webp"
-		val cacheInfo = ImageCacheInfo(job.wwwDir, "milo-results-3d")
-
-		return size.readResize(imagePath, ImageType.Webp, cacheInfo)
-			// no image, return a placeholder
-			?: Resources.placeholderJpg(size)
-	}
-
-	suspend fun getMiloTrainResults(jobId: String): ByteArray {
-		val job = jobId.authJob(ProjectPermission.Read).job
-		val path = job.dir / "train" / "milo_training.svgz"
-		return path.readBytes()
-	}
-
-	override suspend fun miloData(jobId: String): Option<FileDownloadData> = sanitizeExceptions {
-		val job = jobId.authJob(ProjectPermission.Read).job
-		val path = job.dir / "train" / "all_output_info.npz"
-		path
-			.toFileDownloadData()
-			.toOption()
-	}
-
-	fun miloDataContent(jobId: String): ByteArray {
-		val job = jobId.authJob(ProjectPermission.Read).job
-		val path = job.dir / "train" / "all_output_info.npz"
-		return path.readBytes()
 	}
 
 	suspend fun getOutputImage(jobId: String, size: ImageSize): ByteArray {

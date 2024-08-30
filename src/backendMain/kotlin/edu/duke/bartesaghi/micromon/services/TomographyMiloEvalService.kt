@@ -5,10 +5,85 @@ import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.auth.authOrThrow
 import edu.duke.bartesaghi.micromon.jobs.*
 import edu.duke.bartesaghi.micromon.mongo.authProjectOrThrow
+import edu.duke.bartesaghi.micromon.nodes.TomographyMiloEvalNodeConfig
 import io.ktor.application.*
+import io.ktor.http.*
+import io.ktor.response.*
+import io.ktor.routing.*
+import io.ktor.util.*
+import io.ktor.util.pipeline.*
+import kotlin.io.path.div
 
 
 actual class TomographyMiloEvalService : ITomographyMiloEvalService, Service {
+
+	companion object {
+
+		fun init(routing: Routing) {
+
+			routing.route("kv/node/${TomographyMiloEvalNodeConfig.ID}/{jobId}") {
+
+				fun PipelineContext<Unit, ApplicationCall>.parseJobId(): String =
+					call.parameters.getOrFail("jobId")
+
+
+
+				get("results_2d/{size}") {
+					call.respondExceptions {
+
+						// parse args
+						val jobId = parseJobId()
+						val size = parseSize()
+
+						val bytes = service.getResults2d(jobId, size)
+
+						call.respondBytes(bytes, ContentType.Image.WebP)
+					}
+				}
+
+				get("results_2d_labels/{size}") {
+					call.respondExceptions {
+
+						// parse args
+						val jobId = parseJobId()
+						val size = parseSize()
+
+						val bytes = service.getResults2dLabels(jobId, size)
+
+						call.respondBytes(bytes, ContentType.Image.WebP)
+					}
+				}
+
+				get("results_3d/{size}") {
+					call.respondExceptions {
+
+						// parse args
+						val jobId = parseJobId()
+						val size = parseSize()
+
+						val bytes = service.getResults3d(jobId, size)
+
+						call.respondBytes(bytes, ContentType.Image.WebP)
+					}
+				}
+
+				get("data") {
+					call.respondExceptions {
+
+						// parse args
+						val jobId = parseJobId()
+
+						val bytes = service.dataContent(jobId)
+						call.respondBytes(bytes, ContentType.Application.OctetStream)
+					}
+				}
+			}
+		}
+
+		private val PipelineContext<Unit, ApplicationCall>.service get() =
+			getService<TomographyMiloEvalService>()
+	}
+
 
 	@Inject
 	override lateinit var call: ApplicationCall
@@ -51,4 +126,55 @@ actual class TomographyMiloEvalService : ITomographyMiloEvalService, Service {
 	override suspend fun getArgs(): String = sanitizeExceptions {
 		return TomographyMiloEvalJob.args().toJson()
 	}
+
+	suspend fun getResults2d(jobId: String, size: ImageSize): ByteArray {
+
+		val job = jobId.authJob(ProjectPermission.Read).job
+
+		val imagePath = job.dir / "train" / "2d_visualization_out.webp"
+		val cacheInfo = ImageCacheInfo(job.wwwDir, "milo-results-2d")
+
+		return size.readResize(imagePath, ImageType.Webp, cacheInfo)
+		// no image, return a placeholder
+			?: Resources.placeholderJpg(size)
+	}
+
+	suspend fun getResults2dLabels(jobId: String, size: ImageSize): ByteArray {
+
+		val job = jobId.authJob(ProjectPermission.Read).job
+
+		val imagePath = job.dir / "train" / "2d_visualization_labels.webp"
+		val cacheInfo = ImageCacheInfo(job.wwwDir, "milo-results-2d-labels")
+
+		return size.readResize(imagePath, ImageType.Webp, cacheInfo)
+		// no image, return a placeholder
+			?: Resources.placeholderJpg(size)
+	}
+
+	suspend fun getResults3d(jobId: String, size: ImageSize): ByteArray {
+
+		val job = jobId.authJob(ProjectPermission.Read).job
+
+		val imagePath = job.dir / "train" / "3d_visualization_out.webp"
+		val cacheInfo = ImageCacheInfo(job.wwwDir, "milo-results-3d")
+
+		return size.readResize(imagePath, ImageType.Webp, cacheInfo)
+		// no image, return a placeholder
+			?: Resources.placeholderJpg(size)
+	}
+
+	override suspend fun data(jobId: String): Option<FileDownloadData> = sanitizeExceptions {
+		val job = jobId.authJob(ProjectPermission.Read).job
+		val path = job.dir / "train" / "all_output_info.npz"
+		path
+			.toFileDownloadData()
+			.toOption()
+	}
+
+	fun dataContent(jobId: String): ByteArray {
+		val job = jobId.authJob(ProjectPermission.Read).job
+		val path = job.dir / "train" / "all_output_info.npz"
+		return path.readBytes()
+	}
+
 }

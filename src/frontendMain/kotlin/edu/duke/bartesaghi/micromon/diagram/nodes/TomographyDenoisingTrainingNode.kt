@@ -10,6 +10,7 @@ import edu.duke.bartesaghi.micromon.pyp.Args
 import edu.duke.bartesaghi.micromon.pyp.filterForDownstreamCopy
 import edu.duke.bartesaghi.micromon.refreshDynamicImages
 import edu.duke.bartesaghi.micromon.services.*
+import edu.duke.bartesaghi.micromon.views.TomographyDenoisingTrainingView
 import edu.duke.bartesaghi.micromon.views.Viewport
 import io.kvision.form.select.SelectRemote
 import io.kvision.form.formPanel
@@ -137,8 +138,7 @@ class TomographyDenoisingTrainingNode(
 
 		content {
 			button(className = "image-button reconstruction-node", onClick = {
-				// TODO: view?
-				//TomographyDenoisingTrainingView.go(viewport, project, job)
+				TomographyDenoisingTrainingView.go(viewport, project, job)
 			}) {
 				img(job.imageUrl, className = dynamicImageClassName)
 			}

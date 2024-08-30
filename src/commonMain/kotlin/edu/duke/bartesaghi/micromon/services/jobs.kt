@@ -42,27 +42,8 @@ interface IJobsService {
 	@KVBindingRoute("jobs/tiltSeriesMetadata")
 	suspend fun findTiltSeriesMetadataData(jobId: String, tiltSeriesId: String): Option<FileDownloadData>
 
-	@KVBindingRoute("jobs/miloData")
-	suspend fun miloData(jobId: String): Option<FileDownloadData>
-
-
 
 	companion object {
-
-		fun miloResults2dPath(jobId: String, size: ImageSize): String =
-			"/kv/jobs/$jobId/milo/results_2d/${size.id}"
-
-		fun miloResults2dLabelsPath(jobId: String, size: ImageSize): String =
-			"/kv/jobs/$jobId/milo/results_2d_labels/${size.id}"
-
-		fun miloResults3dPath(jobId: String, size: ImageSize): String =
-			"/kv/jobs/$jobId/milo/results_3d/${size.id}"
-
-		fun miloTrainResultsPath(jobId: String): String =
-			"/kv/jobs/$jobId/milo/train_results"
-
-		fun miloDataPath(jobId: String): String =
-			"/kv/jobs/$jobId/milo/data"
 
 		fun outputImage(jobId: String, size: ImageSize): String =
 			"/kv/jobs/$jobId/image/${size.id}"

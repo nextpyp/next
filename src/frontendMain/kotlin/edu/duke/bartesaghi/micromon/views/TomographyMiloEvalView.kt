@@ -9,7 +9,7 @@ import io.kvision.html.*
 import io.kvision.navbar.navLink
 
 
-fun Widget.onGoToTomographyParticlesMilo(viewport: Viewport, project: ProjectData, job: TomographyMiloEvalData) {
+fun Widget.onGoToTomographyMiloEval(viewport: Viewport, project: ProjectData, job: TomographyMiloEvalData) {
 	onShow(TomographyMiloEvalView.path(project, job)) {
 		viewport.setView(TomographyMiloEvalView(project, job))
 	}
@@ -20,7 +20,7 @@ class TomographyMiloEvalView(val project: ProjectData, val job: TomographyMiloEv
 	companion object : Routed {
 
 		override fun register(routing: Routing, viewport: Viewport) {
-			routing.registerParams("^/project/($urlToken)/($urlToken)/tomographyParticlesMilo/($urlToken)$") { userId, projectId, jobId ->
+			routing.registerParams("^/project/($urlToken)/($urlToken)/tomographyMiloEval/($urlToken)$") { userId, projectId, jobId ->
 				AppScope.launch {
 					try {
 						val project = Services.projects.get(userId, projectId)
@@ -33,7 +33,7 @@ class TomographyMiloEvalView(val project: ProjectData, val job: TomographyMiloEv
 			}
 		}
 
-		fun path(project: ProjectData, job: TomographyMiloEvalData) = "/project/${project.owner.id}/${project.projectId}/tomographyParticlesMilo/${job.jobId}"
+		fun path(project: ProjectData, job: TomographyMiloEvalData) = "/project/${project.owner.id}/${project.projectId}/tomographyMiloEval/${job.jobId}"
 
 		fun go(viewport: Viewport, project: ProjectData, job: TomographyMiloEvalData) {
 			routing.show(path(project, job))
@@ -54,7 +54,7 @@ class TomographyMiloEvalView(val project: ProjectData, val job: TomographyMiloEv
 				navLink(project.numberedName, icon = "fas fa-project-diagram")
 					.onGoToProject(project)
 				navLink(job.numberedName, icon = TomographyMiloEvalNode.type.iconClass)
-					.onGoToTomographyParticlesMilo(viewport, project, job)
+					.onGoToTomographyMiloEval(viewport, project, job)
 			}
 		}
 
@@ -67,40 +67,40 @@ class TomographyMiloEvalView(val project: ProjectData, val job: TomographyMiloEv
 			elem.div {
 				add(fileDownload)
 			}
-			val fileData = Services.jobs.miloData(job.jobId)
+			val fileData = Services.tomographyMiloEval.data(job.jobId)
 				.unwrap()
 				?: return@launch
 			fileDownload.show(FileDownloadBadge.Info(
 				fileData,
-				IJobsService.miloDataPath(job.jobId),
+				ITomographyMiloEvalService.dataPath(job.jobId),
 				"${job.jobId}_milo.npz"
 			))
 
 			// show the 2D results
 			elem.add(SizedPanel("2D Results", Storage.miloResults2dSize).apply {
-				val img = image(IJobsService.miloResults2dPath(job.jobId, size), classes = setOf("full-width-image"))
+				val img = image(ITomographyMiloEvalService.results2dPath(job.jobId, size), classes = setOf("full-width-image"))
 				// set the panel resize handler
 				onResize = { newSize: ImageSize ->
-					img.src = IJobsService.miloResults2dPath(job.jobId, size)
+					img.src = ITomographyMiloEvalService.results2dPath(job.jobId, size)
 					Storage.miloResults2dSize = newSize
 				}
 			})
 
 			elem.add(SizedPanel("2D Results Labels", Storage.miloResults2dSize).apply {
-				val img = image(IJobsService.miloResults2dLabelsPath(job.jobId, size), classes = setOf("full-width-image"))
+				val img = image(ITomographyMiloEvalService.results2dLabelsPath(job.jobId, size), classes = setOf("full-width-image"))
 				// set the panel resize handler
 				onResize = { newSize: ImageSize ->
-					img.src = IJobsService.miloResults2dLabelsPath(job.jobId, size)
+					img.src = ITomographyMiloEvalService.results2dLabelsPath(job.jobId, size)
 					Storage.miloResults2dSize = newSize
 				}
 			})
 
 			// show the 3D results
 			elem.add(SizedPanel("3D Results", Storage.miloResults3dSize).apply {
-				val img = image(IJobsService.miloResults3dPath(job.jobId, size), classes = setOf("full-width-image"))
+				val img = image(ITomographyMiloEvalService.results3dPath(job.jobId, size), classes = setOf("full-width-image"))
 				// set the panel resize handler
 				onResize = { newSize: ImageSize ->
-					img.src = IJobsService.miloResults3dPath(job.jobId, size)
+					img.src = ITomographyMiloEvalService.results3dPath(job.jobId, size)
 					Storage.miloResults3dSize = newSize
 				}
 			})

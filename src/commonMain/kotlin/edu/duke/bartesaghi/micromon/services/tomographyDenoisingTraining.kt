@@ -21,6 +21,14 @@ interface ITomographyDenoisingTrainingService {
 
 	@KVBindingRoute("node/${TomographyDenoisingTrainingNodeConfig.ID}/getArgs")
 	suspend fun getArgs(): String /* Args but serialized */
+
+
+	companion object {
+
+		fun trainResultsPath(jobId: String): String =
+			"/kv/node/${TomographyDenoisingTrainingNodeConfig.ID}/$jobId/train_results"
+
+	}
 }
 
 

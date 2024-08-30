@@ -7,10 +7,9 @@ import edu.duke.bartesaghi.micromon.services.*
 import io.kvision.core.Widget
 import io.kvision.html.*
 import io.kvision.navbar.navLink
-import io.kvision.utils.px
 
 
-fun Widget.onGoToTomographyParticlesMilo(viewport: Viewport, project: ProjectData, job: TomographyMiloTrainData) {
+fun Widget.onGoToTomographyMiloTrain(viewport: Viewport, project: ProjectData, job: TomographyMiloTrainData) {
 	onShow(TomographyMiloTrainView.path(project, job)) {
 		viewport.setView(TomographyMiloTrainView(project, job))
 	}
@@ -21,7 +20,7 @@ class TomographyMiloTrainView(val project: ProjectData, val job: TomographyMiloT
 	companion object : Routed {
 
 		override fun register(routing: Routing, viewport: Viewport) {
-			routing.registerParams("^/project/($urlToken)/($urlToken)/tomographyParticlesMilo/($urlToken)$") { userId, projectId, jobId ->
+			routing.registerParams("^/project/($urlToken)/($urlToken)/tomographyMiloTrain/($urlToken)$") { userId, projectId, jobId ->
 				AppScope.launch {
 					try {
 						val project = Services.projects.get(userId, projectId)
@@ -34,7 +33,7 @@ class TomographyMiloTrainView(val project: ProjectData, val job: TomographyMiloT
 			}
 		}
 
-		fun path(project: ProjectData, job: TomographyMiloTrainData) = "/project/${project.owner.id}/${project.projectId}/tomographyParticlesMilo/${job.jobId}"
+		fun path(project: ProjectData, job: TomographyMiloTrainData) = "/project/${project.owner.id}/${project.projectId}/tomographyMiloTrain/${job.jobId}"
 
 		fun go(viewport: Viewport, project: ProjectData, job: TomographyMiloTrainData) {
 			routing.show(path(project, job))
@@ -55,7 +54,7 @@ class TomographyMiloTrainView(val project: ProjectData, val job: TomographyMiloT
 				navLink(project.numberedName, icon = "fas fa-project-diagram")
 					.onGoToProject(project)
 				navLink(job.numberedName, icon = TomographyMiloTrainNode.type.iconClass)
-					.onGoToTomographyParticlesMilo(viewport, project, job)
+					.onGoToTomographyMiloTrain(viewport, project, job)
 			}
 		}
 
@@ -65,10 +64,10 @@ class TomographyMiloTrainView(val project: ProjectData, val job: TomographyMiloT
 
 			// show the 2D results
 			elem.add(SizedPanel("Results", Storage.miloResults2dSize).apply {
-				val img = image(IJobsService.miloTrainResultsPath(job.jobId))
+				val img = image(ITomographyMiloTrainService.resultsPath(job.jobId))
 				// set the panel resize handler
 				onResize = { newSize: ImageSize ->
-					img.src = IJobsService.miloTrainResultsPath(job.jobId)
+					img.src = ITomographyMiloTrainService.resultsPath(job.jobId)
 					Storage.miloResults2dSize = newSize
 				}
 			})

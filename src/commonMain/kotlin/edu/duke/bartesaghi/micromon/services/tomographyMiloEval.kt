@@ -21,6 +21,25 @@ interface ITomographyMiloEvalService {
 
 	@KVBindingRoute("node/${TomographyMiloEvalNodeConfig.ID}/getArgs")
 	suspend fun getArgs(): String /* Args but serialized */
+
+	@KVBindingRoute("node/${TomographyMiloEvalNodeConfig.ID}/data")
+	suspend fun data(jobId: String): Option<FileDownloadData>
+
+
+	companion object {
+
+		fun results2dPath(jobId: String, size: ImageSize): String =
+			"/kv/node/${TomographyMiloEvalNodeConfig.ID}/$jobId/results_2d/${size.id}"
+
+		fun results2dLabelsPath(jobId: String, size: ImageSize): String =
+			"/kv/node/${TomographyMiloEvalNodeConfig.ID}/$jobId/results_2d_labels/${size.id}"
+
+		fun results3dPath(jobId: String, size: ImageSize): String =
+			"/kv/node/${TomographyMiloEvalNodeConfig.ID}/$jobId/results_3d/${size.id}"
+
+		fun dataPath(jobId: String): String =
+			"/kv/node/${TomographyMiloEvalNodeConfig.ID}/$jobId/data"
+	}
 }
 
 

@@ -189,6 +189,9 @@ fun Application.main() {
 		SessionsService.init(this)
 		TomographySessionService.init(this)
 		IntegratedRefinementService.init(this)
+		TomographyDenoisingTrainingService.init(this)
+		TomographyMiloTrainService.init(this)
+		TomographyMiloEvalService.init(this)
 
 		// only enable the debug service in debug mode
 		if (Backend.config.web.debug) {
