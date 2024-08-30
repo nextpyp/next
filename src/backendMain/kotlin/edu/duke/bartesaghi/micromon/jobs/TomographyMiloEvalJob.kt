@@ -96,7 +96,7 @@ class TomographyMiloEvalJob(
 	}
 
 	fun diagramImageURL(): String =
-		IJobsService.miloResults3dPath(idOrThrow, ImageSize.Small)
+		IJobsService.miloResults2dPath(idOrThrow, ImageSize.Small)
 
 	override fun wipeData() {
 
