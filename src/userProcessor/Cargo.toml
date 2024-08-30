@@ -11,7 +11,7 @@ anyhow = "1.0.81" # MIT (or Apache-2)
 display-error-chain = "0.2.0" # MIT (or Apache-2)
 tracing = "0.1.40" # MIT
 tracing-subscriber = { version = "0.3.18", features = ["time", "env-filter"] } # MIT
-time = { version = "0.3.31", features = ["local-offset", "macros", "formatting"] } # MIT (or Apache-2)
+time = { version = "0.3.36", features = ["local-offset", "macros", "formatting"] } # MIT (or Apache-2)
 tokio = { version = "1.34.0", features = ["rt", "fs", "net", "time", "macros", "sync", "io-util", "signal", "process"] } # MIT
 tokio-util = { version = "0.7.10", features = ["io"] } # MIT
 tokio-stream = "0.1.15" # MIT
