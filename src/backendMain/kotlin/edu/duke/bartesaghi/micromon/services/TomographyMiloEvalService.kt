@@ -165,7 +165,7 @@ actual class TomographyMiloEvalService : ITomographyMiloEvalService, Service {
 
 	override suspend fun data(jobId: String): Option<FileDownloadData> = sanitizeExceptions {
 		val job = jobId.authJob(ProjectPermission.Read).job
-		val path = job.dir / "train" / "all_output_info.npz"
+		val path = job.dir / "train" / "milopyp_interactive.tbz"
 		path
 			.toFileDownloadData()
 			.toOption()
@@ -173,7 +173,7 @@ actual class TomographyMiloEvalService : ITomographyMiloEvalService, Service {
 
 	fun dataContent(jobId: String): ByteArray {
 		val job = jobId.authJob(ProjectPermission.Read).job
-		val path = job.dir / "train" / "all_output_info.npz"
+		val path = job.dir / "train" / "milopyp_interactive.tbz"
 		return path.readBytes()
 	}
 

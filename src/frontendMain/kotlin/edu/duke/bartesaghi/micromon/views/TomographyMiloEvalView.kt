@@ -60,10 +60,10 @@ class TomographyMiloEvalView(val project: ProjectData, val job: TomographyMiloEv
 
 		AppScope.launch {
 
-			elem.h1("Milo-PYP Pattern Mining")
+			elem.h1("MiloPYP Pattern Mining")
 
 			// show the file download
-			val fileDownload = FileDownloadBadge(".npz file")
+			val fileDownload = FileDownloadBadge(".gzip file")
 			elem.div {
 				add(fileDownload)
 			}
@@ -95,7 +95,8 @@ class TomographyMiloEvalView(val project: ProjectData, val job: TomographyMiloEv
 				}
 			})
 
-			// show the 3D results
+			// show the 3D results (disable for now)
+			/*
 			elem.add(SizedPanel("3D Results", Storage.miloResults3dSize).apply {
 				val img = image(ITomographyMiloEvalService.results3dPath(job.jobId, size), classes = setOf("full-width-image"))
 				// set the panel resize handler
@@ -104,6 +105,7 @@ class TomographyMiloEvalView(val project: ProjectData, val job: TomographyMiloEv
 					Storage.miloResults3dSize = newSize
 				}
 			})
+			*/
 		}
 	}
 }
