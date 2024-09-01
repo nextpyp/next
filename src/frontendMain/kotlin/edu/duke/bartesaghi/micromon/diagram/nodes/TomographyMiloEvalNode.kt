@@ -110,9 +110,11 @@ class TomographyMiloEvalNode(
 			}) {
 				img(job.imageUrl, className = dynamicImageClassName)
 			}
+			/*
 			div(className = "count") {
 				text("${job.numParticles.formatWithDigitGroupsSeparator()} particles")
 			}
+			*/
 		}
 
 		if (refreshImages) {
