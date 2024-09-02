@@ -190,6 +190,7 @@ fun Application.main() {
 		TomographySessionService.init(this)
 		IntegratedRefinementService.init(this)
 		TomographyDenoisingTrainingService.init(this)
+		TomographyParticlesTrainService.init(this)
 		TomographyMiloTrainService.init(this)
 		TomographyMiloEvalService.init(this)
 

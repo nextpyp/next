@@ -103,7 +103,7 @@ class TomographyParticlesTrainJob(
 	}
 
 	fun diagramImageURL(): String =
-		IJobsService.outputImage(idOrThrow, ImageSize.Small)
+		ITomographyParticlesTrainService.resultsPath(idOrThrow)
 
 	override fun wipeData() {
 
