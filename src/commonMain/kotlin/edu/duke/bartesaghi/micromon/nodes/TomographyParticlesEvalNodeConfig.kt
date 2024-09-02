@@ -7,7 +7,7 @@ object TomographyParticlesEvalNodeConfig : NodeConfig {
 
 	override val id = ID
 	override val configId = "tomo_particles_eval"
-	override val name = "Model-Based Particle Picking"
+	override val name = "Particle-Picking (model-based)"
 	override val hasFiles = true
 
 	val model = NodeConfig.Data("model", NodeConfig.Data.Type.ParticlesModel)
