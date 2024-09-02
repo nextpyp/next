@@ -31,7 +31,7 @@ class TomographyParticlesEvalNode(
 	companion object : NodeClientInfo {
 
 		override val config = TomographyParticlesEvalNodeConfig
-		override val type = MicromonDiagrams.nodeType(config, "fas fa-robot")
+		override val type = MicromonDiagrams.nodeType(config, "fas fa-corsshairs")
 		override val jobClass = TomographyParticlesEvalData::class
 		override val urlFragment = null
 

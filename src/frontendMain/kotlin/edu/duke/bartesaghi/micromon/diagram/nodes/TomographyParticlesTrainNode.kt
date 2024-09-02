@@ -30,7 +30,7 @@ class TomographyParticlesTrainNode(
 	companion object : NodeClientInfo {
 
 		override val config = TomographyParticlesTrainNodeConfig
-		override val type = MicromonDiagrams.nodeType(config, "fas fa-robot")
+		override val type = MicromonDiagrams.nodeType(config, "fas fa-crosshairs")
 		override val jobClass = TomographyParticlesTrainData::class
 		override val urlFragment = null
 

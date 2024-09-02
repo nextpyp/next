@@ -31,7 +31,7 @@ class TomographyMiloTrainNode(
 	companion object : NodeClientInfo {
 
 		override val config = TomographyMiloTrainNodeConfig
-		override val type = MicromonDiagrams.nodeType(config, "fas fa-robot")
+		override val type = MicromonDiagrams.nodeType(config, "fas fa-fingerprint")
 		override val jobClass = TomographyMiloTrainData::class
 		override val urlFragment = null
 

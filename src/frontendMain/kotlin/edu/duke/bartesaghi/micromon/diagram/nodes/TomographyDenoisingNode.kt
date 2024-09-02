@@ -31,7 +31,7 @@ class TomographyDenoisingNode(
 	companion object : NodeClientInfo {
 
 		override val config = TomographyDenoisingNodeConfig
-		override val type = MicromonDiagrams.nodeType(config, "fas fa-filter") // TODO: pick an icon
+		override val type = MicromonDiagrams.nodeType(config, "fas fa-hand-sparkles") // TODO: pick an icon
 		override val jobClass = TomographyDenoisingData::class
 		override val urlFragment = "tomographyDenoising"
 

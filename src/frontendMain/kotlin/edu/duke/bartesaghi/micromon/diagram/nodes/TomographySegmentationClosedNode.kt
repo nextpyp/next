@@ -30,7 +30,7 @@ class TomographySegmentationClosedNode(
 	companion object : NodeClientInfo {
 
 		override val config = TomographySegmentationClosedNodeConfig
-		override val type = MicromonDiagrams.nodeType(config, "fas fa-crosshairs")
+		override val type = MicromonDiagrams.nodeType(config, "fas fa-draw-polygon")
 		override val jobClass = TomographySegmentationClosedData::class
 		override val urlFragment = null
 
