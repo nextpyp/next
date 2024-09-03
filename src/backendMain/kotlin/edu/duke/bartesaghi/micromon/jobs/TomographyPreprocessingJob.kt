@@ -18,7 +18,7 @@ import kotlin.io.path.div
 class TomographyPreprocessingJob(
 	userId: String,
 	projectId: String
-) : Job(userId, projectId, config), FilteredJob, TiltSeriesesJob, CombinedParticlesJob {
+) : Job(userId, projectId, config), FilteredJob, TiltSeriesesJob, CombinedManualParticlesJob {
 
 	val args = JobArgs<TomographyPreprocessingArgs>()
 
@@ -90,10 +90,10 @@ class TomographyPreprocessingJob(
 
 		val newestArgs = args.newestOrThrow().args
 
-		// write out particles, if needed
+		// write out manually-picked particles, if needed
 		ParticlesJobs.clear(project.osUsername, dir)
-		newestArgs.tomolist
-			?.let { ParticlesJobs.writeTomography(project.osUsername, idOrThrow, dir, particlesList(it)) }
+		manualParticlesList()
+			?.let { ParticlesJobs.writeTomography(project.osUsername, idOrThrow, dir, it) }
 
 		// write out the tilt exclusions, if needed
 		run {
@@ -174,8 +174,4 @@ class TomographyPreprocessingJob(
 
 	override fun finishedArgValues(): ArgValuesToml? =
 		args.finished?.values
-
-	override fun particlesList(listName: String): ParticlesList =
-		Database.particleLists.get(idOrThrow, listName)
-			?: throw NoSuchElementException("no particles list named $listName")
 }

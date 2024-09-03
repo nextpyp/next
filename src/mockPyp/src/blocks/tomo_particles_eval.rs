@@ -7,14 +7,15 @@ use image::Rgb;
 use crate::args::{Args, ArgsConfig, ArgValue};
 use crate::image::{Image, ImageDrawing};
 use crate::metadata::TiltSeries;
-use crate::rand::{sample_ctf, sample_particle_3d};
-use crate::scale::{ToValueF, ToValueU};
+use crate::particles::sample_particle_3d;
+use crate::rand::sample_ctf;
+use crate::scale::{TomogramDimsUnbinned, ToValueF, ToValueU};
 use crate::web::Web;
 
 pub const BLOCK_ID: &'static str = "tomo-particles-eval";
 
 
-pub fn run(mut args: Args, args_config: ArgsConfig) -> Result<()> {
+pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 
 	// get mock args
 	let num_tilt_series = args.get_mock(BLOCK_ID, "num_tilt_series")
@@ -57,6 +58,8 @@ pub fn run(mut args: Args, args_config: ArgsConfig) -> Result<()> {
 		.or_default(&args_config)?
 		.into_u32()?
 		.value();
+	let tomogram_dims = TomogramDimsUnbinned::new(tomogram_width, tomogram_height, tomogram_depth)
+		.to_binned(tomogram_binning);
 
 	// create subfolders
 	fs::create_dir_all("webp")
@@ -72,12 +75,7 @@ pub fn run(mut args: Args, args_config: ArgsConfig) -> Result<()> {
 
 		// generate particles
 		let particles = (0 .. num_particles)
-			.map(|_| sample_particle_3d(
-				tomogram_width.to_binned(tomogram_binning),
-				tomogram_height.to_binned(tomogram_binning),
-				tomogram_depth.to_binned(tomogram_binning),
-				particle_radius
-			))
+			.map(|_| sample_particle_3d(tomogram_dims, particle_radius))
 			.collect::<Vec<_>>();
 
 		let tilt_series = TiltSeries {

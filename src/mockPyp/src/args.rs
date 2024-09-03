@@ -1,9 +1,13 @@
 
 use std::collections::{HashMap, VecDeque};
-use std::path::PathBuf;
+use std::fs;
+use std::fs::File;
+use std::io::Write;
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use anyhow::{bail, Context, Result};
 use toml::{Table, Value};
+
 
 pub struct Args {
 	args: HashMap<String,ArgValue>
@@ -76,6 +80,60 @@ impl Args {
 		}
 	}
 
+	pub fn read(path: impl AsRef<Path>) -> Result<Self> {
+
+		let path = path.as_ref();
+		let contents = fs::read_to_string(path)
+			.context(format!("Failed to read file to string: {}", path.to_string_lossy()))?;
+
+		let mut args = HashMap::<String,ArgValue>::new();
+
+		for (linei, line) in contents.lines().enumerate() {
+			if line.len() <= 0 {
+				continue;
+			}
+			let mut parts = line.splitn(3, " ");
+			let key = parts.next()
+				.context(format!("line {} has no key", linei))?;
+			match parts.next() {
+				Some("S") => {
+					let value = parts.next()
+						.context(format!("line {} has no value", linei))?;
+					args.insert(key.to_string(), ArgValue::String(value.to_string()));
+				}
+				Some("B") => {
+					let value = parts.next()
+						.context(format!("line {} has no value", linei))?;
+					let value = bool::from_str(value)
+						.context(format!("line {} has unrecognizable boolean value: {}", linei, value))?;
+					args.insert(key.to_string(), ArgValue::String(value.to_string()));
+				},
+				Some(t) => bail!("line {} has invalid type: {}", linei, t),
+				None => bail!("line {} has no type", linei)
+			}
+		}
+
+		Ok(Self {
+			args
+		})
+	}
+
+	pub fn write(&self, path: impl AsRef<Path>) -> Result<()> {
+		let path = path.as_ref();
+		let mut file = File::create(path)
+			.context(format!("Failed to open file for writing: {}", path.to_string_lossy()))?;
+		for (key, value) in &self.args {
+			if key.contains(' ') {
+				bail!("Key contains space characters: `{}`", key);
+			}
+			match value {
+				ArgValue::String(s) => file.write_all(format!("{} S {}\n", key, s).as_bytes()),
+				ArgValue::Bool(b) => file.write_all(format!("{} B {}\n", key, b).as_bytes()),
+			}.context(format!("Failed to write to: {}", path.to_string_lossy()))?;
+		}
+		Ok(())
+	}
+
 	pub fn get(&self, full_id: impl AsRef<str>) -> Arg<Option<&ArgValue>> {
 		let name = full_id.as_ref();
 		Arg {
@@ -114,6 +172,12 @@ impl Args {
 
 	pub fn set_from_group(&mut self, group_id: impl AsRef<str>, arg_id: impl AsRef<str>, value: ArgValue) {
 		self.set(full_id(group_id, arg_id), value);
+	}
+
+	pub fn set_all(&mut self, other: &Self) {
+		for (key, value) in &other.args {
+			self.args.insert(key.clone(), value.clone());
+		}
 	}
 }
 

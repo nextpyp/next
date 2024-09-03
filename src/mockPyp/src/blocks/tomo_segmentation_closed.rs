@@ -8,18 +8,22 @@ use tracing::info;
 use crate::args::{Args, ArgsConfig, ArgValue};
 use crate::image::{Image, ImageDrawing};
 use crate::metadata::{TiltSeries, Virion3D};
-use crate::particles::read_tomo_particles;
+use crate::particles::{read_manual_tomo_particles, sample_tomo_particles};
 use crate::rand::sample_ctf;
-use crate::scale::{ToValueF, ToValueU};
+use crate::scale::{TomogramDimsUnbinned, ToValueF, ToValueU};
 use crate::web::Web;
 
 
 pub const BLOCK_ID: &'static str = "tomo-segmentation-closed";
 
 
-pub fn run(mut args: Args, args_config: ArgsConfig) -> Result<()> {
+pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 
 	// get mock args
+	let num_tilt_series = args.get_mock(BLOCK_ID, "num_tilt_series")
+		.into_u32()?
+		.or(4)
+		.value();
 	let tomogram_width = args.get_mock(BLOCK_ID, "tomogram_width")
 		.into_u32()?
 		.or(8192)
@@ -35,6 +39,10 @@ pub fn run(mut args: Args, args_config: ArgsConfig) -> Result<()> {
 		.or(1000.0)
 		.value()
 		.to_a();
+	let num_particles = args.get_mock(BLOCK_ID, "num_particles")
+		.into_u32()?
+		.or(20)
+		.value();
 
 	// get pyp args (and write defaults not defined by the config)
 	let pixel_size = args.get("scope_pixel")
@@ -52,6 +60,8 @@ pub fn run(mut args: Args, args_config: ArgsConfig) -> Result<()> {
 		.or_default(&args_config)?
 		.into_u32()?
 		.value();
+	let tomogram_dims = TomogramDimsUnbinned::new(tomogram_width, tomogram_height, tomogram_depth)
+		.to_binned(tomogram_binning);
 
 	// set default arg values that the website will use, but we won't
 	args.set_default(&args_config, "ctf", "min_res")?;
@@ -60,16 +70,22 @@ pub fn run(mut args: Args, args_config: ArgsConfig) -> Result<()> {
 	let web = Web::new()?;
 	web.write_parameters(&args, &args_config)?;
 
-	// try to read the submitted particles
+	// try to read the submitted particles, or sample new ones
 	let virion_radius = virion_radius
 		.to_unbinned(pixel_size)
 		.to_binned(tomogram_binning);
-	let tilt_series_particles = read_tomo_particles(Some(virion_radius))?;
-
-	let num_particles = tilt_series_particles.iter()
-		.map(|(_, tilt_series)| tilt_series.len())
-		.sum::<usize>();
-	info!("Read {} particles from {} tilt series", num_particles, tilt_series_particles.len());
+	let tilt_series_particles = read_manual_tomo_particles(virion_radius)?
+		.map(|tilt_series_particles| {
+			let num_particles = tilt_series_particles.iter()
+				.map(|(_, tilt_series)| tilt_series.len())
+				.sum::<usize>();
+			info!("Read {} manual particles from {} tilt series", num_particles, tilt_series_particles.len());
+			tilt_series_particles
+		})
+		.unwrap_or({
+			info!("No manual particles, sampled new ones");
+			sample_tomo_particles(virion_radius, num_tilt_series, num_particles, tomogram_dims)
+		});
 
 	// create subfolders
 	fs::create_dir_all("webp")

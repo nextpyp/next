@@ -77,16 +77,10 @@ class TomographyParticlesTrainJob(
 		val upstreamJob = inParticles?.resolveJob<Job>()
 			?: throw IllegalStateException("no particles input configured")
 
-		// write out particles from the upstream job, if needed
+		// write out manually-picked particles from the upstream job, if needed
 		ParticlesJobs.clear(project.osUsername, dir)
-		when (upstreamJob) {
-			is CombinedParticlesJob -> throw ServiceException("Particle training is not implemented from legacy preprocessing blocks")
-			is ParticlesJob -> {
-				upstreamJob.particlesList()
-					?.let { ParticlesJobs.writeTomography(project.osUsername, upstreamJob.idOrThrow, dir, it) }
-			}
-			else -> throw IllegalStateException("upstream job ${upstreamJob.baseConfig.id} has no particles")
-		}
+		upstreamJob.manualParticlesList()
+			?.let { ParticlesJobs.writeTomography(project.osUsername, upstreamJob.idOrThrow, dir, it) }
 
 		// build the args for PYP
 		val pypArgs = launchArgValues(upstreamJob, newestArgs.values, args.finished?.values)

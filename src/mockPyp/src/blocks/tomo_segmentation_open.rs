@@ -15,7 +15,7 @@ use crate::web::Web;
 pub const BLOCK_ID: &'static str = "tomo-segmentation-open";
 
 
-pub fn run(mut args: Args, args_config: ArgsConfig) -> Result<()> {
+pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 
 	// get mock args
 	let num_tilt_series = args.get_mock(BLOCK_ID, "num_tilt_series")

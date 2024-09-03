@@ -2,7 +2,6 @@ package edu.duke.bartesaghi.micromon.jobs
 
 import com.mongodb.client.model.Updates
 import edu.duke.bartesaghi.micromon.globCountOrNull
-import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.mongo.getDocument
 import edu.duke.bartesaghi.micromon.nodes.SingleParticleRelionDataNodeConfig
 import edu.duke.bartesaghi.micromon.projects.Project
@@ -94,12 +93,6 @@ class SingleParticleRelionDataJob(
 		wwwDir.recreateAs(project.osUsername)
 
 		val newestArgs = args.newestOrThrow().args
-
-		// if we've picked some particles, write those out to pyp
-		ParticlesJobs.clear(project.osUsername, dir)
-		newestArgs.particlesName
-			?.let { Database.particleLists.get(idOrThrow, it) }
-			?.let { ParticlesJobs.writeSingleParticle(project.osUsername, idOrThrow, dir, it) }
 
 		// build the args for PYP
 		val pypArgs = launchArgValues(null, newestArgs.values, args.finished?.values)

@@ -10,7 +10,7 @@ use crate::svg::{Rgb, SvgImage};
 pub const BLOCK_ID: &'static str = "tomo-milo-train";
 
 
-pub fn run(_args: Args, _args_config: ArgsConfig) -> Result<()> {
+pub fn run(_args: &mut Args, _args_config: &ArgsConfig) -> Result<()> {
 
 	// create subfolders
 	fs::create_dir_all("train")

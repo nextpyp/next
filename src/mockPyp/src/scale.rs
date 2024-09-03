@@ -130,3 +130,65 @@ impl ToValueU for u32 {
 		ValueBinnedU(self)
 	}
 }
+
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TomogramDimsUnbinned {
+	pub width: ValueUnbinnedU,
+	pub height: ValueUnbinnedU,
+	pub depth: ValueUnbinnedU
+}
+
+impl TomogramDimsUnbinned {
+
+	pub fn new(width: ValueUnbinnedU, height: ValueUnbinnedU, depth: ValueUnbinnedU) -> Self {
+		Self {
+			width,
+			height,
+			depth
+		}
+	}
+
+	pub fn to_binned(self, binning_factor: u32) -> TomogramDimsBinned {
+		TomogramDimsBinned {
+			width: self.width.to_binned(binning_factor),
+			height: self.height.to_binned(binning_factor),
+			depth: self.depth.to_binned(binning_factor)
+		}
+	}
+}
+
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TomogramDimsBinned {
+	pub width: ValueBinnedU,
+	pub height: ValueBinnedU,
+	pub depth: ValueBinnedU
+}
+
+impl TomogramDimsBinned {
+
+	pub fn new(width: ValueBinnedU, height: ValueBinnedU, depth: ValueBinnedU) -> Self {
+		Self {
+			width,
+			height,
+			depth
+		}
+	}
+
+	pub fn to_unbinned(self, binning_factor: u32) -> TomogramDimsUnbinned {
+		TomogramDimsUnbinned {
+			width: self.width.to_unbinned(binning_factor),
+			height: self.height.to_unbinned(binning_factor),
+			depth: self.depth.to_unbinned(binning_factor)
+		}
+	}
+
+	pub fn with_additional_binning(self, additional_binning: u32) -> Self {
+		Self {
+			width: self.width.with_additional_binning(additional_binning),
+			height: self.height.with_additional_binning(additional_binning),
+			depth: self.depth.with_additional_binning(additional_binning)
+		}
+	}
+}

@@ -4,20 +4,21 @@ use std::path::PathBuf;
 
 use anyhow::{Context, Result};
 use image::Rgb;
-use tracing::info;
+use tracing::{info, warn};
 
 use crate::args::{Args, ArgsConfig, ArgValue};
 use crate::image::{Image, ImageDrawing};
 use crate::metadata::TiltSeries;
-use crate::rand::{sample_ctf, sample_particle_3d};
-use crate::scale::{ToValueF, ToValueU, ValueA};
+use crate::particles::sample_particle_3d;
+use crate::rand::sample_ctf;
+use crate::scale::{TomogramDimsUnbinned, ToValueF, ToValueU, ValueA};
 use crate::web::Web;
 
 
 pub const BLOCK_ID: &'static str = "tomo-picking-closed";
 
 
-pub fn run(mut args: Args, args_config: ArgsConfig) -> Result<()> {
+pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 
 	// get mock args
 	let num_tilt_series = args.get_mock(BLOCK_ID, "num_tilt_series")
@@ -55,6 +56,8 @@ pub fn run(mut args: Args, args_config: ArgsConfig) -> Result<()> {
 		.or_default(&args_config)?
 		.into_u32()?
 		.value();
+	let tomogram_dims = TomogramDimsUnbinned::new(tomogram_width, tomogram_height, tomogram_depth)
+		.to_binned(tomogram_binning);
 
 	// create subfolders
 	fs::create_dir_all("webp")
@@ -73,22 +76,18 @@ pub fn run(mut args: Args, args_config: ArgsConfig) -> Result<()> {
 		}
 
 		// generate particles, if needed
-		let tomo_src_detect_method = args.get("tomo_srf_detect_method")
-			.into_str()?
+		let tomo_srf_detect_method = args.get("tomo_srf_detect_method")
+			.or_default(&args_config)?
+			.into_string()?
 			.value();
-		let particles = match tomo_src_detect_method {
-			Some("template") | Some("mesh") => {
+		let particles = match tomo_srf_detect_method.as_ref() {
+			"template" | "mesh" => {
 				let radius = ValueA(500.0)
 					.to_unbinned(pixel_size)
 					.to_binned(tomogram_binning);
 				let particles = (0 .. num_particles)
 					.map(|_| {
-						let mut particle = sample_particle_3d(
-							tomogram_width.to_binned(tomogram_binning),
-							tomogram_height.to_binned(tomogram_binning),
-							tomogram_depth.to_binned(tomogram_binning),
-							radius
-						);
+						let mut particle = sample_particle_3d(tomogram_dims, radius);
 
 						// add an arbitrary threshold
 						particle.threshold = Some(5);
@@ -98,7 +97,10 @@ pub fn run(mut args: Args, args_config: ArgsConfig) -> Result<()> {
 					.collect();
 				Some(particles)
 			},
-			_ => None
+			method => {
+				warn!("unrecognied method: {}", method);
+				None
+			}
 		};
 
 		let tilt_series = TiltSeries {

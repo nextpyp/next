@@ -2,6 +2,7 @@
 use std::collections::VecDeque;
 use std::{env, fs};
 use std::ops::Deref;
+use std::path::Path;
 use std::process::ExitCode;
 
 use anyhow::{Context, Result};
@@ -40,8 +41,19 @@ fn run() -> Result<()> {
 		.context("missing pyp command as first argument")?;
 	info!("command: {}", cmd);
 
-	// parse the arguments
-	let args = Args::from(args);
+	// parse the new arguments
+	let new_args = Args::from(args);
+
+	// and combine with any old arguments
+	let args_path = Path::new("pyp_args.dat");
+	let mut args =
+		if args_path.exists() {
+			let mut old_args = Args::read(args_path)?;
+			old_args.set_all(&new_args);
+			old_args
+		} else {
+			new_args
+		};
 
 	// load the arguments config
 	let args_config_path = "/opt/pyp/config/pyp_config.toml";
@@ -60,7 +72,10 @@ fn run() -> Result<()> {
 	info!("block id: {}", block_id);
 
 	// run the command with the rest of the args
-	blocks::run(block_id.as_str(), args, args_config)?;
+	blocks::run(block_id.as_str(), &mut args, &args_config)?;
+
+	// save the args for next time
+	args.write(args_path)?;
 
 	Ok(())
 }

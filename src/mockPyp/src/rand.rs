@@ -1,8 +1,9 @@
 
 use std::f64::consts::PI;
 
-use crate::metadata::{AvgRot, AvgRotSample, Ctf, DriftCtf, DriftPos, Particle3D, Virion3D, Xf, XfSample};
-use crate::scale::{ToValueU, ValueA, ValueBinnedF, ValueBinnedU, ValueUnbinnedF};
+use crate::metadata::{AvgRot, AvgRotSample, Ctf, DriftCtf, DriftPos, Xf, XfSample};
+use crate::scale::{ValueA, ValueUnbinnedF};
+
 
 pub struct Gaussian {
 	mean: f64,
@@ -122,23 +123,4 @@ pub fn interpolate_tilt_angle(magnitude: u32, tilt_i: u32, num_tilts: u32) -> i3
 		return 0;
 	}
 	(tilt_i*magnitude*2/(num_tilts - 1)) as i32 - magnitude as i32
-}
-
-
-pub fn sample_particle_3d(width: ValueBinnedU, height: ValueBinnedU, depth: ValueBinnedU, radius: ValueBinnedF) -> Particle3D {
-	Particle3D {
-		x: fastrand::u32(0 ..= width.0).to_binned(),
-		y: fastrand::u32(0 ..= height.0).to_binned(),
-		z: fastrand::u32(0 ..= depth.0).to_binned(),
-		r: radius,
-		threshold: None
-	}
-}
-
-pub fn sample_virion(width: ValueBinnedU, height: ValueBinnedU, depth: ValueBinnedU, radius: ValueBinnedF) -> Virion3D {
-	Virion3D {
-		particle: sample_particle_3d(width, height, depth, radius),
-		threshold: 5
-		// TODO: do something with the thresholds?
-	}
 }

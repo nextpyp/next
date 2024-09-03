@@ -15,7 +15,7 @@ import org.bson.conversions.Bson
 class TomographySessionDataJob(
 	userId: String,
 	projectId: String
-) : Job(userId, projectId, config), FilteredJob, CombinedParticlesJob {
+) : Job(userId, projectId, config), FilteredJob {
 
 	val args = JobArgs<TomographySessionDataArgs>()
 	var latestTiltSeriesId: String? = null
@@ -86,11 +86,6 @@ class TomographySessionDataJob(
 			?: throw NoSuchElementException("no logged in user")
 		val session = user.authSessionForReadOrThrow(newestArgs.sessionId)
 
-		// write out particles, if needed
-		ParticlesJobs.clear(project.osUsername, dir)
-		newestArgs.particlesName
-			?.let { ParticlesJobs.writeTomography(project.osUsername, idOrThrow, dir, particlesList(it)) }
-
 		// build the args for PYP
 		val pypArgs = launchArgValues(null, newestArgs.values, args.finished?.values)
 
@@ -131,8 +126,4 @@ class TomographySessionDataJob(
 
 	override fun finishedArgValues(): ArgValuesToml? =
 		args.finished?.values
-
-	override fun particlesList(listName: String): ParticlesList =
-		Database.particleLists.get(idOrThrow, listName)
-			?: throw NoSuchElementException("no particles list named $listName")
 }

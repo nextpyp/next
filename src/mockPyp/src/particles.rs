@@ -4,15 +4,54 @@ use std::path::PathBuf;
 
 use anyhow::{Context, Result};
 
-use crate::metadata::Particle3D;
-use crate::scale::{ValueBinnedF, ValueBinnedU};
+use crate::metadata::{Particle3D, Virion3D};
+use crate::scale::{TomogramDimsBinned, ToValueU, ValueBinnedF, ValueBinnedU};
 
 
-pub fn read_tomo_particles(radius: Option<ValueBinnedF>) -> Result<Vec<(String,Vec<Particle3D>)>> {
+pub fn sample_particle_3d(dims: TomogramDimsBinned, radius: ValueBinnedF) -> Particle3D {
+	Particle3D {
+		x: fastrand::u32(0 ..= dims.width.0).to_binned(),
+		y: fastrand::u32(0 ..= dims.height.0).to_binned(),
+		z: fastrand::u32(0 ..= dims.depth.0).to_binned(),
+		r: radius,
+		threshold: None
+	}
+}
 
-	let radius = radius.unwrap_or(ValueBinnedF(0.0));
+
+pub fn sample_virion(dims: TomogramDimsBinned, radius: ValueBinnedF) -> Virion3D {
+	Virion3D {
+		particle: sample_particle_3d(dims, radius),
+		threshold: 5
+		// TODO: do something with the thresholds?
+	}
+}
+
+
+pub fn sample_tomo_particles(
+	virion_radius: ValueBinnedF,
+	num_tilt_series: u32,
+	num_particles: u32,
+	dims: TomogramDimsBinned
+) -> Vec<(String,Vec<Particle3D>)> {
+	(0 .. num_tilt_series)
+		.map(|tilt_series_i| {
+			let tilt_series_id = format!("tilt_series_{}", tilt_series_i);
+			let particles = (0 .. num_particles)
+				.map(|_| sample_particle_3d(dims, virion_radius))
+				.collect();
+			(tilt_series_id, particles)
+		})
+		.collect()
+}
+
+
+pub fn read_manual_tomo_particles(radius: ValueBinnedF) -> Result<Option<Vec<(String,Vec<Particle3D>)>>> {
 
 	let images_path = PathBuf::from("train/particles_images.txt");
+	if !images_path.exists() {
+		return Ok(None);
+	}
 	let images_content = fs::read_to_string(&images_path)
 		.context(format!("Failed to read {}", images_path.to_string_lossy()))?;
 
@@ -24,7 +63,7 @@ pub fn read_tomo_particles(radius: Option<ValueBinnedF>) -> Result<Vec<(String,V
 	for image in images_iter {
 		let Some(tilt_series_id) = image.splitn(2, '\t')
 			.next()
-		else { continue; };
+			else { continue; };
 
 		let coords_path = PathBuf::from(format!("next/{}.next", tilt_series_id));
 		let coords_content = fs::read_to_string(&coords_path)
@@ -56,5 +95,5 @@ pub fn read_tomo_particles(radius: Option<ValueBinnedF>) -> Result<Vec<(String,V
 		tilt_series_particles.push((tilt_series_id.to_string(), particles));
 	}
 
-	Ok(tilt_series_particles)
+	Ok(Some(tilt_series_particles))
 }

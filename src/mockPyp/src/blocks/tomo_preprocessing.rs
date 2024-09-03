@@ -6,15 +6,16 @@ use image::Rgb;
 use crate::args::{Args, ArgsConfig, ArgValue};
 use crate::image::{Image, ImageDrawing};
 use crate::metadata::{TiltSeries, TiltSeriesDrifts};
-use crate::rand::{interpolate_tilt_angle, sample_avgrot, sample_ctf, sample_drift_ctf, sample_drifts, sample_particle_3d, sample_virion, sample_xf};
-use crate::scale::{ToValueF, ToValueU};
+use crate::particles::{sample_particle_3d, sample_virion};
+use crate::rand::{interpolate_tilt_angle, sample_avgrot, sample_ctf, sample_drift_ctf, sample_drifts, sample_xf};
+use crate::scale::{TomogramDimsUnbinned, ToValueF, ToValueU};
 use crate::web::Web;
 
 
 pub const BLOCK_ID: &'static str = "tomo-preprocessing";
 
 
-pub fn run(mut args: Args, args_config: ArgsConfig) -> Result<()> {
+pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 
 	// get mock args
 	let num_tilt_series = args.get_mock(BLOCK_ID, "num_tilt_series")
@@ -68,6 +69,8 @@ pub fn run(mut args: Args, args_config: ArgsConfig) -> Result<()> {
 		.or_default(&args_config)?
 		.into_u32()?
 		.value();
+	let tomogram_dims = TomogramDimsUnbinned::new(tomogram_width, tomogram_height, tomogram_depth)
+		.to_binned(tomogram_binning);
 
 	// set default arg values that the website will use, but we won't
 	args.set_default(&args_config, "ctf", "min_res")?;
@@ -112,9 +115,7 @@ pub fn run(mut args: Args, args_config: ArgsConfig) -> Result<()> {
 					.to_binned(tomogram_binning);
 				let virions = (0 .. num_virions)
 					.map(|_| sample_virion(
-						tomogram_width.to_binned(tomogram_binning).with_additional_binning(additional_virion_binning),
-						tomogram_height.to_binned(tomogram_binning).with_additional_binning(additional_virion_binning),
-						tomogram_depth.to_binned(tomogram_binning).with_additional_binning(additional_virion_binning),
+						tomogram_dims.with_additional_binning(additional_virion_binning),
 						radius.with_additional_binning(additional_virion_binning)
 					))
 					.collect();
@@ -137,12 +138,7 @@ pub fn run(mut args: Args, args_config: ArgsConfig) -> Result<()> {
 					.to_unbinned(pixel_size)
 					.to_binned(tomogram_binning);
 				let spikes = (0 .. num_spikes)
-					.map(|_| sample_particle_3d(
-						tomogram_width.to_binned(tomogram_binning),
-						tomogram_height.to_binned(tomogram_binning),
-						tomogram_depth.to_binned(tomogram_binning),
-						radius
-					))
+					.map(|_| sample_particle_3d(tomogram_dims, radius))
 					.collect();
 				Some(spikes)
 			},

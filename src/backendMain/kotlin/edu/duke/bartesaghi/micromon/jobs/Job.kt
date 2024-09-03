@@ -15,10 +15,7 @@ import edu.duke.bartesaghi.micromon.nodes.NodeConfigs
 import edu.duke.bartesaghi.micromon.projects.RepresentativeImage
 import edu.duke.bartesaghi.micromon.projects.RepresentativeImageType
 import edu.duke.bartesaghi.micromon.pyp.*
-import edu.duke.bartesaghi.micromon.services.CommonJobData
-import edu.duke.bartesaghi.micromon.services.JobData
-import edu.duke.bartesaghi.micromon.services.ProjectPermission
-import edu.duke.bartesaghi.micromon.services.Service
+import edu.duke.bartesaghi.micromon.services.*
 import io.ktor.application.*
 import io.kvision.remote.ServiceException
 import org.bson.Document
@@ -327,6 +324,50 @@ abstract class Job(
 	fun finishedArgValuesOrThrow(): ArgValuesToml =
 		finishedArgValues()
 			?: throw NoSuchElementException("no finished arg values available")
+
+	/**
+	 * Returns a manually-picked particles list for this job, if one exists.
+	 */
+	fun manualParticlesList(chosenListName: String? = null): ParticlesList? {
+
+		// get all the particle lists
+		val lists = Database.particleLists.getAll(idOrThrow)
+
+		// if no manual lists exists, there's nothing to return
+		val manualLists = lists
+			.filter { it.source == ParticlesSource.User }
+			.takeIf { it.isNotEmpty() }
+			?: return null
+
+		val listName = when (this) {
+
+			// older jobs with combined preprocessing need a user-specified list name
+			is CombinedManualParticlesJob -> {
+
+				chosenListName
+					?: throw ServiceException("No particles list chosen")
+
+				// if the name references an auto list, that's not a manual list, so return null
+				lists
+					.filter { it.source == ParticlesSource.Pyp }
+					.find { it.name == chosenListName }
+					?.let { return null }
+
+				// otherwise, look for the chosen list name
+				chosenListName
+			}
+
+			// newer jobs use constant list names. Easy peasy.
+			is ManualParticlesJob -> manualParticlesListName()
+
+			// job doesn't export particles
+			else -> return null
+		}
+
+		return manualLists
+			.find { it.name == listName }
+			?: throw ServiceException("No manual particles list found with name: $listName")
+	}
 
 	companion object {
 

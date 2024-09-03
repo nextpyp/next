@@ -9,7 +9,7 @@ use crate::image::{Image, ImageDrawing};
 pub const BLOCK_ID: &'static str = "tomo-rawdata";
 
 
-pub fn run(args: Args, _: ArgsConfig) -> Result<()> {
+pub fn run(args: &mut Args, _args_config: &ArgsConfig) -> Result<()> {
 
 	// get args
 	let size = args.get_mock(BLOCK_ID, "image_size")

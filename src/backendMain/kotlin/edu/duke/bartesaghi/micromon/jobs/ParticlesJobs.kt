@@ -212,10 +212,11 @@ object ParticlesJobs {
 /**
  * Only used by older combined preprocessing blocks that required user-chosen particles list names
  */
-interface CombinedParticlesJob {
-	fun particlesList(listName: String): ParticlesList
-}
+interface CombinedManualParticlesJob
 
-interface ParticlesJob {
-	fun particlesList(): ParticlesList?
+/**
+ * Used to flag jobs that support manually picked particles
+ */
+interface ManualParticlesJob {
+	fun manualParticlesListName(): String
 }

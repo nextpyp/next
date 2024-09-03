@@ -6,7 +6,6 @@ import edu.duke.bartesaghi.micromon.mongo.getDocument
 import edu.duke.bartesaghi.micromon.nodes.TomographySegmentationClosedNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.*
-import io.kvision.remote.ServiceException
 import org.bson.Document
 import org.bson.conversions.Bson
 
@@ -14,7 +13,7 @@ import org.bson.conversions.Bson
 class TomographySegmentationClosedJob(
 	userId: String,
 	projectId: String
-) : Job(userId, projectId, config), TiltSeriesesJob, ParticlesJob {
+) : Job(userId, projectId, config), TiltSeriesesJob {
 
 	val args = JobArgs<TomographySegmentationClosedArgs>()
 	override var latestTiltSeriesId: String? = null
@@ -86,16 +85,10 @@ class TomographySegmentationClosedJob(
 		val upstreamJob = inParticles?.resolveJob<Job>()
 			?: throw IllegalStateException("no particles input configured")
 
-		// write out particles from the upstream job, if needed
+		// write out manually-picked particles from the upstream job, if needed
 		ParticlesJobs.clear(project.osUsername, dir)
-		when (upstreamJob) {
-			is CombinedParticlesJob -> throw ServiceException("Closed segmentation is not implemented from legacy preprocessing blocks")
-			is ParticlesJob -> {
-				upstreamJob.particlesList()
-					?.let { ParticlesJobs.writeTomography(project.osUsername, upstreamJob.idOrThrow, dir, it) }
-			}
-			else -> throw IllegalStateException("upstream job ${upstreamJob.baseConfig.id} has no particles")
-		}
+		upstreamJob.manualParticlesList()
+			?.let { ParticlesJobs.writeTomography(project.osUsername, upstreamJob.idOrThrow, dir, it) }
 
 		// build the args for PYP
 		val pypArgs = launchArgValues(upstreamJob, newestArgs.values, args.finished?.values)
@@ -137,7 +130,4 @@ class TomographySegmentationClosedJob(
 
 	override fun finishedArgValues(): ArgValuesToml? =
 		args.finished?.values
-
-	override fun particlesList(): ParticlesList =
-		ParticlesList.autoVirions(idOrThrow)
 }

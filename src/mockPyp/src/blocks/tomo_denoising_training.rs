@@ -10,7 +10,7 @@ use crate::svg::{Rgb, SvgImage};
 pub const BLOCK_ID: &'static str = "tomo-denoising-train";
 
 
-pub fn run(args: Args, args_config: ArgsConfig) -> Result<()> {
+pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 
 	// TODO: update this to use the new training tab arg
 	let method = args.get("tomo_denoise_method")
@@ -26,7 +26,7 @@ pub fn run(args: Args, args_config: ArgsConfig) -> Result<()> {
 }
 
 
-fn run_isonet(_args: Args, _args_config: ArgsConfig) -> Result<()> {
+fn run_isonet(_args: &mut Args, _args_config: &ArgsConfig) -> Result<()> {
 
 	// generate the model file
 	fs::write("model.h5", "H5 model file")

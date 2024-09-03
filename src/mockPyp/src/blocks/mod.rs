@@ -21,7 +21,7 @@ use anyhow::{anyhow, Result};
 use crate::args::{Args, ArgsConfig};
 
 
-pub fn run(block_id: &str, args: Args, args_config: ArgsConfig) -> Result<()> {
+pub fn run(block_id: &str, args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 	// NOTE: can't match on constants, so use if-else here
 	if block_id == tomo_rawdata::BLOCK_ID {
 		tomo_rawdata::run(args, args_config)

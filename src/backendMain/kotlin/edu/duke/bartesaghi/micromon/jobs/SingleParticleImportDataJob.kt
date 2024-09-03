@@ -82,12 +82,6 @@ class SingleParticleImportDataJob(
 
 		val newestArgs = args.newestOrThrow().args
 
-		// if we've picked some particles, write those out to pyp
-		ParticlesJobs.clear(project.osUsername, dir)
-		newestArgs.particlesName
-			?.let { Database.particleLists.get(idOrThrow, it) }
-			?.let { ParticlesJobs.writeSingleParticle(project.osUsername, idOrThrow, dir, it) }
-
 		// build the args for PYP
 		val pypArgs = launchArgValues(null, newestArgs.values, args.finished?.values)
 

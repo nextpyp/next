@@ -13,7 +13,7 @@ import org.bson.conversions.Bson
 class SingleParticlePreprocessingJob(
 	userId: String,
 	projectId: String
-) : Job(userId, projectId, config), FilteredJob, MicrographsJob {
+) : Job(userId, projectId, config), FilteredJob, MicrographsJob, CombinedManualParticlesJob {
 
 	val args = JobArgs<SingleParticlePreprocessingArgs>()
 	override var latestMicrographId: String? = null
@@ -84,10 +84,9 @@ class SingleParticlePreprocessingJob(
 
 		val newestArgs = args.newestOrThrow().args
 
-		// if we've picked some particles, write those out to pyp
+		// write out manually-picked particles, if needed
 		ParticlesJobs.clear(project.osUsername, dir)
-		newestArgs.particlesName
-			?.let { Database.particleLists.get(idOrThrow, it) }
+		manualParticlesList()
 			?.let { ParticlesJobs.writeSingleParticle(project.osUsername, idOrThrow, dir, it) }
 
 		// build the args for PYP

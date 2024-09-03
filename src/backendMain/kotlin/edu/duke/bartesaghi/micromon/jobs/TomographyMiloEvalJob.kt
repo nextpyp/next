@@ -13,7 +13,7 @@ import org.bson.conversions.Bson
 class TomographyMiloEvalJob(
 	userId: String,
 	projectId: String
-) : Job(userId, projectId, config), ParticlesJob {
+) : Job(userId, projectId, config) {
 
 	val args = JobArgs<TomographyMiloEvalArgs>()
 
@@ -109,7 +109,4 @@ class TomographyMiloEvalJob(
 
 	override fun finishedArgValues(): ArgValuesToml? =
 		args.finished?.values
-
-	override fun particlesList(): ParticlesList =
-		ParticlesList.autoParticles3D(idOrThrow)
 }

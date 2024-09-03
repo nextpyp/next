@@ -95,20 +95,10 @@ class TomographyCoarseRefinementJob(
 			upstreamJob.writeFilter(newestArgs.filter, dir, project.osUsername)
 		}
 
-		// write out particles from the upstream job, if needed
+		// write out manually-picked particles from the upstream job, if needed
 		ParticlesJobs.clear(project.osUsername, dir)
-		when (upstreamJob) {
-			is CombinedParticlesJob -> {
-				val listName = newestArgs.particlesName
-					?: throw ServiceException("No particles list chosen")
-				ParticlesJobs.writeTomography(project.osUsername, upstreamJob.idOrThrow, dir, upstreamJob.particlesList(listName))
-			}
-			is ParticlesJob -> {
-				upstreamJob.particlesList()
-					?.let { ParticlesJobs.writeTomography(project.osUsername, upstreamJob.idOrThrow, dir, it) }
-			}
-			else -> throw IllegalStateException("upstream job ${upstreamJob.baseConfig.id} has no particles")
-		}
+		upstreamJob.manualParticlesList(newestArgs.particlesName)
+			?.let { ParticlesJobs.writeTomography(project.osUsername, upstreamJob.idOrThrow, dir, it) }
 
 		// build the args for PYP
 		val pypArgs = launchArgValues(upstreamJob, newestArgs.values, args.finished?.values)
