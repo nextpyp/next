@@ -217,6 +217,9 @@ fun Path.deleteDirRecursivelyAsync() {
 	}
 }
 
+fun Path.copyDirRecursivelyTo(dst: Path) =
+	toFile().copyRecursively(dst.toFile(), overwrite=true)
+
 
 fun Path.readString() = toFile().readText()
 fun Path.readBytes() = toFile().readBytes()

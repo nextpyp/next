@@ -165,7 +165,7 @@ suspend fun Path.copyDirRecursivelyAs(username: String?, dst: Path) {
 		Backend.userProcessors.get(username)
 			.copyFolder(this, dst)
 	} else {
-		copyTo(dst, true)
+		copyDirRecursivelyTo(dst)
 	}
 }
 
