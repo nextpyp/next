@@ -16,7 +16,7 @@ scope_voltage = 300
 scope_tilt_axis = 85.3
 
 [blocks.preprocessing]
-blockId = "tomo-preprocessing"
+blockId = "tomo-pure-preprocessing"
 name = "Pre-processing"
 parent = "rawdata"
 
@@ -40,10 +40,37 @@ slurm_merge_memory = { ask = true }     # e.g.: 20
 slurm_merge_walltime = { ask = true }   # e.g.: 20:00:00
 slurm_merge_queue = { ask = true }
 
+[blocks.particlepicking]
+blockId = "tomo-picking"
+name = "Particle picking"
+parent = "preprocessing"
+
+[blocks.particlepicking.args]
+tomo_spk_method = "virions"
+tomo_spk_rad = 500
+tomo_spk_vir_rad = 500
+
+[blocks.segmentation]
+blockId = "tomo-segmentation-closed"
+name = "Segmentation"
+parent = "particlepicking"
+
+[blocks.segmentation.args]
+
+[blocks.particlepickingclosed]
+blockId = "tomo-picking-closed"
+name = "Constrained particle picking"
+parent = "segmentation"
+
+[blocks.particlepickingclosed.args]
+tomo_srf_detect_method = "mesh"
+tomo_srf_detect_rad = 50
+tomo_srf_detect_dist = 8
+
 [blocks.reference_refinement]
 blockId = "tomo-coarse-refinement"
 name = "Reference-based refinement"
-parent = "preprocessing"
+parent = "particlepickingclosed"
 
 [blocks.reference_refinement.args]
 refine_parfile_tomo = "auto"
