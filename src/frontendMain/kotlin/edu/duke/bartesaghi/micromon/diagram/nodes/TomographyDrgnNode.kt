@@ -29,7 +29,7 @@ class TomographyDrgnNode(
 	companion object : NodeClientInfo {
 
 		override val config = TomographyDrgnNodeConfig
-		override val type = MicromonDiagrams.nodeType(config, "fas fa-crosshairs") // TODO: pick an icon
+		override val type = MicromonDiagrams.nodeType(config, "fas fa-crosshairs")
 		override val jobClass = TomographyDrgnData::class
 		override val urlFragment = null
 
