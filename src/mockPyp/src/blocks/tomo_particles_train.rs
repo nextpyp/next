@@ -2,12 +2,11 @@
 use std::fs;
 
 use anyhow::{Context, Result};
-use image::Rgb;
 use tracing::info;
 
 use crate::args::{Args, ArgsConfig};
-use crate::image::{Image, ImageDrawing};
 use crate::particles::read_tomo_particles;
+use crate::svg::{Rgb, SvgImage};
 
 
 pub const BLOCK_ID: &'static str = "tomo-particles-train";
@@ -27,15 +26,14 @@ pub fn run(_args: Args, _args_config: ArgsConfig) -> Result<()> {
 	fs::create_dir_all("webp")
 		.context("Failed to create webp dir")?;
 
-	// generate the output image
-	let mut img = Image::new(512, 512);
-	img.draw().fill(Rgb([128, 128, 128]));
-	img.draw().noise();
-	img.draw().text_lines(32, Rgb([255, 255, 255]), [
+	// draw the training results image
+	let mut img = SvgImage::new(512, 512);
+	img.draw().fill_rect(0, 0, 512, 512, Rgb(128, 128, 128));
+	img.draw().text_lines(32, Rgb(255, 255, 255), [
 		format!("Block: {}", BLOCK_ID),
-		"Type: Output".to_string()
+		"Type: Training Results".to_string()
 	]);
-	img.save("webp/out.webp")?;
+	img.save("train/training_loss.svgz")?;
 
 	Ok(())
 }
