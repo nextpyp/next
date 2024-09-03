@@ -201,11 +201,15 @@ fun Path.deleteDirRecursively() = apply {
 
 			override fun visitFile(file: Path?, attrs: BasicFileAttributes?): FileVisitResult {
 				file?.delete()
-				return super.visitFile(file, attrs)
+				return FileVisitResult.CONTINUE
 			}
+
 			override fun postVisitDirectory(dir: Path?, exc: IOException?): FileVisitResult {
+				if (exc != null) {
+					throw IOException("Failed to list folder while performing recursive delete: $dir", exc)
+				}
 				dir?.delete()
-				return super.postVisitDirectory(dir, exc)
+				return FileVisitResult.CONTINUE
 			}
 		})
 	}
