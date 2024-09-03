@@ -94,7 +94,7 @@ class TomographySegmentationClosedJob(
 				upstreamJob.particlesList()
 					?.let { ParticlesJobs.writeTomography(project.osUsername, upstreamJob.idOrThrow, dir, it) }
 			}
-			else -> throw IllegalStateException("upstream job has no particles")
+			else -> throw IllegalStateException("upstream job ${upstreamJob.baseConfig.id} has no particles")
 		}
 
 		// build the args for PYP
