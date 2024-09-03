@@ -214,6 +214,7 @@ fun TomlTable.getInput(key: String): ArgInput? {
 	return when (val inputTypeId = inputTable.getStringOrThrow("type", pos)) {
 
 		ArgInput.ParFile.id -> ArgInput.ParFile()
+		ArgInput.StarFile.id -> ArgInput.StarFile()
 		ArgInput.TxtFile.id -> ArgInput.TxtFile()
 		ArgInput.InitialModel.id -> ArgInput.InitialModel()
 		ArgInput.HalfMap.id -> ArgInput.HalfMap()

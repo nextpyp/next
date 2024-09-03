@@ -226,6 +226,7 @@ class ArgsInputs(
 			val control: ArgInputControl = if (arg.input != null) {
 				when (arg.input) {
 					is ArgInput.ParFile -> ArgInputParFile(arg, outNodes)
+					is ArgInput.StarFile -> ArgInputStarFile(arg, outNodes)
 					is ArgInput.TxtFile -> ArgInputTxtFile(arg, outNodes)
 					is ArgInput.InitialModel -> ArgInputInitialModel(arg, outNodes)
 					is ArgInput.HalfMap -> ArgInputHalfMap(arg, outNodes)
