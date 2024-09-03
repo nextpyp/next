@@ -96,7 +96,7 @@ Most of this process has been automated using Gradle tasks, but there are still 
    19. Next, choose your debian mirror. The default `deb.debian.org` is a fine choice.
    20. HTTP proxy info can be left blank.
    21. Next, the installer will install OS packages, which will also take a few moments ...
-   22. When it's done, you can also skip the optinal participation in the package popularity contest.
+   22. When it's done, you can also skip the optional participation in the package popularity contest.
    23. Next, since this will be a headless VM, we can un-select the desktop environments to skip installing them. Uncheck:
        * Debian Desktop Environment
        * ... GNOME
