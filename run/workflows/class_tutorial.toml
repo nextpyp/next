@@ -16,22 +16,13 @@ scope_voltage = 300
 scope_tilt_axis = 90.0
 
 [blocks.preprocessing]
-blockId = "tomo-preprocessing"
+blockId = "tomo-pure-preprocessing"
 name = "Pre-processing"
 parent = "rawdata"
 
 [blocks.preprocessing.args]
 movie_no_frames = true
 ctf_max_res = 5.0
-tomo_spk_method = "auto"
-tomo_spk_rad = 80
-tomo_spk_stdtimes_cont_3d = 2.0
-tomo_spk_min_size_3d = 60
-tomo_spk_dilation_3d = 100
-tomo_spk_radiustimes_3d = 2.0
-tomo_spk_inhibit_3d = true
-tomo_spk_stdtimes_filt_3d = 2.0
-tomo_spk_detection_width_3d = 40.0
 tomo_ali_format = false
 tomo_rec_binning = 12
 tomo_rec_thickness = 3072
@@ -45,10 +36,26 @@ slurm_merge_memory = { ask = true }     # e.g.: 20 for refinement, 200 for class
 slurm_merge_walltime = { ask = true }   # e.g.: 48:00:00
 slurm_merge_queue = { ask = true }
 
+[blocks.particlepicking]
+blockId = "tomo-picking"
+name = "Particle picking"
+parent = "preprocessing"
+
+[blocks.particlepicking.args]
+tomo_spk_method = "auto"
+tomo_spk_rad = 80
+tomo_spk_stdtimes_cont_3d = 2.0
+tomo_spk_min_size_3d = 60
+tomo_spk_dilation_3d = 100
+tomo_spk_radiustimes_3d = 2.0
+tomo_spk_inhibit_3d = true
+tomo_spk_stdtimes_filt_3d = 2.0
+tomo_spk_detection_width_3d = 40.0
+
 [blocks.reference_refinement]
 blockId = "tomo-coarse-refinement"
 name = "Reference-based refinement"
-parent = "preprocessing"
+parent = "particlepicking"
 
 [blocks.reference_refinement.args]
 refine_parfile_tomo = "auto"
