@@ -225,9 +225,7 @@ enum class TomoVirMethod(val id: String, val particlesList: (ownerId: String) ->
 	Auto("auto", { ParticlesList.autoVirions(it) }),
 	Manual("manual", { ParticlesList.manualVirions(it) }),
 	PYPTrain("pyp-train", { ParticlesList.manualVirions(it) }),
-	PYPEval("pyp-eval", { ParticlesList.autoVirions(it) }),
-	TopazTrain("topaz-train", { ParticlesList.manualVirions(it) }),
-	TopazEval("topaz-eval", { ParticlesList.autoVirions(it) });
+	PYPEval("pyp-eval", { ParticlesList.autoVirions(it) });
 
 	companion object {
 		operator fun get(id: String?): TomoVirMethod? =
@@ -273,6 +271,7 @@ enum class TomoSpkMethod(val id: String, val particlesList: (ownerId: String) ->
 	Import("import", { ParticlesList.autoParticles3D(it) }),
 	Manual("manual", { ParticlesList.manualParticles3D(it) }),
 	Virions("virions", { ParticlesList.autoParticles3D(it) });
+
 	companion object {
 		operator fun get(id: String?): TomoSpkMethod? =
 			values().find { it.id == id }

@@ -1,8 +1,8 @@
 
 use std::fs;
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use image::Rgb;
-
+use tracing::warn;
 use crate::args::{Args, ArgsConfig, ArgValue};
 use crate::image::{Image, ImageDrawing};
 use crate::metadata::{TiltSeries, TiltSeriesDrifts};
@@ -120,8 +120,12 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 					))
 					.collect();
 				Some(virions)
-			},
-			_ => None
+			}
+			Some(method) => bail!("unrecognized virions method: {}", method),
+			None => {
+				warn!("no virions method chosen");
+				None
+			}
 		};
 
 		// generate spikes, if needed
@@ -129,7 +133,7 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 			.into_str()?
 			.value();
 		let spikes = match tomo_spk_method {
-			Some("auto") => {
+			Some("auto") | Some("virions") => {
 				let radius = args.get("tomo_spk_rad")
 					.into_f64()?
 					.or(75.0)
@@ -142,7 +146,11 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 					.collect();
 				Some(spikes)
 			},
-			_ => None
+			Some(method) => bail!("unrecognized spikes method: {}", method),
+			None => {
+				warn!("no spikes method chosen");
+				None
+			}
 		};
 
 		let tilt_series = TiltSeries {
