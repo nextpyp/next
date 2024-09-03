@@ -101,6 +101,10 @@ class SingleParticleDrgnJob(
 
 		// also delete any associated data
 		// TODO: what metadata is there for this job?
+
+		// also reset the finished args
+		args.unrun()
+		update()
 	}
 
 	override fun newestArgValues(): ArgValuesToml? =

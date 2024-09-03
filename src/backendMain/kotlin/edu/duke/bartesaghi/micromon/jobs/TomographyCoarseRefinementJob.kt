@@ -9,7 +9,6 @@ import edu.duke.bartesaghi.micromon.projects.RepresentativeImage
 import edu.duke.bartesaghi.micromon.projects.RepresentativeImageType
 import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.*
-import io.kvision.remote.ServiceException
 import org.bson.Document
 import org.bson.conversions.Bson
 
@@ -135,6 +134,11 @@ class TomographyCoarseRefinementJob(
 		// remove any reconstructions and refinements
 		Database.reconstructions.deleteAll(idOrThrow)
 		Database.refinements.deleteAll(idOrThrow)
+
+		// also reset the finished args
+		args.unrun()
+		latestReconstructionId = null
+		update()
 	}
 
 	fun diagramImageURL(): String =

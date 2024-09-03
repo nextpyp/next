@@ -118,6 +118,11 @@ class SingleParticlePurePreprocessingJob(
 		Database.micrographs.deleteAll(idOrThrow)
 		Database.micrographsAvgRot.deleteAll(idOrThrow)
 		Database.jobPreprocessingFilters.deleteAll(idOrThrow)
+
+		// also reset the finished args
+		args.unrun()
+		latestMicrographId = null
+		update()
 	}
 
 	override val filters get() = PreprocessingFilters.ofJob(idOrThrow)

@@ -126,6 +126,11 @@ class SingleParticleCoarseRefinementJob(
 		// remove any reconstructions and refinements
 		Database.reconstructions.deleteAll(idOrThrow)
 		Database.refinements.deleteAll(idOrThrow)
+
+		// also reset the finished args
+		args.unrun()
+		latestReconstructionId = null
+		update()
 	}
 
 	fun diagramImageURL(): String =

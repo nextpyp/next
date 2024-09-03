@@ -296,23 +296,29 @@ actual class ProjectsService : IProjectsService {
 			.serialize()
 	}
 
-	override suspend fun wipeJob(jobId: String, deleteFilesAndData: Boolean) = sanitizeExceptions {
+	override suspend fun wipeJob(jobId: String, deleteFilesAndData: Boolean): String = sanitizeExceptions {
 
 		// authenticate the user for this job
 		val user = call.authOrThrow()
 		val job = user.authJobOrThrow(ProjectPermission.Write, jobId)
 
-		// mark the job as stale
-		job.stale = true
-		job.update()
-
 		if (deleteFilesAndData) {
+
 			job.wipeData()
 			job.deleteFiles()
 			job.createFolder()
+
+			// NOTE: wipeData() creates new args, which will put the block into a changed state
+			//       so there's no longer a need to explicitly set the job as stale
+
+		} else {
+
+			// but if we don't wipe data, then we still need explicit staleness
+			job.stale = true
+			job.update()
 		}
 
-		Unit
+		job.data().serialize()
 	}
 
 	override suspend fun olderRuns(userId: String, projectId: String): List<ProjectRunData> = sanitizeExceptions {

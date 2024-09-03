@@ -128,6 +128,11 @@ class SingleParticlePreprocessingJob(
 		Database.jobPreprocessingFilters.deleteAll(idOrThrow)
 		Database.particleLists.deleteAll(idOrThrow)
 		Database.particles.deleteAllParticles(idOrThrow)
+
+		// also reset the finished args
+		args.unrun()
+		latestMicrographId = null
+		update()
 	}
 
 	override val filters get() = PreprocessingFilters.ofJob(idOrThrow)

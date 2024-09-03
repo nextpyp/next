@@ -1,6 +1,7 @@
 package edu.duke.bartesaghi.micromon.jobs
 
 import com.mongodb.client.model.Updates
+import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.mongo.getDocument
 import edu.duke.bartesaghi.micromon.nodes.TomographyDenoisingTrainingNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.*
@@ -108,7 +109,13 @@ class TomographyDenoisingTrainingJob(
 
 	override fun wipeData() {
 
-		// TODO: also delete any associated data
+		// also delete any associated data
+		Database.tiltSeries.deleteAll(idOrThrow)
+
+		// also reset the finished args
+		args.unrun()
+		latestTiltSeriesId = null
+		update()
 	}
 
 	override fun newestArgValues(): ArgValuesToml? =

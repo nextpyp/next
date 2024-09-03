@@ -119,6 +119,11 @@ class TomographyParticlesEvalJob(
 		Database.tiltSeries.deleteAll(idOrThrow)
 		Database.particleLists.deleteAll(idOrThrow)
 		Database.particles.deleteAllParticles(idOrThrow)
+
+		// also reset the finished args
+		args.unrun()
+		latestTiltSeriesId = null
+		update()
 	}
 
 	override fun newestArgValues(): ArgValuesToml? =

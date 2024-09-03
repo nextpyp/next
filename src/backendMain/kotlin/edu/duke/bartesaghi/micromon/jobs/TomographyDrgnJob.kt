@@ -100,6 +100,10 @@ class TomographyDrgnJob(
 
 		// also delete any associated data
 		// TODO: what metadata should be deleted?
+
+		// also reset the finished args
+		args.unrun()
+		update()
 	}
 
 	override fun newestArgValues(): ArgValuesToml? =

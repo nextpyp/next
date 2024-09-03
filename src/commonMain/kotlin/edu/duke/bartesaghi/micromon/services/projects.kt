@@ -64,10 +64,10 @@ interface IProjectsService {
 	suspend fun waitingReason(clusterJobId: String): String
 
 	@KVBindingRoute("projects/renameJob")
-	suspend fun renameJob(jobId: String, name: String): String
+	suspend fun renameJob(jobId: String, name: String): String /* JobData but serialized */
 
 	@KVBindingRoute("projects/wipeJob")
-	suspend fun wipeJob(jobId: String, deleteFilesAndData: Boolean)
+	suspend fun wipeJob(jobId: String, deleteFilesAndData: Boolean): String /* JobData but serialized */
 
 	@KVBindingRoute("projects/olderRuns")
 	suspend fun olderRuns(userId: String, projectId: String): List<ProjectRunData>
@@ -257,6 +257,16 @@ class JobArgs<T> {
 		if (next != null) {
 			finished = next
 			next = null
+		}
+	}
+
+	/**
+	 * move the finished args to next
+	 */
+	fun unrun() {
+		if (finished != null) {
+			next = finished
+			finished = null
 		}
 	}
 

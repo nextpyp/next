@@ -115,6 +115,11 @@ class SingleParticleDenoisingJob(
 
 		// also delete any associated data
 		Database.micrographs.deleteAll(idOrThrow)
+
+		// also reset the finished args
+		args.unrun()
+		latestMicrographId = null
+		update()
 	}
 
 	override fun newestArgValues(): ArgValuesToml? =

@@ -102,6 +102,10 @@ class TomographyMiloEvalJob(
 
 		Database.particles.deleteAllParticles(idOrThrow)
 		Database.particleLists.deleteAll(idOrThrow)
+
+		// also reset the finished args
+		args.unrun()
+		update()
 	}
 
 	override fun newestArgValues(): ArgValuesToml? =

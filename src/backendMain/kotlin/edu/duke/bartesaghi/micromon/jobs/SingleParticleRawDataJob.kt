@@ -121,6 +121,15 @@ class SingleParticleRawDataJob(
 		Project.representativeImages[userId, projectId, RepresentativeImageType.GainCorrected, idOrThrow] = representativeImage()
 	}
 
+	override fun wipeData() {
+
+		// no data to wipe
+
+		// also reset the finished args
+		args.unrun()
+		update()
+	}
+
 	fun diagramImageURL(): String =
 		representativeImageUrl(representativeImage())
 

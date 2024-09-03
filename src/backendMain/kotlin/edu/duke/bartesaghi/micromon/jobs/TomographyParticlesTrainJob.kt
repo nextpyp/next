@@ -102,6 +102,10 @@ class TomographyParticlesTrainJob(
 	override fun wipeData() {
 
 		// TODO: also delete any associated data?
+
+		// also reset the finished args
+		args.unrun()
+		update()
 	}
 
 	override fun newestArgValues(): ArgValuesToml? =

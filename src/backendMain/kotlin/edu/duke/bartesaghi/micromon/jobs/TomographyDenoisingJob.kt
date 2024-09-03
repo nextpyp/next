@@ -115,6 +115,11 @@ class TomographyDenoisingJob(
 
 		// also delete any associated data
 		Database.tiltSeries.deleteAll(idOrThrow)
+
+		// also reset the finished args
+		args.unrun()
+		latestTiltSeriesId = null
+		update()
 	}
 
 	override fun newestArgValues(): ArgValuesToml? =

@@ -151,6 +151,11 @@ class TomographyPurePreprocessingJob(
 		Database.tiltSeriesDriftMetadata.deleteAll(idOrThrow)
 		Database.jobPreprocessingFilters.deleteAll(idOrThrow)
 		Database.tiltExclusions.delete(idOrThrow)
+
+		// also reset the finished args
+		args.unrun()
+		latestTiltSeriesId = null
+		update()
 	}
 
 	override val filters get() = PreprocessingFilters.ofJob(idOrThrow)

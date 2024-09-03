@@ -446,16 +446,21 @@ class ProjectView(val project: ProjectData) : View {
 			AppScope.launch e@{
 
 				// update the server
-				try {
+				val newJob = try {
 					Services.projects.wipeJob(jobId, deleteFilesAndData)
+						.let { JobData.deserialize(it) }
 				} catch (t: Throwable) {
 					Toast.error("Failed to wipe job: ${t.message ?: "(unknown error)"}")
 					return@e
 				}
 
 				// update locally too
-				baseJob.common.stale = true
-				renderButtons()
+				baseJob = newJob
+				if (deleteFilesAndData) {
+					status = Node.Status.Changed
+				} else {
+					renderButtons()
+				}
 				diagram.update()
 				updateRunButton()
 			}
