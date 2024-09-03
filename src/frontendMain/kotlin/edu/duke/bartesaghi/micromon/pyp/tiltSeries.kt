@@ -2,6 +2,7 @@ package edu.duke.bartesaghi.micromon.pyp
 
 import edu.duke.bartesaghi.micromon.diagram.nodes.NodeClientInfo
 import edu.duke.bartesaghi.micromon.diagram.nodes.TomographyParticlesEvalNode
+import edu.duke.bartesaghi.micromon.diagram.nodes.TomographySegmentationClosedNode
 import edu.duke.bartesaghi.micromon.services.*
 
 
@@ -28,6 +29,7 @@ data class TiltSeriesesData(
 			?: return
 
 		// determine the mode for particles
+		// start with method-based techniques, to handle older blocks that have complicated rules
 		if (values.args.tomoVirMethodExists && values.args.tomoSpkMethodExists) {
 
 			// combined mode, for older preprocessing blocks
@@ -81,10 +83,17 @@ data class TiltSeriesesData(
 				)
 			}
 
+		// then use node-based techniques to handle the newer blocks with simpler rules
 		} else {
 			when (nodeClientInfo) {
-				is TomographyParticlesEvalNode.Companion -> particles = TiltSeriesesParticlesData.Data(ParticlesList.autoParticles3D(jobId))
-				else -> console.warn("No particles for unrecognized block: ${nodeClientInfo.config.id}")
+				is TomographyParticlesEvalNode.Companion -> ParticlesList.autoParticles3D(jobId)
+				is TomographySegmentationClosedNode.Companion -> ParticlesList.autoVirions(jobId)
+				else -> {
+					console.warn("No particles for unrecognized block: ${nodeClientInfo.config.id}")
+					null
+				}
+			}?.let {
+				particles = TiltSeriesesParticlesData.Data(it)
 			}
 		}
 	}

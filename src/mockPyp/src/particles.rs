@@ -8,7 +8,9 @@ use crate::metadata::Particle3D;
 use crate::scale::{ValueBinnedF, ValueBinnedU};
 
 
-pub fn read_tomo_particles() -> Result<Vec<(String,Vec<Particle3D>)>> {
+pub fn read_tomo_particles(radius: Option<ValueBinnedF>) -> Result<Vec<(String,Vec<Particle3D>)>> {
+
+	let radius = radius.unwrap_or(ValueBinnedF(0.0));
 
 	let images_path = PathBuf::from("train/particles_images.txt");
 	let images_content = fs::read_to_string(&images_path)
@@ -46,7 +48,7 @@ pub fn read_tomo_particles() -> Result<Vec<(String,Vec<Particle3D>)>> {
 				x: ValueBinnedU(x),
 				y: ValueBinnedU(y),
 				z: ValueBinnedU(z),
-				r: ValueBinnedF(0.0),
+				r: radius,
 				threshold: None,
 			});
 		}

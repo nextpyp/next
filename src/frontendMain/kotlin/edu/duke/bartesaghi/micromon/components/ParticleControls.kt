@@ -384,7 +384,7 @@ class MultiListParticleControls(
 class SingleListParticleControls(
 	val project: ProjectData,
 	val job: JobData,
-): Div(), ParticleControls {
+): ParticleControls {
 
 	override var list: ParticlesList? = null
 

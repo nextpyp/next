@@ -49,6 +49,9 @@ class TomographySegmentationClosedView(val project: ProjectData, val job: Tomogr
 
 	override val elem = Div(classes = setOf("dock-page", "tomography-preprocessing"))
 
+	// NOTE: the same instance of these controls should be used for all the tilt series
+	private val pickingControls = SingleListParticleControls(project, job)
+
 	private var tiltSeriesStats = TiltSeriesStats()
 	private val tiltSeriesesElem = Div()
 
@@ -78,6 +81,11 @@ class TomographySegmentationClosedView(val project: ProjectData, val job: Tomogr
 			val pypStats = try {
 				delayAtLeast(200) {
 					data.loadForProject(job.jobId, job.clientInfo, job.args.finished?.values)
+					when (val particles = data.particles) {
+						null -> Unit
+						is TiltSeriesesParticlesData.Data -> particles.list?.let { pickingControls.load(it) }
+						else -> console.warn("Unexpected particles data: ${particles::class.simpleName}, skipping particles list")
+					}
 					Services.jobs.pypStats(job.jobId)
 				}
 			} catch (t: Throwable) {
@@ -90,7 +98,7 @@ class TomographySegmentationClosedView(val project: ProjectData, val job: Tomogr
 			val live = elem.div(classes = setOf("live"))
 
 			// show tilt series stats
-			tiltSeriesStats.loadCounts(data, OwnerType.Project, job.jobId, null)
+			tiltSeriesStats.loadCounts(data, OwnerType.Project, job.jobId, pickingControls.list)
 			live.add(tiltSeriesStats)
 
 			// show PYP stats
@@ -134,7 +142,7 @@ class TomographySegmentationClosedView(val project: ProjectData, val job: Tomogr
 					addTab("Reconstruction", "fas fa-desktop") { lazyTab ->
 
 						// show the tomogram reconstruction
-						val particlesImage = TomoParticlesImage.forProject(project, job, data, tiltSeries)
+						val particlesImage = TomoParticlesImage.forProject(project, job, data, tiltSeries, pickingControls)
 						lazyTab.elem.add(particlesImage)
 
 						// show the side view

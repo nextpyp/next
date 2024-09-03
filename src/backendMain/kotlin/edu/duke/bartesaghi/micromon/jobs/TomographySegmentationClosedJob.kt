@@ -68,7 +68,11 @@ class TomographySegmentationClosedJob(
 		TomographySegmentationClosedData(
 			commonData(),
 			args,
-			diagramImageURL()
+			diagramImageURL(),
+			args.finished
+				?.particlesList(idOrThrow)
+				?.let { Database.particles.countAllParticles(idOrThrow, it.name) }
+				?: 0
 		)
 
 	override suspend fun launch(runId: Int) {

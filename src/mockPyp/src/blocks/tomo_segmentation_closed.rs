@@ -20,10 +20,6 @@ pub const BLOCK_ID: &'static str = "tomo-segmentation-closed";
 pub fn run(mut args: Args, args_config: ArgsConfig) -> Result<()> {
 
 	// get mock args
-	let num_tilt_series = args.get_mock(BLOCK_ID, "num_tilt_series")
-		.into_u32()?
-		.or(4)
-		.value();
 	let tomogram_width = args.get_mock(BLOCK_ID, "tomogram_width")
 		.into_u32()?
 		.or(8192)
@@ -34,6 +30,11 @@ pub fn run(mut args: Args, args_config: ArgsConfig) -> Result<()> {
 		.or(8192)
 		.value()
 		.to_unbinned();
+	let virion_radius = args.get_mock(BLOCK_ID, "virion_radius")
+		.into_f64()?
+		.or(1000.0)
+		.value()
+		.to_a();
 
 	// get pyp args (and write defaults not defined by the config)
 	let pixel_size = args.get("scope_pixel")
@@ -60,7 +61,10 @@ pub fn run(mut args: Args, args_config: ArgsConfig) -> Result<()> {
 	web.write_parameters(&args, &args_config)?;
 
 	// try to read the submitted particles
-	let tilt_series_particles = read_tomo_particles()?;
+	let virion_radius = virion_radius
+		.to_unbinned(pixel_size)
+		.to_binned(tomogram_binning);
+	let tilt_series_particles = read_tomo_particles(Some(virion_radius))?;
 
 	let num_particles = tilt_series_particles.iter()
 		.map(|(_, tilt_series)| tilt_series.len())
@@ -72,50 +76,42 @@ pub fn run(mut args: Args, args_config: ArgsConfig) -> Result<()> {
 		.context("Failed to create webp dir")?;
 
 	// generate tilt series
-	for tilt_series_i in 0 .. num_tilt_series {
-		let tilt_series_id = format!("tilt_series_{}", tilt_series_i);
+	for (tilt_series_id, particles) in tilt_series_particles {
 
 		// send the particles back as virions, with a default threshold
-		let particles = tilt_series_particles.iter()
-			.find(|(id, _)| id == tilt_series_id.as_str());
-		let virions = match particles {
-			None => None,
-			Some((_, particles)) => Some(
-				particles.iter()
-					.enumerate()
-					.map(|(particlei, particle)| {
+		let virions = particles.iter()
+			.enumerate()
+			.map(|(particlei, particle)| {
 
-						const SQUARE_SIZE: u32 = 120;
+				const SQUARE_SIZE: u32 = 120;
 
-						// draw the segmentation image
-						let mut img = Image::new(SQUARE_SIZE*9, SQUARE_SIZE*3);
-						img.draw().fill(Rgb([128, 128, 128]));
-						img.draw().noise();
-						for thresholdi in 0 .. 9 {
-							for stacki in 0 .. 3 {
-								let mut square = img.sub_image(
-									thresholdi*SQUARE_SIZE,
-									stacki*SQUARE_SIZE,
-									SQUARE_SIZE,
-									SQUARE_SIZE
-								);
-								square.draw().border(2, Rgb([255, 255, 255]));
-								square.draw().text_lines(16, Rgb([255, 255, 255]), [
-									format!("Threshold: {}", thresholdi),
-									format!("Stack: {}", stacki)
-								])
-							}
-						}
-						img.save(format!("webp/{}_vir{:0>4}_binned_nad.webp", &tilt_series_id, particlei))?;
+				// draw the segmentation image
+				let mut img = Image::new(SQUARE_SIZE*9, SQUARE_SIZE*3);
+				img.draw().fill(Rgb([128, 128, 128]));
+				img.draw().noise();
+				for thresholdi in 0 .. 9 {
+					for stacki in 0 .. 3 {
+						let mut square = img.sub_image(
+							thresholdi*SQUARE_SIZE,
+							stacki*SQUARE_SIZE,
+							SQUARE_SIZE,
+							SQUARE_SIZE
+						);
+						square.draw().border(2, Rgb([255, 255, 255]));
+						square.draw().text_lines(16, Rgb([255, 255, 255]), [
+							format!("Threshold: {}", thresholdi),
+							format!("Stack: {}", stacki)
+						])
+					}
+				}
+				img.save(format!("webp/{}_vir{:0>4}_binned_nad.webp", &tilt_series_id, particlei))?;
 
-						Ok(Virion3D {
-							particle: particle.clone(),
-							threshold: 1,
-						})
-					})
-					.collect::<Result<Vec<_>>>()?
-			)
-		};
+				Ok(Virion3D {
+					particle: particle.clone(),
+					threshold: 1,
+				})
+			})
+			.collect::<Result<Vec<_>>>()?;
 
 		let tilt_series = TiltSeries {
 			tilt_series_id,
@@ -133,7 +129,7 @@ pub fn run(mut args: Args, args_config: ArgsConfig) -> Result<()> {
 			xf: None,
 			avgrot: None,
 			drift: None,
-			virions,
+			virions: Some(virions),
 			spikes: None
 		};
 
@@ -145,7 +141,6 @@ pub fn run(mut args: Args, args_config: ArgsConfig) -> Result<()> {
 			format!("Block: {}", BLOCK_ID),
 			"Type: Output".to_string(),
 			format!("Id: {}", &tilt_series.tilt_series_id),
-			format!("Tilt Series: {} of {}", tilt_series_i + 1, num_tilt_series)
 		]);
 		img.save(format!("webp/{}.webp", &tilt_series.tilt_series_id))?;
 
@@ -157,7 +152,6 @@ pub fn run(mut args: Args, args_config: ArgsConfig) -> Result<()> {
 			format!("Block: {}", BLOCK_ID),
 			"Type: Sides".to_string(),
 			format!("Id: {}", &tilt_series.tilt_series_id),
-			format!("Tilt Series: {} of {}", tilt_series_i + 1, num_tilt_series)
 		]);
 		img.save(format!("webp/{}_sides.webp", &tilt_series.tilt_series_id))?;
 
@@ -172,7 +166,6 @@ pub fn run(mut args: Args, args_config: ArgsConfig) -> Result<()> {
 				format!("Block: {}", BLOCK_ID),
 				"Type: Reconstruction Montage".to_string(),
 				format!("Id: {}", &tilt_series.tilt_series_id),
-				format!("Tilt Series: {} of {}", tilt_series_i + 1, num_tilt_series),
 				format!("Slice: {} of {}", slice_i + 1, tomogram_slices)
 			]);
 			Ok(())

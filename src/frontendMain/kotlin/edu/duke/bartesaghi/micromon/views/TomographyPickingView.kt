@@ -119,7 +119,6 @@ class TomographyPickingView(val project: ProjectData, val job: TomographyPicking
 					}
 				}
 
-				tiltSeriesesElem.add(pickingControls)
 				val particlesImage = TomoParticlesImage.forProject(project, job, data, tiltSeries, pickingControls)
 				particlesImage.onParticlesChange = {
 					tiltSeriesStats.picked(data, pickingControls)

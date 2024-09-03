@@ -118,8 +118,6 @@ class TomographyPickingClosedView(val project: ProjectData, val job: TomographyP
 					}
 				}
 
-				tiltSeriesesElem.add(pickingControls)
-
 				// show the tilt series content in tabs
 				tiltSeriesesElem.lazyTabPanel {
 

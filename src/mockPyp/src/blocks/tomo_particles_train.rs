@@ -15,7 +15,7 @@ pub const BLOCK_ID: &'static str = "tomo-particles-train";
 pub fn run(_args: Args, _args_config: ArgsConfig) -> Result<()> {
 
 	// try to read the submitted particles
-	let tilt_series_particles = read_tomo_particles()?;
+	let tilt_series_particles = read_tomo_particles(None)?;
 
 	let num_particles = tilt_series_particles.iter()
 		.map(|(_, tilt_series)| tilt_series.len())

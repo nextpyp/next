@@ -246,19 +246,20 @@ class TomoParticlesImage(
 				.toMutableMap()
 
 		suspend fun TiltSeriesesParticlesData.Data.addInfo(
-			color: Color,
 			checkbox: ParticlesCheckBox,
 			editable: Boolean,
-			extraParticles: Boolean = false
+			overrideList: ParticlesList? = null
 		) {
-			val list = when (extraParticles) {
-				true -> this.list
-				false -> particleControls?.list
-			} ?: return
+
+			val list = overrideList ?: this.list
+				?: return
 
 			particlesInfos.add(ParticlesInfo(
 				list = list,
-				color = color,
+				color = when (list.type) {
+					ParticlesType.Virions3D -> Colors.green
+					else -> Colors.blue
+				},
 				checkbox = checkbox,
 				editable = editable,
 				particles = getParticles(list.name),
@@ -275,26 +276,24 @@ class TomoParticlesImage(
 
 				// in virus mode, the picked particles are virions
 				particles.virions.addInfo(
-					color = Colors.green,
 					checkbox = showVirionsCheck,
 					editable = true,
+					overrideList = particleControls?.list
 				)
 
 				// if there are any auto particles, show those too as spikes, but don't allow editing
 				particles.spikes?.addInfo(
-					color = Colors.blue,
 					checkbox = showSpikesCheck,
-					editable = false,
-					extraParticles = true
+					editable = false
 				)
 			}
 
 			// in regular mode, use the picked particles, if any
 			is TiltSeriesesParticlesData.Data -> {
 				particles.addInfo(
-					color = Colors.green,
 					checkbox = showParticlesCheck,
-					editable = true
+					editable = true,
+					overrideList = particleControls?.list
 				)
 			}
 		}
@@ -376,7 +375,7 @@ class TomoParticlesImage(
 		} else {
 
 			val particlesInfo = particlesInfos
-				.find { it.list.type == ParticlesType.Particles3D }
+				.firstOrNull()
 
 			showVirionsCheck.update(null)
 			showSpikesCheck.update(null)

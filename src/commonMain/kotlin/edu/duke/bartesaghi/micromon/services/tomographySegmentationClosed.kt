@@ -1,10 +1,7 @@
 package edu.duke.bartesaghi.micromon.services
 
 import edu.duke.bartesaghi.micromon.nodes.TomographySegmentationClosedNodeConfig
-import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
-import edu.duke.bartesaghi.micromon.pyp.Args
-import edu.duke.bartesaghi.micromon.pyp.toArgValues
-import edu.duke.bartesaghi.micromon.pyp.tomoSrfMethodOrDefault
+import edu.duke.bartesaghi.micromon.pyp.*
 import io.kvision.annotations.KVBindingRoute
 import io.kvision.annotations.KVService
 import kotlinx.serialization.Serializable
@@ -30,13 +27,19 @@ interface ITomographySegmentationClosedService {
 @Serializable
 data class TomographySegmentationClosedArgs(
 	val values: ArgValuesToml
-)
+) {
+
+	fun particlesList(jobId: String): ParticlesList =
+		ParticlesList.autoVirions(jobId)
+}
+
 
 @Serializable
 data class TomographySegmentationClosedData(
 	override val common: CommonJobData,
 	val args: JobArgs<TomographySegmentationClosedArgs>,
-	val imageUrl: String
+	val imageUrl: String,
+	val numParticles: Long
 ) : JobData {
 	override fun isChanged() = args.hasNext()
 }

@@ -4,6 +4,7 @@ import edu.duke.bartesaghi.micromon.AppScope
 import edu.duke.bartesaghi.micromon.components.forms.*
 import edu.duke.bartesaghi.micromon.diagram.Diagram
 import edu.duke.bartesaghi.micromon.dynamicImageClassName
+import edu.duke.bartesaghi.micromon.formatWithDigitGroupsSeparator
 import edu.duke.bartesaghi.micromon.nodes.TomographySegmentationClosedNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
 import edu.duke.bartesaghi.micromon.pyp.Args
@@ -108,6 +109,9 @@ class TomographySegmentationClosedNode(
 				TomographySegmentationClosedView.go(viewport, project, job)
 			}) {
 				img(job.imageUrl, className = dynamicImageClassName)
+			}
+			div(className = "count") {
+				text("${job.numParticles.formatWithDigitGroupsSeparator()} particles")
 			}
 		}
 
