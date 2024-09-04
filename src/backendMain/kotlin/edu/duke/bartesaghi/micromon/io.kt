@@ -175,7 +175,13 @@ suspend fun <R> slowIOs(block: suspend CoroutineScope.() -> R): R =
 	withContext(Dispatchers.IO, block)
 
 
-fun Path.exists() = Files.exists(this)
+fun Path.exists(followSymlinks: Boolean = true) =
+	if (followSymlinks) {
+		Files.exists(this)
+	} else {
+		Files.exists(this, LinkOption.NOFOLLOW_LINKS)
+	}
+
 fun Path.isDirectory() = Files.isDirectory(this)
 
 fun Path.createDirsIfNeeded() = apply {
@@ -184,8 +190,8 @@ fun Path.createDirsIfNeeded() = apply {
 	}
 }
 
-fun Path.delete() {
-	if (exists()) {
+fun Path.delete(followSymlinks: Boolean = true) {
+	if (exists(followSymlinks)) {
 		Files.delete(this)
 	}
 }
@@ -200,7 +206,7 @@ fun Path.deleteDirRecursively() = apply {
 		Files.walkFileTree(this, options, Int.MAX_VALUE, object : SimpleFileVisitor<Path>() {
 
 			override fun visitFile(file: Path?, attrs: BasicFileAttributes?): FileVisitResult {
-				file?.delete()
+				file?.delete(followSymlinks = false)
 				return FileVisitResult.CONTINUE
 			}
 
