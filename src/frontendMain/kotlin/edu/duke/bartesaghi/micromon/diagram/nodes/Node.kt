@@ -125,8 +125,7 @@ abstract class Node(
 	var onOutPortClick: ((NodeConfig.Data) -> Unit)? = null
 	var onDeleteClick: (() -> Unit)? = null
 	var onEdited: (() -> Unit)? = null
-	var onCopySettingsClick: (() -> Unit)? = null
-	var onCopySettingsDataClick: (() -> Unit)? = null
+	var onCopyClick: (() -> Unit)? = null
 	var onMakeRunnableClick: (() -> Unit)? = null
 	var onDeleteFilesClick: (() -> Unit)? = null
 	var onShowLatestLogClick: (() -> Unit)? = null
@@ -349,19 +348,12 @@ abstract class Node(
 						text("Rename")
 					}
 
-					// copy links
-					dropdownItem(enabled = project.canWrite() && onCopySettingsClick != null, title = "Make a copy of this block (settings only)", onClick = {
-						onCopySettingsClick?.invoke()
+					// copy link
+					dropdownItem(enabled = project.canWrite() && onCopyClick != null, title = "Make a copy of this block", onClick = {
+						onCopyClick?.invoke()
 					}) {
 						icon("far fa-clone", className = "icon")
-						text("Copy Settings")
-					}
-
-					dropdownItem(enabled = project.canWrite() && onCopySettingsDataClick != null, title = "Make a copy of this block (settings and data)", onClick = {
-						onCopySettingsDataClick?.invoke()
-					}) {
-						icon("far fa-clone", className = "icon")
-						text("Copy Settings and Data")
+						text("Copy")
 					}
 
 					// edit link

@@ -38,7 +38,7 @@ class TomographyMiloEvalNode(
 		override fun makeNode(viewport: Viewport, diagram: Diagram, project: ProjectData, job: JobData) =
 			TomographyMiloEvalNode(viewport, diagram, project, job as TomographyMiloEvalData)
 
-		override fun showUseDataForm(viewport: Viewport, diagram: Diagram, project: ProjectData, outNode: Node, input: CommonJobData.DataId, copyFrom: Node?, andCopyData: Boolean, callback: (Node) -> Unit) {
+		override suspend fun showUseDataForm(viewport: Viewport, diagram: Diagram, project: ProjectData, outNode: Node, input: CommonJobData.DataId, copyFrom: Node?, callback: (Node) -> Unit) {
 			val defaultArgs = (copyFrom as TomographyMiloEvalNode?)?.job?.args
 			form(config.name, outNode, defaultArgs, true) { args ->
 

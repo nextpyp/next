@@ -38,7 +38,7 @@ class TomographyPickingOpenNode(
 		override fun makeNode(viewport: Viewport, diagram: Diagram, project: ProjectData, job: JobData) =
 			TomographyPickingOpenNode(viewport, diagram, project, job as TomographyPickingOpenData)
 
-		override fun showUseDataForm(viewport: Viewport, diagram: Diagram, project: ProjectData, outNode: Node, input: CommonJobData.DataId, copyFrom: Node?, andCopyData: Boolean, callback: (Node) -> Unit) {
+		override suspend fun showUseDataForm(viewport: Viewport, diagram: Diagram, project: ProjectData, outNode: Node, input: CommonJobData.DataId, copyFrom: Node?, callback: (Node) -> Unit) {
 			val defaultArgs = (copyFrom as TomographyPickingOpenNode?)?.job?.args
 			form(config.name, outNode, defaultArgs, true) { args ->
 

@@ -272,8 +272,9 @@ enum class TomoVirDetectMethod(val id: String, val particlesList: (ownerId: Stri
 
 val Args.tomoSpkMethod: Arg
 	get() = argOrThrow("tomo_spk", "method")
-val ArgValues.tomoSpkMethod: TomoSpkMethod?
+var ArgValues.tomoSpkMethod: TomoSpkMethod?
 	get() = TomoSpkMethod[get(args.tomoSpkMethod) as String?]
+	set(value) { set(args.tomoSpkMethod, value?.id) }
 val ArgValues.tomoSpkMethodOrDefault: TomoSpkMethod
 	get() = TomoSpkMethod[getOrDefault(args.tomoSpkMethod) as String]
 		?: throw NoSuchElementException(

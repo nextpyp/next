@@ -39,7 +39,7 @@ class TomographyDenoisingEvalNode(
 		override fun makeNode(viewport: Viewport, diagram: Diagram, project: ProjectData, job: JobData) =
 			TomographyDenoisingEvalNode(viewport, diagram, project, job as TomographyDenoisingEvalData)
 
-		override fun showUseDataForm(viewport: Viewport, diagram: Diagram, project: ProjectData, outNode: Node, input: CommonJobData.DataId, copyFrom: Node?, andCopyData: Boolean, callback: (Node) -> Unit) {
+		override suspend fun showUseDataForm(viewport: Viewport, diagram: Diagram, project: ProjectData, outNode: Node, input: CommonJobData.DataId, copyFrom: Node?, callback: (Node) -> Unit) {
 			val defaultArgs = (copyFrom as TomographyDenoisingEvalNode?)?.job?.args
 			form(config.name, outNode, defaultArgs, true) { args ->
 

@@ -39,7 +39,7 @@ class SingleParticleFineRefinementNode(
 		override fun makeNode(viewport: Viewport, diagram: Diagram, project: ProjectData, job: JobData) =
 			SingleParticleFineRefinementNode(viewport, diagram, project, job as SingleParticleFineRefinementData)
 
-		override fun showUseDataForm(viewport: Viewport, diagram: Diagram, project: ProjectData, outNode: Node, input: CommonJobData.DataId, copyFrom: Node?, andCopyData: Boolean, callback: (Node) -> Unit) {
+		override suspend fun showUseDataForm(viewport: Viewport, diagram: Diagram, project: ProjectData, outNode: Node, input: CommonJobData.DataId, copyFrom: Node?, callback: (Node) -> Unit) {
 			val defaultArgs = (copyFrom as SingleParticleFineRefinementNode?)?.job?.args
 			form(config.name, outNode, defaultArgs, true) { args ->
 

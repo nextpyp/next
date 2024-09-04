@@ -6,17 +6,20 @@ import edu.duke.bartesaghi.micromon.diagram.Diagram
 import edu.duke.bartesaghi.micromon.dynamicImageClassName
 import edu.duke.bartesaghi.micromon.formatWithDigitGroupsSeparator
 import edu.duke.bartesaghi.micromon.nodes.TomographyPickingNodeConfig
-import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
-import edu.duke.bartesaghi.micromon.pyp.Args
-import edu.duke.bartesaghi.micromon.pyp.filterForDownstreamCopy
+import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.refreshDynamicImages
 import edu.duke.bartesaghi.micromon.services.*
 import edu.duke.bartesaghi.micromon.views.TomographyPickingView
 import edu.duke.bartesaghi.micromon.views.Viewport
+import io.kvision.core.onEvent
+import io.kvision.form.check.CheckBox
 import io.kvision.form.formPanel
+import io.kvision.html.Button
 import io.kvision.modal.Modal
 import js.micromondiagrams.MicromonDiagrams
 import js.micromondiagrams.nodeType
+import kotlin.coroutines.resume
+import kotlin.coroutines.suspendCoroutine
 
 
 class TomographyPickingNode(
@@ -38,18 +41,87 @@ class TomographyPickingNode(
 		override fun makeNode(viewport: Viewport, diagram: Diagram, project: ProjectData, job: JobData) =
 			TomographyPickingNode(viewport, diagram, project, job as TomographyPickingData)
 
-		override fun showUseDataForm(viewport: Viewport, diagram: Diagram, project: ProjectData, outNode: Node, input: CommonJobData.DataId, copyFrom: Node?, andCopyData: Boolean, callback: (Node) -> Unit) {
-			val defaultArgs = (copyFrom as TomographyPickingNode?)?.job?.args
-			form(config.name, outNode, defaultArgs, true) { args ->
+		override suspend fun showUseDataForm(viewport: Viewport, diagram: Diagram, project: ProjectData, outNode: Node, input: CommonJobData.DataId, copyFrom: Node?, callback: (Node) -> Unit) {
+
+			// handle copying from the source node
+			val srcNode = copyFrom as TomographyPickingNode?
+			var jobArgs: JobArgs<TomographyPickingArgs>? = null
+			var copyArgs: TomographyPickingCopyArgs? = null
+
+			if (srcNode != null) {
+				var args = srcNode.job.args.newest()?.args
+				if (args != null) {
+
+					// ask the user to pick args
+					copyArgs = showCopyForm(srcNode)
+
+					// if we're copying the particles to manual, also change the detect method to manual
+					if (copyArgs.copyParticlesToManual) {
+						val values = args.values.toArgValues(pypArgs.get())
+						values.tomoSpkMethod = TomoSpkMethod.Manual
+						args = args.copy(values.toToml())
+					}
+
+					jobArgs = JobArgs.fromNext(args)
+				}
+			}
+
+			form(config.name, outNode, jobArgs, true) { args ->
 
 				// save the node to the server
 				AppScope.launch {
-					val data = Services.tomographyPicking.addNode(project.owner.id, project.projectId, input, args, copyFrom?.takeIf { andCopyData }?.jobId)
+					val data = Services.tomographyPicking.addNode(project.owner.id, project.projectId, input, args, copyArgs)
 
 					// send the node back to the diagram
 					callback(TomographyPickingNode(viewport, diagram, project, data))
 				}
 			}
+		}
+
+		private suspend fun showCopyForm(src: Node): TomographyPickingCopyArgs = suspendCoroutine { continuation ->
+
+			val win = Modal(
+				caption = "Copy Block: ${config.name}",
+				escape = true,
+				closeButton = true,
+				classes = setOf("dashboard-popup")
+			)
+
+			val form = win.formPanel<TomographyPickingCopyArgs>().apply {
+
+				val dataCheck = CheckBox(
+					value = false,
+					label = "Copy files and data"
+				)
+				val particlesCheck = CheckBox(
+					value = false,
+					label = "Make automatically-picked particles editable"
+				)
+
+				// make the particles check only enabled iff copy data is checked
+				particlesCheck.enabled = false
+				dataCheck.onEvent {
+					change = {
+						if (dataCheck.value) {
+							particlesCheck.enabled = true
+						} else {
+							particlesCheck.enabled = false
+							particlesCheck.value = false
+						}
+					}
+				}
+
+				add(TomographyPickingCopyArgs::copyFromJobId, HiddenString(src.jobId))
+				add(TomographyPickingCopyArgs::copyData, dataCheck)
+				add(TomographyPickingCopyArgs::copyParticlesToManual, particlesCheck)
+			}
+
+			win.addButton(Button("Next").onClick {
+				win.hide()
+				continuation.resume(form.getData())
+			})
+
+			win.show()
 		}
 
 		override suspend fun makeJob(project: ProjectData, argValues: ArgValuesToml, input: CommonJobData.DataId?): JobData {

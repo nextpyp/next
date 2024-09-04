@@ -5,8 +5,7 @@ import edu.duke.bartesaghi.micromon.components.JobsMonitor
 import edu.duke.bartesaghi.micromon.components.PathPopup
 import edu.duke.bartesaghi.micromon.components.WebsocketControl
 import edu.duke.bartesaghi.micromon.components.WorkflowImportDialog
-import edu.duke.bartesaghi.micromon.components.forms.enableClickIf
-import edu.duke.bartesaghi.micromon.components.forms.enabled
+import edu.duke.bartesaghi.micromon.components.forms.*
 import edu.duke.bartesaghi.micromon.diagram.Diagram
 import edu.duke.bartesaghi.micromon.diagram.nodes.Node
 import edu.duke.bartesaghi.micromon.diagram.nodes.clientInfo
@@ -14,10 +13,7 @@ import edu.duke.bartesaghi.micromon.diagram.nodes.deduplicate
 import edu.duke.bartesaghi.micromon.nodes.NodeConfig
 import edu.duke.bartesaghi.micromon.nodes.NodeConfigs
 import edu.duke.bartesaghi.micromon.nodes.Workflow
-import edu.duke.bartesaghi.micromon.pyp.ArgValues
-import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
-import edu.duke.bartesaghi.micromon.pyp.Block
-import edu.duke.bartesaghi.micromon.pyp.toArgValues
+import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.*
 import io.kvision.core.Container
 import io.kvision.core.Widget
@@ -390,29 +386,24 @@ class ProjectView(val project: ProjectData) : View {
 
 			if (project.canWrite()) {
 
-				fun copyBlock(andData: Boolean = false) {
-
-					if (node.config.inputs.isNotEmpty()) {
-
-						// find our upstream node
-						val upstream = node.getUpstreams()
-							.firstOrNull()
-							?: return
-
-						showUseDataForm(upstream.node, upstream.outData, upstream.inData, node.config, node, andData)
-
-					} else {
-
-						node.config.clientInfo.showImportForm(viewport, diagram, project, node, andData, ::addSourceNode)
-					}
-				}
-
 				// allow copying all nodes
-				node.onCopySettingsClick = { copyBlock() }
+				node.onCopyClick = f@{
 
-				// allow copying only some nodes with data (since it's not implemented on the server for every node just yet)
-				if (node.config.supportsCopyData) {
-					node.onCopySettingsDataClick = { copyBlock(andData = true) }
+					// first, find our upstream node, if we need one
+					val upstream: Node.Upstream? =
+						if (node.config.inputs.isNotEmpty()) {
+							node.getUpstreams()
+								.firstOrNull()
+								?: return@f
+						} else {
+							null
+						}
+
+					if (upstream != null) {
+						showUseDataForm(upstream.node, upstream.outData, upstream.inData, node.config, node)
+					} else {
+						node.config.clientInfo.showImportForm(viewport, diagram, project, node, ::addSourceNode)
+					}
 				}
 
 				node.onMakeRunnableClick = {
@@ -519,7 +510,7 @@ class ProjectView(val project: ProjectData) : View {
 								win.hide()
 
 								// show the node's import form
-								node.clientInfo.showImportForm(viewport, diagram, project, null, false, ::addSourceNode)
+								node.clientInfo.showImportForm(viewport, diagram, project, null, ::addSourceNode)
 							}
 						}
 					}
@@ -536,7 +527,7 @@ class ProjectView(val project: ProjectData) : View {
 								win.hide()
 
 								// show the node's import form
-								node.clientInfo.showImportForm(viewport, diagram, project, null, false, ::addSourceNode)
+								node.clientInfo.showImportForm(viewport, diagram, project, null, ::addSourceNode)
 							}
 						}
 					}
@@ -733,7 +724,9 @@ class ProjectView(val project: ProjectData) : View {
 								disabled = !usingNode.enabled
 								onClick {
 									win.close()
-									showUseDataForm(node, data, input, usingNode)
+									AppScope.launch {
+										showUseDataForm(node, data, input, usingNode)
+									}
 								}
 							}
 
@@ -811,34 +804,34 @@ class ProjectView(val project: ProjectData) : View {
 			outData: NodeConfig.Data,
 			inData: NodeConfig.Data,
 			inConfig: NodeConfig,
-			copyFrom: Node? = null,
-			andCopyData: Boolean = false
+			copyFrom: Node? = null
 		) {
+			AppScope.launch {
+				val output = CommonJobData.DataId(outNode.jobId, outData.id)
+				inConfig.clientInfo.showUseDataForm(viewport, diagram, project, outNode, output, copyFrom) { inNode ->
 
-			val output = CommonJobData.DataId(outNode.jobId, outData.id)
-			inConfig.clientInfo.showUseDataForm(viewport, diagram, project, outNode, output, copyFrom, andCopyData) { inNode ->
+					// wire up events before doing anything to the node that would trigger a render,
+					// since the render logic depends on which events are connected
+					wireEvents(inNode)
 
-				// wire up events before doing anything to the node that would trigger a render,
-				// since the render logic depends on which events are connected
-				wireEvents(inNode)
+					// add the node to the diagram
+					inNode.status = when (inNode.baseJob.isChanged()) {
+						true -> Node.Status.Changed
+						false -> Node.Status.Ended
+					}
+					diagram.addNode(inNode)
 
-				// add the node to the diagram
-				inNode.status = when (inNode.baseJob.isChanged()) {
-					true -> Node.Status.Changed
-					false -> Node.Status.Ended
+					// add a linker to the source node
+					val outPort = outNode.getOutPortOrThrow(outData)
+					val inPort = inNode.getInPortOrThrow(inData)
+					diagram.addLink(outPort.link(inPort))
+
+					diagram.update()
+					updateRunButton()
+
+					// automatically position the node somewhere useful (hopefully)
+					diagram.place(inNode)
 				}
-				diagram.addNode(inNode)
-
-				// add a linker to the source node
-				val outPort = outNode.getOutPortOrThrow(outData)
-				val inPort = inNode.getInPortOrThrow(inData)
-				diagram.addLink(outPort.link(inPort))
-
-				diagram.update()
-				updateRunButton()
-
-				// automatically position the node somewhere useful (hopefully)
-				diagram.place(inNode)
 			}
 		}
 

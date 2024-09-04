@@ -39,7 +39,7 @@ class SingleParticleRelionDataNode(
 		override fun makeNode(viewport: Viewport, diagram: Diagram, project: ProjectData, job: JobData) =
 			SingleParticleRelionDataNode(viewport, diagram, project, job as SingleParticleRelionDataData)
 
-		override fun showImportForm(viewport: Viewport, diagram: Diagram, project: ProjectData, copyFrom: Node?, andCopyData: Boolean, callback: (Node) -> Unit) {
+		override fun showImportForm(viewport: Viewport, diagram: Diagram, project: ProjectData, copyFrom: Node?, callback: (Node) -> Unit) {
 			val defaultArgs = (copyFrom as SingleParticleRelionDataNode?)?.job?.args
 			form(config.name, defaultArgs, true) { args ->
 				AppScope.launch {

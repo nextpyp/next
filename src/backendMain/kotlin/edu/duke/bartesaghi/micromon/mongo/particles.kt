@@ -391,6 +391,23 @@ class Particles {
 				}
 			}
 	}
+
+	fun renameAll(ownerId: String, oldName: String, newName: String) {
+		collection
+			.find(filterList(ownerId, oldName))
+			.useCursor { docs ->
+				for (doc in docs) {
+					val datumId = doc.getString(Keys.datumId)
+					collection.insertOne(
+						doc.apply {
+							set("_id", "$ownerId/$newName/$datumId")
+							set(Keys.name, newName)
+						}
+					)
+					collection.deleteOne(filter(ownerId, oldName, datumId))
+				}
+			}
+	}
 }
 
 

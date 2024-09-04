@@ -9,7 +9,6 @@ object TomographyPickingNodeConfig : NodeConfig {
 	override val configId = "tomo_picking"
 	override val name = "Particle-Picking"
 	override val hasFiles = true
-	override val supportsCopyData = true
 
 	val tomograms = NodeConfig.Data("tomograms", NodeConfig.Data.Type.Tomograms)
 	val movieRefinement = NodeConfig.Data("movieRefinement", NodeConfig.Data.Type.MovieRefinement)

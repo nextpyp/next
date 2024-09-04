@@ -14,7 +14,7 @@ import kotlinx.serialization.Serializable
 interface ITomographyPickingService {
 
 	@KVBindingRoute("node/${TomographyPickingNodeConfig.ID}/addNode")
-	suspend fun addNode(userId: String, projectId: String, inData: CommonJobData.DataId, args: TomographyPickingArgs, copyFromJobId: String?): TomographyPickingData
+	suspend fun addNode(userId: String, projectId: String, inData: CommonJobData.DataId, args: TomographyPickingArgs, copyArgs: TomographyPickingCopyArgs?): TomographyPickingData
 
 	@KVBindingRoute("node/${TomographyPickingNodeConfig.ID}/edit")
 	suspend fun edit(jobId: String, args: TomographyPickingArgs?): TomographyPickingData
@@ -47,3 +47,11 @@ data class TomographyPickingData(
 ) : JobData {
 	override fun isChanged() = args.hasNext()
 }
+
+
+@Serializable
+data class TomographyPickingCopyArgs(
+	override val copyFromJobId: String,
+	val copyData: Boolean,
+	val copyParticlesToManual: Boolean
+) : JobCopyArgs

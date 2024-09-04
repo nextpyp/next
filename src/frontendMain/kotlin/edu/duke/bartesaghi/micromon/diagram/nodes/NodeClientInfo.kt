@@ -4,10 +4,7 @@ import edu.duke.bartesaghi.micromon.diagram.Diagram
 import edu.duke.bartesaghi.micromon.nodes.NodeConfig
 import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
 import edu.duke.bartesaghi.micromon.pyp.Args
-import edu.duke.bartesaghi.micromon.services.CommonJobData
-import edu.duke.bartesaghi.micromon.services.JobData
-import edu.duke.bartesaghi.micromon.services.ProjectData
-import edu.duke.bartesaghi.micromon.services.ServerVal
+import edu.duke.bartesaghi.micromon.services.*
 import edu.duke.bartesaghi.micromon.views.Viewport
 import js.micromondiagrams.MicromonDiagrams
 import kotlin.reflect.KClass
@@ -28,12 +25,12 @@ interface NodeClientInfo {
 			?: throw NoSuchElementException("block ${config.id} has no URL fragment")
 
 	/** create a node from nothing but new user input */
-	fun showImportForm(viewport: Viewport, diagram: Diagram, project: ProjectData, copyFrom: Node?, andCopyData: Boolean, callback: (Node) -> Unit) {
+	fun showImportForm(viewport: Viewport, diagram: Diagram, project: ProjectData, copyFrom: Node?, callback: (Node) -> Unit) {
 		// no implementation by default
 	}
 
 	/** create a node from new user input, and the output of another node */
-	fun showUseDataForm(viewport: Viewport, diagram: Diagram, project: ProjectData, outNode: Node, input: CommonJobData.DataId, copyFrom: Node?, andCopyData: Boolean, callback: (Node) -> Unit) {
+	suspend fun showUseDataForm(viewport: Viewport, diagram: Diagram, project: ProjectData, outNode: Node, input: CommonJobData.DataId, copyFrom: Node?, callback: (Node) -> Unit) {
 		// no implementation by default
 	}
 

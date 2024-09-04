@@ -442,3 +442,8 @@ data class UserData(
 	val id: String,
 	val name: String?
 )
+
+
+interface JobCopyArgs {
+	val copyFromJobId: String
+}
