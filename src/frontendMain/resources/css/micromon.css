@@ -1570,7 +1570,6 @@ div.project-view div.panel-project-left {
 }
 
 div.project-view div.panel-project-right {
-	max-width: 400px;
 	height: 100%;
 	background-color: #f8f9fa;
 	border-top: solid 1px #cccfd7;
