@@ -327,13 +327,12 @@ fun Path.toFileDownloadData(): FileDownloadData? =
 fun Path.stat(): Stat.Response =
 	when {
 
-		!exists() -> Stat.NotFound
-
 		isSymbolicLink() -> Stat.Symlink(when {
 			isDirectory() -> Stat.Symlink.Dir
 			isRegularFile() -> Stat.Symlink.File(
 				size = fileSize().toULong()
 			)
+			!exists() -> Stat.Symlink.NotFound
 			else -> Stat.Symlink.Other
 		})
 
@@ -342,6 +341,8 @@ fun Path.stat(): Stat.Response =
 		)
 
 		isDirectory() -> Stat.Dir
+
+		!exists() -> Stat.NotFound
 
 		else -> Stat.Other
 	}

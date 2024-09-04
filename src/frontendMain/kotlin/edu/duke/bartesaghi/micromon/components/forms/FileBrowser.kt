@@ -713,7 +713,8 @@ open class FileBrowser(
 		private const val iconFile = "fas fa-file"
 		private const val iconFolder = "fas fa-folder"
 		private const val iconSymlink = "fas fa-external-link-square-alt"
-		private const val iconOther = "far fa-square"
+		private const val iconBrokenSymlink = "fas fa-unlink"
+		private const val iconOther = "fas fa-question-circle"
 	}
 
 
@@ -884,6 +885,7 @@ open class FileBrowser(
 				FileBrowserType.Folder -> iconFolder
 				FileBrowserType.File -> iconFile
 				FileBrowserType.Symlink -> iconSymlink
+				FileBrowserType.BrokenSymlink -> iconBrokenSymlink
 				FileBrowserType.Other -> iconOther
 			}
 			elemText.textContent = name
