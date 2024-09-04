@@ -738,15 +738,25 @@ async fn dispatch_copy_folder(socket: Rc<RefCell<OwnedWriteHalf>>, request_id: u
 
 	debug!(src, dst, "Request");
 
-	fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> io::Result<()> {
-		fs::create_dir_all(&dst)?;
-		for entry in fs::read_dir(src)? {
-			let entry = entry?;
-			let ty = entry.file_type()?;
+	fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> Result<()> {
+		let src = src.as_ref();
+		let dst = dst.as_ref();
+		fs::create_dir_all(&dst)
+			.context(format!("Failed to create folder: {}", dst.to_string_lossy()))?;
+		let src_read = fs::read_dir(src)
+			.context(format!("Failed to read folder: {}", src.to_string_lossy()))?;
+		for entry in src_read {
+			let entry = entry
+				.context(format!("Failed to read folder entry from: {}", src.to_string_lossy()))?;
+			let ty = entry.file_type()
+				.context(format!("Failed to read file type: {}", entry.path().to_string_lossy()))?;
 			if ty.is_dir() {
-				copy_dir_all(entry.path(), dst.as_ref().join(entry.file_name()))?;
+				copy_dir_all(entry.path(), dst.join(entry.file_name()))?;
 			} else {
-				fs::copy(entry.path(), dst.as_ref().join(entry.file_name()))?;
+				let src_file = entry.path();
+				let dst_file = dst.join(entry.file_name());
+				fs::copy(&src_file, &dst_file)
+					.context(format!("Failed to copy file:\n\tfrom: {}\n\t  to: {}", src_file.to_string_lossy(), dst_file.to_string_lossy()))?;
 			}
 		}
 		Ok(())
