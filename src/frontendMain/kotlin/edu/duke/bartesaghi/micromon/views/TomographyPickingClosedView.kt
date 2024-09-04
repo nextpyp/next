@@ -74,7 +74,7 @@ class TomographyPickingClosedView(val project: ProjectData, val job: TomographyP
 			val data = TiltSeriesesData()
 			try {
 				delayAtLeast(200) {
-					data.loadForProject(job.jobId, job.clientInfo, job.args.finished?.values)
+					data.loadForProject(job, job.args.finished?.values)
 					when (val particles = data.particles) {
 						null -> Unit
 						is TiltSeriesesParticlesData.Data -> particles.list?.let { pickingControls.load(it) }

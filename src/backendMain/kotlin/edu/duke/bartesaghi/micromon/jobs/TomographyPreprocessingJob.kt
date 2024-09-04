@@ -92,7 +92,7 @@ class TomographyPreprocessingJob(
 
 		// write out manually-picked particles, if needed
 		ParticlesJobs.clear(project.osUsername, dir)
-		manualParticlesList()
+		manualParticlesList(newestArgs.tomolist)
 			?.let { ParticlesJobs.writeTomography(project.osUsername, idOrThrow, dir, it) }
 
 		// write out the tilt exclusions, if needed

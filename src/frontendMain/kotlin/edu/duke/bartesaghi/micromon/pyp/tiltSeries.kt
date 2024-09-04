@@ -1,8 +1,6 @@
 package edu.duke.bartesaghi.micromon.pyp
 
-import edu.duke.bartesaghi.micromon.diagram.nodes.NodeClientInfo
-import edu.duke.bartesaghi.micromon.diagram.nodes.TomographyParticlesEvalNode
-import edu.duke.bartesaghi.micromon.diagram.nodes.TomographySegmentationClosedNode
+import edu.duke.bartesaghi.micromon.diagram.nodes.*
 import edu.duke.bartesaghi.micromon.services.*
 
 
@@ -11,11 +9,11 @@ data class TiltSeriesesData(
 	var particles: TiltSeriesesParticlesData? = null
 ) {
 
-	suspend fun loadForProject(jobId: String, nodeClientInfo: NodeClientInfo, finishedValues: ArgValuesToml?) {
+	suspend fun loadForProject(job: JobData, finishedValues: ArgValuesToml?) {
 
 		// load the tilt series
 		tiltSerieses.clear()
-		Services.jobs.getTiltSerieses(jobId)
+		Services.jobs.getTiltSerieses(job.jobId)
 			// sort tilt series by id, then timestamp
 			// that way, the overall sort is by timestamp, but ids can break ties if for some reason tilt series have the same timestamp
 			// (since sortedBy() claims to be a stable sort, this should work)
@@ -24,77 +22,72 @@ data class TiltSeriesesData(
 			.forEach { tiltSerieses.add(it) }
 
 		// get the job's finished pyp arg values, if any
-		val args = nodeClientInfo.pypArgs.get()
+		val args = job.clientInfo.pypArgs.get()
 		val values = finishedValues?.toArgValues(args)
 			?: return
 
 		// determine the mode for particles
-		// start with method-based techniques, to handle older blocks that have complicated rules
-		if (values.args.tomoVirMethodExists && values.args.tomoSpkMethodExists) {
+		when (job) {
 
-			// combined mode, for older preprocessing blocks
-			val virionsList = values.tomoVirMethodOrDefault.particlesList(jobId)
-			val particlesList = values.tomoSpkMethodOrDefault.particlesList(jobId)
-
-			if (virionsList != null) {
-
-				particles = TiltSeriesesParticlesData.VirusMode(
-					virions = TiltSeriesesParticlesData.Data(
-						list = virionsList,
-						radius = values.tomoVirRadOrDefault,
-						extraBinning = values.tomoVirBinnOrDefault.toInt()
-					),
-					spikes = particlesList?.let {
-						TiltSeriesesParticlesData.Data(
-							list = it,
-							radius = values.tomoSpkRadOrDefault
-						)
-					}
-				)
-
-			} else {
-
-				particles = particlesList?.let {
+			// newer blocks have simple rules
+			is TomographyPickingData ->
+				particles = values.tomoSpkMethodOrDefault.particlesList(job.jobId)?.let { list ->
 					TiltSeriesesParticlesData.Data(
-						list = it,
+						list,
 						radius = values.tomoSpkRadOrDefault
 					)
 				}
-			}
 
-		} else if (values.args.tomoSpkMethodExists) {
+			is TomographyParticlesEvalData ->
+				particles = TiltSeriesesParticlesData.Data(ParticlesList.autoParticles3D(job.jobId))
 
-			// regular mode, for the newer particle picking (without segmentation) blocks
-			particles = values.tomoSpkMethodOrDefault.particlesList(jobId)?.let {
-				TiltSeriesesParticlesData.Data(
-					list = it,
-					radius = values.tomoSpkRadOrDefault
+			is TomographySegmentationClosedData ->
+				particles = TiltSeriesesParticlesData.VirusMode(
+					virions = TiltSeriesesParticlesData.Data(
+						list = ParticlesList.autoVirions(job.jobId)
+					),
+					spikes = null
 				)
-			}
 
-		} else if (values.args.tomoSrfMethodExists) {
-
-			// regular mode, for the newer particle picking (with segmentation) blocks
-			particles = values.tomoSrfMethodOrDefault.particlesList(jobId)?.let {
-				TiltSeriesesParticlesData.Data(
-					list = it,
-					radius = null,
-					extraBinning = null // TODO: need extra binning here?
-				)
-			}
-
-		// then use node-based techniques to handle the newer blocks with simpler rules
-		} else {
-			when (nodeClientInfo) {
-				is TomographyParticlesEvalNode.Companion -> ParticlesList.autoParticles3D(jobId)
-				is TomographySegmentationClosedNode.Companion -> ParticlesList.autoVirions(jobId)
-				else -> {
-					console.warn("No particles for unrecognized block: ${nodeClientInfo.config.id}")
-					null
+			is TomographyPickingClosedData,
+			is TomographyPickingOpenData ->
+				particles = values.tomoSrfMethodOrDefault.particlesList(job.jobId)?.let { list ->
+					TiltSeriesesParticlesData.Data(list)
 				}
-			}?.let {
-				particles = TiltSeriesesParticlesData.Data(it)
+
+			// older blocks had complicated rules
+			is TomographyPreprocessingData,
+			is TomographyImportDataData,
+			is TomographySessionDataData -> {
+
+				// check for virus mode
+				val virionsList = values.tomoVirMethodOrDefault.particlesList(job.jobId)
+				if (virionsList != null) {
+
+					particles = TiltSeriesesParticlesData.VirusMode(
+						virions = TiltSeriesesParticlesData.Data(
+							list = virionsList,
+							radius = values.tomoVirRadOrDefault,
+							extraBinning = values.tomoVirBinnOrDefault.toInt()
+						),
+						spikes = values.tomoVirDetectMethodOrDefault.particlesList(job.jobId)?.let { list ->
+							TiltSeriesesParticlesData.Data(list)
+						}
+					)
+
+				} else {
+
+					particles = values.tomoSpkMethodOrDefault.particlesList(job.jobId)?.let { list ->
+						TiltSeriesesParticlesData.Data(
+							list,
+							radius = values.tomoSpkRadOrDefault
+						)
+					}
+				}
 			}
+
+			// other blocks don't have particles
+			else -> Unit
 		}
 	}
 
@@ -170,6 +163,10 @@ sealed interface TiltSeriesesParticlesData {
 		 * name should be used to load the particles instead.
 		 */
 		val list: ParticlesList?,
+		/**
+		 * A radius common to all particles, if such a radius exist.
+		 * Otherwise (ie, if all particles have differing radii), set this to null.
+		 */
 		val radius: ValueA? = null,
 		var extraBinning: Int? = null
 	) : TiltSeriesesParticlesData

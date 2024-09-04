@@ -165,8 +165,6 @@ val ArgValues.sharpenCistemHighResBfactor: Double?
 	get() = get(args.sharpenCistemHighResBfactor) as Double?
 
 
-val Args.detectMethodExists: Boolean
-	get() = arg("detect", "method") != null
 val Args.detectMethod: Arg
 	get() = argOrThrow("detect", "method")
 val ArgValues.detectMethod: DetectMethod?
@@ -205,8 +203,6 @@ val ArgValues.detectRadOrThrow: ValueA
 	get() = ValueA(getOrThrow(args.detectRad) as Double)
 
 
-val Args.tomoVirMethodExists: Boolean
-	get() = arg("tomo_vir", "method") != null
 val Args.tomoVirMethod: Arg
 	get() = argOrThrow("tomo_vir", "method")
 val ArgValues.tomoVirMethod: TomoVirMethod?
@@ -249,8 +245,31 @@ val ArgValues.tomoVirBinnOrDefault: Long
 	get() = getOrDefault(args.tomoVirBinn) as Long
 
 
-val Args.tomoSpkMethodExists: Boolean
-	get() = arg("tomo_spk", "method") != null
+val Args.tomoVirDetectMethod: Arg
+	get() = argOrThrow("tomo_vir", "detect_method")
+val ArgValues.tomoVirDetectMethod: TomoVirDetectMethod?
+	get() = TomoVirDetectMethod[get(args.tomoVirDetectMethod) as String?]
+val ArgValues.tomoVirDetectMethodOrDefault: TomoVirDetectMethod
+	get() = TomoVirDetectMethod[getOrDefault(args.tomoVirDetectMethod) as String]
+		?: throw NoSuchElementException(
+			"tomoVirDetectMethod default ${getOrDefault(args.tomoVirDetectMethod)} is invalid."
+				+ " Need one of ${TomoVirDetectMethod.values().map { it.id }}"
+		)
+
+@Serializable
+enum class TomoVirDetectMethod(val id: String, val particlesList: (ownerId: String) -> ParticlesList?) {
+
+	None("none", { null }),
+	Auto("template", { ParticlesList.autoVirions(it) }),
+	Manual("mesh", { ParticlesList.autoVirions(it) });
+
+	companion object {
+		operator fun get(id: String?): TomoVirDetectMethod? =
+			values().find { it.id == id }
+	}
+}
+
+
 val Args.tomoSpkMethod: Arg
 	get() = argOrThrow("tomo_spk", "method")
 val ArgValues.tomoSpkMethod: TomoSpkMethod?
@@ -288,8 +307,6 @@ val ArgValues.tomoSpkRadOrDefault: ValueA
 
 
 
-val Args.tomoSrfMethodExists: Boolean
-	get() = arg("tomo_srf", "detect_method") != null
 val Args.tomoSrfMethod: Arg
 	get() = argOrThrow("tomo_srf", "detect_method")
 val ArgValues.tomoSrfMethod: TomoSrfMethod?

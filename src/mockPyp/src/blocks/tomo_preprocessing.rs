@@ -1,8 +1,10 @@
 
 use std::fs;
+
 use anyhow::{bail, Context, Result};
 use image::Rgb;
-use tracing::warn;
+use tracing::info;
+
 use crate::args::{Args, ArgsConfig, ArgValue};
 use crate::image::{Image, ImageDrawing};
 use crate::metadata::{TiltSeries, TiltSeriesDrifts};
@@ -48,6 +50,11 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 		.into_u32()?
 		.or(45)
 		.value();
+	let spike_radius = args.get_mock(BLOCK_ID, "spike_rad")
+		.into_f64()?
+		.or(100.0)
+		.value()
+		.to_a();
 
 	// get pyp args (and write defaults not defined by the config)
 	let pixel_size = args.get("scope_pixel")
@@ -70,6 +77,10 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 		.into_u32()?
 		.value();
 	let tomogram_dims = TomogramDimsUnbinned::new(tomogram_width, tomogram_height, tomogram_depth)
+		.to_binned(tomogram_binning);
+
+	let spike_radius = spike_radius
+		.to_unbinned(pixel_size)
 		.to_binned(tomogram_binning);
 
 	// set default arg values that the website will use, but we won't
@@ -103,53 +114,75 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 		// generate virions, if needed
 		let tomo_vir_method = args.get("tomo_vir_method")
 			.into_str()?
-			.value();
+			.value()
+			.take_if(|method| *method != "none" && *method != "manual");
 		let virions = match tomo_vir_method {
-			Some("auto") => {
-				let radius = args.get("tomo_vir_rad")
-					.into_f64()?
-					.or(150.0)
-					.value()
-					.to_a()
-					.to_unbinned(pixel_size)
-					.to_binned(tomogram_binning);
-				let virions = (0 .. num_virions)
-					.map(|_| sample_virion(
-						tomogram_dims.with_additional_binning(additional_virion_binning),
-						radius.with_additional_binning(additional_virion_binning)
-					))
-					.collect();
-				Some(virions)
-			}
-			Some(method) => bail!("unrecognized virions method: {}", method),
-			None => {
-				warn!("no virions method chosen");
-				None
+			None => None,
+			Some(method) => {
+				info!("Generating virions: method={}", method);
+				match method {
+					"auto" => {
+						let radius = args.get("tomo_vir_rad")
+							.into_f64()?
+							.or(150.0)
+							.value()
+							.to_a()
+							.to_unbinned(pixel_size)
+							.to_binned(tomogram_binning);
+						let virions = (0 .. num_virions)
+							.map(|_| sample_virion(
+								tomogram_dims.with_additional_binning(additional_virion_binning),
+								radius.with_additional_binning(additional_virion_binning)
+							))
+							.collect();
+						Some(virions)
+					}
+					_ => bail!("unrecognized virions method: {}", method)
+				}
 			}
 		};
 
 		// generate spikes, if needed
+		let tomo_vir_detect_method = args.get("tomo_vir_detect_method")
+			.into_str()?
+			.value()
+			.take_if(|method| *method != "none");
 		let tomo_spk_method = args.get("tomo_spk_method")
 			.into_str()?
-			.value();
-		let spikes = match tomo_spk_method {
-			Some("auto") | Some("virions") => {
-				let radius = args.get("tomo_spk_rad")
-					.into_f64()?
-					.or(75.0)
-					.value()
-					.to_a()
-					.to_unbinned(pixel_size)
-					.to_binned(tomogram_binning);
-				let spikes = (0 .. num_spikes)
-					.map(|_| sample_particle_3d(tomogram_dims, radius))
-					.collect();
-				Some(spikes)
-			},
-			Some(method) => bail!("unrecognized spikes method: {}", method),
-			None => {
-				warn!("no spikes method chosen");
-				None
+			.value()
+			.take_if(|method| *method != "none" && *method != "manual");
+		let spikes = match (tomo_vir_detect_method, tomo_spk_method) {
+
+			(None, None) => None,
+
+			// match virion spikes first to prefer that method over the other one
+			(Some(method), _) => match method {
+				"template" | "mesh" => {
+					info!("Generating virion spikes, method={}", method);
+					let spikes = (0 .. num_spikes)
+						.map(|_| sample_particle_3d(tomogram_dims, spike_radius))
+						.collect();
+					Some(spikes)
+				},
+				_ => bail!("unrecognized spikes method: {}", method)
+			}
+
+			(None, Some(method)) => match method {
+				"auto" | "virions" => {
+					info!("Generating particles: method={}", method);
+					let radius = args.get("tomo_spk_rad")
+						.into_f64()?
+						.or(75.0)
+						.value()
+						.to_a()
+						.to_unbinned(pixel_size)
+						.to_binned(tomogram_binning);
+					let spikes = (0 .. num_spikes)
+						.map(|_| sample_particle_3d(tomogram_dims, radius))
+						.collect();
+					Some(spikes)
+				}
+				_ => bail!("unrecognized spikes method: {}", method)
 			}
 		};
 

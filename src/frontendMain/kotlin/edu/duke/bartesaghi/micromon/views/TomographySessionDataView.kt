@@ -88,7 +88,7 @@ class TomographySessionDataView(val project: ProjectData, val job: TomographySes
 			val data = TiltSeriesesData()
 			val pypStats = try {
 				delayAtLeast(200) {
-					data.loadForProject(job.jobId, job.clientInfo, job.args.finished?.values)
+					data.loadForProject(job, job.args.finished?.values)
 					// load the auto list by default
 					when (data.particles) {
 						null -> Unit

@@ -86,7 +86,7 @@ class TomographyPurePreprocessingView(val project: ProjectData, val job: Tomogra
 			val data = TiltSeriesesData()
 			val pypStats = try {
 				delayAtLeast(200) {
-					data.loadForProject(job.jobId, job.clientInfo, job.args.finished?.values)
+					data.loadForProject(job, job.args.finished?.values)
 					Services.jobs.pypStats(job.jobId)
 				}
 			} catch (t: Throwable) {
