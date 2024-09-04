@@ -64,6 +64,9 @@ interface NodeConfig {
 			/** A trained model for MiLoPYP */
 			MiloModel("MiLoPYP Model"),
 
+			/** A trained model for MiLoPYP */
+			MiloCoordinates("MiLoPYP particles"),
+
 			/** Segmentation model for open surfaces */
 			SegmentationOpen("Segmentation (open)"),
 

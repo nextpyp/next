@@ -7,7 +7,7 @@ object TomographyMiloTrainNodeConfig : NodeConfig {
 
 	override val id = ID
 	override val configId = "tomo_milo_train"
-	override val name = "MiLoPYP (training)"
+	override val name = "MiLoPYP (train)"
 	override val hasFiles = true
 
 	val tomograms = NodeConfig.Data("tomograms", NodeConfig.Data.Type.Tomograms)

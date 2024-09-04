@@ -7,7 +7,7 @@ object TomographyDenoisingTrainingNodeConfig : NodeConfig {
 
 	override val id = ID
 	override val configId = "tomo_denoise_train"
-	override val name = "Denoising (training)"
+	override val name = "Denoising (train)"
 	override val hasFiles = true
 
 	val tomograms = NodeConfig.Data("inTomograms", NodeConfig.Data.Type.Tomograms)
