@@ -57,7 +57,12 @@ class ClusterJob(
 		val reason: String,
 		val console: List<String>,
 		val command: String?
-	) : IllegalArgumentException("$reason:\n${console.joinToString("\n")}")
+	) : IllegalArgumentException("""
+		|reason: $reason
+		|console:
+		|    ${console.joinToString("\n    ")}
+		|command: $command
+	""".trimMargin())
 
 	class ValidationFailedException(
 		val reason: String
