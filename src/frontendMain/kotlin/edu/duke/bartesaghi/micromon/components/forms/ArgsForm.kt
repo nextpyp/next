@@ -1,5 +1,6 @@
 package edu.duke.bartesaghi.micromon.components.forms
 
+import edu.duke.bartesaghi.micromon.Storage
 import edu.duke.bartesaghi.micromon.batch
 import edu.duke.bartesaghi.micromon.diagram.nodes.Node
 import edu.duke.bartesaghi.micromon.pyp.*
@@ -71,11 +72,16 @@ class ArgsForm(
 
 		private val controls = Controls()
 		private val advancedCheck = CheckBox(
-			false,
+			Storage.showAdvancedArgs ?: false,
 			label = "Show advanced options"
 		).apply {
 			style = CheckBoxStyle.PRIMARY
 			addCssClass("auto-scroll")
+			onEvent {
+				change = {
+					Storage.showAdvancedArgs = value
+				}
+			}
 		}
 
 		private val tabs = HashMap<String?,ArgsInputs>()
