@@ -3135,6 +3135,10 @@ div.file-browser .file-browser-bottom .file-browser-controls .file-browser-glob 
 	width: 100%;
 	max-width: 1000px;
 	white-space: nowrap;
+
+	> thead {
+		font-weight: bold;
+	}
 }
 
 .session .ops .session-filesystem-monitor table .bar {
