@@ -135,7 +135,7 @@ actual class FormService : IFormService, Service {
 				linkTarget = when (val t = stat.response) {
 					Stat.Symlink.NotFound -> FileBrowserFile(FileBrowserType.BrokenSymlink)
 					is Stat.Symlink.File -> FileBrowserFile(
-						type = FileBrowserType.Other,
+						type = FileBrowserType.File,
 						size = t.size.toLong()
 					)
 					Stat.Symlink.Dir -> FileBrowserFile(FileBrowserType.Folder)
