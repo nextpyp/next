@@ -89,6 +89,10 @@ data class TiltSeriesesData(
 			// other blocks don't have particles
 			else -> Unit
 		}
+
+		// since loading particles list is a complicated and error-prone process,
+		// let's just always print debug info here about what got loaded
+		console.log("Loaded tilt series data: particles=", particles)
 	}
 
 	fun loadForSession(session: SessionData, initMsg: RealTimeS2C.SessionStatus, dataMsg: RealTimeS2C.SessionLargeData) {
