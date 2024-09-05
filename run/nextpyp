@@ -218,6 +218,21 @@ usersetup()
 }
 
 
+create_upexec() # depends on usdo, installdir, and upexec
+{
+  # create the user-processor executable for this user
+  $usdo cp "$installdir/user-processor" "$upexec"
+
+  # only the user should be able to write
+  # only the user and the group should be able to execute
+  $usdo chmod u=rwx,g=rx,o= "$upexec"
+
+  # the executable should be setuid
+  # NOTE: set this last, so we're sure the executable has the correct permissions before turning on setuid
+  $usdo chmod u+s "$upexec"
+}
+
+
 # process the command
 case "$1" in
 
@@ -408,17 +423,7 @@ case "$1" in
 
     setup
     usersetup "$2"
-
-    # create the user-processor executable for this user
-    $usdo cp "$installdir/user-processor" "$upexec"
-
-    # only the user should be able to write
-    # only the user and the group should be able to execute
-    $usdo chmod u=rwx,g=rx,o= "$upexec"
-
-    # the executable should be setuid
-    # NOTE: set this last, so we're sure the executable has the correct permissions before turning on setuid
-    $usdo chmod u+s "$upexec"
+    create_upexec
 
     echo "Added user: $2"
 
@@ -448,11 +453,47 @@ case "$1" in
     ;;
 
 
+  upgrade-users)
+
+    if [ "$(whoami)" != "root" ]; then
+      echo "This utility should be run as root!"
+      exit 1
+    fi
+
+    setup
+
+    updir="$shareddir/user-processors"
+
+    upgraded=0
+    for f in "$updir"/user-processor-* ; do
+      # NOTE: if the glob matches nothing, the filename `user-processor-*` will be iterated
+      #       sigh ... shells are so annoying to program
+      if [ -f "$f" ] ; then
+        IFS='-' read -r -a parts <<< "$(basename "$f")"
+        username=${parts[2]}
+        echo "Found user processor $username, upgrading"
+
+        usersetup "$username"
+        create_upexec
+
+        upgraded=1
+      fi
+    done
+
+    if [ $upgraded -le 0 ]; then
+      echo "No users found to upgrade"
+    fi
+
+    ;;
+
+
   *)
     echo "Usage:"
     echo "   nextpyp <start | stop>"
     echo "   or"
     echo "   sudo nextpyp <user-add | user-remove> <username>"
+    echo "   or"
+    echo "   sudo nextpyp upgrade-users"
     exit 1
     ;;
 
