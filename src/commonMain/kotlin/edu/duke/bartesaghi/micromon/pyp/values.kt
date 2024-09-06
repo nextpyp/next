@@ -260,8 +260,8 @@ val ArgValues.tomoVirDetectMethodOrDefault: TomoVirDetectMethod
 enum class TomoVirDetectMethod(val id: String, val particlesList: (ownerId: String) -> ParticlesList?) {
 
 	None("none", { null }),
-	Auto("template", { ParticlesList.autoVirions(it) }),
-	Manual("mesh", { ParticlesList.autoVirions(it) });
+	Auto("template", { ParticlesList.autoParticles3D(it) }),
+	Manual("mesh", { ParticlesList.autoParticles3D(it) });
 
 	companion object {
 		operator fun get(id: String?): TomoVirDetectMethod? =
