@@ -84,10 +84,9 @@ class TomographyPickingClosedJob(
 		val upstreamJob = inSegmentation?.resolveJob<Job>()
 			?: throw IllegalStateException("no segmentation input configured")
 
-		// write out manually-picked particles from the upstream job, if needed
+		// always write out particles from the upstream job, so we can get the segmentation thresholds
 		ParticlesJobs.clear(project.osUsername, dir)
-		upstreamJob.manualParticlesList()
-			?.let { ParticlesJobs.writeTomography(project.osUsername, upstreamJob.idOrThrow, dir, it) }
+		ParticlesJobs.writeTomography(project.osUsername, upstreamJob.idOrThrow, dir, ParticlesList.autoVirions(upstreamJob.idOrThrow))
 
 		// build the args for PYP
 		val pypArgs = launchArgValues(upstreamJob, args.newestOrThrow().args.values, args.finished?.values)
