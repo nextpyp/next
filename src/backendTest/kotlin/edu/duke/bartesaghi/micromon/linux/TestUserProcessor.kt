@@ -12,6 +12,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.nio.file.attribute.PosixFilePermission
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.io.path.div
 import kotlin.io.path.getPosixFilePermissions
 import kotlin.io.path.writeBytes
@@ -188,12 +189,7 @@ class TestUserProcessor : DescribeSpec({
 
 		it("write file, small").config(invocations = testCount) {
 			withUserProcessor(username) { _, client ->
-				TempFile().use { file ->
-
-					file.path.editPermissions {
-						add(PosixFilePermission.GROUP_WRITE)
-						add(PosixFilePermission.OTHERS_WRITE)
-					}
+				client.tempFile("write-file-small").use { file ->
 
 					// write a small file
 					val msg = "hello"
@@ -210,12 +206,7 @@ class TestUserProcessor : DescribeSpec({
 
 		it("write file, large").config(invocations = testCount) {
 			withUserProcessor(username) { _, client ->
-				TempFile().use { file ->
-
-					file.path.editPermissions {
-						add(PosixFilePermission.GROUP_WRITE)
-						add(PosixFilePermission.OTHERS_WRITE)
-					}
+				client.tempFile("write-file-large").use { file ->
 
 					// write a large file with structured, but non-trivial, content
 					val content = ByteArray(16*1024*1024 - 16)
@@ -478,3 +469,25 @@ class TempFile : AutoCloseable {
 		path.delete()
 	}
 }
+
+
+/**
+ * Sometimes we can't use a pre-created temporary file, because debian apparently
+ * won't let other users write to file in sticky folders, like /tmp,
+ * even if the file has o+w permissions!
+ * So the tester account needs to own the file, not the user running this process.
+ */
+class UserTempFile(val userProcessor: UserProcessor, name: String) : SuspendCloseable {
+
+	companion object {
+		val counter = AtomicInteger(0)
+	}
+
+	val path = Paths.get("/tmp") / "nextpyp-user-processor-${counter.incrementAndGet()}-$name"
+
+	override suspend fun closeAll() {
+		userProcessor.deleteFile(path)
+	}
+}
+
+fun UserProcessor.tempFile(name: String) = UserTempFile(this, name)
