@@ -157,6 +157,7 @@ class TestUserProcessor : DescribeSpec({
 
 					// read it
 					val buf = client.readFile(file.path)
+						.use { it.readAll() }
 					buf.toString(Charsets.UTF_8).shouldBe(msg)
 				}
 			}
@@ -179,6 +180,7 @@ class TestUserProcessor : DescribeSpec({
 
 					// read it
 					val buf = client.readFile(file.path)
+						.use { it.readAll() }
 					buf.shouldBe(content)
 				}
 			}
@@ -370,7 +372,9 @@ class TestUserProcessor : DescribeSpec({
 				dst.exists().shouldBe(true)
 				val dstFile = dst / "file"
 				dstFile.exists().shouldBe(true)
-				client.readFile(dstFile).shouldBe(byteArrayOf(1, 2, 3))
+				client.readFile(dstFile)
+					.use { it.readAll() }
+					.shouldBe(byteArrayOf(1, 2, 3))
 			}
 		}
 

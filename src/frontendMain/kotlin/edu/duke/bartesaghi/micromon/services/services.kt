@@ -104,6 +104,10 @@ object Services {
 		suspend inline fun <reified T> get(url: String): T =
 			Json.decodeFromString(getString(url))
 
+		suspend fun send(url: String) =
+			getString(url)
+			// the response string will be empty, we can just ignore it
+
 		suspend fun postString(url: String, body: String): String =
 			Promise<String> { resolve, reject ->
 

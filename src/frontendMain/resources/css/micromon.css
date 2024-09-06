@@ -749,6 +749,20 @@ div.tomography-preprocessing div.tomography-preprocessing-table div.rows div.for
 }
 
 
+/* TOMOGRAPHY MILOPYP EVAL VIEW */
+
+.tomography-milo-eval {
+
+	.files {
+		display: flex;
+		flex-direction: row;
+		gap: 1.6em;
+		margin-top: 1em;
+		margin-bottom: 1em;
+	}
+}
+
+
 /* REFINEMENT VIEW */
 
 .refinements-view {
@@ -3787,4 +3801,30 @@ div.file-browser .file-browser-bottom .file-browser-controls .file-browser-glob 
 
 .link-badge .link-badge-container .right.red {
 	background: linear-gradient(to bottom, #e23c2b 0%, #c42424 100%);
+}
+
+
+/* FILE UPLOAD */
+
+.file-upload {
+	display: flex;
+	flex-direction: row;
+	gap: 8pm;
+
+	.buttons {
+		display: flex;
+		flex-direction: row;
+		gap: 8pm;
+
+		button {
+			width: 24px;
+			height: 24px;
+			font-size: 14px;
+			padding-left: 3px;
+			padding-right: 3px;
+			padding-top: 0px;
+			padding-bottom: 0px;
+			margin-left: 4px;
+		}
+	}
 }

@@ -112,8 +112,8 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 	img.save("train/3d_visualization_out.webp")?;
 
 	// generate the downloadable file
-	fs::write("train/all_output_info.npz", "just NPZ things")
-		.context("Failed to write the NPZ file")?;
+	fs::write("train/milopyp_interactive.tbz", "just TBZ things")
+		.context("Failed to write the tbz file")?;
 
 	let web = Web::new()?;
 	web.write_parameters(&args, &args_config)?;

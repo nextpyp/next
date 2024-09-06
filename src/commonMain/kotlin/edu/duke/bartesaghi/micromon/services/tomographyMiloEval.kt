@@ -39,6 +39,9 @@ interface ITomographyMiloEvalService {
 
 		fun dataPath(jobId: String): String =
 			"/kv/node/${TomographyMiloEvalNodeConfig.ID}/$jobId/data"
+
+		fun uploadPath(jobId: String): String =
+			"/kv/node/${TomographyMiloEvalNodeConfig.ID}/$jobId/upload_particles"
 	}
 }
 

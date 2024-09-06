@@ -35,6 +35,7 @@ suspend fun Path.readBytesAs(username: String?): ByteArray =
 	if (username != null) {
 		Backend.userProcessors.get(username)
 			.readFile(this)
+			.use { it.readAll() }
 	} else {
 		slowIOs {
 			readBytes()
@@ -243,6 +244,39 @@ suspend fun Path.globCountAs(username: String?): GlobCount =
 		Filesystem.listFolderFast(parent.toString())
 			?: emptyList()
 	}.globCount(fileName.toString())
+
+
+suspend fun Path.readerAs(username: String?): UserProcessor.FileReader =
+	if (username != null) {
+		Backend.userProcessors.get(username)
+			.readFile(this)
+	} else {
+		object : UserProcessor.FileReader {
+
+			private val reader = this@readerAs.inputStream()
+
+			override val size = fileSize().toULong()
+
+			override suspend fun read(): ByteArray? =
+				slowIOs {
+					val buf = ByteArray(32*1024)
+					val bytesRead = reader.read(buf)
+					if (bytesRead <= 0) {
+						null
+					} else if (bytesRead < buf.size) {
+						buf.copyOfRange(0, bytesRead)
+					} else {
+						buf
+					}
+				}
+
+			override suspend fun closeAll() {
+				slowIOs {
+					reader.close()
+				}
+			}
+		}
+	}
 
 
 suspend fun Path.writerAs(username: String?, append: Boolean = false): UserProcessor.FileWriter =

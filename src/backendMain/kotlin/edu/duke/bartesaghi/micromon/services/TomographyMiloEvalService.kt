@@ -77,6 +77,14 @@ actual class TomographyMiloEvalService : ITomographyMiloEvalService, Service {
 						call.respondBytes(bytes, ContentType.Application.OctetStream)
 					}
 				}
+
+				route("upload_particles", FileUpload.routeHandler { permission ->
+					val job = service.run {
+						parseJobId().authJob(permission).job
+					}
+					val project = job.projectOrThrow()
+					FileUpload(job.dir / "particles.parquet", project.osUsername)
+				})
 			}
 		}
 

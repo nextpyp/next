@@ -41,7 +41,7 @@ class TomographyMiloEvalView(val project: ProjectData, val job: TomographyMiloEv
 		}
 	}
 
-	override val elem = Div(classes = setOf("dock-page", "tomography-picking"))
+	override val elem = Div(classes = setOf("dock-page", "tomography-milo-eval"))
 
 
 	override fun init(viewport: Viewport) {
@@ -58,54 +58,67 @@ class TomographyMiloEvalView(val project: ProjectData, val job: TomographyMiloEv
 			}
 		}
 
+		elem.h1("MiloPYP Pattern Mining")
+
+		// show the file download
+		val fileDownload = FileDownloadBadge(".tbz file")
+
 		AppScope.launch {
-
-			elem.h1("MiloPYP Pattern Mining")
-
-			// show the file download
-			val fileDownload = FileDownloadBadge(".gzip file")
-			elem.div {
-				add(fileDownload)
-			}
-			val fileData = Services.tomographyMiloEval.data(job.jobId)
+			Services.tomographyMiloEval.data(job.jobId)
 				.unwrap()
-				?: return@launch
-			fileDownload.show(FileDownloadBadge.Info(
-				fileData,
-				ITomographyMiloEvalService.dataPath(job.jobId),
-				"${job.jobId}_milo.npz"
-			))
-
-			// show the 2D results
-			elem.add(SizedPanel("UMAP Embedding", Storage.miloResults2dSize).apply {
-				val img = image(ITomographyMiloEvalService.results2dPath(job.jobId, size), classes = setOf("full-width-image"))
-				// set the panel resize handler
-				onResize = { newSize: ImageSize ->
-					img.src = ITomographyMiloEvalService.results2dPath(job.jobId, size)
-					Storage.miloResults2dSize = newSize
+				?.let {
+					fileDownload.show(FileDownloadBadge.Info(
+						it,
+						ITomographyMiloEvalService.dataPath(job.jobId),
+						"${job.jobId}_milo.tbz"
+					))
 				}
-			})
-
-			elem.add(SizedPanel("Class Labels", Storage.miloResults2dSize).apply {
-				val img = image(ITomographyMiloEvalService.results2dLabelsPath(job.jobId, size), classes = setOf("full-width-image"))
-				// set the panel resize handler
-				onResize = { newSize: ImageSize ->
-					img.src = ITomographyMiloEvalService.results2dLabelsPath(job.jobId, size)
-					Storage.miloResults2dSize = newSize
-				}
-			})
-
-			// show the 3D results (disable for now)
-			/*
-			elem.add(SizedPanel("3D Results", Storage.miloResults3dSize).apply {
-				val img = image(ITomographyMiloEvalService.results3dPath(job.jobId, size), classes = setOf("full-width-image"))
-				// set the panel resize handler
-				onResize = { newSize: ImageSize ->
-					img.src = ITomographyMiloEvalService.results3dPath(job.jobId, size)
-					Storage.miloResults3dSize = newSize
-				}
-			})
-			*/
 		}
+
+		// show the file uplaod
+		val fileUpload = FileUpload(
+			ITomographyMiloEvalService.uploadPath(job.jobId),
+			label = ".parquet",
+			filename = "particles.parquet",
+			accept = ".parquet"
+		)
+
+		elem.div(classes = setOf("files")) {
+			span("Download:")
+			add(fileDownload)
+			span("Upload:")
+			add(fileUpload)
+		}
+
+		// show the 2D results
+		elem.add(SizedPanel("UMAP Embedding", Storage.miloResults2dSize).apply {
+			val img = image(ITomographyMiloEvalService.results2dPath(job.jobId, size), classes = setOf("full-width-image"))
+			// set the panel resize handler
+			onResize = { newSize: ImageSize ->
+				img.src = ITomographyMiloEvalService.results2dPath(job.jobId, size)
+				Storage.miloResults2dSize = newSize
+			}
+		})
+
+		elem.add(SizedPanel("Class Labels", Storage.miloResults2dSize).apply {
+			val img = image(ITomographyMiloEvalService.results2dLabelsPath(job.jobId, size), classes = setOf("full-width-image"))
+			// set the panel resize handler
+			onResize = { newSize: ImageSize ->
+				img.src = ITomographyMiloEvalService.results2dLabelsPath(job.jobId, size)
+				Storage.miloResults2dSize = newSize
+			}
+		})
+
+		// show the 3D results (disable for now)
+		/*
+		elem.add(SizedPanel("3D Results", Storage.miloResults3dSize).apply {
+			val img = image(ITomographyMiloEvalService.results3dPath(job.jobId, size), classes = setOf("full-width-image"))
+			// set the panel resize handler
+			onResize = { newSize: ImageSize ->
+				img.src = ITomographyMiloEvalService.results3dPath(job.jobId, size)
+				Storage.miloResults3dSize = newSize
+			}
+		})
+		*/
 	}
 }

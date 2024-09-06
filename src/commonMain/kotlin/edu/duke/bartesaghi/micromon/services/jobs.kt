@@ -73,3 +73,18 @@ data class PypStats(
 			)
 	}
 }
+
+
+@Serializable
+enum class FileUploadOperation(val id: String) {
+	Set("set"),
+	Get("set"),
+	Delete("delete"),
+	Data("data")
+}
+
+
+@Serializable
+data class FileUploadData(
+	val bytes: Long
+)
