@@ -353,7 +353,7 @@ class TomoVirionThresholds(
 					li("Left and right arrows move to different thresholds")
 					li("1-8 also pick the thresholds")
 					li("Delete and 9 pick the no-threshold option")
-					li("alt + 1-9 (or delete) applies the threshold to all virons in this tilt series")
+					li("alt + 1-9 (or delete) (or ctrl + opt + 1-9 for Mac) applies the threshold to all virons in this tilt series")
 				}
 			}
 		).apply {
