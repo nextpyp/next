@@ -15,6 +15,7 @@ import io.kvision.core.onEvent
 import io.kvision.form.check.CheckBox
 import io.kvision.form.formPanel
 import io.kvision.html.Button
+import io.kvision.html.div
 import io.kvision.modal.Modal
 import js.micromondiagrams.MicromonDiagrams
 import js.micromondiagrams.nodeType
@@ -114,6 +115,15 @@ class TomographyPickingNode(
 				add(TomographyPickingCopyArgs::copyFromJobId, HiddenString(src.jobId))
 				add(TomographyPickingCopyArgs::copyData, dataCheck)
 				add(TomographyPickingCopyArgs::copyParticlesToManual, particlesCheck)
+			}
+
+			win.div(classes = setOf("spaced")) {
+				content = (
+					"NOTE: When copying files and data,"
+					+ " if this block has a lot of files to copy,"
+					+ " the copy process could take several minutes,"
+					+ " depending on the speed of your file system"
+				)
 			}
 
 			win.addButton(Button("Next").onClick {
