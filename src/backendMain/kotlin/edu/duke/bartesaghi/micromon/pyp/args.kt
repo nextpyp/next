@@ -215,6 +215,7 @@ fun TomlTable.getInput(key: String): ArgInput? {
 
 		ArgInput.ParFile.id -> ArgInput.ParFile()
 		ArgInput.StarFile.id -> ArgInput.StarFile()
+		ArgInput.ParquetFile.id -> ArgInput.ParquetFile()
 		ArgInput.TxtFile.id -> ArgInput.TxtFile()
 		ArgInput.InitialModel.id -> ArgInput.InitialModel()
 		ArgInput.HalfMap.id -> ArgInput.HalfMap()

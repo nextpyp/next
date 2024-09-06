@@ -737,6 +737,19 @@ sealed class ArgInput {
 	 * Helps the user pick a parameter file for 3D refinement from previous job outputs
 	 */
 	@Serializable
+	class ParquetFile : ArgInput() {
+
+		companion object {
+			const val id = "parquetfile"
+		}
+
+		override val argInputId = id
+	}
+
+	/**
+	 * Helps the user pick a parameter file for 3D refinement from previous job outputs
+	 */
+	@Serializable
 	class TxtFile : ArgInput() {
 
 		companion object {
