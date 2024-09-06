@@ -1,9 +1,6 @@
 package edu.duke.bartesaghi.micromon.services
 
-import edu.duke.bartesaghi.micromon.pyp.Block
-import edu.duke.bartesaghi.micromon.pyp.TomoSpkMethod
-import edu.duke.bartesaghi.micromon.pyp.TomoVirMethod
-import edu.duke.bartesaghi.micromon.pyp.ValueA
+import edu.duke.bartesaghi.micromon.pyp.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
@@ -391,6 +388,7 @@ sealed class RealTimeS2C {
 		val tomoVirMethod: TomoVirMethod,
 		val tomoVirRad: ValueA,
 		val tomoVirBinn: Long,
+		val tomoVirDetectMethod: TomoVirDetectMethod,
 		val tomoSpkMethod: TomoSpkMethod,
 		val tomoSpkRad: ValueA,
 	) : RealTimeS2C() {

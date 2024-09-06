@@ -520,6 +520,7 @@ object RealTimeService {
 			tomoVirMethod = (values ?: defaults).tomoVirMethodOrDefault,
 			tomoVirRad = (values ?: defaults).tomoVirRadOrDefault,
 			tomoVirBinn = (values ?: defaults).tomoVirBinnOrDefault,
+			tomoVirDetectMethod = (values ?: defaults).tomoVirDetectMethodOrDefault,
 			tomoSpkMethod = (values ?: defaults).tomoSpkMethodOrDefault,
 			tomoSpkRad = (values ?: defaults).tomoSpkRadOrDefault
 		))

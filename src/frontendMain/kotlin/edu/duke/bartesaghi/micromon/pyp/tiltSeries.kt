@@ -58,33 +58,15 @@ data class TiltSeriesesData(
 			// older blocks had complicated rules
 			is TomographyPreprocessingData,
 			is TomographyImportDataData,
-			is TomographySessionDataData -> {
-
-				// check for virus mode
-				val virionsList = values.tomoVirMethodOrDefault.particlesList(job.jobId)
-				if (virionsList != null) {
-
-					particles = TiltSeriesesParticlesData.VirusMode(
-						virions = TiltSeriesesParticlesData.Data(
-							list = virionsList,
-							radius = values.tomoVirRadOrDefault,
-							extraBinning = values.tomoVirBinnOrDefault.toInt()
-						),
-						spikes = values.tomoVirDetectMethodOrDefault.particlesList(job.jobId)?.let { list ->
-							TiltSeriesesParticlesData.Data(list)
-						}
-					)
-
-				} else {
-
-					particles = values.tomoSpkMethodOrDefault.particlesList(job.jobId)?.let { list ->
-						TiltSeriesesParticlesData.Data(
-							list,
-							radius = values.tomoSpkRadOrDefault
-						)
-					}
-				}
-			}
+			is TomographySessionDataData -> combinedRules(
+				job.jobId,
+				values.tomoVirMethodOrDefault,
+				values.tomoVirRadOrDefault,
+				values.tomoVirBinnOrDefault.toInt(),
+				values.tomoVirDetectMethodOrDefault,
+				values.tomoSpkMethodOrDefault,
+				values.tomoSpkRadOrDefault
+			)
 
 			// other blocks don't have particles
 			else -> Unit
@@ -95,43 +77,58 @@ data class TiltSeriesesData(
 		console.log("Loaded tilt series data: particles=", particles)
 	}
 
+	private fun combinedRules(
+		ownerId: String,
+		tomoVirMethod: TomoVirMethod,
+		tomoVirRad: ValueA,
+		tomoVirBinn: Int,
+		tomoVirDetectMethod: TomoVirDetectMethod,
+		tomoSpkMethod: TomoSpkMethod,
+		tomoSpkRad: ValueA
+	) {
+
+		// check for virus mode
+		val virionsList = tomoVirMethod.particlesList(ownerId)
+		if (virionsList != null) {
+
+			particles = TiltSeriesesParticlesData.VirusMode(
+				virions = TiltSeriesesParticlesData.Data(
+					list = virionsList,
+					radius = tomoVirRad,
+					extraBinning = tomoVirBinn
+				),
+				spikes = tomoVirDetectMethod.particlesList(ownerId)?.let { list ->
+					TiltSeriesesParticlesData.Data(list)
+				}
+			)
+
+		} else {
+
+			particles = tomoSpkMethod.particlesList(ownerId)?.let { list ->
+				TiltSeriesesParticlesData.Data(
+					list,
+					radius = tomoSpkRad
+				)
+			}
+		}
+	}
+
 	fun loadForSession(session: SessionData, initMsg: RealTimeS2C.SessionStatus, dataMsg: RealTimeS2C.SessionLargeData) {
 
 		// collect all the tilt series
 		tiltSerieses.clear()
 		tiltSerieses.addAll(dataMsg.tiltSerieses)
 
-		// sessions work in combined mode
-		val virionsList = initMsg.tomoVirMethod.particlesList(session.sessionId)
-		val particlesList = initMsg.tomoSpkMethod.particlesList(session.sessionId)
-
-		if (virionsList != null) {
-
-			particles = TiltSeriesesParticlesData.VirusMode(
-				virions = TiltSeriesesParticlesData.Data(
-					list = virionsList,
-					radius = initMsg.tomoVirRad,
-					extraBinning = initMsg.tomoVirBinn.toInt()
-				),
-				spikes = particlesList?.let {
-					TiltSeriesesParticlesData.Data(
-						list = it,
-						radius = initMsg.tomoSpkRad,
-						extraBinning = null
-					)
-				}
-			)
-
-		} else {
-
-			particles = particlesList?.let {
-				TiltSeriesesParticlesData.Data(
-					list = it,
-					radius = initMsg.tomoSpkRad,
-					extraBinning = null
-				)
-			}
-		}
+		// sessions work like combined mode project blocks
+		combinedRules(
+			session.sessionId,
+			initMsg.tomoVirMethod,
+			initMsg.tomoVirRad,
+			initMsg.tomoVirBinn.toInt(),
+			initMsg.tomoVirDetectMethod,
+			initMsg.tomoSpkMethod,
+			initMsg.tomoSpkRad
+		)
 	}
 
 	fun update(tiltSeries: TiltSeriesData) {
