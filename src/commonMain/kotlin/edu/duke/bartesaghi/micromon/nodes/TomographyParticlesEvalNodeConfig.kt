@@ -11,8 +11,9 @@ object TomographyParticlesEvalNodeConfig : NodeConfig {
 	override val hasFiles = true
 
 	val model = NodeConfig.Data("model", NodeConfig.Data.Type.ParticlesModel)
+	val tomograms = NodeConfig.Data("tomograms", NodeConfig.Data.Type.Tomograms)
 	val particles = NodeConfig.Data("particles", NodeConfig.Data.Type.MovieRefinement)
 
-	override val inputs = listOf(model)
+	override val inputs = listOf(model,tomograms)
 	override val outputs = listOf(particles)
 }
