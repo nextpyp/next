@@ -90,11 +90,6 @@ class TomographyPreprocessingJob(
 
 		val newestArgs = args.newestOrThrow().args
 
-		// write out manually-picked particles, if needed
-		ParticlesJobs.clear(project.osUsername, dir)
-		manualParticlesList(newestArgs.tomolist)
-			?.let { ParticlesJobs.writeTomography(project.osUsername, idOrThrow, dir, it) }
-
 		// write out the tilt exclusions, if needed
 		run {
 
@@ -120,6 +115,11 @@ class TomographyPreprocessingJob(
 				}
 			}
 		}
+
+		// write out manually-picked particles, if needed
+		ParticlesJobs.clear(project.osUsername, dir)
+		manualParticlesList(newestArgs.tomolist)
+			?.let { ParticlesJobs.writeTomography(project.osUsername, idOrThrow, dir, it) }
 
 		// build the args for PYP
 		val upstreamJob = inTiltSeries?.resolveJob<Job>()
