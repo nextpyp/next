@@ -299,6 +299,15 @@ enum class TomoSpkMethod(val id: String, val particlesList: (ownerId: String) ->
 }
 
 
+/** not to be confused with tomoVirBinn =( */
+val Args.tomoSpkVirBinn: Arg
+	get() = argOrThrow("tomo_spk", "vir_binn")
+val ArgValues.tomoSpkVirBinn: Long?
+	get() = (get(args.tomoSpkVirBinn) as Long?)
+val ArgValues.tomoSpkVirBinnOrDefault: Long
+	get() = (getOrDefault(args.tomoSpkVirBinn) as Long)
+
+
 val Args.tomoSpkRad: Arg
 	get() = argOrThrow("tomo_spk", "rad")
 val ArgValues.tomoSpkRad: ValueA?
