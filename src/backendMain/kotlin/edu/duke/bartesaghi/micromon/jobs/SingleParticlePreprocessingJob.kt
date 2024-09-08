@@ -86,7 +86,7 @@ class SingleParticlePreprocessingJob(
 
 		// write out manually-picked particles, if needed
 		ParticlesJobs.clear(project.osUsername, dir)
-		manualParticlesList()
+		manualParticlesList(newestArgs.particlesName)
 			?.let { ParticlesJobs.writeSingleParticle(project.osUsername, idOrThrow, dir, it) }
 
 		// build the args for PYP
