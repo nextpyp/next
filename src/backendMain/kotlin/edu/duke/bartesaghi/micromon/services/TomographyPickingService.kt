@@ -32,7 +32,8 @@ actual class TomographyPickingService : ITomographyPickingService, Service {
 			job.stale = false
 			job.update()
 			job.copyDataFrom(copyArgs.copyFromJobId)
-			job.copyFilesFrom(user.osUsername, copyArgs.copyFromJobId)
+			val project = job.projectOrThrow()
+			job.copyFilesFrom(project.osUsername, copyArgs.copyFromJobId)
 
 			// copy particles to manual, if requested
 			if (copyArgs.copyParticlesToManual) {
