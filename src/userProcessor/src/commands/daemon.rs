@@ -13,6 +13,7 @@ use std::os::unix::fs::{FileTypeExt, PermissionsExt};
 use anyhow::{bail, Context, Result};
 use async_trait::async_trait;
 use gumdrop::Options;
+use pathdiff::diff_paths;
 use tokio::net::{UnixListener, UnixStream};
 use tokio::net::unix::OwnedWriteHalf;
 use tokio::signal::unix::{signal, SignalKind};
@@ -738,11 +739,25 @@ async fn dispatch_copy_folder(socket: Rc<RefCell<OwnedWriteHalf>>, request_id: u
 
 	debug!(src, dst, "Request");
 
-	fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> Result<()> {
+	fn run_copy(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> Result<()> {
+
 		let src = src.as_ref();
 		let dst = dst.as_ref();
+
+		let root_canon = src.canonicalize()
+			.context(format!("Failed to canonicalize src dir: {}", src.to_string_lossy()))?;
+
+		copy_dir_all(root_canon.as_path(), src, dst)
+	}
+
+	fn copy_dir_all(root_canon: &Path, src: impl AsRef<Path>, dst: impl AsRef<Path>) -> Result<()> {
+
+		let src = src.as_ref();
+		let dst = dst.as_ref();
+
 		fs::create_dir_all(&dst)
 			.context(format!("Failed to create folder: {}", dst.to_string_lossy()))?;
+
 		let src_read = fs::read_dir(src)
 			.context(format!("Failed to read folder: {}", src.to_string_lossy()))?;
 		for entry in src_read {
@@ -750,21 +765,63 @@ async fn dispatch_copy_folder(socket: Rc<RefCell<OwnedWriteHalf>>, request_id: u
 				.context(format!("Failed to read folder entry from: {}", src.to_string_lossy()))?;
 			let ty = entry.file_type()
 				.context(format!("Failed to read file type: {}", entry.path().to_string_lossy()))?;
-			if ty.is_dir() {
-				copy_dir_all(entry.path(), dst.join(entry.file_name()))?;
-			} else {
+			if ty.is_symlink() {
+
+				// for symlinks, we need to know if it's pointing to somewhere inside src or not
+				let src_link = entry.path();
+				let link_target = fs::read_link(&src_link)
+					.context(format!("Failed to read symlink target: {}", src_link.to_string_lossy()))?;
+				let link_target_canon = src.join(&link_target).canonicalize()
+					.context(format!("Failed to canonicalize link target: {}", link_target.to_string_lossy()))?;
+				let links_within_root = link_target_canon.starts_with(&root_canon);
+
+				// copying symlinks that are also within the src folder is ... complicated
+				// so let's just not for now =D
+				// pyp shouldn't make symlinks like that (as of today), but show us this error if it ever does
+				if links_within_root {
+					bail!("Symlink targets path in src folder, aborting copy:\n\tsymlink: {}\n\ttarget: {}",
+						src_link.to_string_lossy(),
+						link_target.to_string_lossy()
+					);
+				}
+
+				// otherwise, just copy the symlink itself
+				let dst_link = dst.join(entry.file_name());
+				let dst_link_target =
+					if link_target.is_absolute() {
+						// absolute paths are safe to copy verbatim
+						link_target.clone()
+					} else {
+						// but relative paths need to be recalculated against the new parent folder
+						diff_paths(&link_target_canon, dst)
+							.context(format!("Path can't be relativized\n\tpath: {}\n\tbase: {}",
+								link_target_canon.to_string_lossy(),
+								dst.to_string_lossy()
+							))?
+					};
+				std::os::unix::fs::symlink(&dst_link_target, &dst_link)
+					.context(format!("Failed to copy symlink\n\tsymlink: {}\n\ttarget: {}",
+						src_link.to_string_lossy(),
+						link_target.to_string_lossy()
+					))?;
+
+			} else if ty.is_dir() {
+				copy_dir_all(root_canon, entry.path(), dst.join(entry.file_name()))?;
+			} else if ty.is_file() {
 				let src_file = entry.path();
 				let dst_file = dst.join(entry.file_name());
 				fs::copy(&src_file, &dst_file)
 					.context(format!("Failed to copy file:\n\tfrom: {}\n\t  to: {}", src_file.to_string_lossy(), dst_file.to_string_lossy()))?;
+			} else {
+				// whatever else this is, don't copy it
 			}
 		}
 		Ok(())
 	}
 
-	let Some(()) = copy_dir_all(&src, &dst)
+	let Some(()) = run_copy(&src, &dst)
 		.or_respond_error(&socket, request_id, |e|
-			format!("Failed to copy folder: {}\n\tfrom: {}\n\t  to: {}", e, &src, &dst)
+			format!("Failed to copy folder:\n\tfrom: {}\n\t  to: {}\n{}", &src, &dst, e)
 		)
 		.await
 		else { return };

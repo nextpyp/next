@@ -22,6 +22,7 @@ async-trait = "0.1.79" # MIT (or Apache-2)
 users = "0.11.0" # MIT
 signal-hook = "0.3.17" # MIT (or Apache-2)
 libc = "0.2" # MIT (or Apache-2) NOTE: use the same libc version as users crate
+pathdiff = "0.2.1" # MIT (or Apache-2)
 
 [dev-dependencies]
 nix = { version = "0.28.0", features = ["process", "signal"] }
