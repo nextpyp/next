@@ -44,8 +44,7 @@ data class TiltSeriesesData(
 			is TomographySegmentationClosedData ->
 				particles = TiltSeriesesParticlesData.VirusMode(
 					virions = TiltSeriesesParticlesData.Data(
-						list = ParticlesList.autoVirions(job.jobId),
-						extraBinning = values.tomoSpkVirBinnOrDefault.toInt()
+						list = ParticlesList.autoVirions(job.jobId)
 					),
 					spikes = null
 				)
