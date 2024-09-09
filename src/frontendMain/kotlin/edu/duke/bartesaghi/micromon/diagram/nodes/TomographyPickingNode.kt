@@ -59,7 +59,7 @@ class TomographyPickingNode(
 					// if we're copying the particles to manual, also change the detect method to manual
 					if (copyArgs.copyParticlesToManual) {
 						val values = args.values.toArgValues(pypArgs.get())
-						values.tomoSpkMethod = TomoSpkMethod.Manual
+						values.tomoPickMethod = TomoPickMethod.Manual
 						args = args.copy(values.toToml())
 					}
 

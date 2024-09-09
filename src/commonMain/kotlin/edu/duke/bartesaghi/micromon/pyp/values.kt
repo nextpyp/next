@@ -270,6 +270,33 @@ enum class TomoVirDetectMethod(val id: String, val particlesList: (ownerId: Stri
 }
 
 
+val Args.tomoPickMethod: Arg
+	get() = argOrThrow("tomo_pick", "method")
+var ArgValues.tomoPickMethod: TomoPickMethod?
+	get() = TomoPickMethod[get(args.tomoPickMethod) as String?]
+	set(value) { set(args.tomoPickMethod, value?.id) }
+val ArgValues.tomoPickMethodOrDefault: TomoPickMethod
+	get() = TomoPickMethod[getOrDefault(args.tomoPickMethod) as String]
+		?: throw NoSuchElementException(
+			"tomoPickMethod default ${getOrDefault(args.tomoPickMethod)} is invalid."
+				+ " Need one of ${TomoPickMethod.values().map { it.id }}"
+		)
+
+
+@Serializable
+enum class TomoPickMethod(val id: String, val particlesList: (ownerId: String) -> ParticlesList?) {
+
+	Auto("auto", { ParticlesList.autoParticles3D(it) }),
+	Import("import", { ParticlesList.autoParticles3D(it) }),
+	Manual("manual", { ParticlesList.manualParticles3D(it) }),
+	Virions("virions", { ParticlesList.autoParticles3D(it) });
+
+	companion object {
+		operator fun get(id: String?): TomoPickMethod? =
+			values().find { it.id == id }
+	}
+}
+
 val Args.tomoSpkMethod: Arg
 	get() = argOrThrow("tomo_spk", "method")
 var ArgValues.tomoSpkMethod: TomoSpkMethod?
@@ -290,7 +317,10 @@ enum class TomoSpkMethod(val id: String, val particlesList: (ownerId: String) ->
 	Auto("auto", { ParticlesList.autoParticles3D(it) }),
 	Import("import", { ParticlesList.autoParticles3D(it) }),
 	Manual("manual", { ParticlesList.manualParticles3D(it) }),
-	Virions("virions", { ParticlesList.autoParticles3D(it) });
+	PYPTrain("pyp-train", { ParticlesList.autoParticles3D(it) }),
+	PYPEval("pyp-eval", { ParticlesList.autoParticles3D(it) }),
+	TopazTrain("topaz-train", { ParticlesList.autoParticles3D(it) }),
+	TopazEval("topaz-eval", { ParticlesList.autoParticles3D(it) });
 
 	companion object {
 		operator fun get(id: String?): TomoSpkMethod? =
@@ -315,6 +345,13 @@ val ArgValues.tomoSpkRad: ValueA?
 val ArgValues.tomoSpkRadOrDefault: ValueA
 	get() = ValueA(getOrDefault(args.tomoSpkRad) as Double)
 
+
+val Args.tomoPickRad: Arg
+	get() = argOrThrow("tomo_pick", "rad")
+val ArgValues.tomoPickRad: ValueA?
+	get() = (get(args.tomoPickRad) as Double?)?.let { ValueA(it) }
+val ArgValues.tomoPickRadOrDefault: ValueA
+	get() = ValueA(getOrDefault(args.tomoPickRad) as Double)
 
 
 val Args.tomoSrfMethod: Arg

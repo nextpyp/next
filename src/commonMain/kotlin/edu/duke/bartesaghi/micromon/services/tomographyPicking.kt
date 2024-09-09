@@ -4,7 +4,7 @@ import edu.duke.bartesaghi.micromon.nodes.TomographyPickingNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
 import edu.duke.bartesaghi.micromon.pyp.Args
 import edu.duke.bartesaghi.micromon.pyp.toArgValues
-import edu.duke.bartesaghi.micromon.pyp.tomoSpkMethodOrDefault
+import edu.duke.bartesaghi.micromon.pyp.tomoPickMethodOrDefault
 import io.kvision.annotations.KVBindingRoute
 import io.kvision.annotations.KVService
 import kotlinx.serialization.Serializable
@@ -34,7 +34,7 @@ data class TomographyPickingArgs(
 
 	fun particlesList(args: Args, jobId: String): ParticlesList? =
 		values.toArgValues(args)
-			.tomoSpkMethodOrDefault
+			.tomoPickMethodOrDefault
 			.particlesList(jobId)
 }
 

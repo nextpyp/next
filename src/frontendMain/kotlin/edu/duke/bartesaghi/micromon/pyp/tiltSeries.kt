@@ -31,10 +31,10 @@ data class TiltSeriesesData(
 
 			// newer blocks have simple rules
 			is TomographyPickingData ->
-				particles = values.tomoSpkMethodOrDefault.particlesList(job.jobId)?.let { list ->
+				particles = values.tomoPickMethodOrDefault.particlesList(job.jobId)?.let { list ->
 					TiltSeriesesParticlesData.Data(
 						list,
-						radius = values.tomoSpkRadOrDefault
+						radius = values.tomoPickRadOrDefault
 					)
 				}
 
