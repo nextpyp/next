@@ -30,24 +30,10 @@ data class TiltSeriesesData(
 		when (job) {
 
 			// newer blocks have simple rules
-			is TomographyPickingData ->
-				particles = values.tomoPickMethodOrDefault.particlesList(job.jobId)?.let { list ->
-					TiltSeriesesParticlesData.Data(
-						list,
-						radius = values.tomoPickRadOrDefault
-					)
-				}
-
-			is TomographyParticlesEvalData ->
-				particles = TiltSeriesesParticlesData.Data(ParticlesList.autoParticles3D(job.jobId))
-
+			is TomographyPickingData,
+			is TomographyParticlesEvalData,
 			is TomographySegmentationClosedData ->
-				particles = TiltSeriesesParticlesData.VirusMode(
-					virions = TiltSeriesesParticlesData.Data(
-						list = ParticlesList.autoVirions(job.jobId)
-					),
-					spikes = null
-				)
+				particles = TiltSeriesesParticlesData.Data(ParticlesList.autoParticles3D(job.jobId))
 
 			is TomographyPickingClosedData,
 			is TomographyPickingOpenData ->
