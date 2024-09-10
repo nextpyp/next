@@ -84,6 +84,9 @@ class TomographyPickingJob(
 		val upstreamJob = inTomograms?.resolveJob<Job>()
 			?: throw IllegalStateException("no tomograms input configured")
 
+		// always write out manually-picked particles
+		ParticlesJobs.writeTomography(project.osUsername, idOrThrow, dir, ParticlesList.manualParticles3D(idOrThrow))
+
 		val pypArgs = launchArgValues(upstreamJob, args.newestOrThrow().args.values, args.finished?.values)
 
 		// set the hidden args
