@@ -110,8 +110,7 @@ class TomographyMiloEvalView(val project: ProjectData, val job: TomographyMiloEv
 		})
 
 		// show the 3D results (disable for now)
-		/*
-		elem.add(SizedPanel("3D Results", Storage.miloResults3dSize).apply {
+		elem.add(SizedPanel("Tomogram visualization", Storage.miloResults3dSize).apply {
 			val img = image(ITomographyMiloEvalService.results3dPath(job.jobId, size), classes = setOf("full-width-image"))
 			// set the panel resize handler
 			onResize = { newSize: ImageSize ->
@@ -119,6 +118,5 @@ class TomographyMiloEvalView(val project: ProjectData, val job: TomographyMiloEv
 				Storage.miloResults3dSize = newSize
 			}
 		})
-		*/
 	}
 }
