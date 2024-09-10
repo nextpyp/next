@@ -30,7 +30,14 @@ data class TiltSeriesesData(
 		when (job) {
 
 			// newer blocks have simple rules
-			is TomographyPickingData,
+			is TomographyPickingData ->
+				particles = values.tomoPickMethodOrDefault.particlesList(job.jobId)?.let { list ->
+					TiltSeriesesParticlesData.Data(
+						list,
+						radius = values.tomoPickRadOrDefault
+					)
+				}
+
 			is TomographyParticlesEvalData,
 			is TomographySegmentationClosedData ->
 				particles = TiltSeriesesParticlesData.Data(ParticlesList.autoParticles3D(job.jobId))
