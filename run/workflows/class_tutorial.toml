@@ -42,15 +42,15 @@ name = "Particle picking"
 parent = "preprocessing"
 
 [blocks.particlepicking.args]
-tomo_spk_method = "auto"
-tomo_spk_rad = 80
-tomo_spk_stdtimes_cont_3d = 2.0
-tomo_spk_min_size_3d = 60
-tomo_spk_dilation_3d = 100
-tomo_spk_radiustimes_3d = 2.0
-tomo_spk_inhibit_3d = true
-tomo_spk_stdtimes_filt_3d = 2.0
-tomo_spk_detection_width_3d = 40.0
+tomo_pick_method = "auto"
+tomo_pick_rad = 80
+tomo_pick_stdtimes_cont_3d = 2.0
+tomo_pick_min_size_3d = 60
+tomo_pick_dilation_3d = 100
+tomo_pick_radiustimes_3d = 2.0
+tomo_pick_inhibit_3d = true
+tomo_pick_stdtimes_filt_3d = 2.0
+tomo_pick_detection_width_3d = 40.0
 
 [blocks.reference_refinement]
 blockId = "tomo-coarse-refinement"
