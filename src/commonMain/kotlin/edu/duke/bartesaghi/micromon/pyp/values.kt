@@ -286,6 +286,7 @@ val ArgValues.tomoPickMethodOrDefault: TomoPickMethod
 @Serializable
 enum class TomoPickMethod(val id: String, val particlesList: (ownerId: String) -> ParticlesList?) {
 
+	None("none", { null }),
 	Auto("auto", { ParticlesList.autoParticles3D(it) }),
 	Import("import", { ParticlesList.autoParticles3D(it) }),
 	Manual("manual", { ParticlesList.manualParticles3D(it) }),
