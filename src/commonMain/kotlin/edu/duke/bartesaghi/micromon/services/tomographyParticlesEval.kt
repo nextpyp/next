@@ -26,7 +26,8 @@ interface ITomographyParticlesEvalService {
 
 @Serializable
 data class TomographyParticlesEvalArgs(
-	val values: ArgValuesToml
+	val values: ArgValuesToml,
+	val filter: String?
 ) {
 
 	fun particlesList(jobId: String): ParticlesList =

@@ -38,11 +38,13 @@ class TomographyParticlesEvalJob(
 
 		private fun TomographyParticlesEvalArgs.toDoc() = Document().also { doc ->
 			doc["values"] = values
+			doc["filter"] = filter
 		}
 
 		private fun TomographyParticlesEvalArgs.Companion.fromDoc(doc: Document) =
 			TomographyParticlesEvalArgs(
-				doc.getString("values")
+				doc.getString("values"),
+				doc.getString("filter")
 			)
 
 		val eventListeners = TiltSeriesEventListeners(this)
@@ -77,6 +79,7 @@ class TomographyParticlesEvalJob(
 	override suspend fun launch(runId: Int) {
 
 		val project = projectOrThrow()
+		val newestArgs = args.newestOrThrow().args
 
 		// clear caches
 		wwwDir.recreateAs(project.osUsername)
@@ -84,6 +87,12 @@ class TomographyParticlesEvalJob(
 		// build the args for PYP
 		val upstreamJob = inModel?.resolveJob<Job>()
 			?: throw IllegalStateException("no model input configured")
+
+		// write out the filter from the upstream job, if needed
+		if (upstreamJob is FilteredJob && newestArgs.filter != null) {
+			upstreamJob.writeFilter(newestArgs.filter, dir, project.osUsername)
+		}
+
 		val pypArgs = launchArgValues(upstreamJob, args.newestOrThrow().args.values, args.finished?.values)
 
 		// set the hidden args
