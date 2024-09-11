@@ -48,7 +48,8 @@ interface ITomographyMiloEvalService {
 
 @Serializable
 data class TomographyMiloEvalArgs(
-	val values: ArgValuesToml
+	val values: ArgValuesToml,
+	val filter: String?
 )
 
 @Serializable

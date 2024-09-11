@@ -36,11 +36,13 @@ class TomographyMiloEvalJob(
 
 		private fun TomographyMiloEvalArgs.toDoc() = Document().also { doc ->
 			doc["values"] = values
+			doc["filter"] = filter
 		}
 
 		private fun TomographyMiloEvalArgs.Companion.fromDoc(doc: Document) =
 			TomographyMiloEvalArgs(
-				doc.getString("values")
+				doc.getString("values"),
+				doc.getString("filter")
 			)
 
 		val eventListeners = TiltSeriesEventListeners(this)
@@ -81,6 +83,11 @@ class TomographyMiloEvalJob(
 		// build the args for PYP
 		val upstreamJob = (inModel ?: inTomograms)?.resolveJob<Job>()
 			?: throw IllegalStateException("no input configured")
+
+		// write out the filter from the upstream job, if needed
+		if (upstreamJob is FilteredJob && newestArgs.filter != null) {
+			upstreamJob.writeFilter(newestArgs.filter, dir, project.osUsername)
+		}
 
 		val pypArgs = launchArgValues(upstreamJob, newestArgs.values, args.finished?.values)
 
