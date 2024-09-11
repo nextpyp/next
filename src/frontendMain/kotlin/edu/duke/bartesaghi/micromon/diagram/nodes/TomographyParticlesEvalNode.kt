@@ -111,7 +111,7 @@ class TomographyParticlesEvalNode(
 
 			// use the none filter option for the particles name in the form,
 			// since the control can't handle nulls
-			val mapper = ArgsMapper<TomographyMiloEvalArgs>(
+			val mapper = ArgsMapper<TomographyParticlesEvalArgs>(
 				toForm = { args ->
 					if (args.filter == null) {
 						args.copy(filter = NoneFilterOption)
@@ -135,9 +135,9 @@ class TomographyParticlesEvalNode(
 					values = upstreamNode.newestArgValues()?.filterForDownstreamCopy(pypArgs) ?: ""
 				))
 
-			form.init(argsOrCopy)
+			form.init(argsOrCopy, mapper)
 			if (enabled) {
-				win.addSaveResetButtons(form, argsOrCopy, onDone)
+				win.addSaveResetButtons(form, argsOrCopy, mapper, onDone)
 			}
 			win.show()
 		}

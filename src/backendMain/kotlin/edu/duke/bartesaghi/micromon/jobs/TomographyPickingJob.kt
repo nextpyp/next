@@ -37,11 +37,13 @@ class TomographyPickingJob(
 
 		private fun TomographyPickingArgs.toDoc() = Document().also { doc ->
 			doc["values"] = values
+			doc["filter"] = filter
 		}
 
 		private fun TomographyPickingArgs.Companion.fromDoc(doc: Document) =
 			TomographyPickingArgs(
-				doc.getString("values")
+				doc.getString("values"),
+				doc.getString("filter")
 			)
 
 		val eventListeners = TiltSeriesEventListeners(this)
@@ -76,6 +78,7 @@ class TomographyPickingJob(
 	override suspend fun launch(runId: Int) {
 
 		val project = projectOrThrow()
+		val newestArgs = args.newestOrThrow().args
 
 		// clear caches
 		wwwDir.recreateAs(project.osUsername)
@@ -86,6 +89,11 @@ class TomographyPickingJob(
 
 		// always write out manually-picked particles
 		ParticlesJobs.writeTomography(project.osUsername, idOrThrow, dir, ParticlesList.manualParticles3D(idOrThrow))
+
+		// write out the filter from the upstream job, if needed
+		if (upstreamJob is FilteredJob && newestArgs.filter != null) {
+			upstreamJob.writeFilter(newestArgs.filter, dir, project.osUsername)
+		}
 
 		val pypArgs = launchArgValues(upstreamJob, args.newestOrThrow().args.values, args.finished?.values)
 

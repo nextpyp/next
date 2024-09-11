@@ -26,7 +26,8 @@ interface ITomographySegmentationOpenService {
 
 @Serializable
 data class TomographySegmentationOpenArgs(
-	val values: ArgValuesToml
+	val values: ArgValuesToml,
+	val filter: String?
 )
 
 @Serializable

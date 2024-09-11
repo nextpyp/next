@@ -135,9 +135,9 @@ class TomographyMiloEvalNode(
 					values = upstreamNode.newestArgValues()?.filterForDownstreamCopy(pypArgs) ?: ""
 				))
 
-			form.init(argsOrCopy)
+			form.init(argsOrCopy, mapper)
 			if (enabled) {
-				win.addSaveResetButtons(form, argsOrCopy, onDone)
+				win.addSaveResetButtons(form, argsOrCopy, mapper, onDone)
 			}
 			win.show()
 		}

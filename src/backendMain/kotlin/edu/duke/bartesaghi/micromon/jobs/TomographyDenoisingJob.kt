@@ -38,11 +38,13 @@ class TomographyDenoisingJob(
 
 		private fun TomographyDenoisingArgs.toDoc() = Document().also { doc ->
 			doc["values"] = values
+			doc["filter"] = filter
 		}
 
 		private fun TomographyDenoisingArgs.Companion.fromDoc(doc: Document) =
 			TomographyDenoisingArgs(
-				doc.getString("values")
+				doc.getString("values"),
+				doc.getString("filter")
 			)
 
 		val eventListeners = TiltSeriesEventListeners(this)
@@ -82,6 +84,11 @@ class TomographyDenoisingJob(
 		// build the args for PYP
 		val upstreamJob = inTomograms?.resolveJob<Job>()
 			?: throw IllegalStateException("no tomograms input configured")
+
+		// write out the filter from the upstream job, if needed
+		if (upstreamJob is FilteredJob && newestArgs.filter != null) {
+			upstreamJob.writeFilter(newestArgs.filter, dir, project.osUsername)
+		}
 
 		val pypArgs = launchArgValues(upstreamJob, newestArgs.values, args.finished?.values)
 
