@@ -34,12 +34,25 @@ fi
 
 
 # find the installation folder
-configlink="$home/.config/nextpyp/installdir"
-if [ -L "$configlink" ] ; then
-  installdir=$(readlink "$configlink")
-  echo "Found installation folder: $installdir"
+# NOTE: this logic is re-used in the nexpyp script, so changes here should be synchronized there too
+canondir="/opt/nextpyp"
+scriptdir="$(dirname "$(realpath "$0")")"
+if [ -L "$canondir" ]; then
+  # canonical location is a link: follow it
+  installdir="$(readlink "$canondir")"
+  echo "Found installation folder from canonical link: $installdir"
+elif [ -d "$canondir" ]; then
+  # canonical location is a real folder: just use that
+  installdir="$canondir"
+  echo "Found installation folder in canonical location: $installdir"
+elif [ -d "$scriptdir" ] && [ "$scriptdir" != "/usr/bin" ]; then
+  # canonical location not found: use the folder containing this script
+  installdir="$scriptdir"
+  echo "Found installation folder using script location: $installdir"
 else
-  echo "Failed to find installation folder: missing configuration symlink: $configlink"
+  echo "Failed to find installation folder, checked:"
+  echo " * $canondir"
+  echo " * $scriptdir"
   exit 1
 fi
 

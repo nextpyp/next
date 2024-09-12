@@ -93,6 +93,7 @@ setupdev()
 setup()
 {
   # find the installation folder, if needed
+  # NOTE: this logic is re-used in the uninstall script, so changes here should be synchronized there too
   if [ -z "$installdir" ]; then
     # first, look for it using the symlink in a canonical location
     canondir="/opt/nextpyp"
