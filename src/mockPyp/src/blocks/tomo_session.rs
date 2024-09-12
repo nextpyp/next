@@ -1,6 +1,6 @@
 
 use std::fs;
-use std::path::Path;
+
 use anyhow::{bail, Context, Result};
 use image::Rgb;
 use tracing::info;
@@ -14,44 +14,43 @@ use crate::scale::{TomogramDimsUnbinned, ToValueF, ToValueU};
 use crate::web::Web;
 
 
-const GROUP_ID: &str = "stream_tomo";
+pub const BLOCK_ID: &'static str = "tomo-session";
 
 
 pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 
-
 	// get mock args
-	let num_tilt_series = args.get_mock(GROUP_ID, "num_tilt_series")
+	let num_tilt_series = args.get_mock(BLOCK_ID, "num_tilt_series")
 		.into_u32()?
 		.or(4)
 		.value();
-	let num_tilts = args.get_mock(GROUP_ID, "num_tilts")
+	let num_tilts = args.get_mock(BLOCK_ID, "num_tilts")
 		.into_u32()?
 		.or(4)
 		.value();
-	let tomogram_width = args.get_mock(GROUP_ID, "tomogram_width")
+	let tomogram_width = args.get_mock(BLOCK_ID, "tomogram_width")
 		.into_u32()?
 		.or(8192)
 		.value()
 		.to_unbinned();
-	let tomogram_height = args.get_mock(GROUP_ID, "tomogram_height")
+	let tomogram_height = args.get_mock(BLOCK_ID, "tomogram_height")
 		.into_u32()?
 		.or(8192)
 		.value()
 		.to_unbinned();
-	let num_virions = args.get_mock(GROUP_ID, "num_virions")
+	let num_virions = args.get_mock(BLOCK_ID, "num_virions")
 		.into_u32()?
 		.or(5)
 		.value();
-	let num_spikes = args.get_mock(GROUP_ID, "num_spikes")
+	let num_spikes = args.get_mock(BLOCK_ID, "num_spikes")
 		.into_u32()?
 		.or(10)
 		.value();
-	let tilt_angle_magnitude = args.get_mock(GROUP_ID, "tilt_angle_magnitude")
+	let tilt_angle_magnitude = args.get_mock(BLOCK_ID, "tilt_angle_magnitude")
 		.into_u32()?
 		.or(45)
 		.value();
-	let spike_radius = args.get_mock(GROUP_ID, "spike_rad")
+	let spike_radius = args.get_mock(BLOCK_ID, "spike_rad")
 		.into_f64()?
 		.or(100.0)
 		.value()
@@ -88,20 +87,12 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 	args.set_default(&args_config, "ctf", "min_res")?;
 
 	// create subfolders
-	let session_group = args.get("stream_session_group")
-		.require()?
-		.into_str()?
-		.value();
-	let session_name = args.get("stream_session_name")
-		.require()?
-		.into_str()?
-		.value();
-	let dir = Path::new(&session_group).join(&session_name);
-	fs::create_dir_all(dir.join("mrc"))
+	fs::create_dir_all("mrc")
 		.context("Failed to create mrc dir")?;
-	fs::create_dir_all(dir.join("webp"))
+	fs::create_dir_all("webp")
 		.context("Failed to create webp dir")?;
 
+	// tell the website
 	let web = Web::new()?;
 	web.write_parameters(&args, &args_config)?;
 
@@ -225,25 +216,27 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 		img.draw().fill(Rgb([128, 128, 128]));
 		img.draw().noise();
 		img.draw().text_lines(32, Rgb([255, 255, 255]), [
+			format!("Block: {}", BLOCK_ID),
 			"Type: Output".to_string(),
 			format!("Id: {}", &tilt_series.tilt_series_id),
 			format!("Tilt Series: {} of {}", tilt_series_i + 1, num_tilt_series)
 		]);
-		img.save(dir.join(format!("webp/{}.webp", &tilt_series.tilt_series_id)))?;
+		img.save(format!("webp/{}.webp", &tilt_series.tilt_series_id))?;
 
 		// generate the sides image
 		let mut img = Image::new(512, 1024);
 		img.draw().fill(Rgb([128, 128, 128]));
 		img.draw().noise();
 		img.draw().text_lines(32, Rgb([255, 255, 255]), [
+			format!("Block: {}", BLOCK_ID),
 			"Type: Sides".to_string(),
 			format!("Id: {}", &tilt_series.tilt_series_id),
 			format!("Tilt Series: {} of {}", tilt_series_i + 1, num_tilt_series)
 		]);
-		img.save(dir.join(format!("webp/{}_sides.webp", &tilt_series.tilt_series_id)))?;
+		img.save(format!("webp/{}_sides.webp", &tilt_series.tilt_series_id))?;
 
 		// generate the rec file
-		fs::write(dir.join(format!("mrc/{}.rec", &tilt_series.tilt_series_id)), "this is a rec file")
+		fs::write(format!("mrc/{}.rec", &tilt_series.tilt_series_id), "this is a rec file")
 			.context("Failed to write rec file")?;
 
 		// write the raw tilts montage
@@ -252,6 +245,7 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 			tile.draw().noise();
 			tile.draw().tile_border(2, tilt_i);
 			tile.draw().text_lines(32, Rgb([255, 255, 255]), [
+				format!("Block: {}", BLOCK_ID),
 				"Type: Raw Tilt Montage".to_string(),
 				format!("Id: {}", &tilt_series.tilt_series_id),
 				format!("Tilt Series: {} of {}", tilt_series_i + 1, num_tilt_series),
@@ -259,7 +253,7 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 			]);
 			Ok(())
 		}).context("Failed to make raw tilts montage")?
-			.save(dir.join(format!("webp/{}_raw.webp", &tilt_series.tilt_series_id)))?;
+			.save(format!("webp/{}_raw.webp", &tilt_series.tilt_series_id))?;
 
 		// write the aligned tilts montage
 		Image::montage(num_tilts as usize, 512, 512, |tilt_i, mut tile| {
@@ -267,6 +261,7 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 			tile.draw().noise();
 			tile.draw().tile_border(2, tilt_i);
 			tile.draw().text_lines(32, Rgb([255, 255, 255]), [
+				format!("Block: {}", BLOCK_ID),
 				"Type: Aligned Tilt Montage".to_string(),
 				format!("Id: {}", &tilt_series.tilt_series_id),
 				format!("Tilt Series: {} of {}", tilt_series_i + 1, num_tilt_series),
@@ -274,7 +269,7 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 			]);
 			Ok(())
 		}).context("Failed to make aligned tilts montage")?
-			.save(dir.join(format!("webp/{}_ali.webp", &tilt_series.tilt_series_id)))?;
+			.save(format!("webp/{}_ali.webp", &tilt_series.tilt_series_id))?;
 
 		// write the tilt 2D CTFs montage
 		Image::montage(num_tilts as usize, 512, 512, |tilt_i, mut tile| {
@@ -282,6 +277,7 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 			tile.draw().noise();
 			tile.draw().tile_border(2, tilt_i);
 			tile.draw().text_lines(32, Rgb([255, 255, 255]), [
+				format!("Block: {}", BLOCK_ID),
 				"Type: Tilt 2D CTF Montage".to_string(),
 				format!("Id: {}", &tilt_series.tilt_series_id),
 				format!("Tilt Series: {} of {}", tilt_series_i + 1, num_tilt_series),
@@ -289,7 +285,7 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 			]);
 			Ok(())
 		}).context("Failed to make tilts CTF montage")?
-			.save(dir.join(format!("webp/{}_2D_ctftilt.webp", &tilt_series.tilt_series_id)))?;
+			.save(format!("webp/{}_2D_ctftilt.webp", &tilt_series.tilt_series_id))?;
 
 		// write the reconstruction montage
 		const SLICE_FACTOR: u32 = 2;
@@ -299,6 +295,7 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 			tile.draw().noise();
 			tile.draw().tile_border(2, slice_i);
 			tile.draw().text_lines(32, Rgb([255, 255, 255]), [
+				format!("Block: {}", BLOCK_ID),
 				"Type: Reconstruction Montage".to_string(),
 				format!("Id: {}", &tilt_series.tilt_series_id),
 				format!("Tilt Series: {} of {}", tilt_series_i + 1, num_tilt_series),
@@ -306,9 +303,8 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 			]);
 			Ok(())
 		}).context("Failed to make tomogram montage")?
-			.save(dir.join(format!("webp/{}_rec.webp", &tilt_series.tilt_series_id)))?;
+			.save(format!("webp/{}_rec.webp", &tilt_series.tilt_series_id))?;
 
-		// tell the website
 		web.write_tilt_series(&tilt_series)?;
 	}
 

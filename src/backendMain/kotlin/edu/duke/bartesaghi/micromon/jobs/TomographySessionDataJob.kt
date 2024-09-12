@@ -15,10 +15,12 @@ import org.bson.conversions.Bson
 class TomographySessionDataJob(
 	userId: String,
 	projectId: String
-) : Job(userId, projectId, config), FilteredJob {
+) : Job(userId, projectId, config), FilteredJob, TiltSeriesesJob {
 
 	val args = JobArgs<TomographySessionDataArgs>()
-	var latestTiltSeriesId: String? = null
+
+	override var latestTiltSeriesId: String? = null
+	override val eventListeners get() = Companion.eventListeners
 
 	companion object : JobInfo {
 
@@ -47,6 +49,8 @@ class TomographySessionDataJob(
 				doc.getString("values"),
 				doc.getString("list")
 			)
+
+		val eventListeners = TiltSeriesEventListeners(this)
 	}
 
 	override fun createDoc(doc: Document) {
@@ -114,6 +118,23 @@ class TomographySessionDataJob(
 
 			// or just use a placeholder
 			?: return "/img/placeholder/${size.id}"
+	}
+
+	override fun wipeData() {
+
+		// also delete any associated data
+		Database.tiltSeries.deleteAll(idOrThrow)
+		Database.tiltSeriesAvgRot.deleteAll(idOrThrow)
+		Database.tiltSeriesDriftMetadata.deleteAll(idOrThrow)
+		Database.jobPreprocessingFilters.deleteAll(idOrThrow)
+		Database.particleLists.deleteAll(idOrThrow)
+		Database.particles.deleteAllParticles(idOrThrow)
+		Database.tiltExclusions.delete(idOrThrow)
+
+		// also reset the finished args
+		args.unrun()
+		latestTiltSeriesId = null
+		update()
 	}
 
 	override val filters get() = PreprocessingFilters.ofJob(idOrThrow)

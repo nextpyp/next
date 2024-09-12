@@ -234,6 +234,10 @@ object RealTimeService {
 			tiltSeriesesService()
 		}
 
+		routing.webSocket(RealTimeServices.tomographySessionData) {
+			tiltSeriesesService()
+		}
+
 		routing.webSocket(RealTimeServices.reconstruction) handler@{
 
 			val user = call.authOrThrow()

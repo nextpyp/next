@@ -188,7 +188,7 @@ class TomographySessionDataView(val project: ProjectData, val job: TomographySes
 			}
 
 			// open the websocket connection to listen for server-side updates
-			val connector = WebsocketConnector(RealTimeServices.tomographyPreprocessing) { signaler, input, output ->
+			val connector = WebsocketConnector(RealTimeServices.tomographySessionData) { signaler, input, output ->
 
 				// tell the server we want to listen to this session
 				output.send(RealTimeC2S.ListenToTiltSerieses(job.jobId).toJson())

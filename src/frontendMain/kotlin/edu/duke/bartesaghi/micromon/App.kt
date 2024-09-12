@@ -64,6 +64,7 @@ class App : Application() {
 			TomographyMiloEvalView.Companion,
 			TomographyParticlesTrainView.Companion,
 			TomographyParticlesEvalView.Companion,
+			TomographySessionDataView.Companion,
 			IntegratedRefinementView.Companion,
 			SessionsView.Companion,
 			SingleParticleSessionView.Companion,
