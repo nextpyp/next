@@ -46,6 +46,7 @@ class TomographyParticlesEvalView(val project: ProjectData, val job: TomographyP
 		}
 	}
 
+	override val routed = Companion
 	override val elem = Div(classes = setOf("dock-page", "tomography-picking"))
 
 	// NOTE: the same instance of these controls should be used for all the tilt series

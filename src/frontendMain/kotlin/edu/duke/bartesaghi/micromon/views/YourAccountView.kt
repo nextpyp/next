@@ -26,6 +26,7 @@ class YourAccountView : View {
 		fun path() = "/account"
 	}
 
+	override val routed = Companion
 	override val elem = Div(classes = setOf("dock-page", "your-account"))
 
 	override fun init(viewport: Viewport) {

@@ -28,6 +28,7 @@ class AppsView : View {
 		fun path() = "/apps"
 	}
 
+	override val routed = Companion
 	override val elem = Div(classes = setOf("dock-page", "apps-view"))
 
 	private val requests = ArrayList<AppTokenRequestData>()

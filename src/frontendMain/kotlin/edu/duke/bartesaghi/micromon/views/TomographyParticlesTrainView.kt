@@ -41,6 +41,7 @@ class TomographyParticlesTrainView(val project: ProjectData, val job: Tomography
 		}
 	}
 
+	override val routed = Companion
 	override val elem = Div(classes = setOf("dock-page", "tomography-picking"))
 
 

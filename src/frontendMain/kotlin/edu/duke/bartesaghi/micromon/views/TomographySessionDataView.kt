@@ -50,6 +50,7 @@ class TomographySessionDataView(val project: ProjectData, val job: TomographySes
 		}
 	}
 
+	override val routed = Companion
 	override val elem = Div(classes = setOf("dock-page", "tomography-preprocessing"))
 
 	private var tiltSeriesStats = TiltSeriesStats()

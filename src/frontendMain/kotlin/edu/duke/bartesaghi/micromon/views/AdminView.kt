@@ -35,6 +35,7 @@ class AdminView : View {
 		fun path() = "/admin"
 	}
 
+	override val routed = Companion
 	override val elem = Div(classes = setOf("dock-page", "admin"))
 
 	override fun init(viewport: Viewport) {

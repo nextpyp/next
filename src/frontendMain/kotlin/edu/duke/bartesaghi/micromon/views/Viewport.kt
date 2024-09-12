@@ -1,9 +1,6 @@
 package edu.duke.bartesaghi.micromon.views
 
-import edu.duke.bartesaghi.micromon.AppScope
-import edu.duke.bartesaghi.micromon.BuildData
-import edu.duke.bartesaghi.micromon.NavbarEx
-import edu.duke.bartesaghi.micromon.Session
+import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.services.AuthType
 import edu.duke.bartesaghi.micromon.services.ServerVal
 import edu.duke.bartesaghi.micromon.services.Services
@@ -74,6 +71,9 @@ class Viewport(val rootElem: Root) : Div(classes = setOf("viewport")) {
 	}
 
 	fun setView(view: View) {
+
+		// safety: check that this view is registered in the app
+		App.checkView(view)
 
 		// update the viewport mode
 		for (mode in View.Mode.values()) {

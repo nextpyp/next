@@ -14,6 +14,7 @@ class ErrorView(val error: Throwable) : View {
 		error.reportError()
 	}
 
+	override val routed = null
 	override val elem = Div(classes = setOf("dock-page"))
 
 	override fun init(viewport: Viewport) {

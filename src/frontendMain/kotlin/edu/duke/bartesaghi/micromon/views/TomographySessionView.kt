@@ -75,7 +75,7 @@ class TomographySessionView(
 		}
 	}
 
-
+	override val routed = Companion
 	override val elem = Div(classes = setOf("dock-page", "session"))
 
 	private var viewport: Viewport? = null

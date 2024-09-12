@@ -33,6 +33,7 @@ class LoginView : View {
 		fun path() = "/login"
 	}
 
+	override val routed = Companion
 	override val elem = Div(classes = setOf("dock-page", "login"))
 	override val showsUserChrome = false
 

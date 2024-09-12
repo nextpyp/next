@@ -41,6 +41,7 @@ class TomographyDenoisingTrainingView(val project: ProjectData, val job: Tomogra
 		}
 	}
 
+	override val routed = Companion
 	override val elem = Div(classes = setOf("dock-page", "tomography-picking"))
 
 

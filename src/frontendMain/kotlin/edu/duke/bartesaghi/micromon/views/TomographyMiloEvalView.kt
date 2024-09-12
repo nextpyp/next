@@ -41,6 +41,7 @@ class TomographyMiloEvalView(val project: ProjectData, val job: TomographyMiloEv
 		}
 	}
 
+	override val routed = Companion
 	override val elem = Div(classes = setOf("dock-page", "tomography-milo-eval"))
 
 

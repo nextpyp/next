@@ -184,6 +184,7 @@ class IntegratedRefinementView(
 
 	private var state: State? = null
 
+	override val routed = Companion
 	override val elem = Div(classes = setOf("dock-page", "refinements-view"))
 
 	class LazyTabs(

@@ -31,6 +31,7 @@ class SetPasswordView : View {
 		fun path() = "/pw"
 	}
 
+	override val routed = Companion
 	override val elem = Div(classes = setOf("dock-page", "pw"))
 
 	override fun init(viewport: Viewport) {

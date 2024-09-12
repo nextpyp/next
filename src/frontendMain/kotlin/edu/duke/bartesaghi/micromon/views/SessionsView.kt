@@ -42,6 +42,7 @@ class SessionsView : View {
 		}
 	}
 
+	override val routed = Companion
 	override val elem = Div(classes = setOf("dock-page", "sessions"))
 
 	private val deletingSessionIds = HashSet<String>()

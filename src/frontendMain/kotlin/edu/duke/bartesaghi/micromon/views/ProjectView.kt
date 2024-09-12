@@ -67,6 +67,7 @@ class ProjectView(val project: ProjectData) : View {
 		}
 	}
 
+	override val routed = Companion
 	override val elem = Div(classes = setOf("project-view"))
 
 	private var connector: WebsocketConnector? = null

@@ -46,6 +46,7 @@ class TomographyDenoisingView(val project: ProjectData, val job: TomographyDenoi
 		}
 	}
 
+	override val routed = Companion
 	override val elem = Div(classes = setOf("dock-page", "tomography-preprocessing"))
 
 	private var tiltSeriesStats = TiltSeriesStats()

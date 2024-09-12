@@ -47,6 +47,7 @@ class SingleParticleSessionDataView(val project: ProjectData, val job: SinglePar
 		}
 	}
 
+	override val routed = Companion
 	override val elem = Div(classes = setOf("dock-page", "single-particle-preprocessing"))
 
 	private var micrographStatsElem = null as Div?

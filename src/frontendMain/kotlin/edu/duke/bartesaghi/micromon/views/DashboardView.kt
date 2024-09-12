@@ -72,7 +72,7 @@ class DashboardView : View {
 		}
 	}
 
-
+	override val routed = Companion
 	override val elem = Div(classes = setOf("dock-stage", "dashboard"))
 
 	private val selectionElem = Div(classes = setOf("selection"))

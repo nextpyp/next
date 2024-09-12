@@ -46,6 +46,7 @@ class TomographySegmentationOpenView(val project: ProjectData, val job: Tomograp
 		}
 	}
 
+	override val routed = Companion
 	override val elem = Div(classes = setOf("dock-page", "tomography-preprocessing"))
 
 	private var tiltSeriesStats = TiltSeriesStats()
