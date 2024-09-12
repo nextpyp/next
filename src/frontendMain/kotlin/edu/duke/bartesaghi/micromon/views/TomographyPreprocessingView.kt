@@ -3,7 +3,6 @@ package edu.duke.bartesaghi.micromon.views
 import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.components.*
 import edu.duke.bartesaghi.micromon.diagram.nodes.TomographyPreprocessingNode
-import edu.duke.bartesaghi.micromon.diagram.nodes.clientInfo
 import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.*
 import js.getHTMLElement
