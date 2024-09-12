@@ -840,6 +840,7 @@ version = "0.1.0"
 dependencies = [
  "ab_glyph",
  "anyhow",
+ "byteorder",
  "display-error-chain",
  "fastrand",
  "flate2",

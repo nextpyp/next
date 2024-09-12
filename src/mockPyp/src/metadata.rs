@@ -108,3 +108,31 @@ pub struct Particle3D {
 	pub r: ValueBinnedF,
 	pub threshold: Option<u32>
 }
+
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Reconstruction {
+	pub reconstruction_id: String,
+	pub class_num: u32,
+	pub iteration: u32,
+	pub fsc: Vec<Vec<f64>>,
+	pub metadata: ReconstructionMetadata,
+	pub plots: ReconstructionPlots
+}
+
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ReconstructionMetadata {
+	pub particles_total: f64,
+	pub particles_used: f64,
+	pub phase_residual: f64,
+	pub occ: f64,
+	pub logp: f64,
+	pub sigma: f64
+}
+
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ReconstructionPlots {
+	// TODO
+}
