@@ -62,6 +62,12 @@ class App : Application() {
 		 * Make sure the view is registered, by throwing an error if it's not.
 		 */
 		fun checkView(view: View) {
+
+			if (view.routed == null) {
+				// not a routed view, no need to register with the App
+				return
+			}
+
 			if (VIEWS.none { it === view.routed }) {
 				throw Error("View not registered with app: ${view::class.simpleName}")
 			}
