@@ -65,6 +65,7 @@ class TomographyParticlesTrainView(val project: ProjectData, val job: Tomography
 			// show the 2D results
 			elem.add(SizedPanel("Loss Functions", Storage.particlesResults2dSize).apply {
 				val img = image(ITomographyParticlesTrainService.resultsPath(job.jobId), classes = setOf("full-width-image"))
+				img?.refresh()
 				// set the panel resize handler
 				onResize = { newSize: ImageSize ->
 					img.src = ITomographyParticlesTrainService.resultsPath(job.jobId)

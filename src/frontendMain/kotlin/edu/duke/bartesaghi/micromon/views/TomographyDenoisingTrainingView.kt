@@ -65,6 +65,7 @@ class TomographyDenoisingTrainingView(val project: ProjectData, val job: Tomogra
 			// show the results
 			elem.add(SizedPanel("Loss Functions", Storage.tomographyDenoisingTrainingResultsSize).apply {
 				val img = image(ITomographyDenoisingTrainingService.trainResultsPath(job.jobId), classes = setOf("full-width-image"))
+				img?.refresh()
 				// set the panel resize handler
 				onResize = { newSize: ImageSize ->
 					img.src = ITomographyDenoisingTrainingService.trainResultsPath(job.jobId)

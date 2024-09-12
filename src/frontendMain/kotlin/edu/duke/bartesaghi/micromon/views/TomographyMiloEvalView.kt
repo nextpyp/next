@@ -93,6 +93,7 @@ class TomographyMiloEvalView(val project: ProjectData, val job: TomographyMiloEv
 		// show the 2D results
 		elem.add(SizedPanel("UMAP Embedding", Storage.miloResults2dSize).apply {
 			val img = image(ITomographyMiloEvalService.results2dPath(job.jobId, size), classes = setOf("full-width-image"))
+			img?.refresh()
 			// set the panel resize handler
 			onResize = { newSize: ImageSize ->
 				img.src = ITomographyMiloEvalService.results2dPath(job.jobId, size)
@@ -102,6 +103,7 @@ class TomographyMiloEvalView(val project: ProjectData, val job: TomographyMiloEv
 
 		elem.add(SizedPanel("Class Labels", Storage.miloResults2dSize).apply {
 			val img = image(ITomographyMiloEvalService.results2dLabelsPath(job.jobId, size), classes = setOf("full-width-image"))
+			img?.refresh()
 			// set the panel resize handler
 			onResize = { newSize: ImageSize ->
 				img.src = ITomographyMiloEvalService.results2dLabelsPath(job.jobId, size)
@@ -112,6 +114,7 @@ class TomographyMiloEvalView(val project: ProjectData, val job: TomographyMiloEv
 		// show the 3D results (disable for now)
 		elem.add(SizedPanel("Tomogram visualization", Storage.miloResults3dSize).apply {
 			val img = image(ITomographyMiloEvalService.results3dPath(job.jobId, size), classes = setOf("full-width-image"))
+			img?.refresh()
 			// set the panel resize handler
 			onResize = { newSize: ImageSize ->
 				img.src = ITomographyMiloEvalService.results3dPath(job.jobId, size)
