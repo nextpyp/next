@@ -72,7 +72,7 @@ class IntegratedRefinementView(
 					val nodeInfo = refinementNodes
 						.find { it.urlFragment == nodeUrlFragment }
 						?: run {
-							viewport.setView(ErrorView("Unrecognized node type: $nodeUrlFragment"))
+							viewport.setView(ErrorView("Node type not configured for integrated refinement view: $nodeUrlFragment"))
 							return@reg
 						}
 
