@@ -5,11 +5,11 @@ use std::ops::Deref;
 use std::path::Path;
 use std::process::ExitCode;
 
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use display_error_chain::ErrorChainExt;
 use tracing::{error, info, warn};
 
-use mock_pyp::{blocks, logging};
+use mock_pyp::{blocks, logging, sessions};
 use mock_pyp::args::{Args, ArgsConfig};
 use mock_pyp::logging::ResultExt;
 
@@ -62,6 +62,23 @@ fn run() -> Result<()> {
 	let args_config = ArgsConfig::from(args_config)
 		.context(format!("Failed to parse config file: {}", &args_config_path))?;
 
+	// look at the command to see if we're running in project or session mode
+	let result = match cmd.as_str() {
+		"streampyp" => run_session(&mut args, &args_config),
+		_ => run_project(&mut args, &args_config)
+	};
+
+	// save the args for next time
+	if let Err(e) = args.write(args_path) {
+		warn!("Failed to write args: {}", e.deref().chain());
+	}
+
+	result
+}
+
+
+fn run_project(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
+
 	// get the block
 	let block_id = args.get("micromon_block")
 		.require()?
@@ -71,11 +88,27 @@ fn run() -> Result<()> {
 
 	info!("block id: {}", block_id);
 
-	// run the command with the rest of the args
-	blocks::run(block_id.as_str(), &mut args, &args_config)?;
+	// run the block command
+	blocks::run(block_id.as_str(), args, args_config)?;
 
-	// save the args for next time
-	args.write(args_path)?;
+	Ok(())
+}
+
+
+fn run_session(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
+
+	// get the session type
+	let data_mode = args.get("data_mode")
+		.require()?
+		.into_str()?
+		.value();
+
+	info!("session: {}", data_mode);
+
+	match data_mode {
+		"tomo" => sessions::tomo::run(args, args_config)?,
+		_ => bail!("unrecognized session mode: {}", data_mode)
+	}
 
 	Ok(())
 }

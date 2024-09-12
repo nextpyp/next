@@ -2,6 +2,7 @@
 pub mod logging;
 pub mod args;
 pub mod blocks;
+pub mod sessions;
 
 mod image;
 mod svg;

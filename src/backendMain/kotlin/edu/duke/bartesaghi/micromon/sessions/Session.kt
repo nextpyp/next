@@ -38,6 +38,7 @@ sealed class Session(
 
 	interface Type {
 		val id: String
+		val configId: String
 		fun fromDoc(doc: Document): Session
 		val events: SessionEvents
 		fun init()
@@ -295,7 +296,7 @@ sealed class Session(
 		slowIOs {
 
 			// ask the daemon to stop nicely
-			val pypDir = pypDir(this@Session, newestArgs().pypNamesOrThrow())
+			val pypDir = pypDir(newestArgs().pypNamesOrThrow())
 			val path = pypDir / "${daemon.filename}.$signal"
 			path.writeString(payload)
 		}
@@ -317,7 +318,7 @@ sealed class Session(
 		// get the destination folder
 		val pypNames = newestArgs().pypNames()
 			?: return null
-		val pypDir = pypDir(this@Session, pypNames)
+		val pypDir = pypDir(pypNames)
 		val dst = pypDir / "raw"
 
 		return TransferFolders(src, dst)
@@ -334,7 +335,7 @@ sealed class Session(
 
 		val names = newestArgs().pypNames()
 			?: return null
-		val path = pypDir(this, names) / "${names.session}_speed.txt"
+		val path = pypDir(names) / "${names.session}_speed.txt"
 		if (!path.exists()) {
 			return null
 		}

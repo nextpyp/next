@@ -20,6 +20,7 @@ class TomographySession(
 	companion object : Type {
 
 		override val id = TomographySessionData.ID
+		override val configId = "stream_tomo"
 
 		override fun fromDoc(doc: Document) = TomographySession(
 			doc.getString("userId")
@@ -50,7 +51,7 @@ class TomographySession(
 
 		fun args() =
 			Backend.pypArgs
-				.filter("stream_tomo")
+				.filter(configId)
 				.appendAll(MicromonArgs.slurmLaunch)
 
 		object StreampypListener : ClusterJob.OwnerListener {

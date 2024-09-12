@@ -20,6 +20,7 @@ class SingleParticleSession(
 	companion object : Type {
 
 		override val id = SingleParticleSessionData.ID
+		override val configId = "stream_spr"
 
 		override fun fromDoc(doc: Document) = SingleParticleSession(
 			doc.getString("userId")
@@ -50,7 +51,7 @@ class SingleParticleSession(
 
 		fun args() =
 			Backend.pypArgs
-				.filter("stream_spr")
+				.filter(configId)
 				.appendAll(MicromonArgs.slurmLaunch)
 
 		object StreampypListener : ClusterJob.OwnerListener {

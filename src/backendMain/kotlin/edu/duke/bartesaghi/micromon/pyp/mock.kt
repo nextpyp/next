@@ -3,6 +3,8 @@ package edu.duke.bartesaghi.micromon.pyp
 import edu.duke.bartesaghi.micromon.jobs.*
 import edu.duke.bartesaghi.micromon.nodes.NodeConfig
 import edu.duke.bartesaghi.micromon.nodes.NodeConfigs
+import edu.duke.bartesaghi.micromon.sessions.Session
+import edu.duke.bartesaghi.micromon.sessions.TomographySession
 
 
 object MockPyp {
@@ -49,6 +51,7 @@ object MockPyp {
 						condition = it.condition
 					)
 				}
+				// blocks
 				+ TomographyRawDataJob.mockArgs()
 				+ TomographyPreprocessingJob.mockArgs()
 				+ TomographyPurePreprocessingJob.mockArgs()
@@ -59,6 +62,8 @@ object MockPyp {
 				+ TomographyPickingClosedJob.mockArgs()
 				+ TomographyParticlesEvalJob.mockArgs()
 				+ TomographyMiloEvalJob.mockArgs()
+				// sessions
+				+ TomographySession.mockArgs()
 		)
 }
 
@@ -161,4 +166,29 @@ private fun TomographyMiloEvalJob.Companion.mockArgs(): List<Arg> = listOf(
 	mockArg("tomogram_width", ArgType.TInt(), ArgValue.VInt(8192)),
 	mockArg("tomogram_height", ArgType.TInt(), ArgValue.VInt(8192)),
 	mockArg("num_particles", ArgType.TInt(), ArgValue.VInt(20))
+)
+
+
+
+private val Session.Type.mockGroupId: String get() =
+	"${configId.replace('-', '_')}_mock"
+
+private fun Session.Type.mockArg(id: String, type: ArgType, default: ArgValue? = null): Arg =
+	Arg(
+		groupId = mockGroupId,
+		argId = id,
+		name = id,
+		description = "",
+		type = type,
+		default = default
+	)
+
+private fun TomographySession.Companion.mockArgs(): List<Arg> = listOf(
+	mockArg("num_tilt_series", ArgType.TInt(), ArgValue.VInt(4)),
+	mockArg("num_tilts", ArgType.TInt(), ArgValue.VInt(4)),
+	mockArg("tomogram_width", ArgType.TInt(), ArgValue.VInt(8192)),
+	mockArg("tomogram_height", ArgType.TInt(), ArgValue.VInt(8192)),
+	mockArg("num_virions", ArgType.TInt(), ArgValue.VInt(5)),
+	mockArg("num_spikes", ArgType.TInt(), ArgValue.VInt(10)),
+	mockArg("tilt_angle_magnitude", ArgType.TInt(), ArgValue.VInt(45))
 )
