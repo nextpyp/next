@@ -122,6 +122,10 @@ data class TiltSeriesesData(
 			initMsg.tomoSpkMethod,
 			initMsg.tomoSpkRad
 		)
+
+		// since loading particles list is a complicated and error-prone process,
+		// let's just always print debug info here about what got loaded
+		console.log("Loaded tilt series data: particles=", particles)
 	}
 
 	fun update(tiltSeries: TiltSeriesData) {
