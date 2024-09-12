@@ -111,7 +111,7 @@ class TomographySegmentationClosedNode(
 				img(job.imageUrl, className = dynamicImageClassName)
 			}
 			div(className = "count") {
-				text("${job.numParticles.formatWithDigitGroupsSeparator()} particles")
+				text("${job.numParticles.formatWithDigitGroupsSeparator()} surfaces")
 			}
 		}
 
