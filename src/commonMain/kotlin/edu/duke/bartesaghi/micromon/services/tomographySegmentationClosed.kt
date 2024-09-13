@@ -26,7 +26,8 @@ interface ITomographySegmentationClosedService {
 
 @Serializable
 data class TomographySegmentationClosedArgs(
-	val values: ArgValuesToml
+	val values: ArgValuesToml,
+	val filter: String?
 ) {
 
 	fun particlesList(jobId: String): ParticlesList =

@@ -38,11 +38,13 @@ class TomographySegmentationClosedJob(
 
 		private fun TomographySegmentationClosedArgs.toDoc() = Document().also { doc ->
 			doc["values"] = values
+			doc["filter"] = filter
 		}
 
 		private fun TomographySegmentationClosedArgs.Companion.fromDoc(doc: Document) =
 			TomographySegmentationClosedArgs(
-				doc.getString("values")
+				doc.getString("values"),
+				doc.getString("filter")
 			)
 
 		val eventListeners = TiltSeriesEventListeners(this)
@@ -87,6 +89,11 @@ class TomographySegmentationClosedJob(
 
 		// write out manually-picked particles from the upstream job
 		ParticlesJobs.writeTomography(project.osUsername, upstreamJob.idOrThrow, dir, ParticlesList.manualParticles3D(upstreamJob.idOrThrow))
+
+		// write out the filter from the upstream job, if needed
+		if (upstreamJob is FilteredJob && newestArgs.filter != null) {
+			upstreamJob.writeFilter(newestArgs.filter, dir, project.osUsername)
+		}
 
 		// build the args for PYP
 		val pypArgs = launchArgValues(upstreamJob, newestArgs.values, args.finished?.values)

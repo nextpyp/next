@@ -13,6 +13,7 @@ import edu.duke.bartesaghi.micromon.refreshDynamicImages
 import edu.duke.bartesaghi.micromon.services.*
 import edu.duke.bartesaghi.micromon.views.TomographySegmentationClosedView
 import edu.duke.bartesaghi.micromon.views.Viewport
+import io.kvision.form.select.SelectRemote
 import io.kvision.form.formPanel
 import io.kvision.modal.Modal
 import js.micromondiagrams.MicromonDiagrams
@@ -57,7 +58,8 @@ class TomographySegmentationClosedNode(
 			val input = input
 				?: throw IllegalArgumentException("input required to make job for ${config.id}")
 			val args = TomographySegmentationClosedArgs(
-				values = argValues
+				values = argValues,
+				filter = null
 			)
 			return Services.tomographySegmentationClosed.addNode(project.owner.id, project.projectId, input, args)
 		}
@@ -81,18 +83,61 @@ class TomographySegmentationClosedNode(
 			)
 
 			val form = win.formPanel<TomographySegmentationClosedArgs>().apply {
+
+				val upstreamIsPreprocessing =
+					upstreamNode is TomographyPreprocessingNode
+					|| upstreamNode is TomographyPurePreprocessingNode
+					|| upstreamNode is TomographyImportDataNode
+					|| upstreamNode is TomographySessionDataNode
+					|| upstreamNode is TomographyRelionDataNode
+
+				add(TomographySegmentationClosedArgs::filter,
+					// look for the preprocessing job in the upstream node to get the filter
+					if (upstreamIsPreprocessing) {
+						SelectRemote(
+							serviceManager = BlocksServiceManager,
+							function = IBlocksService::filterOptions,
+							stateFunction = { upstreamNode.jobId },
+							label = "Filter tomograms",
+							preload = true
+						)
+					} else {
+						HiddenString()
+					}
+				)
+
 				add(TomographySegmentationClosedArgs::values, ArgsForm(pypArgs, listOf(upstreamNode), enabled, config.configId))
 			}
 
+			// use the none filter option for the particles name in the form,
+			// since the control can't handle nulls
+			val mapper = ArgsMapper<TomographySegmentationClosedArgs>(
+				toForm = { args ->
+					if (args.filter == null) {
+						args.copy(filter = NoneFilterOption)
+					} else {
+						args
+					}
+				},
+				fromForm = { args ->
+					if (args.filter == NoneFilterOption) {
+						args.copy(filter = null)
+					} else {
+						args
+					}
+				}
+			)
+	
 			// by default, copy args values from the upstream node
 			val argsOrCopy: JobArgs<TomographySegmentationClosedArgs> = args
 				?: JobArgs.fromNext(TomographySegmentationClosedArgs(
+					filter = null,
 					values = upstreamNode.newestArgValues()?.filterForDownstreamCopy(pypArgs) ?: ""
 				))
 
-			form.init(argsOrCopy)
+			form.init(argsOrCopy, mapper)
 			if (enabled) {
-				win.addSaveResetButtons(form, argsOrCopy, onDone)
+				win.addSaveResetButtons(form, argsOrCopy, mapper, onDone)
 			}
 			win.show()
 		}
