@@ -132,7 +132,8 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 						let virions = (0 .. num_virions)
 							.map(|_| sample_virion(
 								tomogram_dims.with_additional_binning(additional_virion_binning),
-								radius.with_additional_binning(additional_virion_binning)
+								radius.with_additional_binning(additional_virion_binning),
+								1
 							))
 							.collect();
 						Some(virions)

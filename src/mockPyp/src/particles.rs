@@ -19,28 +19,28 @@ pub fn sample_particle_3d(dims: TomogramDimsBinned, radius: ValueBinnedF) -> Par
 }
 
 
-pub fn sample_virion(dims: TomogramDimsBinned, radius: ValueBinnedF) -> Virion3D {
+pub fn sample_virion(dims: TomogramDimsBinned, radius: ValueBinnedF, threshold: u32) -> Virion3D {
 	Virion3D {
 		particle: sample_particle_3d(dims, radius),
-		threshold: 5
-		// TODO: do something with the thresholds?
+		threshold
 	}
 }
 
 
-pub fn sample_tomo_particles(
-	virion_radius: ValueBinnedF,
+pub fn sample_tomo_virions(
 	num_tilt_series: u32,
-	num_particles: u32,
-	dims: TomogramDimsBinned
-) -> Vec<(String,Vec<Particle3D>)> {
+	num_virions: u32,
+	dims: TomogramDimsBinned,
+	radius: ValueBinnedF,
+	threshold: u32
+) -> Vec<(String,Vec<Virion3D>)> {
 	(0 .. num_tilt_series)
 		.map(|tilt_series_i| {
 			let tilt_series_id = format!("tilt_series_{}", tilt_series_i);
-			let particles = (0 .. num_particles)
-				.map(|_| sample_particle_3d(dims, virion_radius))
+			let virions = (0 ..num_virions)
+				.map(|_| sample_virion(dims, radius, threshold))
 				.collect();
-			(tilt_series_id, particles)
+			(tilt_series_id, virions)
 		})
 		.collect()
 }
@@ -96,4 +96,28 @@ pub fn read_manual_tomo_particles(radius: ValueBinnedF) -> Result<Option<Vec<(St
 	}
 
 	Ok(Some(tilt_series_particles))
+}
+
+pub fn read_manual_tomo_virions(radius: ValueBinnedF, threshold: u32) -> Result<Option<Vec<(String,Vec<Virion3D>)>>> {
+
+	// first, read particles
+	let tilt_series_particles = read_manual_tomo_particles(radius)?;
+
+	// then, convert the particles to virions
+	let tilt_series_virions = tilt_series_particles
+		.map(|tilt_series_particles| {
+			tilt_series_particles.into_iter()
+				.map(|(tilt_series_id, particles)| {
+					let virions = particles.into_iter()
+						.map(|particle| Virion3D {
+							particle,
+							threshold,
+						})
+						.collect();
+					(tilt_series_id, virions)
+				})
+				.collect()
+		});
+
+	Ok(tilt_series_virions)
 }

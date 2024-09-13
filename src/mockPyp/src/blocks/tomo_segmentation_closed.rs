@@ -7,8 +7,8 @@ use tracing::info;
 
 use crate::args::{Args, ArgsConfig, ArgValue};
 use crate::image::{Image, ImageDrawing};
-use crate::metadata::{TiltSeries, Virion3D};
-use crate::particles::{read_manual_tomo_particles, sample_tomo_particles};
+use crate::metadata::TiltSeries;
+use crate::particles::{read_manual_tomo_virions, sample_tomo_virions};
 use crate::rand::sample_ctf;
 use crate::scale::{TomogramDimsUnbinned, ToValueF, ToValueU};
 use crate::web::Web;
@@ -52,39 +52,59 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 		.to_a();
 	args.set("scope_pixel", ArgValue::String(pixel_size.0.to_string()));
 	let tomogram_depth = args.get_from_group("tomo_rec", "thickness")
-		.or_default(&args_config)?
+		.or_default(args_config)?
 		.into_u32()?
 		.value()
 		.to_unbinned();
 	let tomogram_binning = args.get_from_group("tomo_rec", "binning")
-		.or_default(&args_config)?
+		.or_default(args_config)?
 		.into_u32()?
 		.value();
 	let tomogram_dims = TomogramDimsUnbinned::new(tomogram_width, tomogram_height, tomogram_depth)
 		.to_binned(tomogram_binning);
+	let virion_binning = args.get_from_group("tomo_vir", "binn")
+		.or_default(args_config)?
+		.into_u32()?
+		.value();
+	let virion_dims = tomogram_dims
+		.clone()
+		.with_additional_binning(virion_binning);
 
 	// set default arg values that the website will use, but we won't
 	args.set_default(&args_config, "ctf", "min_res")?;
 
 	// tell the website about the params
 	let web = Web::new()?;
-	web.write_parameters(&args, &args_config)?;
+	web.write_parameters(args, args_config)?;
 
 	// try to read the submitted particles, or sample new ones
 	let virion_radius = virion_radius
 		.to_unbinned(pixel_size)
-		.to_binned(tomogram_binning);
-	let tilt_series_particles = read_manual_tomo_particles(virion_radius)?
-		.map(|tilt_series_particles| {
-			let num_particles = tilt_series_particles.iter()
+		.to_binned(tomogram_binning)
+		.with_additional_binning(virion_binning);
+	let default_threshold = 1;
+	let tilt_series_virions = read_manual_tomo_virions(virion_radius, default_threshold)?
+		.map(|mut tilt_series_virions| {
+
+			let num_particles = tilt_series_virions.iter()
 				.map(|(_, tilt_series)| tilt_series.len())
 				.sum::<usize>();
-			info!("Read {} manual particles from {} tilt series", num_particles, tilt_series_particles.len());
-			tilt_series_particles
+			info!("Read {} manual virions from {} tilt series", num_particles, tilt_series_virions.len());
+
+			// apply additional binning to manually-picked particles (since they're in tomogram binned coordinates)
+			for (_, virions) in &mut tilt_series_virions {
+				for virion in virions {
+					virion.particle.x = virion.particle.x.with_additional_binning(virion_binning);
+					virion.particle.y = virion.particle.y.with_additional_binning(virion_binning);
+					virion.particle.z = virion.particle.z.with_additional_binning(virion_binning);
+				}
+			}
+
+			tilt_series_virions
 		})
-		.unwrap_or({
+		.unwrap_or_else(|| {
 			info!("No manual particles, sampled new ones");
-			sample_tomo_particles(virion_radius, num_tilt_series, num_particles, tomogram_dims)
+			sample_tomo_virions(num_tilt_series, num_particles, virion_dims, virion_radius, default_threshold)
 		});
 
 	// create subfolders
@@ -92,42 +112,34 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 		.context("Failed to create webp dir")?;
 
 	// generate tilt series
-	for (tilt_series_id, particles) in tilt_series_particles {
+	for (tilt_series_id, virions) in tilt_series_virions {
 
-		// send the particles back as virions, with a default threshold
-		let virions = particles.iter()
-			.enumerate()
-			.map(|(particlei, particle)| {
+		// generate segmentation images
+		for virioni in 0 .. virions.len() {
 
-				const SQUARE_SIZE: u32 = 120;
+			const SQUARE_SIZE: u32 = 120;
 
-				// draw the segmentation image
-				let mut img = Image::new(SQUARE_SIZE*9, SQUARE_SIZE*3);
-				img.draw().fill(Rgb([128, 128, 128]));
-				img.draw().noise();
-				for thresholdi in 0 .. 9 {
-					for stacki in 0 .. 3 {
-						let mut square = img.sub_image(
-							thresholdi*SQUARE_SIZE,
-							stacki*SQUARE_SIZE,
-							SQUARE_SIZE,
-							SQUARE_SIZE
-						);
-						square.draw().border(2, Rgb([255, 255, 255]));
-						square.draw().text_lines(16, Rgb([255, 255, 255]), [
-							format!("Threshold: {}", thresholdi),
-							format!("Stack: {}", stacki)
-						])
-					}
+			// draw the segmentation image
+			let mut img = Image::new(SQUARE_SIZE*9, SQUARE_SIZE*3);
+			img.draw().fill(Rgb([128, 128, 128]));
+			img.draw().noise();
+			for thresholdi in 0 .. 9 {
+				for stacki in 0 .. 3 {
+					let mut square = img.sub_image(
+						thresholdi*SQUARE_SIZE,
+						stacki*SQUARE_SIZE,
+						SQUARE_SIZE,
+						SQUARE_SIZE
+					);
+					square.draw().border(2, Rgb([255, 255, 255]));
+					square.draw().text_lines(16, Rgb([255, 255, 255]), [
+						format!("Threshold: {}", thresholdi),
+						format!("Stack: {}", stacki)
+					])
 				}
-				img.save(format!("webp/{}_vir{:0>4}_binned_nad.webp", &tilt_series_id, particlei))?;
-
-				Ok(Virion3D {
-					particle: particle.clone(),
-					threshold: 1,
-				})
-			})
-			.collect::<Result<Vec<_>>>()?;
+			}
+			img.save(format!("webp/{}_vir{:0>4}_binned_nad.webp", &tilt_series_id, virioni))?;
+		}
 
 		let tilt_series = TiltSeries {
 			tilt_series_id,

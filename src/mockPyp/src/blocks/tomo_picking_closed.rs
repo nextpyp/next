@@ -1,17 +1,16 @@
 
 use std::fs;
-use std::path::PathBuf;
 
 use anyhow::{Context, Result};
 use image::Rgb;
-use tracing::{info, warn};
+use tracing::warn;
 
 use crate::args::{Args, ArgsConfig, ArgValue};
 use crate::image::{Image, ImageDrawing};
 use crate::metadata::TiltSeries;
-use crate::particles::sample_particle_3d;
+use crate::particles::{sample_particle_3d, sample_virion};
 use crate::rand::sample_ctf;
-use crate::scale::{TomogramDimsUnbinned, ToValueF, ToValueU, ValueA};
+use crate::scale::{TomogramDimsUnbinned, ToValueF, ToValueU};
 use crate::web::Web;
 
 
@@ -35,10 +34,24 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 		.or(8192)
 		.value()
 		.to_unbinned();
-	let num_particles = args.get_mock(BLOCK_ID, "num_particles")
+	let num_virions = args.get_mock(BLOCK_ID, "num_virions")
 		.into_u32()?
 		.or(20)
 		.value();
+	let virion_radius = args.get_mock(BLOCK_ID, "virion_radius")
+		.into_f64()?
+		.or(1000.0)
+		.value()
+		.to_a();
+	let num_spikes = args.get_mock(BLOCK_ID, "num_spikes")
+		.into_u32()?
+		.or(40)
+		.value();
+	let spike_radius = args.get_mock(BLOCK_ID, "spike_radius")
+		.into_f64()?
+		.or(500.0)
+		.value()
+		.to_a();
 
 	// get pyp args (and write defaults not defined by the config)
 	let pixel_size = args.get("scope_pixel")
@@ -58,6 +71,21 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 		.value();
 	let tomogram_dims = TomogramDimsUnbinned::new(tomogram_width, tomogram_height, tomogram_depth)
 		.to_binned(tomogram_binning);
+	let virion_binning = args.get_from_group("tomo_vir", "binn")
+		.or_default(args_config)?
+		.into_u32()?
+		.value();
+	let virion_dims = tomogram_dims
+		.clone()
+		.with_additional_binning(virion_binning);
+
+	let virion_radius = virion_radius
+		.to_unbinned(pixel_size)
+		.to_binned(tomogram_binning)
+		.with_additional_binning(virion_binning);
+	let spike_radius = spike_radius
+		.to_unbinned(pixel_size)
+		.to_binned(tomogram_binning);
 
 	// create subfolders
 	fs::create_dir_all("webp")
@@ -67,35 +95,22 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 	for tilt_series_i in 0 .. num_tilt_series {
 		let tilt_series_id = format!("tilt_series_{}", tilt_series_i);
 
-		// look for manually-picked particles
-		let particles_path = PathBuf::from("train/particles_coordinates.txt");
-		if particles_path.exists() {
-			info!("Found manually-picked particle coordinates");
-		} else {
-			info!("No manually-picked particle coordinates found");
-		}
+		// generate virions
+		let virions = (0 .. num_virions)
+			.map(|_| sample_virion(virion_dims, virion_radius, 1))
+			.collect::<Vec<_>>();
 
-		// generate particles, if needed
+		// generate spikes, if needed
 		let tomo_srf_detect_method = args.get("tomo_srf_detect_method")
 			.or_default(&args_config)?
 			.into_string()?
 			.value();
-		let particles = match tomo_srf_detect_method.as_ref() {
+		let spikes = match tomo_srf_detect_method.as_ref() {
 			"template" | "mesh" => {
-				let radius = ValueA(500.0)
-					.to_unbinned(pixel_size)
-					.to_binned(tomogram_binning);
-				let particles = (0 .. num_particles)
-					.map(|_| {
-						let mut particle = sample_particle_3d(tomogram_dims, radius);
-
-						// add an arbitrary threshold
-						particle.threshold = Some(5);
-
-						particle
-					})
+				let spikes = (0 .. num_spikes)
+					.map(|_| sample_particle_3d(tomogram_dims, spike_radius))
 					.collect();
-				Some(particles)
+				Some(spikes)
 			},
 			method => {
 				warn!("unrecognied method: {}", method);
@@ -119,8 +134,8 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 			xf: None,
 			avgrot: None,
 			drift: None,
-			virions: None,
-			spikes: particles,
+			virions: Some(virions),
+			spikes,
 		};
 
 		// generate the tilt series image

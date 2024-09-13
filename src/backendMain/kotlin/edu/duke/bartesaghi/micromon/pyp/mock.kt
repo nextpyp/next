@@ -151,7 +151,10 @@ private fun TomographyPickingClosedJob.Companion.mockArgs(): List<Arg> = listOf(
 	mockArg("num_tilt_series", ArgType.TInt(), ArgValue.VInt(4)),
 	mockArg("tomogram_width", ArgType.TInt(), ArgValue.VInt(8192)),
 	mockArg("tomogram_height", ArgType.TInt(), ArgValue.VInt(8192)),
-	mockArg("num_particles", ArgType.TInt(), ArgValue.VInt(20))
+	mockArg("num_virions", ArgType.TInt(), ArgValue.VInt(20)),
+	mockArg("virion_radius", ArgType.TFloat(), ArgValue.VFloat(1000.0)),
+	mockArg("num_spikes", ArgType.TInt(), ArgValue.VInt(40)),
+	mockArg("spike_radius", ArgType.TFloat(), ArgValue.VFloat(500.0))
 )
 
 
