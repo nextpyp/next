@@ -126,7 +126,10 @@ class TomographyPurePreprocessingView(val project: ProjectData, val job: Tomogra
 					filterTable = FilterTable(
 						"Tilt Series",
 						data.tiltSerieses,
-						TiltSeriesProp.values().toList(),
+						TiltSeriesProp.values()
+							.toList()
+							// pure preprocessing doesn't have particles, so omit that column from the table
+							.filter { it != TiltSeriesProp.NumParticles },
 						writable = project.canWrite(),
 						showDetail = { elem, index, tiltSeries ->
 
