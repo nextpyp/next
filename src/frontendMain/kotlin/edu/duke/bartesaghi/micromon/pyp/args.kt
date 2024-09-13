@@ -1,7 +1,14 @@
 package edu.duke.bartesaghi.micromon.pyp
 
+import edu.duke.bartesaghi.micromon.services.ServerVal
+import edu.duke.bartesaghi.micromon.services.Services
 import js.toml.TOML
 import kotlinext.js.Object
+
+
+val ALL_PYP_ARGS = ServerVal {
+	Args.fromJson(Services.jobs.getAllArgs())
+}
 
 
 /**

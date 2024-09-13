@@ -42,6 +42,8 @@ interface IJobsService {
 	@KVBindingRoute("jobs/tiltSeriesMetadata")
 	suspend fun findTiltSeriesMetadataData(jobId: String, tiltSeriesId: String): Option<FileDownloadData>
 
+	@KVBindingRoute("jobs/allArgs")
+	suspend fun getAllArgs(): Serialized<Args>
 
 	companion object {
 

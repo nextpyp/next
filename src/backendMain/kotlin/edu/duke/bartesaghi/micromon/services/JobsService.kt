@@ -486,4 +486,8 @@ actual class JobsService : IJobsService, Service {
 			// no image, return a placeholder
 			?: Resources.placeholderJpg(size)
 	}
+
+	override suspend fun getAllArgs(): Serialized<Args> = sanitizeExceptions {
+		Backend.pypArgs.toJson()
+	}
 }

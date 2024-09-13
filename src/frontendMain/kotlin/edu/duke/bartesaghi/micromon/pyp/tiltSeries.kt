@@ -1,6 +1,5 @@
 package edu.duke.bartesaghi.micromon.pyp
 
-import edu.duke.bartesaghi.micromon.diagram.nodes.*
 import edu.duke.bartesaghi.micromon.services.*
 
 
@@ -22,7 +21,9 @@ data class TiltSeriesesData(
 			.forEach { tiltSerieses.add(it) }
 
 		// get the job's finished pyp arg values, if any
-		val args = job.clientInfo.pypArgs.get()
+		// NOTE: we need all the pyp args for this (not just the args for this job)
+		//       since we may need to reference some args not in the job to display the particles correctly
+		val args = ALL_PYP_ARGS.get()
 		val values = finishedValues?.toArgValues(args)
 			?: return
 
