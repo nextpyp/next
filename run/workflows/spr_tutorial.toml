@@ -51,6 +51,7 @@ refine_rhref = "8:7:6"
 refine_fboost = true
 refine_priors = false
 refine_fssnr = false
+refine_skip = false
 reconstruct_cutoff = "0"
 
 [blocks.particle_filtering]
@@ -86,6 +87,7 @@ refine_rhref = "6:4:3"
 refine_mode = '1'
 refine_model = 'auto'
 refine_parfile = 'auto'
+refine_skip = false
 refine_fboost = true
 
 [blocks.mask_generation]
@@ -115,6 +117,7 @@ refine_model = 'auto'
 refine_parfile = 'auto'
 refine_maskth = 'auto'
 refine_fboost = true
+refine_skip = false
 
 [blocks.ctf_refinement]
 blockId = "sp-coarse-refinement"
@@ -134,6 +137,7 @@ refine_fboost = true
 refine_model = 'auto'
 refine_parfile = 'auto'
 refine_maskth = 'auto'
+refine_skip = false
 csp_Grid_spr = "8,8"
 csp_refine_ctf = true
 
