@@ -161,9 +161,12 @@ class TomoParticlesImage(
 
 		// add the checkboxes, if needed
 		if (particleControls != null) {
-			if (tiltSerieses.particles is TiltSeriesesParticlesData.VirusMode) {
+			val particles = tiltSerieses.particles
+			if (particles is TiltSeriesesParticlesData.VirusMode) {
 				add(showVirionsCheck)
-				add(showSpikesCheck)
+				if (particles.spikes != null) {
+					add(showSpikesCheck)
+				}
 			} else {
 				add(showParticlesCheck)
 			}
