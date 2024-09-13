@@ -86,6 +86,9 @@ class TomographySessionDataView(val project: ProjectData, val job: TomographySes
 			// load all the tilt series
 			val loadingElem = elem.loading("Fetching tilt-series ...")
 			val data = TiltSeriesesData()
+			pickingControls.onListChange = {
+				tiltSeriesStats.loadCounts(data, OwnerType.Project, job.jobId, pickingControls.list)
+			}
 			val pypStats = try {
 				delayAtLeast(200) {
 					data.loadForProject(job, job.args.finished?.values)
