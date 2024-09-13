@@ -39,11 +39,28 @@ data class TiltSeriesesData(
 					)
 				}
 
-			is TomographyParticlesEvalData,
-			is TomographySegmentationClosedData ->
+			is TomographyParticlesEvalData ->
 				particles = TiltSeriesesParticlesData.Data(ParticlesList.autoParticles3D(job.jobId))
 
-			is TomographyPickingClosedData,
+			is TomographySegmentationClosedData ->
+				particles = TiltSeriesesParticlesData.VirusMode(
+					virions = TiltSeriesesParticlesData.Data(
+						list = ParticlesList.autoVirions(job.jobId),
+						extraBinning = values.tomoVirBinnOrDefault.toInt()
+					)
+				)
+
+			is TomographyPickingClosedData ->
+				particles = TiltSeriesesParticlesData.VirusMode(
+					virions = TiltSeriesesParticlesData.Data(
+						list = ParticlesList.autoVirions(job.jobId),
+						extraBinning = values.tomoVirBinnOrDefault.toInt()
+					),
+					spikes = TiltSeriesesParticlesData.Data(
+						list = ParticlesList.autoParticles3D(job.jobId)
+					)
+				)
+
 			is TomographyPickingOpenData ->
 				particles = values.tomoSrfMethodOrDefault.particlesList(job.jobId)?.let { list ->
 					TiltSeriesesParticlesData.Data(list)
@@ -144,12 +161,13 @@ data class TiltSeriesesData(
 
 sealed interface TiltSeriesesParticlesData {
 
-	/** used by the older combined preprocessing blocks */
+	/** shows virions and spikes as separate kinds of particles */
 	data class VirusMode(
 		val virions: Data,
-		val spikes: Data?
+		val spikes: Data? = null
 	) : TiltSeriesesParticlesData
 
+	/** shows regular ol' particles */
 	data class Data(
 		/**
 		 * The particles list defined by the particle picking mode,
