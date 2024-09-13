@@ -88,7 +88,7 @@ data class TiltSeriesesData(
 				virions = TiltSeriesesParticlesData.Data(
 					list = virionsList,
 					radius = tomoVirRad,
-					extraBinning = tomoVirBinn
+					extraBinning = null
 				),
 				spikes = tomoVirDetectMethod.particlesList(ownerId)?.let { list ->
 					TiltSeriesesParticlesData.Data(list)
