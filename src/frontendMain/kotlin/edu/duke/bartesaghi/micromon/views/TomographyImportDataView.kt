@@ -42,7 +42,7 @@ class TomographyImportDataView(val project: ProjectData, val job: TomographyImpo
 			}
 		}
 
-		fun path(project: ProjectData, job: TomographyImportDataData) = "/project/${project.owner.id}/${project.projectId}/tomo-import-${job.jobId}"
+		fun path(project: ProjectData, job: TomographyImportDataData) = "/project/${project.owner.id}/${project.projectId}/tomographyImportData/${job.jobId}"
 
 		fun go(viewport: Viewport, project: ProjectData, job: TomographyImportDataData) {
 			routing.show(path(project, job))
