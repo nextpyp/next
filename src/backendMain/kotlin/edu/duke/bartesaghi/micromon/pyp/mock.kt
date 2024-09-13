@@ -63,6 +63,8 @@ object MockPyp {
 				+ TomographyParticlesEvalJob.mockArgs()
 				+ TomographyMiloEvalJob.mockArgs()
 				+ TomographySessionDataJob.mockArgs()
+				+ TomographyImportDataJob.mockArgs()
+				+ TomographyRelionDataJob.mockArgs()
 				// sessions
 				+ TomographySession.mockArgs()
 		)
@@ -178,6 +180,22 @@ private fun TomographySessionDataJob.Companion.mockArgs(): List<Arg> = listOf(
 	mockArg("num_virions", ArgType.TInt(), ArgValue.VInt(5)),
 	mockArg("num_spikes", ArgType.TInt(), ArgValue.VInt(10)),
 	mockArg("tilt_angle_magnitude", ArgType.TInt(), ArgValue.VInt(45))
+)
+
+
+private fun TomographyImportDataJob.Companion.mockArgs(): List<Arg> = listOf(
+	mockArg("num_tilt_series", ArgType.TInt(), ArgValue.VInt(4)),
+	mockArg("num_tilts", ArgType.TInt(), ArgValue.VInt(4)),
+	mockArg("tomogram_width", ArgType.TInt(), ArgValue.VInt(8192)),
+	mockArg("tomogram_height", ArgType.TInt(), ArgValue.VInt(8192)),
+	mockArg("num_virions", ArgType.TInt(), ArgValue.VInt(5)),
+	mockArg("num_spikes", ArgType.TInt(), ArgValue.VInt(10)),
+	mockArg("tilt_angle_magnitude", ArgType.TInt(), ArgValue.VInt(45))
+)
+
+
+private fun TomographyRelionDataJob.Companion.mockArgs(): List<Arg> = listOf(
+	mockArg("image_size", ArgType.TInt(), ArgValue.VInt(512))
 )
 
 

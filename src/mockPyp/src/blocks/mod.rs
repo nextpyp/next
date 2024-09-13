@@ -15,6 +15,8 @@ mod tomo_milo_eval;
 mod tomo_particles_eval;
 mod tomo_particles_train;
 mod tomo_coarse_refinement;
+mod tomo_import;
+mod tomo_reliondata;
 mod tomo_session;
 
 
@@ -57,6 +59,10 @@ pub fn run(block_id: &str, args: &mut Args, args_config: &ArgsConfig) -> Result<
 		tomo_particles_eval::run(args, args_config)
 	} else if block_id == tomo_coarse_refinement::BLOCK_ID {
 		tomo_coarse_refinement::run(args, args_config)
+	} else if block_id == tomo_import::BLOCK_ID {
+		tomo_import::run(args, args_config)
+	} else if block_id == tomo_reliondata::BLOCK_ID {
+		tomo_reliondata::run(args, args_config)
 	} else if block_id == tomo_session::BLOCK_ID {
 		tomo_session::run(args, args_config)
 	} else {

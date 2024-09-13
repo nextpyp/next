@@ -18,10 +18,12 @@ import kotlin.time.Duration.Companion.seconds
 class TomographyImportDataJob(
 	userId: String,
 	projectId: String
-) : Job(userId, projectId, config), FilteredJob {
+) : Job(userId, projectId, config), FilteredJob, TiltSeriesesJob {
 
 	val args = JobArgs<TomographyImportDataArgs>()
-	var latestTiltSeriesId: String? = null
+
+	override var latestTiltSeriesId: String? = null
+	override val eventListeners get() = Companion.eventListeners
 
 	companion object : JobInfo {
 
@@ -48,18 +50,22 @@ class TomographyImportDataJob(
 				doc.getString("values"),
 				doc.getString("list")
 			)
+
+		val eventListeners = TiltSeriesEventListeners(this)
 	}
 
 	override fun createDoc(doc: Document) {
 		super.createDoc(doc)
 		doc["finishedArgs"] = args.finished?.toDoc()
 		doc["nextArgs"] = args.next?.toDoc()
+		doc["latestTiltSeriesId"] = null
 	}
 
 	override fun updateDoc(updates: MutableList<Bson>) {
 		super.updateDoc(updates)
 		updates.add(Updates.set("finishedArgs", args.finished?.toDoc()))
 		updates.add(Updates.set("nextArgs", args.next?.toDoc()))
+		updates.add(Updates.set("latestTiltSeriesId", latestTiltSeriesId))
 	}
 
 	override fun isChanged() = args.hasNext()
@@ -126,10 +132,18 @@ class TomographyImportDataJob(
 
 	override fun wipeData() {
 
-		// no data to wipe
+		// also delete any associated data
+		Database.tiltSeries.deleteAll(idOrThrow)
+		Database.tiltSeriesAvgRot.deleteAll(idOrThrow)
+		Database.tiltSeriesDriftMetadata.deleteAll(idOrThrow)
+		Database.jobPreprocessingFilters.deleteAll(idOrThrow)
+		Database.particleLists.deleteAll(idOrThrow)
+		Database.particles.deleteAllParticles(idOrThrow)
+		Database.tiltExclusions.delete(idOrThrow)
 
 		// also reset the finished args
 		args.unrun()
+		latestTiltSeriesId = null
 		update()
 	}
 
