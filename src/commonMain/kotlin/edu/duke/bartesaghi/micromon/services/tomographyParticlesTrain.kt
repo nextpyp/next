@@ -33,7 +33,8 @@ interface ITomographyParticlesTrainService {
 
 @Serializable
 data class TomographyParticlesTrainArgs(
-	val values: ArgValuesToml
+	val values: ArgValuesToml,
+	val particlesName: String?
 )
 
 @Serializable

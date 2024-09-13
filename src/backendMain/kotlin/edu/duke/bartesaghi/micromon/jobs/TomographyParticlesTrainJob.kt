@@ -35,11 +35,13 @@ class TomographyParticlesTrainJob(
 
 		private fun TomographyParticlesTrainArgs.toDoc() = Document().also { doc ->
 			doc["values"] = values
+			doc["particlesName"] = particlesName
 		}
 
 		private fun TomographyParticlesTrainArgs.Companion.fromDoc(doc: Document) =
 			TomographyParticlesTrainArgs(
-				doc.getString("values")
+				doc.getString("values"),
+				doc.getString("particlesName")
 			)
 
 		val eventListeners = TiltSeriesEventListeners(this)
@@ -79,7 +81,7 @@ class TomographyParticlesTrainJob(
 
 		// write out manually-picked particles from the upstream job, if needed
 		ParticlesJobs.clear(project.osUsername, dir)
-		upstreamJob.manualParticlesList()
+		upstreamJob.manualParticlesList(newestArgs.particlesName)
 			?.let { ParticlesJobs.writeTomography(project.osUsername, upstreamJob.idOrThrow, dir, it) }
 
 		// build the args for PYP

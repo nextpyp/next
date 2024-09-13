@@ -13,6 +13,7 @@ import edu.duke.bartesaghi.micromon.services.*
 import edu.duke.bartesaghi.micromon.views.TomographyParticlesTrainView
 import edu.duke.bartesaghi.micromon.views.Viewport
 import io.kvision.form.formPanel
+import io.kvision.form.select.SelectRemote
 import io.kvision.modal.Modal
 import js.micromondiagrams.MicromonDiagrams
 import js.micromondiagrams.nodeType
@@ -56,7 +57,8 @@ class TomographyParticlesTrainNode(
 			val input = input
 				?: throw IllegalArgumentException("input required to make job for ${config.id}")
 			val args = TomographyParticlesTrainArgs(
-				values = argValues
+				values = argValues,
+				particlesName = null
 			)
 			return Services.tomographyParticlesTrain.addNode(project.owner.id, project.projectId, input, args)
 		}
@@ -80,18 +82,58 @@ class TomographyParticlesTrainNode(
 			)
 
 			val form = win.formPanel<TomographyParticlesTrainArgs>().apply {
+
+				val upstreamIsCombinedPreprocessing =
+					upstreamNode is TomographyPreprocessingNode
+					|| upstreamNode is TomographyImportDataNode
+					|| upstreamNode is TomographySessionDataNode
+					|| upstreamNode is TomographyRelionDataNode
+				add(TomographyParticlesTrainArgs::particlesName,
+					if (upstreamIsCombinedPreprocessing) {
+						SelectRemote(
+							serviceManager = ParticlesServiceManager,
+							function = IParticlesService::getListOptions,
+							stateFunction = { "${OwnerType.Project.id}/${upstreamNode.jobId}" },
+							label = "Select list of particles",
+							preload = true
+						)
+					} else {
+						HiddenString()
+					}
+				)
+
 				add(TomographyParticlesTrainArgs::values, ArgsForm(pypArgs, listOf(upstreamNode), enabled, config.configId))
 			}
 
+			// use the none filter option for the particles name in the form,
+			// since the control can't handle nulls
+			val mapper = ArgsMapper<TomographyParticlesTrainArgs>(
+				toForm = { args ->
+					var a = args
+					if (a.particlesName == null) {
+						a = a.copy(particlesName = NoneFilterOption)
+					}
+					a
+				},
+				fromForm = { args ->
+					var a = args
+					if (a.particlesName == NoneFilterOption) {
+						a = a.copy(particlesName = null)
+					}
+					a
+				}
+			)
+			
 			// by default, copy args values from the upstream node
 			val argsOrCopy: JobArgs<TomographyParticlesTrainArgs> = args
 				?: JobArgs.fromNext(TomographyParticlesTrainArgs(
-					values = upstreamNode.newestArgValues()?.filterForDownstreamCopy(pypArgs) ?: ""
+					values = upstreamNode.newestArgValues()?.filterForDownstreamCopy(pypArgs) ?: "",
+					particlesName = null
 				))
 
-			form.init(argsOrCopy)
+			form.init(argsOrCopy, mapper)
 			if (enabled) {
-				win.addSaveResetButtons(form, argsOrCopy, onDone)
+				win.addSaveResetButtons(form, argsOrCopy, mapper, onDone)
 			}
 			win.show()
 		}
