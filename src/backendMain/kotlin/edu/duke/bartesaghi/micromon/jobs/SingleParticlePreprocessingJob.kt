@@ -38,13 +38,11 @@ class SingleParticlePreprocessingJob(
 
 		private fun SingleParticlePreprocessingArgs.toDoc() = Document().also { doc ->
 			doc["values"] = values
-			doc["list"] = particlesName
 		}
 
 		private fun SingleParticlePreprocessingArgs.Companion.fromDoc(doc: Document) =
 			SingleParticlePreprocessingArgs(
-				doc.getString("values"),
-				doc.getString("list")
+				doc.getString("values")
 			)
 
 		val eventListeners = MicrographEventListeners(this)
@@ -83,11 +81,6 @@ class SingleParticlePreprocessingJob(
 		wwwDir.recreateAs(project.osUsername)
 
 		val newestArgs = args.newestOrThrow().args
-
-		// write out manually-picked particles, if needed
-		ParticlesJobs.clear(project.osUsername, dir)
-		manualParticlesList(newestArgs.particlesName)
-			?.let { ParticlesJobs.writeSingleParticle(project.osUsername, idOrThrow, dir, it) }
 
 		// build the args for PYP
 		val upstreamJob = inMovies?.resolveJob<Job>()

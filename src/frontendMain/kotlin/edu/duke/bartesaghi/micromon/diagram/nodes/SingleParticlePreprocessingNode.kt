@@ -58,8 +58,7 @@ class SingleParticlePreprocessingNode(
 			val input = input
 				?: throw IllegalArgumentException("input required to make job for ${config.id}")
 			val args = SingleParticlePreprocessingArgs(
-				values = argValues,
-				particlesName = null
+				values = argValues
 			)
 			return Services.singleParticlePreprocessing.addNode(project.owner.id, project.projectId, input, args)
 		}
@@ -83,53 +82,18 @@ class SingleParticlePreprocessingNode(
 			)
 
 			val form = win.formPanel<SingleParticlePreprocessingArgs>().apply {
-
-				add(SingleParticlePreprocessingArgs::particlesName,
-					if (jobId != null) {
-						SelectRemote(
-							serviceManager = ParticlesServiceManager,
-							function = IParticlesService::getListOptions,
-							stateFunction = { "${OwnerType.Project.id}/$jobId" },
-							label = "Select list of positions",
-							preload = true
-						)
-					} else {
-						HiddenString()
-					}
-				)
-
 				add(SingleParticlePreprocessingArgs::values, ArgsForm(pypArgs, listOf(upstreamNode), enabled, config.configId))
 			}
-
-			// use the none filter option for the particles name in the form,
-			// since the control can't handle nulls
-			val mapper = ArgsMapper<SingleParticlePreprocessingArgs>(
-				toForm = { args ->
-					 if (args.particlesName == null) {
-						 args.copy(particlesName = NoneFilterOption)
-					 } else {
-						 args
-					 }
-				},
-				fromForm = { args ->
-					if (args.particlesName == NoneFilterOption) {
-						args.copy(particlesName = null)
-					} else {
-						args
-					}
-				}
-			)
 
 			// by default, copy args values from the upstream node
 			val argsOrCopy: JobArgs<SingleParticlePreprocessingArgs> = args
 				?: JobArgs.fromNext(SingleParticlePreprocessingArgs(
-					particlesName = null,
 					values = upstreamNode.newestArgValues()?.filterForDownstreamCopy(pypArgs) ?: ""
 				))
 
-			form.init(argsOrCopy, mapper)
+			form.init(argsOrCopy)
 			if (enabled) {
-				win.addSaveResetButtons(form, argsOrCopy, mapper, onDone)
+				win.addSaveResetButtons(form, argsOrCopy, onDone)
 			}
 			win.show()
 		}
