@@ -42,14 +42,12 @@ class TomographyCoarseRefinementJob(
 		private fun TomographyCoarseRefinementArgs.toDoc() = Document().also { doc ->
 			doc["values"] = values
 			doc["filter"] = filter
-			doc["particlesName"] = particlesName
 		}
 
 		private fun TomographyCoarseRefinementArgs.Companion.fromDoc(doc: Document) =
 			TomographyCoarseRefinementArgs(
 				doc.getString("values"),
-				doc.getString("filter"),
-				doc.getString("particlesName")
+				doc.getString("filter")
 			)
 	}
 
@@ -93,11 +91,6 @@ class TomographyCoarseRefinementJob(
 		if (upstreamJob is FilteredJob && newestArgs.filter != null) {
 			upstreamJob.writeFilter(newestArgs.filter, dir, project.osUsername)
 		}
-
-		// write out manually-picked particles from the upstream job, if needed
-		ParticlesJobs.clear(project.osUsername, dir)
-		upstreamJob.manualParticlesList(newestArgs.particlesName)
-			?.let { ParticlesJobs.writeTomography(project.osUsername, upstreamJob.idOrThrow, dir, it) }
 
 		// build the args for PYP
 		val pypArgs = launchArgValues(upstreamJob, newestArgs.values, args.finished?.values)

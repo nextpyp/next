@@ -58,8 +58,7 @@ class TomographyCoarseRefinementNode(
 				?: throw IllegalArgumentException("input required to make job for ${config.id}")
 			val args = TomographyCoarseRefinementArgs(
 				values = argValues,
-				filter = null,
-				particlesName = null
+				filter = null
 			)
 			return Services.tomographyCoarseRefinement.addNode(project.owner.id, project.projectId, input, args)
 		}
@@ -106,25 +105,6 @@ class TomographyCoarseRefinementNode(
 					}
 				)
 
-				val upstreamIsCombinedPreprocessing =
-					upstreamNode is TomographyPreprocessingNode
-					|| upstreamNode is TomographyImportDataNode
-					|| upstreamNode is TomographySessionDataNode
-					|| upstreamNode is TomographyRelionDataNode
-				add(TomographyCoarseRefinementArgs::particlesName,
-					if (upstreamIsCombinedPreprocessing) {
-						SelectRemote(
-							serviceManager = ParticlesServiceManager,
-							function = IParticlesService::getListOptions,
-							stateFunction = { "${OwnerType.Project.id}/${upstreamNode.jobId}" },
-							label = "Select list of particles",
-							preload = true
-						)
-					} else {
-						HiddenString()
-					}
-				)
-
 				add(TomographyCoarseRefinementArgs::values, ArgsForm(pypArgs, listOf(upstreamNode), enabled, config.configId))
 			}
 
@@ -136,18 +116,12 @@ class TomographyCoarseRefinementNode(
 					if (a.filter == null) {
 						a = a.copy(filter = NoneFilterOption)
 					}
-					if (a.particlesName == null) {
-						a = a.copy(particlesName = NoneFilterOption)
-					}
 					a
 				},
 				fromForm = { args ->
 					var a = args
 					if (a.filter == NoneFilterOption) {
 						a = a.copy(filter = null)
-					}
-					if (a.particlesName == NoneFilterOption) {
-						a = a.copy(particlesName = null)
 					}
 					a
 				}
@@ -157,8 +131,7 @@ class TomographyCoarseRefinementNode(
 			val argsOrCopy: JobArgs<TomographyCoarseRefinementArgs> = args
 				?: JobArgs.fromNext(TomographyCoarseRefinementArgs(
 					filter = null,
-					values = upstreamNode.newestArgValues()?.filterForDownstreamCopy(pypArgs) ?: "",
-					particlesName = null
+					values = upstreamNode.newestArgValues()?.filterForDownstreamCopy(pypArgs) ?: ""
 				))
 
 			form.init(argsOrCopy, mapper)
