@@ -99,10 +99,14 @@ class TiltSeriesStats : Div(classes = setOf("tiltseries-stats")) {
 
 			is TiltSeriesesParticlesData.VirusMode -> {
 				items.add("${virionsCount.formatWithDigitGroupsSeparator()} virion(s)")
-				items.add("Virion radius: ${particles.virions.radius ?: "(unknown)"} A")
-				items.add("${particlesCount.formatWithDigitGroupsSeparator()} spike(s)")
-				particles.spikes?.let {
-					items.add("Spike radius: ${it.radius ?: "(unknown)"} A")
+				particles.virions.radius?.let {
+					items.add("Virion radius: $it A")
+				}
+				if (particles.spikes != null) {
+					items.add("${particlesCount.formatWithDigitGroupsSeparator()} spike(s)")
+					particles.spikes.radius?.let {
+						items.add("Spike radius: $it A")
+					}
 				}
 			}
 
