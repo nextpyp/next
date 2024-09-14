@@ -87,7 +87,6 @@ class SingleParticleCoarseRefinementNode(
 					upstreamNode is SingleParticlePreprocessingNode
 					|| upstreamNode is SingleParticleImportDataNode
 					|| upstreamNode is SingleParticleSessionDataNode
-					|| upstreamNode is SingleParticleRelionDataNode
 
 				add(SingleParticleCoarseRefinementArgs::filter,
 					// look for the preprocessing job in the upstream node to get the filter
