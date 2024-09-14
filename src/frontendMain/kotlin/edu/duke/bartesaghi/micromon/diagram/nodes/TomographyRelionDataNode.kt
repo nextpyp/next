@@ -54,8 +54,7 @@ class TomographyRelionDataNode(
 
 		override suspend fun makeJob(project: ProjectData, argValues: ArgValuesToml, input: CommonJobData.DataId?): JobData {
 			val args = TomographyRelionDataArgs(
-				values = argValues,
-				particlesName = null
+				values = argValues
 			)
 			return Services.tomographyRelionData.import(project.owner.id, project.projectId, args)
 		}
@@ -79,46 +78,12 @@ class TomographyRelionDataNode(
 			)
 
 			val form = win.formPanel<TomographyRelionDataArgs>().apply {
-
-				add(TomographyRelionDataArgs::particlesName,
-					if (jobId != null) {
-						SelectRemote(
-							serviceManager = ParticlesServiceManager,
-							function = IParticlesService::getListOptions,
-							stateFunction = { "${OwnerType.Project.id}/$jobId" },
-							label = "Select list of positions",
-							preload = true
-						)
-					} else {
-						HiddenString()
-					}
-				)
-
 				add(TomographyRelionDataArgs::values, ArgsForm(pypArgs, emptyList(), enabled, config.configId))
 			}
 
-			// use the none filter option for the particles name in the form,
-			// since the control can't handle nulls
-			val mapper = ArgsMapper<TomographyRelionDataArgs>(
-				toForm = { args ->
-					if (args.particlesName == null) {
-						args.copy(particlesName = NoneFilterOption)
-					} else {
-						args
-					}
-				},
-				fromForm = { args ->
-					if (args.particlesName == NoneFilterOption) {
-						args.copy(particlesName = null)
-					} else {
-						args
-					}
-				}
-			)
-
-			form.init(args, mapper)
+			form.init(args)
 			if (enabled) {
-				win.addSaveResetButtons(form, args, mapper, onDone)
+				win.addSaveResetButtons(form, args, onDone)
 			}
 			win.show()
 		}

@@ -39,13 +39,11 @@ class TomographyRelionDataJob(
 
 		private fun TomographyRelionDataArgs.toDoc() = Document().also { doc ->
 			doc["values"] = values
-			doc["list"] = particlesName
 		}
 
 		private fun TomographyRelionDataArgs.Companion.fromDoc(doc: Document) =
 			TomographyRelionDataArgs(
-				doc.getString("values"),
-				doc.getString("list")
+				doc.getString("values")
 			)
 	}
 

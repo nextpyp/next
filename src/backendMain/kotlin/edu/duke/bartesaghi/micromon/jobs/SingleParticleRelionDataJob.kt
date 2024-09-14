@@ -39,13 +39,11 @@ class SingleParticleRelionDataJob(
 
 		private fun SingleParticleRelionDataArgs.toDoc() = Document().also { doc ->
 			doc["values"] = values
-			doc["list"] = particlesName
 		}
 
 		private fun SingleParticleRelionDataArgs.Companion.fromDoc(doc: Document) =
 			SingleParticleRelionDataArgs(
-				doc.getString("values"),
-				doc.getString("list")
+				doc.getString("values")
 			)
 	}
 

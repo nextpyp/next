@@ -40,13 +40,11 @@ class SingleParticleImportDataJob(
 
 		private fun SingleParticleImportDataArgs.toDoc() = Document().also { doc ->
 			doc["values"] = values
-			doc["list"] = particlesName
 		}
 
 		private fun SingleParticleImportDataArgs.Companion.fromDoc(doc: Document) =
 			SingleParticleImportDataArgs(
-				doc.getString("values"),
-				doc.getString("list")
+				doc.getString("values")
 			)
 	}
 

@@ -42,13 +42,11 @@ class TomographyImportDataJob(
 
 		private fun TomographyImportDataArgs.toDoc() = Document().also { doc ->
 			doc["values"] = values
-			doc["list"] = particlesName
 		}
 
 		private fun TomographyImportDataArgs.Companion.fromDoc(doc: Document) =
 			TomographyImportDataArgs(
-				doc.getString("values"),
-				doc.getString("list")
+				doc.getString("values")
 			)
 
 		val eventListeners = TiltSeriesEventListeners(this)
