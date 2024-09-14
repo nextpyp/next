@@ -78,7 +78,7 @@ class TomographyPickingClosedView(val project: ProjectData, val job: TomographyP
 					when (val particles = data.particles) {
 						null -> Unit
 						is TiltSeriesesParticlesData.Data -> particles.list?.let { pickingControls.load(it) }
-						else -> console.warn("Unexpected particles data: ${particles::class.simpleName}, skipping particles list")
+						is TiltSeriesesParticlesData.VirusMode -> particles.virions.list?.let { pickingControls.load(it) }
 					}
 					Services.jobs.pypStats(job.jobId)
 				}
