@@ -90,7 +90,7 @@ class TomographySegmentationClosedJob(
 		// write out manually-picked particles from the upstream job, if needed
 		ParticlesJobs.clear(project.osUsername, dir)
 		upstreamJob.manualParticlesList()
-			?.let { ParticlesJobs.writeTomography(project.osUsername, upstreamJob.idOrThrow, dir, it) }
+			?.let { ParticlesJobs.writeTomography(project.osUsername, upstreamJob, dir, it) }
 
 		// write out the filter from the upstream job, if needed
 		if (upstreamJob is FilteredJob && newestArgs.filter != null) {

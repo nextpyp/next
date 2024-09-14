@@ -45,16 +45,14 @@ data class TiltSeriesesData(
 			is TomographySegmentationClosedData ->
 				particles = TiltSeriesesParticlesData.VirusMode(
 					virions = TiltSeriesesParticlesData.Data(
-						list = ParticlesList.autoVirions(job.jobId),
-						extraBinning = values.tomoVirBinnOrDefault.toInt()
+						list = ParticlesList.autoVirions(job.jobId)
 					)
 				)
 
 			is TomographyPickingClosedData ->
 				particles = TiltSeriesesParticlesData.VirusMode(
 					virions = TiltSeriesesParticlesData.Data(
-						list = ParticlesList.autoVirions(job.jobId),
-						extraBinning = values.tomoVirBinnOrDefault.toInt()
+						list = ParticlesList.autoVirions(job.jobId)
 					),
 					spikes = TiltSeriesesParticlesData.Data(
 						list = ParticlesList.autoParticles3D(job.jobId)
@@ -105,8 +103,7 @@ data class TiltSeriesesData(
 			particles = TiltSeriesesParticlesData.VirusMode(
 				virions = TiltSeriesesParticlesData.Data(
 					list = virionsList,
-					radius = tomoVirRad,
-					extraBinning = tomoVirBinn
+					radius = tomoVirRad
 				),
 				spikes = tomoVirDetectMethod.particlesList(ownerId)?.let { list ->
 					TiltSeriesesParticlesData.Data(list)
@@ -184,7 +181,6 @@ sealed interface TiltSeriesesParticlesData {
 		 * A radius common to all particles, if such a radius exist.
 		 * Otherwise (ie, if all particles have differing radii), set this to null.
 		 */
-		val radius: ValueA? = null,
-		var extraBinning: Int? = null
+		val radius: ValueA? = null
 	) : TiltSeriesesParticlesData
 }

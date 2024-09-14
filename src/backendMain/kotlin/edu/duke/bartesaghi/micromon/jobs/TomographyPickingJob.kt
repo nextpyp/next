@@ -87,9 +87,6 @@ class TomographyPickingJob(
 		val upstreamJob = inTomograms?.resolveJob<Job>()
 			?: throw IllegalStateException("no tomograms input configured")
 
-		// always write out manually-picked particles
-		ParticlesJobs.writeTomography(project.osUsername, idOrThrow, dir, ParticlesList.manualParticles3D(idOrThrow))
-
 		// write out the filter from the upstream job, if needed
 		if (upstreamJob is FilteredJob && newestArgs.filter != null) {
 			upstreamJob.writeFilter(newestArgs.filter, dir, project.osUsername)

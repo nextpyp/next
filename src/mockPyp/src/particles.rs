@@ -5,21 +5,21 @@ use std::path::PathBuf;
 use anyhow::{Context, Result};
 
 use crate::metadata::{Particle3D, Virion3D};
-use crate::scale::{TomogramDimsBinned, ToValueU, ValueBinnedF, ValueBinnedU};
+use crate::scale::{TomogramDimsUnbinned, ToValueU, ValueUnbinnedF, ValueUnbinnedU};
 
 
-pub fn sample_particle_3d(dims: TomogramDimsBinned, radius: ValueBinnedF) -> Particle3D {
+pub fn sample_particle_3d(dims: TomogramDimsUnbinned, radius: ValueUnbinnedF) -> Particle3D {
 	Particle3D {
-		x: fastrand::u32(0 ..= dims.width.0).to_binned(),
-		y: fastrand::u32(0 ..= dims.height.0).to_binned(),
-		z: fastrand::u32(0 ..= dims.depth.0).to_binned(),
+		x: fastrand::u32(0 ..= dims.width.0).to_unbinned(),
+		y: fastrand::u32(0 ..= dims.height.0).to_unbinned(),
+		z: fastrand::u32(0 ..= dims.depth.0).to_unbinned(),
 		r: radius,
 		threshold: None
 	}
 }
 
 
-pub fn sample_virion(dims: TomogramDimsBinned, radius: ValueBinnedF, threshold: u32) -> Virion3D {
+pub fn sample_virion(dims: TomogramDimsUnbinned, radius: ValueUnbinnedF, threshold: u32) -> Virion3D {
 	Virion3D {
 		particle: sample_particle_3d(dims, radius),
 		threshold
@@ -30,8 +30,8 @@ pub fn sample_virion(dims: TomogramDimsBinned, radius: ValueBinnedF, threshold: 
 pub fn sample_tomo_virions(
 	num_tilt_series: u32,
 	num_virions: u32,
-	dims: TomogramDimsBinned,
-	radius: ValueBinnedF,
+	dims: TomogramDimsUnbinned,
+	radius: ValueUnbinnedF,
 	threshold: u32
 ) -> Vec<(String,Vec<Virion3D>)> {
 	(0 .. num_tilt_series)
@@ -46,7 +46,7 @@ pub fn sample_tomo_virions(
 }
 
 
-pub fn read_manual_tomo_particles(radius: ValueBinnedF) -> Result<Option<Vec<(String,Vec<Particle3D>)>>> {
+pub fn read_manual_tomo_particles(radius: ValueUnbinnedF) -> Result<Option<Vec<(String,Vec<Particle3D>)>>> {
 
 	let images_path = PathBuf::from("train/particles_images.txt");
 	if !images_path.exists() {
@@ -84,9 +84,9 @@ pub fn read_manual_tomo_particles(radius: ValueBinnedF) -> Result<Option<Vec<(St
 				.parse::<u32>()
 				.context(format!("Failed to read z coord, line {} of {}", linei, coords_path.to_string_lossy()))?;
 			particles.push(Particle3D {
-				x: ValueBinnedU(x),
-				y: ValueBinnedU(y),
-				z: ValueBinnedU(z),
+				x: ValueUnbinnedU(x),
+				y: ValueUnbinnedU(y),
+				z: ValueUnbinnedU(z),
 				r: radius,
 				threshold: None,
 			});
@@ -98,7 +98,7 @@ pub fn read_manual_tomo_particles(radius: ValueBinnedF) -> Result<Option<Vec<(St
 	Ok(Some(tilt_series_particles))
 }
 
-pub fn read_manual_tomo_virions(radius: ValueBinnedF, threshold: u32) -> Result<Option<Vec<(String,Vec<Virion3D>)>>> {
+pub fn read_manual_tomo_virions(radius: ValueUnbinnedF, threshold: u32) -> Result<Option<Vec<(String,Vec<Virion3D>)>>> {
 
 	// first, read particles
 	let tilt_series_particles = read_manual_tomo_particles(radius)?;

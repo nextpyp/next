@@ -58,16 +58,14 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 		.or_default(&args_config)?
 		.into_u32()?
 		.value();
-	let tomogram_dims = TomogramDimsUnbinned::new(tomogram_width, tomogram_height, tomogram_depth)
-		.to_binned(tomogram_binning);
+	let tomogram_dims = TomogramDimsUnbinned::new(tomogram_width, tomogram_height, tomogram_depth);
 
 	// create subfolders
 	fs::create_dir_all("webp")
 		.context("Failed to create webp dir")?;
 
 	let particle_radius = particle_radius
-		.to_unbinned(pixel_size)
-		.to_binned(tomogram_binning);
+		.to_unbinned(pixel_size);
 
 	// generate tilt series
 	for tilt_series_i in 0 .. num_tilt_series {

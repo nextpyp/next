@@ -88,19 +88,12 @@ val ArgValues.scopeDoseRate: Double?
 val ArgValues.scopeDoseRateOrDefault: Double
 	get() = getOrDefault(args.scopeDoseRate) as Double
 
-val Args.movieBin: Arg
-	get() = argOrThrow("movie", "bin")
-val ArgValues.movieBin: Int?
-	get() = get(args.movieBin) as Int?
-val ArgValues.movieBinOrDefault: Int
-	get() = getOrDefault(args.movieBin) as Int
-
 val Args.tomoRecBinning: Arg
 	get() = argOrThrow("tomo_rec", "binning")
 val ArgValues.tomoRecBinning: Int?
-	get() = get(args.tomoRecBinning) as Int?
+	get() = (get(args.tomoRecBinning) as Long?)?.toInt()
 val ArgValues.tomoRecBinningOrDefault: Int
-	get() = getOrDefault(args.tomoRecBinning) as Int
+	get() = (getOrDefault(args.tomoRecBinning) as Long).toInt()
 
 val Args.refineMode: Arg
 	get() = argOrThrow("refine", "mode")

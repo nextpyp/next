@@ -2,7 +2,7 @@
 use std::fs;
 use anyhow::{Context, Result};
 use image::Rgb;
-
+use tracing::info;
 use crate::args::{Args, ArgsConfig, ArgValue};
 use crate::image::{Image, ImageDrawing};
 use crate::metadata::TiltSeries;
@@ -53,8 +53,7 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 		.or_default(&args_config)?
 		.into_u32()?
 		.value();
-	let tomogram_dims = TomogramDimsUnbinned::new(tomogram_width, tomogram_height, tomogram_depth)
-		.to_binned(tomogram_binning);
+	let tomogram_dims = TomogramDimsUnbinned::new(tomogram_width, tomogram_height, tomogram_depth);
 
 	let web = Web::new()?;
 	web.write_parameters(&args, &args_config)?;
@@ -63,23 +62,24 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 	fs::create_dir_all("webp")
 		.context("Failed to create webp dir")?;
 
+	let tomo_pick_method = args.get("tomo_pick_method")
+		.into_str()?
+		.value();
+	info!("pick method: {:?}", tomo_pick_method);
+
 	// generate tilt series
 	for tilt_series_i in 0 .. num_tilt_series {
 		let tilt_series_id = format!("tilt_series_{}", tilt_series_i);
 
 		// generate particles, if needed
-		let tomo_spk_method = args.get("tomo_spk_method")
-			.into_str()?
-			.value();
-		let particles = match tomo_spk_method {
+		let particles = match tomo_pick_method {
 			Some("auto") => {
-				let radius = args.get("tomo_spk_rad")
+				let radius = args.get("tomo_pick_rad")
 					.into_f64()?
 					.or(500.0)
 					.value()
 					.to_a()
-					.to_unbinned(pixel_size)
-					.to_binned(tomogram_binning);
+					.to_unbinned(pixel_size);
 				let spikes = (0 .. num_particles)
 					.map(|_| sample_particle_3d(tomogram_dims, radius))
 					.collect();

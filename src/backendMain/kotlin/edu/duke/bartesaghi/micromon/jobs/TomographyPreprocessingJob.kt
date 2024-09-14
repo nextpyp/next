@@ -119,7 +119,7 @@ class TomographyPreprocessingJob(
 		// write out manually-picked particles, if needed
 		ParticlesJobs.clear(project.osUsername, dir)
 		manualParticlesList(newestArgs.tomolist)
-			?.let { ParticlesJobs.writeTomography(project.osUsername, idOrThrow, dir, it) }
+			?.let { ParticlesJobs.writeTomography(project.osUsername, this, dir, it) }
 
 		// build the args for PYP
 		val upstreamJob = inTiltSeries?.resolveJob<Job>()

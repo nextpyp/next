@@ -77,7 +77,6 @@ enum class ParticlesType(val id: String) {
 
 	Particles2D("particles2D"),
 	Particles3D("particles3D"),
-	/** only used by old preprocessing blocks */
 	Virions3D("virions3D");
 
 	companion object {
@@ -178,7 +177,6 @@ data class ParticlesList(
 }
 
 
-// NOTE: pyp sends particles for micrographs in unbinned coordinates, so we'll store them that way internally as well
 @Serializable
 data class Particle2D(
 	val x: ValueUnbinnedI,
@@ -191,13 +189,38 @@ data class Particle2D(
 	}
 }
 
-// NOTE: pyp sends particles for tomograms in binned coordinates, so we'll store them that way internally as well
+
+@Serializable
+data class Particle2DUntyped(
+	val x: Int,
+	val y: Int,
+	val r: Double
+) {
+
+	companion object {
+		// define the companion object here so we can extend it elsewhere
+	}
+}
+
+
 @Serializable
 data class Particle3D(
-	val x: ValueBinnedI,
-	val y: ValueBinnedI,
-	val z: ValueBinnedI,
-	val r: ValueBinnedF
+	val x: ValueUnbinnedI,
+	val y: ValueUnbinnedI,
+	val z: ValueUnbinnedI,
+	val r: ValueUnbinnedF
+) {
+
+	companion object {
+		// define the companion object here so we can extend it elsewhere
+	}
+}
+
+data class Particle3DUntyped(
+	val x: Int,
+	val y: Int,
+	val z: Int,
+	val r: Double
 ) {
 
 	companion object {
@@ -301,10 +324,10 @@ data class Particles3DData(
 	private fun particle(i: Int): Particle3D {
 		val i3 = i*3
 		return Particle3D(
-			x = ValueBinnedI(coords[i3]),
-			y = ValueBinnedI(coords[i3 + 1]),
-			z = ValueBinnedI(coords[i3 + 2]),
-			r = ValueBinnedF(radii[i])
+			x = ValueUnbinnedI(coords[i3]),
+			y = ValueUnbinnedI(coords[i3 + 1]),
+			z = ValueUnbinnedI(coords[i3 + 2]),
+			r = ValueUnbinnedF(radii[i])
 		)
 	}
 

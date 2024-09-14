@@ -1,5 +1,5 @@
 
-use crate::scale::{ValueA, ValueBinnedF, ValueBinnedU, ValueUnbinnedF};
+use crate::scale::{ValueA, ValueUnbinnedF, ValueUnbinnedU};
 
 
 #[derive(Debug, Clone, PartialEq)]
@@ -102,9 +102,9 @@ pub struct Virion3D {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Particle3D {
-	pub x: ValueBinnedU,
-	pub y: ValueBinnedU,
-	pub z: ValueBinnedU,
-	pub r: ValueBinnedF,
+	pub x: ValueUnbinnedU,
+	pub y: ValueUnbinnedU,
+	pub z: ValueUnbinnedU,
+	pub r: ValueUnbinnedF,
 	pub threshold: Option<u32>
 }

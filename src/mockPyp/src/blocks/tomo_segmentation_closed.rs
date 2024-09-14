@@ -60,15 +60,7 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 		.or_default(args_config)?
 		.into_u32()?
 		.value();
-	let tomogram_dims = TomogramDimsUnbinned::new(tomogram_width, tomogram_height, tomogram_depth)
-		.to_binned(tomogram_binning);
-	let virion_binning = args.get_from_group("tomo_vir", "binn")
-		.or_default(args_config)?
-		.into_u32()?
-		.value();
-	let virion_dims = tomogram_dims
-		.clone()
-		.with_additional_binning(virion_binning);
+	let tomogram_dims = TomogramDimsUnbinned::new(tomogram_width, tomogram_height, tomogram_depth);
 
 	// set default arg values that the website will use, but we won't
 	args.set_default(&args_config, "ctf", "min_res")?;
@@ -79,32 +71,19 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 
 	// try to read the submitted particles, or sample new ones
 	let virion_radius = virion_radius
-		.to_unbinned(pixel_size)
-		.to_binned(tomogram_binning)
-		.with_additional_binning(virion_binning);
+		.to_unbinned(pixel_size);
 	let default_threshold = 1;
 	let tilt_series_virions = read_manual_tomo_virions(virion_radius, default_threshold)?
-		.map(|mut tilt_series_virions| {
-
+		.map(|tilt_series_virions| {
 			let num_particles = tilt_series_virions.iter()
 				.map(|(_, tilt_series)| tilt_series.len())
 				.sum::<usize>();
 			info!("Read {} manual virions from {} tilt series", num_particles, tilt_series_virions.len());
-
-			// apply additional binning to manually-picked particles (since they're in tomogram binned coordinates)
-			for (_, virions) in &mut tilt_series_virions {
-				for virion in virions {
-					virion.particle.x = virion.particle.x.with_additional_binning(virion_binning);
-					virion.particle.y = virion.particle.y.with_additional_binning(virion_binning);
-					virion.particle.z = virion.particle.z.with_additional_binning(virion_binning);
-				}
-			}
-
 			tilt_series_virions
 		})
 		.unwrap_or_else(|| {
 			info!("No manual particles, sampled new ones");
-			sample_tomo_virions(num_tilt_series, num_particles, virion_dims, virion_radius, default_threshold)
+			sample_tomo_virions(num_tilt_series, num_particles, tomogram_dims, virion_radius, default_threshold)
 		});
 
 	// create subfolders

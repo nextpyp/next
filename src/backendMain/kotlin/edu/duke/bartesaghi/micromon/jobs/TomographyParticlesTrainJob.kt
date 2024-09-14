@@ -5,7 +5,6 @@ import edu.duke.bartesaghi.micromon.mongo.getDocument
 import edu.duke.bartesaghi.micromon.nodes.TomographyParticlesTrainNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.*
-import io.kvision.remote.ServiceException
 import org.bson.Document
 import org.bson.conversions.Bson
 
@@ -82,7 +81,7 @@ class TomographyParticlesTrainJob(
 		// write out manually-picked particles from the upstream job, if needed
 		ParticlesJobs.clear(project.osUsername, dir)
 		upstreamJob.manualParticlesList(newestArgs.particlesName)
-			?.let { ParticlesJobs.writeTomography(project.osUsername, upstreamJob.idOrThrow, dir, it) }
+			?.let { ParticlesJobs.writeTomography(project.osUsername, upstreamJob, dir, it) }
 
 		// build the args for PYP
 		val pypArgs = launchArgValues(upstreamJob, newestArgs.values, args.finished?.values)

@@ -12,6 +12,7 @@ import edu.duke.bartesaghi.micromon.files.*
 import edu.duke.bartesaghi.micromon.jobs.*
 import edu.duke.bartesaghi.micromon.linux.EnvVar
 import edu.duke.bartesaghi.micromon.mongo.Database
+import edu.duke.bartesaghi.micromon.mongo.SavedParticles
 import edu.duke.bartesaghi.micromon.services.*
 import edu.duke.bartesaghi.micromon.sessions.Session
 import edu.duke.bartesaghi.micromon.sessions.SingleParticleSession
@@ -254,20 +255,23 @@ object PypService {
 					?.toUnbinned(dims)
 					?: return JsonRpcFailure("can't import boxx particles: pyp parameters have no detect_rad")
 
-				boxx.indices().associate { i ->
+				SavedParticles(
+					version = ParticlesVersion.Unbinned,
+					saved = boxx.indices().associate { i ->
 
-					val jsonParticle = boxx.getArrayOrThrow(i, "Particles coordinates")
+						val jsonParticle = boxx.getArrayOrThrow(i, "Particles coordinates")
 
-					// read the x,y coords
-					// NOTE: w,h components have no information and are always zero
-					// NOTE: these particles come from pyp in unbinned coordinates
-					val x = ValueUnbinnedI(jsonParticle.getNumberAsIntOrThrow(0, "Particles coordinates [$i].x"))
-					val y = ValueUnbinnedI(jsonParticle.getNumberAsIntOrThrow(1, "Particles coordinates [$i].y"))
+						// read the x,y coords
+						// NOTE: w,h components have no information and are always zero
+						// NOTE: these particles come from pyp in unbinned coordinates
+						val x = ValueUnbinnedI(jsonParticle.getNumberAsIntOrThrow(0, "Particles coordinates [$i].x"))
+						val y = ValueUnbinnedI(jsonParticle.getNumberAsIntOrThrow(1, "Particles coordinates [$i].y"))
 
-					val particleId = i + 1
+						val particleId = i + 1
 
-					particleId to Particle2D(x, y, r)
-				}
+						particleId to Particle2D(x, y, r)
+					}
+				)
 			}
 
 		// update the database
@@ -282,7 +286,6 @@ object PypService {
 		}
 		Database.micrographsAvgRot.write(owner.id, micrographId, avgrot)
 
-		// TODO: update this to be analogous to the tomography side when the new blocks are ready to process metadata
 		if (particles != null) {
 			val list = ParticlesList.autoParticles2D(owner.id)
 			Database.particleLists.createIfNeeded(list)
@@ -407,20 +410,22 @@ object PypService {
 			?.takeIf { it.has("drift") }
 			?.let { DMD.from(it) }
 
-		fun ArrayNode.readParticles(): Map<Int,Particle3D> =
-			indices().associate { i ->
-				val jsonParticle = getArrayOrThrow(i, "Particles coordinates")
-				val particleId = i + 1
-				// NOTE: these particles come from pyp in binned coordinates
-				//       and virions may have extra binning
-				val particle = Particle3D(
-					x = ValueBinnedI(jsonParticle.getNumberAsIntOrThrow(0, "Particles coordinates [$i].x")),
-					y = ValueBinnedI(jsonParticle.getNumberAsIntOrThrow(1, "Particles coordinates [$i].y")),
-					z = ValueBinnedI(jsonParticle.getNumberAsIntOrThrow(2, "Particles coordinates [$i].z")),
-					r = ValueBinnedF(jsonParticle.getDoubleOrThrow(3, "Particles coordinates [$i].radius")),
-				)
-				particleId to particle
-			}
+		fun ArrayNode.readParticles(): SavedParticles<Particle3D> =
+			SavedParticles(
+				version = ParticlesVersion.Unbinned,
+				saved = indices().associate { i ->
+					val jsonParticle = getArrayOrThrow(i, "Particles coordinates")
+					val particleId = i + 1
+					// NOTE: these particles come from pyp in unbinned coordinates
+					val particle = Particle3D(
+						x = ValueUnbinnedI(jsonParticle.getNumberAsIntOrThrow(0, "Particles coordinates [$i].x")),
+						y = ValueUnbinnedI(jsonParticle.getNumberAsIntOrThrow(1, "Particles coordinates [$i].y")),
+						z = ValueUnbinnedI(jsonParticle.getNumberAsIntOrThrow(2, "Particles coordinates [$i].z")),
+						r = ValueUnbinnedF(jsonParticle.getDoubleOrThrow(3, "Particles coordinates [$i].radius")),
+					)
+					particleId to particle
+				}
+			)
 		fun ArrayNode.readThresholds(): Map<Int,Int> =
 			indices().associate { i ->
 				val virionId = i + 1

@@ -2,6 +2,7 @@ package edu.duke.bartesaghi.micromon.mongo.migrations
 
 import edu.duke.bartesaghi.micromon.jobs.Job
 import edu.duke.bartesaghi.micromon.mongo.Database
+import edu.duke.bartesaghi.micromon.mongo.SavedParticles
 import edu.duke.bartesaghi.micromon.mongo.getMap
 import edu.duke.bartesaghi.micromon.mongo.useCursor
 import edu.duke.bartesaghi.micromon.pyp.*
@@ -45,7 +46,11 @@ fun migrationParticles(database: Database, log: Logger) {
 					nextId += 1
 					numParticles += 1
 				}
-				database.particles.importParticles2D(list.ownerId, list.name, micrographId, particles)
+				val savedParticles = SavedParticles(
+					version = ParticlesVersion.Legacy,
+					saved = particles
+				)
+				database.particles.importParticles2D(list.ownerId, list.name, micrographId, savedParticles)
 			}
 		}
 		log.info("Migrated $numParticles single-particle picked particles successfully.")
@@ -75,15 +80,22 @@ fun migrationParticles(database: Database, log: Logger) {
 				var nextId = 1
 				for (coordDoc in coords) {
 					particles[nextId] = Particle3D(
-						x = ValueBinnedI(coordDoc.getDouble("x").toInt()),
-						y = ValueBinnedI(coordDoc.getDouble("y").toInt()),
-						z = ValueBinnedI(coordDoc.getDouble("z").toInt()),
-						r = radius
+						// NOTE: these are actually binned coordinates, but the database only allows writing unbinned coordinates now
+						//       but this is a migration for super old stuff, so just lie and say the're unbinned coords for now
+						//       but put the legacy version in there, so we know to convert them to real unbinned coords later
+						x = ValueUnbinnedI(coordDoc.getDouble("x").toInt()),
+						y = ValueUnbinnedI(coordDoc.getDouble("y").toInt()),
+						z = ValueUnbinnedI(coordDoc.getDouble("z").toInt()),
+						r = ValueUnbinnedF(radius.v)
 					)
 					nextId += 1
 					numParticles += 1
 				}
-				database.particles.importParticles3D(list.ownerId, list.name, tiltSeriesId, particles)
+				val savedParticles = SavedParticles(
+					version = ParticlesVersion.Legacy,
+					saved = particles
+				)
+				database.particles.importParticles3D(list.ownerId, list.name, tiltSeriesId, savedParticles)
 			}
 		}
 		log.info("Migrated $numParticles tomography picked particles successfully.")

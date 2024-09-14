@@ -1,10 +1,7 @@
 package edu.duke.bartesaghi.micromon.mongo
 
 import com.mongodb.client.model.*
-import edu.duke.bartesaghi.micromon.pyp.ValueBinnedF
-import edu.duke.bartesaghi.micromon.pyp.ValueBinnedI
-import edu.duke.bartesaghi.micromon.pyp.ValueUnbinnedF
-import edu.duke.bartesaghi.micromon.pyp.ValueUnbinnedI
+import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.*
 import org.bson.Document
 
@@ -30,6 +27,10 @@ class ParticleLists {
 			.find(filter(ownerId, name))
 			.firstOrNull()
 			?.let { ParticlesList.fromDoc(it) }
+
+	fun getOrThrow(ownerId: String, name: String): ParticlesList =
+		get(ownerId, name)
+			?: throw NoSuchElementException("no particles list with ownerId=$ownerId and name=$name")
 
 	fun getAll(ownerId: String): List<ParticlesList> =
 		collection
@@ -89,6 +90,12 @@ class ParticleLists {
 }
 
 
+class SavedParticles<T>(
+	val version: ParticlesVersion = ParticlesVersion.DEFAULT,
+	val saved: Map<Int,T> = HashMap()
+): Map<Int,T> by saved
+
+
 class Particles {
 
 	companion object {
@@ -102,6 +109,7 @@ class Particles {
 			// NOTE: this used to be used for this virions, but now it's for any particle with segmentation thresholds
 			//       but don't change database keys unless you really need to
 			const val threshold = "virionThreshold"
+			const val version = "version"
 		}
 	}
 
@@ -145,32 +153,41 @@ class Particles {
 	private fun filterOwner(ownerId: String) =
 		Filters.eq(Keys.ownerId, ownerId)
 
-
-	private fun <T> getParticles(ownerId: String, name: String, datumId: String, mapper: (Document) -> T?): Map<Int,T> =
+	fun getParticlesVersion(ownerId: String, name: String, datumId: String): ParticlesVersion? =
 		collection
 			.find(filter(ownerId, name, datumId))
 			.firstOrNull()
-			?.getDocument(Keys.particles)
-			?.entries
-			?.mapNotNull m@{ (key, value) ->
-				val particleId = particleId(key)
-					?: return@m null
-				val particle = (value as? Document)
-					?.let(mapper)
-					?: return@m null
-				particleId to particle
-			}
-			?.associate { it }
-			?: emptyMap()
+			?.let { doc -> ParticlesVersion[doc.getInteger(Keys.version)] }
 
-	fun getParticles2D(ownerId: String, name: String, datumId: String): Map<Int,Particle2D> =
+	private fun <T> getParticles(ownerId: String, name: String, datumId: String, mapper: (Document) -> T?): SavedParticles<T>? =
+		collection
+			.find(filter(ownerId, name, datumId))
+			.firstOrNull()
+			?.let { doc ->
+				val version = ParticlesVersion[doc.getInteger(Keys.version)]
+				val saved = doc.getDocument(Keys.particles)
+					?.entries
+					?.mapNotNull m@{ (key, value) ->
+						val particleId = particleId(key)
+							?: return@m null
+						val particle = (value as? Document)
+							?.let(mapper)
+							?: return@m null
+						particleId to particle
+					}
+					?.associate { it }
+					?: emptyMap()
+				SavedParticles(version, saved)
+			}
+
+	fun getParticles2D(ownerId: String, name: String, datumId: String): SavedParticles<Particle2DUntyped>? =
 		getParticles(ownerId, name, datumId) { doc ->
-			Particle2D.fromDoc(doc)
+			Particle2DUntyped.fromDoc(doc)
 		}
 
-	fun getParticles3D(ownerId: String, name: String, datumId: String): Map<Int,Particle3D> =
+	fun getParticles3D(ownerId: String, name: String, datumId: String): SavedParticles<Particle3DUntyped>? =
 		getParticles(ownerId, name, datumId) { doc ->
-			Particle3D.fromDoc(doc)
+			Particle3DUntyped.fromDoc(doc)
 		}
 
 	fun countParticles(ownerId: String, name: String, datumId: String): Long? =
@@ -190,7 +207,7 @@ class Particles {
 					.sumOf { it.getDocument(Keys.particles)?.size?.toLong() ?: 0 }
 			}
 
-	private fun <T> importParticles(ownerId: String, name: String, datumId: String, particles: Map<Int,T>, mapper: (T) -> Document) {
+	private fun <T> importParticles(ownerId: String, name: String, datumId: String, particles: SavedParticles<T>, mapper: (T) -> Document) {
 
 		val filter = filter(ownerId, name, datumId)
 
@@ -200,9 +217,10 @@ class Particles {
 				this[Keys.ownerId] = ownerId
 				this[Keys.name] = name
 				this[Keys.datumId] = datumId
+				this[Keys.version] = particles.version.number
 				this[Keys.nextId] = particles.size + 1
 				this[Keys.particles] = Document().apply {
-					for ((particleId, particle) in particles) {
+					for ((particleId, particle) in particles.saved) {
 						this[particleKey(particleId)] = mapper(particle)
 					}
 				}
@@ -211,14 +229,14 @@ class Particles {
 		)
 	}
 
-	fun importParticles2D(ownerId: String, name: String, datumId: String, particles: Map<Int,Particle2D>) =
+	fun importParticles2D(ownerId: String, name: String, datumId: String, particles: SavedParticles<Particle2D>) =
 		importParticles(ownerId, name, datumId, particles) {
 			Document().apply {
 				it.toDoc(this)
 			}
 		}
 
-	fun importParticles3D(ownerId: String, name: String, datumId: String, particles: Map<Int,Particle3D>) =
+	fun importParticles3D(ownerId: String, name: String, datumId: String, particles: SavedParticles<Particle3D>) =
 		importParticles(ownerId, name, datumId, particles) {
 			Document().apply {
 				it.toDoc(this)
@@ -255,6 +273,7 @@ class Particles {
 				updates.add(Updates.set(Keys.ownerId, ownerId))
 				updates.add(Updates.set(Keys.name, name))
 				updates.add(Updates.set(Keys.datumId, datumId))
+				updates.add(Updates.set(Keys.version, ParticlesVersion.Unbinned.number))
 				updates.add(Updates.set(Keys.particles, Document().apply {
 					this[particleKey(particleId)] = Document().apply {
 						doccer()
@@ -350,10 +369,11 @@ class Particles {
 	fun setThreshold(ownerId: String, name: String, datumId: String, particleId: Int, threshold: Int?) =
 		setMetadata(ownerId, name, datumId, particleId, Keys.threshold, threshold)
 
-	fun getThresholds(ownerId: String, name: String, datumId: String): Map<Int,Int> =
+	fun getThresholds(ownerId: String, name: String, datumId: String): Map<Int,Int>? =
 		getParticles(ownerId, name, datumId) { doc ->
 			doc.getInteger(Keys.threshold)
 		}
+		?.saved
 
 	fun copyAllParticles(ownerId: String, name: String, newName: String) {
 		collection
@@ -419,11 +439,11 @@ private fun Particle2D.toDoc(doc: Document) {
 	doc["y"] = y.v
 	doc["r"] = r.v
 }
-private fun Particle2D.Companion.fromDoc(doc: Document) =
-	Particle2D(
-		x = ValueUnbinnedI(doc.getNumberAsIntOrThrow("x")),
-		y = ValueUnbinnedI(doc.getNumberAsIntOrThrow("y")),
-		r = ValueUnbinnedF(doc.getDouble("r")),
+private fun Particle2DUntyped.Companion.fromDoc(doc: Document) =
+	Particle2DUntyped(
+		x = doc.getNumberAsIntOrThrow("x"),
+		y = doc.getNumberAsIntOrThrow("y"),
+		r = doc.getDouble("r"),
 	)
 
 private fun Particle3D.toDoc(doc: Document) {
@@ -432,10 +452,10 @@ private fun Particle3D.toDoc(doc: Document) {
 	doc["z"] = z.v
 	doc["r"] = r.v
 }
-private fun Particle3D.Companion.fromDoc(doc: Document) =
-	Particle3D(
-		x = ValueBinnedI(doc.getNumberAsIntOrThrow("x")),
-		y = ValueBinnedI(doc.getNumberAsIntOrThrow("y")),
-		z = ValueBinnedI(doc.getNumberAsIntOrThrow("z")),
-		r = ValueBinnedF(doc.getDouble("r"))
+private fun Particle3DUntyped.Companion.fromDoc(doc: Document) =
+	Particle3DUntyped(
+		x = doc.getNumberAsIntOrThrow("x"),
+		y = doc.getNumberAsIntOrThrow("y"),
+		z = doc.getNumberAsIntOrThrow("z"),
+		r = doc.getDouble("r")
 	)

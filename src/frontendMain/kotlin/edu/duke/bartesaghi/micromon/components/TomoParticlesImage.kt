@@ -31,8 +31,6 @@ class TomoParticlesImage(
 
 	companion object {
 
-		const val NO_EXTRA_BINNING: Int = 1
-
 		fun forProject(
 			project: ProjectData,
 			job: JobData,
@@ -77,10 +75,9 @@ class TomoParticlesImage(
 		val color: Color,
 		val checkbox: ParticlesCheckBox,
 		val editable: Boolean,
-		/** particles are in binned coordinates */
+		/** particles are in unbinned coordinates */
 		val particles: MutableMap<Int,Particle3D>,
-		val newParticleRadius: ValueA?,
-		val extraBinning: Int
+		val newParticleRadius: ValueA?
 	) {
 		val markersByParticleId = HashMap<Int,ParticleMarker>()
 	}
@@ -266,8 +263,7 @@ class TomoParticlesImage(
 				checkbox = checkbox,
 				editable = editable,
 				particles = getParticles(list.name),
-				newParticleRadius = this.radius,
-				extraBinning = this.extraBinning ?: NO_EXTRA_BINNING
+				newParticleRadius = this.radius
 			))
 		}
 
@@ -302,18 +298,17 @@ class TomoParticlesImage(
 		}
 	}
 
-	private fun ParticlesInfo.makeMarker(particleId: Int, particle: Particle3D, zSlice: ValueBinnedI) {
+	private fun ParticlesInfo.makeMarker(particleId: Int, particle: Particle3D, zSlice: ValueUnbinnedI) {
 
-		// undo any extra binning
-		val r = particle.r.withoutExtraBinning(extraBinning)
-		val x = particle.x.withoutExtraBinning(extraBinning)
-		val y = particle.y.withoutExtraBinning(extraBinning)
-		val z = particle.z.withoutExtraBinning(extraBinning)
+		val r = particle.r
+		val x = particle.x
+		val y = particle.y
+		val z = particle.z
 
 		// slice the particle sphere at the z-coordinate of the tomogram slice to get the reduced radius
 		val dz = (z - zSlice).abs().toF()
 		val square = r*r - dz*dz
-		if (square < ValueBinnedF(0.0)) {
+		if (square < ValueUnbinnedF(0.0)) {
 			return
 		}
 		val sliceRadius = square.sqrt()
@@ -334,23 +329,20 @@ class TomoParticlesImage(
 
 		playableSprite.sprite?.add(marker)
 		marker.place(
-			x.toUnbinned(tiltSeries.imageDims).toF().toNormalizedX(tiltSeries.imageDims),
-			y.toUnbinned(tiltSeries.imageDims).toF().toNormalizedY(tiltSeries.imageDims),
-			sliceRadius.toUnbinned(tiltSeries.imageDims).toNormalizedX(tiltSeries.imageDims),
-			sliceRadius.toUnbinned(tiltSeries.imageDims).toNormalizedY(tiltSeries.imageDims)
+			x.toF().toNormalizedX(tiltSeries.imageDims),
+			y.toF().toNormalizedY(tiltSeries.imageDims),
+			sliceRadius.toNormalizedX(tiltSeries.imageDims),
+			sliceRadius.toNormalizedY(tiltSeries.imageDims)
 		)
 	}
 
-	private fun ParticlesInfo.createMarkersInRange(zSlice: ValueBinnedI) {
+	private fun ParticlesInfo.createMarkersInRange(zSlice: ValueUnbinnedI) {
 
 		// make markers for all coords within the z-range of the slice
 		for ((particleId, particle) in particles) {
 
-			// undo any extra binning
 			val r = particle.r
-				.withoutExtraBinning(extraBinning)
 			val z = particle.z
-				.withoutExtraBinning(extraBinning)
 
 			// skip coords that are out of range
 			val dz = (z - zSlice).toF()
@@ -404,8 +396,8 @@ class TomoParticlesImage(
 			particlesInfosToCleanup.clear()
 		}
 
-		// get the z-coordinate of the current slice, in binned voxels
-		val zSlice = sprite.index.sliceToBinnedZ()
+		// get the z-coordinate of the current slice, in unbinned voxels
+		val zSlice = sprite.index.sliceToUnbinnedZ(tiltSeries.imageDims)
 
 		// create markers for all the particles in range of the z slice
 		batch {
@@ -446,26 +438,18 @@ class TomoParticlesImage(
 		val radius = particlesInfo.newParticleRadius
 			?: return
 
-		// convert mouse coords from screen space to binned voxel space (possibly with extra binning)
 		val particle = Particle3D(
 			x = click.x
 				.normalizedToUnbinnedX(tiltSeries.imageDims)
-				.toI()
-				.toBinned(tiltSeries.imageDims)
-				.withExtraBinning(particlesInfo.extraBinning),
+				.toI(),
 			y = click.y
 				.flipNormalized()
 				.normalizedToUnbinnedY(tiltSeries.imageDims)
-				.toI()
-				.toBinned(tiltSeries.imageDims)
-				.withExtraBinning(particlesInfo.extraBinning),
+				.toI(),
 			z = sprite.index
-				.sliceToBinnedZ()
-				.withExtraBinning(particlesInfo.extraBinning),
+				.sliceToUnbinnedZ(tiltSeries.imageDims),
 			r = radius
 				.toUnbinned(tiltSeries.imageDims)
-				.toBinned(tiltSeries.imageDims)
-				.withExtraBinning(particlesInfo.extraBinning)
 		)
 
 		// make a new particle and save the changes on the server
@@ -474,7 +458,7 @@ class TomoParticlesImage(
 		particlesInfo.particles[particleId] = particle
 
 		// make a new marker too
-		val zSlice = sprite.index.sliceToBinnedZ()
+		val zSlice = sprite.index.sliceToUnbinnedZ(tiltSeries.imageDims)
 		particlesInfo.makeMarker(particleId, particle, zSlice)
 
 		particlesInfo.checkbox.update(particlesInfo)

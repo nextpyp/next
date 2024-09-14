@@ -53,8 +53,7 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 		.or_default(&args_config)?
 		.into_u32()?
 		.value();
-	let tomogram_dims = TomogramDimsUnbinned::new(tomogram_width, tomogram_height, tomogram_depth)
-		.to_binned(tomogram_binning);
+	let tomogram_dims = TomogramDimsUnbinned::new(tomogram_width, tomogram_height, tomogram_depth);
 
 	// create subfolders
 	fs::create_dir_all("webp")
@@ -71,8 +70,7 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 		let particles = match tomo_src_detect_method {
 			Some("template") | Some("mesh") => {
 				let radius = ValueA(500.0)
-					.to_unbinned(pixel_size)
-					.to_binned(tomogram_binning);
+					.to_unbinned(pixel_size);
 				let particles = (0 .. num_particles)
 					.map(|_| sample_particle_3d(tomogram_dims, radius))
 					.collect();

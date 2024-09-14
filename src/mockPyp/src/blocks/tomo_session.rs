@@ -72,16 +72,10 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 		.or_default(&args_config)?
 		.into_u32()?
 		.value();
-	let additional_virion_binning = args.get_from_group("tomo_vir", "binn")
-		.or_default(&args_config)?
-		.into_u32()?
-		.value();
-	let tomogram_dims = TomogramDimsUnbinned::new(tomogram_width, tomogram_height, tomogram_depth)
-		.to_binned(tomogram_binning);
+	let tomogram_dims = TomogramDimsUnbinned::new(tomogram_width, tomogram_height, tomogram_depth);
 
 	let spike_radius = spike_radius
-		.to_unbinned(pixel_size)
-		.to_binned(tomogram_binning);
+		.to_unbinned(pixel_size);
 
 	// set default arg values that the website will use, but we won't
 	args.set_default(&args_config, "ctf", "min_res")?;
@@ -131,14 +125,9 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 							.or(150.0)
 							.value()
 							.to_a()
-							.to_unbinned(pixel_size)
-							.to_binned(tomogram_binning);
+							.to_unbinned(pixel_size);
 						let virions = (0 .. num_virions)
-							.map(|_| sample_virion(
-								tomogram_dims.with_additional_binning(additional_virion_binning),
-								radius.with_additional_binning(additional_virion_binning),
-								1
-							))
+							.map(|_| sample_virion(tomogram_dims, radius, 1))
 							.collect();
 						Some(virions)
 					}
@@ -180,8 +169,7 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 						.or(75.0)
 						.value()
 						.to_a()
-						.to_unbinned(pixel_size)
-						.to_binned(tomogram_binning);
+						.to_unbinned(pixel_size);
 					let spikes = (0 .. num_spikes)
 						.map(|_| sample_particle_3d(tomogram_dims, radius))
 						.collect();

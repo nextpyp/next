@@ -5,7 +5,6 @@ import edu.duke.bartesaghi.micromon.linux.userprocessor.*
 import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.ParticlesList
-import edu.duke.bartesaghi.micromon.services.ParticlesSource
 import java.nio.file.Path
 import java.nio.file.Paths
 import kotlin.io.path.div
@@ -61,7 +60,7 @@ object ParticlesJobs {
 			?.forEach { boxFile(dir, it).deleteAs(osUsername) }
 	}
 
-	suspend fun writeSingleParticle(osUsername: String?, jobId: String, dir: Path, particlesList: ParticlesList) {
+	suspend fun writeSingleParticle(osUsername: String?, job: Job, dir: Path, particlesList: ParticlesList) {
 
 		// write the name of the picked particles list
 		val listFile = listFile(dir)
@@ -80,22 +79,25 @@ object ParticlesJobs {
 				writerCoords.write("image_name\tx_coord\ty_coord\n")
 
 				// TODO: could optimize this query to project just the micrographIds if needed
-				Micrograph.getAllAsync(jobId) { cursor ->
+				Micrograph.getAllAsync(job.idOrThrow) { cursor ->
 					for (micrograph in cursor) {
-						val particles = Database.particles.getParticles2D(jobId, particlesList.name, micrograph.micrographId)
-						if (particles.isNotEmpty()) {
 
-							writerImages.write("${micrograph.micrographId}\t${micrograph.micrographId}.mrc\n")
-							val boxFile = boxFile(dir, micrograph.micrographId)
-							boxFile.parent.createDirsIfNeededAs(osUsername)
-							boxFile.writerAs(osUsername).use { writerBox ->
-								for (particleId in particles.keys.sorted()) {
-									val particle = particles[particleId]
-										?: continue
-									// write the particles in unbinned coordinates
-									writerCoords.write("${micrograph.micrographId}\t${particle.x.v}\t${particle.y.v}\n")
-									writerBox.write("${particle.x.v}\t${particle.y.v}\n")
-								}
+						val particlesUntyped = Database.particles.getParticles2D(job.idOrThrow, particlesList.name, micrograph.micrographId)
+							?.takeIf { it.isNotEmpty() }
+							?: continue
+
+						val particles = particlesUntyped.toUnbinned2D(job, particlesList)
+
+						writerImages.write("${micrograph.micrographId}\t${micrograph.micrographId}.mrc\n")
+						val boxFile = boxFile(dir, micrograph.micrographId)
+						boxFile.parent.createDirsIfNeededAs(osUsername)
+						boxFile.writerAs(osUsername).use { writerBox ->
+							for (particleId in particles.keys.sorted()) {
+								val particle = particles[particleId]
+									?: continue
+								// write out the particles in unbinned coordinates
+								writerCoords.write("${micrograph.micrographId}\t${particle.x.v}\t${particle.y.v}\n")
+								writerBox.write("${particle.x.v}\t${particle.y.v}\n")
 							}
 						}
 					}
@@ -107,37 +109,7 @@ object ParticlesJobs {
 	private fun thresholdsFile(jobDir: Path): Path =
 		nextDir(jobDir) / "virion_thresholds.next"
 
-	/**
-	 * used by older combined preprocessing blocks
-	 */
-	fun combinedParticlesList(jobId: String, argValues: ArgValues, listName: String): ParticlesList? {
-
-		Database.particleLists.get(jobId, listName)
-
-		// first, look for virions
-		argValues.tomoVirMethodOrDefault.particlesList(jobId)
-			?.let { list ->
-				// apply the user-chosen list name
-				return list.copy(name = listName)
-			}
-
-		// next, look for spikes ("spikes" is also used for generic particles here)
-		argValues.tomoSpkMethodOrDefault.particlesList(jobId)
-			?.let { list ->
-
-				// apply the user-chosen list name, if needed
-				if (list.source == ParticlesSource.User && listName != null) {
-					return list.copy(name = listName)
-				}
-
-				return list
-			}
-
-		// no particles
-		return null
-	}
-
-	suspend fun writeTomography(osUsername: String?, jobId: String, dir: Path, particlesList: ParticlesList) {
+	suspend fun writeTomography(osUsername: String?, job: Job, dir: Path, particlesList: ParticlesList) {
 
 		// write out the particles name
 		val listFile = listFile(dir)
@@ -161,44 +133,45 @@ object ParticlesJobs {
 				thresholdsFile.writerAs(osUsername).use { writerThresholds ->
 
 					// TODO: could optimize this query to project just the tiltSeriesIds if needed
-					TiltSeries.getAllAsync(jobId) { cursor ->
+					TiltSeries.getAllAsync(job.idOrThrow) { cursor ->
 						for (tiltSeries in cursor) {
 
-							val particles = Database.particles.getParticles3D(jobId, particlesList.name, tiltSeries.tiltSeriesId)
-							val thresholds = Database.particles.getThresholds(jobId, particlesList.name, tiltSeries.tiltSeriesId)
-							if (particles.isNotEmpty()) {
+							val particlesUntyped = Database.particles.getParticles3D(job.idOrThrow, particlesList.name, tiltSeries.tiltSeriesId)
+								?.takeIf { it.isNotEmpty() }
+								?: continue
 
-								writerImages.write("${tiltSeries.tiltSeriesId}\t$dir/mrc/${tiltSeries.tiltSeriesId}.rec\n")
+							val particles = particlesUntyped.toUnbinned3D(job, particlesList)
+							val thresholds = Database.particles.getThresholds(job.idOrThrow, particlesList.name, tiltSeries.tiltSeriesId)
+								?: HashMap()
 
-								// track the write order of the particle coordinates (call it the particleIndex)
-								// so the thresholds writer can refer to the index again later
-								val indicesById = HashMap<Int,Int>()
+							writerImages.write("${tiltSeries.tiltSeriesId}\t$dir/mrc/${tiltSeries.tiltSeriesId}.rec\n")
 
-								val boxFile = boxFile(dir, tiltSeries.tiltSeriesId)
-								boxFile.parent.createDirsIfNeededAs(osUsername)
-								boxFile.writerAs(osUsername).use { writerBox ->
+							// track the write order of the particle coordinates (call it the particleIndex)
+							// so the thresholds writer can refer to the index again later
+							val indicesById = HashMap<Int,Int>()
 
-									for ((particleIndex, particleId) in particles.keys.sorted().withIndex()) {
-										val particle = particles[particleId]
-											?: continue
-										indicesById[particleId] = particleIndex
-										// write the particles in binned coordinates
-										writerCoords.write("${tiltSeries.tiltSeriesId}\t${particle.x.v}\t${particle.z.v}\t${particle.y.v}\n")
-										writerBox.write("${particle.x.v}\t${particle.y.v}\t${particle.z.v}\n")
-									}
+							val boxFile = boxFile(dir, tiltSeries.tiltSeriesId)
+							boxFile.parent.createDirsIfNeededAs(osUsername)
+							boxFile.writerAs(osUsername).use { writerBox ->
+
+								for ((particleIndex, particleId) in particles.keys.sorted().withIndex()) {
+									val particle = particles[particleId]
+										?: continue
+									indicesById[particleId] = particleIndex
+									// write the particles in unbinned coordinates
+									writerCoords.write("${tiltSeries.tiltSeriesId}\t${particle.x.v}\t${particle.z.v}\t${particle.y.v}\n")
+									writerBox.write("${particle.x.v}\t${particle.y.v}\t${particle.z.v}\n")
 								}
+							}
 
-								// TODO - COORDINATES PRODUVED BY THE WEBSITE IN Z WOULD NOT NEED TO BE BINNED BY 2
-
-								// Send a virion threshold for each particle, even for virions with no threshold.
-								// If there's no threshold for a particle, send a sentinal value of 9 instead.
-								// And if there are no thresholds in the whole job, just write an empty file.
-								for (particleId in particles.keys) {
-									val particleIndex = indicesById[particleId]
-									val threshold = thresholds[particleId]
-										?: 9 // no threshold, use sentinel value instead of null
-									writerThresholds.write("${tiltSeries.tiltSeriesId}\t$particleIndex\t$threshold\n")
-								}
+							// Send a virion threshold for each particle, even for virions with no threshold.
+							// If there's no threshold for a particle, send a sentinal value of 9 instead.
+							// And if there are no thresholds in the whole job, just write an empty file.
+							for (particleId in particles.keys) {
+								val particleIndex = indicesById[particleId]
+								val threshold = thresholds[particleId]
+									?: 9 // no threshold, use sentinel value instead of null
+								writerThresholds.write("${tiltSeries.tiltSeriesId}\t$particleIndex\t$threshold\n")
 							}
 						}
 					}

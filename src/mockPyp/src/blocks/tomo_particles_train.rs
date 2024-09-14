@@ -6,7 +6,7 @@ use tracing::info;
 
 use crate::args::{Args, ArgsConfig};
 use crate::particles::read_manual_tomo_particles;
-use crate::scale::ValueBinnedF;
+use crate::scale::ValueUnbinnedF;
 use crate::svg::{Rgb, SvgImage};
 
 
@@ -16,7 +16,7 @@ pub const BLOCK_ID: &'static str = "tomo-particles-train";
 pub fn run(_args: &mut Args, _args_config: &ArgsConfig) -> Result<()> {
 
 	// try to read the manual particles, if any
-	match read_manual_tomo_particles(ValueBinnedF(1000.0))? {
+	match read_manual_tomo_particles(ValueUnbinnedF(8000.0))? {
 		Some(tilt_series_particles) => {
 			let num_particles = tilt_series_particles.iter()
 				.map(|(_, tilt_series)| tilt_series.len())
@@ -29,6 +29,8 @@ pub fn run(_args: &mut Args, _args_config: &ArgsConfig) -> Result<()> {
 	// create subfolders
 	fs::create_dir_all("webp")
 		.context("Failed to create webp dir")?;
+	fs::create_dir_all("train")
+		.context("Failed to create train dir")?;
 
 	// draw the training results image
 	let mut img = SvgImage::new(512, 512);
