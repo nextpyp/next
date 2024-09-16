@@ -90,7 +90,6 @@ fun SavedParticles<Particle3DUntyped>.toUnbinned3D(owner: PypService.Owner, list
 
 						TomoVirMethod.Auto ->
 							argValues.tomoVirBinnOrDefault.toInt().let {
-								extraCoordsBinning = it
 								extraRadiusBinning = it
 							}
 
