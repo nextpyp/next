@@ -21,6 +21,7 @@ object NodeConfigs {
 		TomographyRawDataNodeConfig,
 		TomographyRelionDataNodeConfig,
 		TomographyImportDataNodeConfig,
+		TomographyImportDataPureNodeConfig,
 		TomographySessionDataNodeConfig,
 		TomographyPreprocessingNodeConfig,
 		TomographyPurePreprocessingNodeConfig,

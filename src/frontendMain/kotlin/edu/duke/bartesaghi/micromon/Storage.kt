@@ -108,6 +108,7 @@ object Storage {
 	var singleParticleImportDataTabIndex by IntStorageItem("singleParticleImportDataIndex")
 	var tomographySessionDataTabIndex by IntStorageItem("tomographySessionDataIndex")
 	var tomographyImportDataTabIndex by IntStorageItem("tomographyImportDataIndex")
+	var tomographyImportDataPureTabIndex by IntStorageItem("tomographyImportDataPureIndex")
 	var integratedRefinementTabIndex by IntStorageItem("integratedRefinementTabIndex")
 	var tomographyPreprocessingTabIndex by IntStorageItem("tomographyPreprocessingTabIndex")
 	var tomographyPurePreprocessingTabIndex by IntStorageItem("tomographyPurePreprocessingTabIndex")

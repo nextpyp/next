@@ -24,6 +24,7 @@ object Nodes {
 		TomographyRawDataNodeConfig to TomographyRawDataNode.Companion,
 		TomographyRelionDataNodeConfig to TomographyRelionDataNode.Companion,
 		TomographyImportDataNodeConfig to TomographyImportDataNode.Companion,
+		TomographyImportDataPureNodeConfig to TomographyImportDataPureNode.Companion,
 		TomographySessionDataNodeConfig to TomographySessionDataNode.Companion,
 		TomographyPreprocessingNodeConfig to TomographyPreprocessingNode.Companion,
 		TomographyPurePreprocessingNodeConfig to TomographyPurePreprocessingNode.Companion,

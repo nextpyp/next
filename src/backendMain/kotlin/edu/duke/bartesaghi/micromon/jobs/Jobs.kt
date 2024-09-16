@@ -24,6 +24,7 @@ object Jobs {
 		TomographyRawDataNodeConfig to TomographyRawDataJob.Companion,
 		TomographyRelionDataNodeConfig to TomographyRelionDataJob.Companion,
 		TomographyImportDataNodeConfig to TomographyImportDataJob.Companion,
+		TomographyImportDataPureNodeConfig to TomographyImportDataPureJob.Companion,
 		TomographySessionDataNodeConfig to TomographySessionDataJob.Companion,
 		TomographyPreprocessingNodeConfig to TomographyPreprocessingJob.Companion,
 		TomographyPurePreprocessingNodeConfig to TomographyPurePreprocessingJob.Companion,

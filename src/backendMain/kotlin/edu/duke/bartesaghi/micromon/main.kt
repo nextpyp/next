@@ -150,6 +150,7 @@ fun Application.main() {
 		applyRoutes(TomographyRawDataServiceManager)
 		applyRoutes(TomographyRelionDataServiceManager)
 		applyRoutes(TomographyImportDataServiceManager)
+		applyRoutes(TomographyImportDataPureServiceManager)
 		applyRoutes(TomographySessionDataServiceManager)
 		applyRoutes(TomographyPreprocessingServiceManager)
 		applyRoutes(TomographyPurePreprocessingServiceManager)

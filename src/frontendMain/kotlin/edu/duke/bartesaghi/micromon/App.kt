@@ -42,6 +42,7 @@ class App : Application() {
 				TomographyDenoisingTrainingView.Companion,
 				TomographyDenoisingView.Companion,
 				TomographyImportDataView.Companion,
+				TomographyImportDataPureView.Companion,
 				TomographyMiloEvalView.Companion,
 				TomographyMiloTrainView.Companion,
 				TomographyParticlesEvalView.Companion,

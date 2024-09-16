@@ -88,6 +88,7 @@ class TomographyMiloEvalNode(
 					upstreamNode is TomographyPreprocessingNode
 					|| upstreamNode is TomographyPurePreprocessingNode
 					|| upstreamNode is TomographyImportDataNode
+					|| upstreamNode is TomographyImportDataPureNode
 					|| upstreamNode is TomographySessionDataNode
 					|| upstreamNode is TomographyRelionDataNode
 

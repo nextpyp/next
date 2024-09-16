@@ -43,6 +43,7 @@ object Services {
 	val tomographyRawData = TomographyRawDataService()
 	val tomographyRelionData = TomographyRelionDataService()
 	val tomographyImportData = TomographyImportDataService()
+	val tomographyImportDataPure = TomographyImportDataPureService()
 	val tomographySessionData = TomographySessionDataService()
 	val tomographyPreprocessing = TomographyPreprocessingService()
 	val tomographyPurePreprocessing = TomographyPurePreprocessingService()
