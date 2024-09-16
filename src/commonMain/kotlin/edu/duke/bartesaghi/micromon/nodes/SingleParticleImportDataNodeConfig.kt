@@ -9,7 +9,7 @@ object SingleParticleImportDataNodeConfig : NodeConfig {
 
 	override val id = ID
 	override val configId = "spr_import"
-	override val name = "Single Particle (from PYP)"
+	override val name = "Single Particle (from Project)"
 	override val hasFiles = true
 	override val type = NodeType.SingleParticleRawData
 

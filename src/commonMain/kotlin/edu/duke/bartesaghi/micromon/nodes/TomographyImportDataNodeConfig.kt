@@ -9,7 +9,7 @@ object TomographyImportDataNodeConfig : NodeConfig {
 
 	override val id = ID
 	override val configId = "tomo_import"
-	override val name = "Tomography (from PYP)"
+	override val name = "Tomography (from legacy Project)"
 	override val hasFiles = true
 	override val type = NodeType.TomographyRawData
 

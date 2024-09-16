@@ -13,8 +13,8 @@ object TomographyImportDataPureNodeConfig : NodeConfig {
 	override val hasFiles = true
 	override val type = NodeType.TomographyRawData
 
-	val movieRefinement = NodeConfig.Data("movie-refinement", NodeConfig.Data.Type.MovieRefinement)
+	val tomograms = NodeConfig.Data("tomograms", NodeConfig.Data.Type.Tomograms)
 
 	override val inputs = emptyList<NodeConfig.Data>()
-	override val outputs = listOf(movieRefinement)
+	override val outputs = listOf(tomograms)
 }
