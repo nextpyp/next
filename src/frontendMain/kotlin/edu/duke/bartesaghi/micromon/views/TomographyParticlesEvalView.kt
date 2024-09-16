@@ -73,7 +73,7 @@ class TomographyParticlesEvalView(val project: ProjectData, val job: TomographyP
 			// load all the tilt series
 			val loadingElem = elem.loading("Fetching tilt-series ...")
 			val data = TiltSeriesesData()
-			try {
+			val pypStats = try {
 				delayAtLeast(200) {
 					data.loadForProject(job, job.args.finished?.values)
 					when (val particles = data.particles) {
@@ -81,6 +81,7 @@ class TomographyParticlesEvalView(val project: ProjectData, val job: TomographyP
 						is TiltSeriesesParticlesData.Data -> particles.list?.let { pickingControls.load(it) }
 						else -> console.warn("Unexpected particles data: ${particles::class.simpleName}, skipping particles list")
 					}
+					Services.jobs.pypStats(job.jobId)
 				}
 			} catch (t: Throwable) {
 				elem.errorMessage(t)
@@ -94,6 +95,9 @@ class TomographyParticlesEvalView(val project: ProjectData, val job: TomographyP
 			tiltSeriesStats.loadCounts(data, OwnerType.Project, job.jobId, pickingControls.list)
 			elem.add(tiltSeriesStats)
 
+			// show PYP stats
+			val statsLine = PypStatsLine(pypStats)
+				.also { elem.add(it) }
 
 			val tiltSeriesesElem = Div()
 			val listNav = BigListNav(data.tiltSerieses, has100 = false) e@{ index ->
@@ -152,6 +156,7 @@ class TomographyParticlesEvalView(val project: ProjectData, val job: TomographyP
 					when (val msg = RealTimeS2C.fromJson(msgstr)) {
 						is RealTimeS2C.UpdatedParameters -> {
 							listNav.reshow()
+							statsLine.stats = msg.pypStats
 						}
 						is RealTimeS2C.UpdatedTiltSeries -> {
 							data.update(msg.tiltSeries)
