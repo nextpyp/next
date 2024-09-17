@@ -337,12 +337,12 @@ fun ArgValues.toPypCLI(): List<String> {
 					true -> out.add("-$id")
 					false -> out.add("-no-$id")
 				}
-			is ArgValue.VInt -> out.add("-$id ${value.value}")
-			is ArgValue.VFloat -> out.add("-$id ${value.value}")
-			is ArgValue.VFloat2 -> out.add("-$id (${value.value.first},${value.value.second})")
-			is ArgValue.VStr -> out.add("-$id ${value.value.quote()}")
-			is ArgValue.VEnum -> out.add("-$id ${value.value}")
-			is ArgValue.VPath -> out.add("-$id ${value.value.quote()}")
+			is ArgValue.VInt -> out.add("-$id=${value.value}")
+			is ArgValue.VFloat -> out.add("-$id=${value.value}")
+			is ArgValue.VFloat2 -> out.add("-$id=(${value.value.first},${value.value.second})")
+			is ArgValue.VStr -> out.add("-$id=${value.value.quote()}")
+			is ArgValue.VEnum -> out.add("-$id=${value.value}")
+			is ArgValue.VPath -> out.add("-$id=${value.value.quote()}")
 			is ArgValue.VRef -> throw IllegalArgumentException("references are not valid values for PYP command line")
 		}
 	}
