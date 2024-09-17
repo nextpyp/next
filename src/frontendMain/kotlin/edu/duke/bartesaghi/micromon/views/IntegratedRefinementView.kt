@@ -78,7 +78,7 @@ class IntegratedRefinementView(
 
 							// get the tab url params, if any
 							val urlParams = paramsFactory
-								?.invoke(params.slice(4 until params.size))
+								?.invoke(params.slice(3 until params.size))
 
 							viewport.setView(IntegratedRefinementView(
 								project = project,
