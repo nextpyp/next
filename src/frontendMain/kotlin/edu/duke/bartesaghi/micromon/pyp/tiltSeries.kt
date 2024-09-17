@@ -5,7 +5,8 @@ import edu.duke.bartesaghi.micromon.services.*
 
 data class TiltSeriesesData(
 	val tiltSerieses: MutableList<TiltSeriesData> = ArrayList(),
-	var particles: TiltSeriesesParticlesData? = null
+	var particles: TiltSeriesesParticlesData? = null,
+	var finishedValues: ArgValues? = null
 ) {
 
 	suspend fun loadForProject(job: JobData, finishedValues: ArgValuesToml?) {
@@ -26,6 +27,7 @@ data class TiltSeriesesData(
 		val args = ALL_PYP_ARGS.get()
 		val values = finishedValues?.toArgValues(args)
 			?: return
+		this.finishedValues = values
 
 		// determine the mode for particles
 		when (job) {

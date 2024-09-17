@@ -269,7 +269,23 @@ class TomoParticlesImage(
 
 		when (val particles = tiltSerieses.particles) {
 
-			null -> Unit
+			null -> {
+				// the block itself has no main particles list,
+				// but the user may have created a manual list,
+				// so show that here
+				TiltSeriesesParticlesData.Data(
+					list = ParticlesList.manualParticles3D(ownerId),
+					radius = tiltSerieses.finishedValues?.tomoSpkRadOrDefault
+						?: run {
+							console.warn("No particle radius defined in pyp arg values, using arbitrary value")
+							ValueA(100.0)
+						}
+				).addInfo(
+					checkbox = showParticlesCheck,
+					editable = true,
+					overrideList = particleControls?.list
+				)
+			}
 
 			is TiltSeriesesParticlesData.VirusMode -> {
 

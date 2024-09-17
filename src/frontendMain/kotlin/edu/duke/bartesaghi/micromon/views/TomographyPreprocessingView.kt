@@ -94,7 +94,10 @@ class TomographyPreprocessingView(val project: ProjectData, val job: TomographyP
 					data.loadForProject(job, job.args.finished?.values)
 					// load the auto list by default
 					when (data.particles) {
-						null -> Unit
+						null -> {
+							// no particle methods chosen, so choose some reasonable default here
+							pickingControls.newParticlesType = ParticlesType.Particles3D
+						}
 						is TiltSeriesesParticlesData.VirusMode -> {
 							pickingControls.newParticlesType = ParticlesType.Virions3D
 							pickingControls.setList(ParticlesList.autoVirions(job.jobId))
