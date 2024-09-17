@@ -10,6 +10,7 @@ import edu.duke.bartesaghi.micromon.mongo.getDocument
 import edu.duke.bartesaghi.micromon.nodes.TomographyPreprocessingNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.*
+import io.kvision.remote.ServiceException
 import org.bson.Document
 import org.bson.conversions.Bson
 import kotlin.io.path.div
@@ -113,6 +114,18 @@ class TomographyPreprocessingJob(
 						}
 					}
 				}
+			}
+		}
+
+		// check if we need to pick a manual particles list or not
+		if (newestArgs.tomolist == null) {
+			val newestValues = newestArgs.values.toArgValues(Backend.pypArgs)
+			if (newestValues.tomoSpkMethodOrDefault.particlesList(idOrThrow)?.source == ParticlesSource.User) {
+				throw ServiceException("Manual particles list is required for particle picking method")
+			} else if (newestValues.tomoVirMethodOrDefault.particlesList(idOrThrow)?.source == ParticlesSource.User) {
+				throw ServiceException("Manual particles list is required for virion picking method")
+			} else if (newestValues.tomoVirDetectMethodOrDefault.particlesList(idOrThrow)?.source == ParticlesSource.User) {
+				throw ServiceException("Manual particles list is required for spike picking method")
 			}
 		}
 

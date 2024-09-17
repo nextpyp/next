@@ -344,8 +344,12 @@ abstract class Job(
 			// older jobs with combined preprocessing need a user-specified list name
 			is CombinedManualParticlesJob -> {
 
+				// if no list was chosen explicitly, use no manual particles
+				// NOTE: This function does not determine whether a list name is required,
+				//       since getting that right in all cases requires more context than is available here.
+				//       Callers of this function should perform requirements checks if they're needed.
 				chosenListName
-					?: throw ServiceException("No particles list chosen")
+					?: return null
 
 				// if the name references an auto list, that's not a manual list, so return null
 				lists
@@ -360,7 +364,7 @@ abstract class Job(
 			// newer jobs use constant list names. Easy peasy.
 			is ManualParticlesJob -> manualParticlesListName()
 
-			// job doesn't export particles
+			// job doesn't export any manual particles
 			else -> return null
 		}
 
