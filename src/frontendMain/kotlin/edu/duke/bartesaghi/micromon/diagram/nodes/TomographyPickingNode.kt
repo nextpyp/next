@@ -141,7 +141,8 @@ class TomographyPickingNode(
 				?: throw IllegalArgumentException("input required to make job for ${config.id}")
 			val args = TomographyPickingArgs(
 				values = argValues,
-				filter = null
+				filter = null,
+				particlesName = null
 			)
 			return Services.tomographyPicking.addNode(project.owner.id, project.projectId, input, args, null)
 		}
@@ -188,6 +189,26 @@ class TomographyPickingNode(
 						HiddenString()
 					}
 				)
+
+				val upstreamIsCombinedPreprocessing =
+					upstreamNode is TomographyPreprocessingNode
+					|| upstreamNode is TomographyImportDataNode
+					|| upstreamNode is TomographySessionDataNode
+					|| upstreamNode is TomographyRelionDataNode
+				add(TomographyPickingArgs::particlesName,
+					if (upstreamIsCombinedPreprocessing) {
+						SelectRemote(
+							serviceManager = ParticlesServiceManager,
+							function = IParticlesService::getListOptions,
+							stateFunction = { "${OwnerType.Project.id}/${upstreamNode.jobId}" },
+							label = "Select list of particles",
+							preload = true
+						)
+					} else {
+						HiddenString()
+					}
+				)
+
 				add(TomographyPickingArgs::values, ArgsForm(pypArgs, listOf(upstreamNode), enabled, config.configId))
 			}
 
@@ -195,18 +216,24 @@ class TomographyPickingNode(
 			// since the control can't handle nulls
 			val mapper = ArgsMapper<TomographyPickingArgs>(
 				toForm = { args ->
-					if (args.filter == null) {
-						args.copy(filter = NoneFilterOption)
-					} else {
-						args
+					var a = args
+					if (a.filter == null) {
+						a = a.copy(filter = NoneFilterOption)
 					}
+					if (a.particlesName == null) {
+						a = a.copy(particlesName = NoneFilterOption)
+					}
+					a
 				},
 				fromForm = { args ->
-					if (args.filter == NoneFilterOption) {
-						args.copy(filter = null)
-					} else {
-						args
+					var a = args
+					if (a.filter == NoneFilterOption) {
+						a = a.copy(filter = null)
 					}
+					if (a.particlesName == NoneFilterOption) {
+						a = a.copy(particlesName = null)
+					}
+					a
 				}
 			)
 			
@@ -214,7 +241,8 @@ class TomographyPickingNode(
 			val argsOrCopy: JobArgs<TomographyPickingArgs> = args
 				?: JobArgs.fromNext(TomographyPickingArgs(
 					filter = null,
-					values = upstreamNode.newestArgValues()?.filterForDownstreamCopy(pypArgs) ?: ""
+					values = upstreamNode.newestArgValues()?.filterForDownstreamCopy(pypArgs) ?: "",
+					particlesName = null
 				))
 
 			form.init(argsOrCopy, mapper)

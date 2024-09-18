@@ -38,12 +38,14 @@ class TomographyPickingJob(
 		private fun TomographyPickingArgs.toDoc() = Document().also { doc ->
 			doc["values"] = values
 			doc["filter"] = filter
+			doc["particlesName"] = particlesName
 		}
 
 		private fun TomographyPickingArgs.Companion.fromDoc(doc: Document) =
 			TomographyPickingArgs(
 				doc.getString("values"),
-				doc.getString("filter")
+				doc.getString("filter"),
+				doc.getString("particlesName")
 			)
 
 		val eventListeners = TiltSeriesEventListeners(this)
@@ -91,6 +93,12 @@ class TomographyPickingJob(
 		if (upstreamJob is FilteredJob && newestArgs.filter != null) {
 			upstreamJob.writeFilter(newestArgs.filter, dir, project.osUsername)
 		}
+
+		// write out manually-picked particles from the upstream job, if needed
+		ParticlesJobs.clear(project.osUsername, dir)
+		manualParticlesList(newestArgs.particlesName)
+			?.let { ParticlesJobs.writeTomography(project.osUsername, this, dir, it) }
+		ParticlesJobs.clear(project.osUsername, dir)
 
 		val pypArgs = launchArgValues(upstreamJob, args.newestOrThrow().args.values, args.finished?.values)
 

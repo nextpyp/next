@@ -30,7 +30,8 @@ interface ITomographyPickingService {
 @Serializable
 data class TomographyPickingArgs(
 	val values: ArgValuesToml,
-	val filter: String?
+	val filter: String?,
+	val particlesName: String?
 ) {
 
 	fun particlesList(args: Args, jobId: String): ParticlesList? =
