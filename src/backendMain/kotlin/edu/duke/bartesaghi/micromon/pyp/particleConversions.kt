@@ -86,7 +86,7 @@ fun SavedParticles<Particle3DUntyped>.toUnbinned3D(owner: PypService.Owner, list
 				ParticlesType.Virions3D -> {
 					when (argValues.tomoVirMethodOrDefault) {
 
-						TomoVirMethod.None -> throw IllegalArgumentException("have virions: expected tomoVirMethod != none")
+						TomoVirMethod.None -> noExtraBinning()	
 
 						TomoVirMethod.Auto ->
 							argValues.tomoVirBinnOrDefault.toInt().let {
