@@ -98,7 +98,6 @@ class TomographyPickingJob(
 		ParticlesJobs.clear(project.osUsername, dir)
 		manualParticlesList(newestArgs.particlesName)
 			?.let { ParticlesJobs.writeTomography(project.osUsername, this, dir, it) }
-		ParticlesJobs.clear(project.osUsername, dir)
 
 		val pypArgs = launchArgValues(upstreamJob, args.newestOrThrow().args.values, args.finished?.values)
 
