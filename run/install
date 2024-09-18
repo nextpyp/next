@@ -74,7 +74,7 @@ if [ "$whoami" = "root" ]; then
     mkdirheresrv() { #(path, chmod ops)
       mkdirdo "" "$1" "$2"
       # folder will be owned by root: need to chmod to service account
-      chown "$1" "$username:$groupname"
+      chown "$username:$groupname" "$1"
     }
 
   elif [ "$installowner" = "$username" ]; then
