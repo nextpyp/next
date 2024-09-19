@@ -257,8 +257,8 @@ class TomoParticlesImage(
 			particlesInfos.add(ParticlesInfo(
 				list = list,
 				color = when (list.type) {
-					ParticlesType.Virions3D -> Colors.green
-					else -> Colors.blue
+					ParticlesType.Virions3D -> Colors.blue
+					else -> Colors.green
 				},
 				checkbox = checkbox,
 				editable = editable,
