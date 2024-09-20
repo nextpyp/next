@@ -766,22 +766,23 @@ class ProjectView(val project: ProjectData) : View {
 					previewSection.visible = previewCheck.value
 				}
 
-				// if dev mode, also show legacy and preview blocks
+				// also show legacy blocks
+				if (legacyNodes.isNotEmpty()) {
+
+					div {
+						add(legacyCheck)
+					}
+					legacyCheck.onClick {
+						updateVisibility()
+					}
+
+					add(legacySection)
+					legacySection.showNodes(legacyNodes)
+				}
+
+				// and if dev mode, show preview blocks too
 				AppScope.launch {
 					if (adminInfo.get().debug) {
-						if (legacyNodes.isNotEmpty()) {
-
-							div {
-								add(legacyCheck)
-							}
-							legacyCheck.onClick {
-								updateVisibility()
-							}
-
-							add(legacySection)
-							legacySection.showNodes(legacyNodes)
-						}
-
 						if (previewNodes.isNotEmpty()) {
 							div {
 								add(previewCheck)
