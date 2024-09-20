@@ -412,7 +412,35 @@ interface Cluster {
 									?: Instant.EPOCH.toEpochMilli()
 							}
 						val resultType = lastJobAndLog
-							?.let { (_, log) -> log.result?.type }
+							?.let { (job, log) ->
+								val arraySize = job.commands.arraySize
+								if (arraySize != null) {
+									// array job: aggregate over the array elements to get result type,
+									//            since the log of the non-array entry won't have any results
+									(1 .. arraySize)
+										.map { i ->
+											// NOTE: for large arrays, doing this many database lookups could potentially be slow
+											//       do we need to do a more optimized query here?
+											job.getLog(i)
+												?.result
+												?.type
+												?: ClusterJobResultType.Failure
+										}
+										.reduceOrNull { acc, t ->
+											// reduction rules: promote cancels and failures over successes
+											when (acc) {
+												ClusterJobResultType.Success -> when (t) {
+													ClusterJobResultType.Success -> acc
+													else -> t
+												}
+												else -> acc
+											}
+										}
+								} else {
+									// not an array job: use the log result
+									log.result?.type
+								}
+							}
 							?: ClusterJobResultType.Failure
 
 						clusterJob.ownerListener.ended(clusterJob.ownerId, resultType)
