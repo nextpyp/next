@@ -111,7 +111,8 @@ private fun TomographyPurePreprocessingJob.Companion.mockArgs(): List<Arg> = lis
 	mockArg("num_tilts", ArgType.TInt(), ArgValue.VInt(4)),
 	mockArg("tomogram_width", ArgType.TInt(), ArgValue.VInt(8192)),
 	mockArg("tomogram_height", ArgType.TInt(), ArgValue.VInt(8192)),
-	mockArg("tilt_angle_magnitude", ArgType.TInt(), ArgValue.VInt(45))
+	mockArg("tilt_angle_magnitude", ArgType.TInt(), ArgValue.VInt(45)),
+	mockArg("split_mode", ArgType.TBool(), ArgValue.VBool(false))
 )
 
 

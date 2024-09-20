@@ -62,10 +62,20 @@ fn run() -> Result<()> {
 	let args_config = ArgsConfig::from(args_config)
 		.context(format!("Failed to parse config file: {}", &args_config_path))?;
 
+	// look for an array element
+	let array_element = match env::var("SLURM_ARRAY_TASK_ID") {
+		Ok(s) => {
+			let i = s.parse::<u32>()
+				.context(format!("Failed to parse SLURM array id: {}", s))?;
+			Some(i)
+		}
+		Err(_) => None
+	};
+
 	// look at the command to see if we're running in project or session mode
 	let result = match cmd.as_str() {
 		"streampyp" => run_session(&mut args, &args_config),
-		_ => run_project(&mut args, &args_config)
+		_ => run_project(&mut args, &args_config, array_element)
 	};
 
 	// save the args for next time
@@ -77,7 +87,7 @@ fn run() -> Result<()> {
 }
 
 
-fn run_project(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
+fn run_project(args: &mut Args, args_config: &ArgsConfig, array_element: Option<u32>) -> Result<()> {
 
 	// get the block
 	let block_id = args.get("micromon_block")
@@ -89,7 +99,7 @@ fn run_project(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 	info!("block id: {}", block_id);
 
 	// run the block command
-	blocks::run(block_id.as_str(), args, args_config)?;
+	blocks::run(block_id.as_str(), args, args_config, array_element)?;
 
 	Ok(())
 }

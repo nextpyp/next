@@ -134,6 +134,21 @@ impl Args {
 		Ok(())
 	}
 
+	pub fn to_cli(&self) -> String {
+		self.args.iter()
+			.map(|(key, value)| {
+				match value {
+					ArgValue::String(s) => format!("-{}={}", key, s),
+					ArgValue::Bool(b) => match b {
+						true => format!("-{}", key),
+						false => format!("-no-{}", key)
+					}
+				}
+			})
+			.collect::<Vec<String>>()
+			.join(" ")
+	}
+
 	pub fn get(&self, full_id: impl AsRef<str>) -> Arg<Option<&ArgValue>> {
 		let name = full_id.as_ref();
 		Arg {

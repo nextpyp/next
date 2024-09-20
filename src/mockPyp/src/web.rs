@@ -1,6 +1,6 @@
 
 use std::env;
-
+use std::path::Path;
 use anyhow::{bail, Context, Result};
 use serde_json::{json, Map, Value};
 use tracing::info;
@@ -76,6 +76,70 @@ impl Web {
 			.take();
 
 		Ok(result)
+	}
+
+	pub fn submit_cluster_job(&self,
+		web_name: impl Into<String>,
+		cluster_name: impl Into<String>,
+		commands: &Commands,
+		dir: Option<&Path>,
+		env: Option<Vec<(String,String)>>,
+		args: Option<Vec<String>>,
+		deps: Option<Vec<String>>
+	) -> Result<()> {
+
+		// we have optional parameters here, so need to use map-building syntax instead of the nice json!() macro =(
+		let mut request = Map::<String,Value>::new();
+		request.insert("webid".to_string(), self.id.clone().into());
+		request.insert("web_name".to_string(), web_name.into().into());
+		request.insert("cluster_name".to_string(), cluster_name.into().into());
+		request.insert("commands".to_string(), match commands {
+			Commands::Script { commands, array_size, bundle_size } => {
+				let mut c = Map::<String,Value>::new();
+				c.insert("type".to_string(), "script".into());
+				c.insert("commands".to_string(), commands.clone().into());
+				if let Some(array_size) = array_size {
+					c.insert("array_size".to_string(), array_size.clone().into());
+				}
+				if let Some(bundle_size) = bundle_size {
+					c.insert("bundle_size".to_string(), bundle_size.clone().into());
+				}
+				c.into()
+			}
+			Commands::Grid { commands, bundle_size } => {
+				let mut c = Map::<String,Value>::new();
+				c.insert("type".to_string(), "grid".into());
+				c.insert("commands".to_string(), commands.clone().into());
+				if let Some(bundle_size) = bundle_size {
+					c.insert("bundle_size".to_string(), bundle_size.clone().into());
+				}
+				c.into()
+			}
+		});
+		request.insert("dir".to_string(), match dir {
+			Some(dir) => dir.to_string_lossy().into(),
+			None => env::current_dir()
+				.context("Failed to get cwd")?
+				.to_string_lossy()
+				.into()
+		});
+		request.insert("env".to_string(), match env {
+			Some(env) => env.into_iter()
+				.map(|(key, value)| vec![key, value])
+				.collect::<Vec<_>>()
+				.into(),
+			None => Vec::<Value>::with_capacity(0).into()
+		});
+		if let Some(args) = args {
+			request.insert("args".to_string(), args.into());
+		}
+		if let Some(deps) = deps {
+			request.insert("deps".to_string(), deps.into());
+		}
+
+		self.json_rpc("slurm_sbatch", request.into())?;
+
+		Ok(())
 	}
 
 	pub fn write_parameters(&self, args: &Args, args_config: &ArgsConfig) -> Result<()> {
@@ -321,5 +385,28 @@ impl MapEx for Map<String,Value> {
 			.expect("we just added it")
 			.as_object_mut()
 			.context(format!("key {} was not an object", key))
+	}
+}
+
+
+pub enum Commands {
+
+	Script {
+		commands: Vec<String>,
+		array_size: Option<u32>,
+		bundle_size: Option<u32>
+	},
+
+	#[allow(unused)]
+	Grid {
+		commands: Vec<Vec<String>>,
+		bundle_size: Option<u32>
+	}
+}
+
+impl Commands {
+
+	pub fn mock_pyp(cmd: impl AsRef<str>, args: &Args) -> String {
+		format!("RUST_BACKTRACE=1 /usr/bin/mock-pyp {} {}", cmd.as_ref(), args.to_cli())
 	}
 }

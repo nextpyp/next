@@ -25,14 +25,14 @@ use anyhow::{anyhow, Result};
 use crate::args::{Args, ArgsConfig};
 
 
-pub fn run(block_id: &str, args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
+pub fn run(block_id: &str, args: &mut Args, args_config: &ArgsConfig, array_element: Option<u32>) -> Result<()> {
 	// NOTE: can't match on constants, so use if-else here
 	if block_id == tomo_rawdata::BLOCK_ID {
 		tomo_rawdata::run(args, args_config)
 	} else if block_id == tomo_preprocessing::BLOCK_ID {
 		tomo_preprocessing::run(args, args_config)
 	} else if block_id == tomo_pure_preprocessing::BLOCK_ID {
-		tomo_pure_preprocessing::run(args, args_config)
+		tomo_pure_preprocessing::run(args, args_config, array_element)
 	} else if block_id == tomo_denoising_training::BLOCK_ID {
 		tomo_denoising_training::run(args, args_config)
 	} else if block_id == tomo_denoising_eval::BLOCK_ID {
