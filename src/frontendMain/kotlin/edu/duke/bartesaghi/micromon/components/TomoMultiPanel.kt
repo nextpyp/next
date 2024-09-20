@@ -118,7 +118,12 @@ class TomoMultiPanel(
 		if (self.tiltSerieses.particles is TiltSeriesesParticlesData.VirusMode) {
 			addTab("Segmentation") { lazyTab ->
 				self.virionThresholds = TomoVirionThresholds(self.project, self.job, self.tiltSeries)
-					.also { lazyTab.elem.add(it) }
+					.also {
+						lazyTab.elem.add(it)
+						AppScope.launch {
+							it.load()
+						}
+					}
 			}
 		}
 	}
