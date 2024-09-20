@@ -46,7 +46,7 @@ pub fn sample_tomo_virions(
 }
 
 
-pub fn read_manual_tomo_particles(radius: ValueUnbinnedF) -> Result<Option<Vec<(String,Vec<Particle3D>)>>> {
+pub fn read_next_tomo_particles() -> Result<Option<Vec<(String,Vec<Particle3D>)>>> {
 
 	let images_path = PathBuf::from("train/particles_images.txt");
 	if !images_path.exists() {
@@ -70,24 +70,34 @@ pub fn read_manual_tomo_particles(radius: ValueUnbinnedF) -> Result<Option<Vec<(
 			.context(format!("Failed to read {}", coords_path.to_string_lossy()))?;
 		let mut particles = Vec::<Particle3D>::new();
 		for (linei, line) in coords_content.lines().enumerate() {
-			let mut parts = line.splitn(3, '\t');
+
+			let mut parts = line.splitn(4, '\t');
+
 			let x = parts.next()
-				.context(format!("Missing x coord, line {} of {}", linei, coords_path.to_string_lossy()))?
-				.parse::<u32>()
-				.context(format!("Failed to read x coord, line {} of {}", linei, coords_path.to_string_lossy()))?;
+				.context(format!("Missing x coord, line {} of {}", linei, coords_path.to_string_lossy()))?;
+			let x = x.parse::<u32>()
+				.context(format!("Failed to read x coord: {}, line {} of {}", x, linei, coords_path.to_string_lossy()))?;
+
 			let y = parts.next()
-				.context(format!("Missing y coord, line {} of {}", linei, coords_path.to_string_lossy()))?
-				.parse::<u32>()
-				.context(format!("Failed to read y coord, line {} of {}", linei, coords_path.to_string_lossy()))?;
+				.context(format!("Missing y coord, line {} of {}", linei, coords_path.to_string_lossy()))?;
+			let y = y.parse::<u32>()
+				.context(format!("Failed to read y coord: {}, line {} of {}", y, linei, coords_path.to_string_lossy()))?;
+
 			let z = parts.next()
-				.context(format!("Missing z coord, line {} of {}", linei, coords_path.to_string_lossy()))?
-				.parse::<u32>()
-				.context(format!("Failed to read z coord, line {} of {}", linei, coords_path.to_string_lossy()))?;
+				.context(format!("Missing z coord, line {} of {}", linei, coords_path.to_string_lossy()))?;
+			let z = z.parse::<u32>()
+				.context(format!("Failed to read z coord: {}, line {} of {}", z, linei, coords_path.to_string_lossy()))?;
+
+			let r = parts.next()
+				.context(format!("Missing r pseudo-coord, line {} of {}", linei, coords_path.to_string_lossy()))?;
+			let r = r.parse::<f64>()
+				.context(format!("Failed to read r pseudo-coord: {}, line {} of {}", r, linei, coords_path.to_string_lossy()))?;
+
 			particles.push(Particle3D {
 				x: ValueUnbinnedU(x),
 				y: ValueUnbinnedU(y),
 				z: ValueUnbinnedU(z),
-				r: radius,
+				r: ValueUnbinnedF(r),
 				threshold: None,
 			});
 		}
@@ -98,10 +108,10 @@ pub fn read_manual_tomo_particles(radius: ValueUnbinnedF) -> Result<Option<Vec<(
 	Ok(Some(tilt_series_particles))
 }
 
-pub fn read_manual_tomo_virions(radius: ValueUnbinnedF, threshold: u32) -> Result<Option<Vec<(String,Vec<Virion3D>)>>> {
+pub fn read_next_tomo_virions(threshold: u32) -> Result<Option<Vec<(String,Vec<Virion3D>)>>> {
 
 	// first, read particles
-	let tilt_series_particles = read_manual_tomo_particles(radius)?;
+	let tilt_series_particles = read_next_tomo_particles()?;
 
 	// then, convert the particles to virions
 	let tilt_series_virions = tilt_series_particles

@@ -37,7 +37,7 @@ object ParticlesJobs {
 	private fun coordsFile(jobDir: Path): Path =
 		trainDir(jobDir) / "${particlesKey()}_coordinates.txt"
 
-	private fun boxFile(jobDir: Path, datumId: String): Path =
+	private fun nextFile(jobDir: Path, datumId: String): Path =
 		nextDir(jobDir) / "${datumId}.next"
 
 	suspend fun clear(osUsername: String?, dir: Path) {
@@ -57,7 +57,7 @@ object ParticlesJobs {
 			?.map { Paths.get(it.name) }
 			?.filter { it.extension == "next" }
 			?.map { it.baseName() }
-			?.forEach { boxFile(dir, it).deleteAs(osUsername) }
+			?.forEach { nextFile(dir, it).deleteAs(osUsername) }
 	}
 
 	suspend fun writeSingleParticle(osUsername: String?, job: Job, dir: Path, particlesList: ParticlesList) {
@@ -89,15 +89,16 @@ object ParticlesJobs {
 						val particles = particlesUntyped.toUnbinned2D(job, particlesList)
 
 						writerImages.write("${micrograph.micrographId}\t${micrograph.micrographId}.mrc\n")
-						val boxFile = boxFile(dir, micrograph.micrographId)
-						boxFile.parent.createDirsIfNeededAs(osUsername)
-						boxFile.writerAs(osUsername).use { writerBox ->
+						val nextFile = nextFile(dir, micrograph.micrographId)
+						nextFile.parent.createDirsIfNeededAs(osUsername)
+						nextFile.writerAs(osUsername).use { writerNext ->
 							for (particleId in particles.keys.sorted()) {
 								val particle = particles[particleId]
 									?: continue
 								// write out the particles in unbinned coordinates
 								writerCoords.write("${micrograph.micrographId}\t${particle.x.v}\t${particle.y.v}\n")
-								writerBox.write("${particle.x.v}\t${particle.y.v}\n")
+								// with radii for the .next files
+								writerNext.write("${particle.x.v}\t${particle.y.v}\t${particle.r.v}\n")
 							}
 						}
 					}
@@ -150,17 +151,18 @@ object ParticlesJobs {
 							// so the thresholds writer can refer to the index again later
 							val indicesById = HashMap<Int,Int>()
 
-							val boxFile = boxFile(dir, tiltSeries.tiltSeriesId)
-							boxFile.parent.createDirsIfNeededAs(osUsername)
-							boxFile.writerAs(osUsername).use { writerBox ->
+							val nextFile = nextFile(dir, tiltSeries.tiltSeriesId)
+							nextFile.parent.createDirsIfNeededAs(osUsername)
+							nextFile.writerAs(osUsername).use { writerNext ->
 
 								for ((particleIndex, particleId) in particles.keys.sorted().withIndex()) {
 									val particle = particles[particleId]
 										?: continue
 									indicesById[particleId] = particleIndex
-									// write the particles in unbinned coordinates
+									// write the particles in unbinned coordinates, with radii
 									writerCoords.write("${tiltSeries.tiltSeriesId}\t${particle.x.v}\t${particle.z.v}\t${particle.y.v}\n")
-									writerBox.write("${particle.x.v}\t${particle.y.v}\t${particle.z.v}\n")
+									// with radii for the .next files
+									writerNext.write("${particle.x.v}\t${particle.y.v}\t${particle.z.v}\t${particle.r.v}\n")
 								}
 							}
 

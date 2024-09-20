@@ -8,7 +8,7 @@ use tracing::info;
 use crate::args::{Args, ArgsConfig, ArgValue};
 use crate::image::{Image, ImageDrawing};
 use crate::metadata::TiltSeries;
-use crate::particles::{read_manual_tomo_virions, sample_tomo_virions};
+use crate::particles::{read_next_tomo_virions, sample_tomo_virions};
 use crate::rand::sample_ctf;
 use crate::scale::{TomogramDimsUnbinned, ToValueF, ToValueU};
 use crate::web::Web;
@@ -70,10 +70,8 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 	web.write_parameters(args, args_config)?;
 
 	// try to read the submitted particles, or sample new ones
-	let virion_radius = virion_radius
-		.to_unbinned(pixel_size);
 	let default_threshold = 1;
-	let tilt_series_virions = read_manual_tomo_virions(virion_radius, default_threshold)?
+	let tilt_series_virions = read_next_tomo_virions(default_threshold)?
 		.map(|tilt_series_virions| {
 			let num_particles = tilt_series_virions.iter()
 				.map(|(_, tilt_series)| tilt_series.len())
@@ -83,6 +81,8 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 		})
 		.unwrap_or_else(|| {
 			info!("No manual particles, sampled new ones");
+			let virion_radius = virion_radius
+				.to_unbinned(pixel_size);
 			sample_tomo_virions(num_tilt_series, num_particles, tomogram_dims, virion_radius, default_threshold)
 		});
 
