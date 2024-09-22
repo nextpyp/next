@@ -51,6 +51,59 @@ class TomoVirionThresholds(
 
 		// this needs a tab index for keyboard shortcuts to work properly
 		tabindex = 5
+
+		// wire up keyboard events
+		onEvent {
+			keyup = e@{ event ->
+				
+				// stupid Kotlin DSLs, always creating a damn mess ...
+				val self = this@TomoVirionThresholds
+				
+				val virions = self.virions
+					?: return@e
+				
+				// try to prevent the default browser behavior that scrolls the page up and down
+				// or radio selection changes when handling events from radio buttons
+				event.stopPropagation()
+				event.preventDefault()
+
+				fun select(threshold: Int?, all: Boolean = false) {
+					self.selectRadio(threshold)
+					if (all) {
+						for (virionId in virions.keys) {
+							self.setThreshold(virionId, threshold)
+						}
+					} else {
+						self.currentThreshold = threshold
+					}
+				}
+
+				when (event.key) {
+					Keys.up -> self.advance(-1)
+					Keys.down -> self.advance(1)
+					Keys.left -> select(when (val t = self.currentThreshold) {
+						null -> 8
+						in 2 .. 8 -> t - 1
+						else -> null
+					})
+					Keys.right -> select(when (val t = self.currentThreshold) {
+						null -> 1
+						in 1 .. 7 -> t + 1
+						else -> null
+					})
+					Keys.num1 -> select(1, all=event.altKey)
+					Keys.num2 -> select(2, all=event.altKey)
+					Keys.num3 -> select(3, all=event.altKey)
+					Keys.num4 -> select(4, all=event.altKey)
+					Keys.num5 -> select(5, all=event.altKey)
+					Keys.num6 -> select(6, all=event.altKey)
+					Keys.num7 -> select(7, all=event.altKey)
+					Keys.num8 -> select(8, all=event.altKey)
+					Keys.num9,
+					Keys.delete -> select(null, all=event.altKey)
+				}
+			}
+		}
 	}
 
 	private var particlesListName: String? = null
@@ -81,6 +134,8 @@ class TomoVirionThresholds(
 
 		// reset all current state
 		removeAll()
+		cols.removeAll()
+		virionElem.removeAll()
 		particlesListName = null
 		virions = null
 
@@ -179,57 +234,23 @@ class TomoVirionThresholds(
 		cols.add(virionElem)
 
 		// select the first virion by default, if any
-		if (virions.isNotEmpty()) {
-			table?.jsTabulator?.getRowFromPosition(0, true)
-				.falseToNull()
-				?.let { rowClick(it) }
-		}
+		selectDefaultVirion()
+	}
 
-		// wire up keyboard events
-		cols.onEvent {
-			keyup = e@{ event ->
+	fun hasSelectedVirion(): Boolean {
+		return currentRow != null
+	}
 
-				// try to prevent the default browser behavior that scrolls the page up and down
-				// or radio selection changes when handling events from radio buttons
-				event.stopPropagation()
-				event.preventDefault()
+	fun selectDefaultVirion() {
 
-				fun select(threshold: Int?, all: Boolean = false) {
-					selectRadio(threshold)
-					if (all) {
-						for (virionId in virions.keys) {
-							setThreshold(virionId, threshold)
-						}
-					} else {
-						currentThreshold = threshold
-					}
-				}
+		val jsTab = table?.jsTabulator
+			?: return
+		// NOTE: KVision will only initialize the js tabulator if this control is in the real DOM
+		//       so we can't interact with it until then =(
 
-				when (event.key) {
-					Keys.up -> advance(-1)
-					Keys.down -> advance(1)
-					Keys.left -> select(when (val t = currentThreshold) {
-						null -> 8
-						in 2 .. 8 -> t - 1
-						else -> null
-					})
-					Keys.right -> select(when (val t = currentThreshold) {
-						null -> 1
-						in 1 .. 7 -> t + 1
-						else -> null
-					})
-					Keys.num1 -> select(1, all=event.altKey)
-					Keys.num2 -> select(2, all=event.altKey)
-					Keys.num3 -> select(3, all=event.altKey)
-					Keys.num4 -> select(4, all=event.altKey)
-					Keys.num5 -> select(5, all=event.altKey)
-					Keys.num6 -> select(6, all=event.altKey)
-					Keys.num7 -> select(7, all=event.altKey)
-					Keys.num8 -> select(8, all=event.altKey)
-					Keys.num9, Keys.delete -> select(null, all=event.altKey)
-				}
-			}
-		}
+		jsTab.getRowFromPosition(0, true)
+			.falseToNull()
+			?.let { rowClick(it) }
 	}
 
 	private fun rowClick(row: RowComponent) {

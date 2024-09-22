@@ -55,7 +55,7 @@ class TomoMultiPanel(
 	)
 
 	val particlesImage = TomoParticlesImage.forProject(project, job, tiltSerieses, tiltSeries, pickingControls)
-	var virionThresholds: TomoVirionThresholds? = null
+	val virionThresholds = TomoVirionThresholds(project, job, tiltSeries)
 
 	private val alignedTiltSeriesImage = PlayableSpritePanel(
 		"/kv/jobs/${job.jobId}/data/${tiltSeries.id}/alignedTiltSeriesMontage",
@@ -117,13 +117,10 @@ class TomoMultiPanel(
 
 		if (self.tiltSerieses.particles is TiltSeriesesParticlesData.VirusMode) {
 			addTab("Segmentation") { lazyTab ->
-				self.virionThresholds = TomoVirionThresholds(self.project, self.job, self.tiltSeries)
-					.also {
-						lazyTab.elem.add(it)
-						AppScope.launch {
-							it.load()
-						}
-					}
+				lazyTab.elem.add(self.virionThresholds)
+				if (!self.virionThresholds.hasSelectedVirion()) {
+					self.virionThresholds.selectDefaultVirion()
+				}
 			}
 		}
 	}
@@ -231,6 +228,6 @@ class TomoMultiPanel(
 		particlesImage.load()
 
 		// load thresholds for the threshold picker, if needed
-		virionThresholds?.load()
+		virionThresholds.load()
     }
 }
