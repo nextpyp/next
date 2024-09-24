@@ -162,7 +162,7 @@ class SingleParticlePreprocessingView(val project: ProjectData, val job: SingleP
 				}
 
 				addTab("Gallery", "fas fa-image") { lazyTab ->
-					gallery = HyperGallery(micrographs).apply {
+					gallery = HyperGallery(micrographs, ImageSizes.from(ImageSize.Small)).apply {
 						html = { micrograph ->
 							listenToImageSize(document.create.img(src = micrograph.imageUrl(job, ImageSize.Small)))
 						}

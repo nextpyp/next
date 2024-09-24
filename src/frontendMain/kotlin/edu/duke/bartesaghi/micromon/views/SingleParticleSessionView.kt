@@ -503,7 +503,7 @@ class SingleParticleSessionView(
 
 		val loader = TabDataLoader<RealTimeS2C.SessionLargeData>()
 
-		private val gallery = HyperGallery(micrographs).apply {
+		private val gallery = HyperGallery(micrographs, ImageSizes.from(ImageSize.Small)).apply {
 			html = { micrograph ->
 				listenToImageSize(document.create.img(src = micrograph.imageUrl(this@GalleryTab.session, ImageSize.Small)))
 			}

@@ -487,7 +487,7 @@ class TomographySessionView(
 
 		val loader = TabDataLoader<RealTimeS2C.SessionLargeData>()
 
-		private val gallery = HyperGallery(tiltSeriesesData.tiltSerieses).apply {
+		private val gallery = HyperGallery(tiltSeriesesData.tiltSerieses, ImageSizes.from(ImageSize.Small)).apply {
 			html = { tiltSeries ->
 				document.create.img(src = tiltSeries.imageUrl(this@GalleryTab.session, ImageSize.Small))
 			}

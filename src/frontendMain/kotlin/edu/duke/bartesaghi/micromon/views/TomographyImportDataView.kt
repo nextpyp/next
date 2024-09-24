@@ -171,7 +171,7 @@ class TomographyImportDataView(val project: ProjectData, val job: TomographyImpo
 				}
 
 				addTab("Gallery", "fas fa-image") { lazyTab ->
-					gallery = HyperGallery(data.tiltSerieses).apply {
+					gallery = HyperGallery(data.tiltSerieses, ImageSizes.from(ImageSize.Small)).apply {
 						html = { tiltSeries ->
 							listenToImageSize(document.create.img(src = tiltSeries.imageUrl(job, ImageSize.Small)))
 						}
