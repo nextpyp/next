@@ -2,7 +2,6 @@
 use std::f64::consts::PI;
 
 use crate::metadata::{AvgRot, AvgRotSample, Ctf, DriftCtf, DriftPos, Xf, XfSample};
-use crate::scale::{ValueA, ValueUnbinnedF};
 
 
 pub struct Gaussian {
@@ -12,7 +11,7 @@ pub struct Gaussian {
 
 impl Gaussian {
 
-	pub fn new(mean: f64, stddev: f64) -> Self {
+	pub const fn new(mean: f64, stddev: f64) -> Self {
 		Self {
 			mean,
 			stddev
@@ -40,7 +39,7 @@ impl Gaussian {
 }
 
 
-pub fn sample_ctf(x: ValueUnbinnedF, y: ValueUnbinnedF, z: ValueUnbinnedF, pixel_size: ValueA, binning_factor: u32) -> Ctf {
+pub fn sample_ctf(ctf: Ctf) -> Ctf {
 	Ctf {
 		mean_defocus: Gaussian::new(1.0, 1.0).sample(),
 		cc: Gaussian::new(2.0, 1.0).sample(),
@@ -48,14 +47,11 @@ pub fn sample_ctf(x: ValueUnbinnedF, y: ValueUnbinnedF, z: ValueUnbinnedF, pixel
 		defocus2: Gaussian::new(4.0, 1.0).sample(),
 		angast: Gaussian::new(5.0, 1.0).sample(),
 		ccc: Gaussian::new(6.0, 1.0).sample(),
-		x,
-		y,
-		z,
-		pixel_size,
 		voltage: 300.0,
-		binning_factor,
 		cccc: Gaussian::new(7.0, 1.0).sample(),
 		counts: Gaussian::new(8.0, 1.0).sample(),
+		// copy everything else from the input
+		.. ctf
 	}
 }
 
@@ -114,13 +110,4 @@ pub fn sample_drifts(num_samples: usize) -> Vec<DriftPos> {
 			y: Gaussian::new(2.0, 1.0).sample()
 		})
 		.collect::<Vec<_>>()
-}
-
-
-/// interpolates the tilt angle evenly in [-magnitude,magnitude]
-pub fn interpolate_tilt_angle(magnitude: u32, tilt_i: u32, num_tilts: u32) -> i32 {
-	if num_tilts == 0 {
-		return 0;
-	}
-	(tilt_i*magnitude*2/(num_tilts - 1)) as i32 - magnitude as i32
 }

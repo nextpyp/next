@@ -36,8 +36,7 @@ fn clamp_channel<T>(c: T) -> u8
 pub trait ImageDrawing {
 	fn fill(&mut self, color: Color);
 	fn fill_circle_blended(&mut self, x: u32, y: u32, r: u32, color: BlendedColor);
-	fn noise(&mut self);
-	fn noise_gaussian(&mut self, dist: &Gaussian);
+	fn noise(&mut self, dist: &Gaussian);
 	fn text(&mut self, x: u32, y: u32, size: u32, color: Color, text: impl AsRef<str>);
 	fn text_lines(&mut self, size: u32, color: Color, lines: impl IntoIterator<Item=impl AsRef<str>>);
 	fn border(&mut self, size: u32, color: Color);
@@ -70,11 +69,7 @@ impl<T> ImageDrawing for T
 		);
 	}
 
-	fn noise(&mut self) {
-		self.noise_gaussian(&Gaussian::new(0.0, 30.0));
-	}
-
-	fn noise_gaussian(&mut self, dist: &Gaussian) {
+	fn noise(&mut self, dist: &Gaussian) {
 
 		// tragically, the library's `gaussian_noise_mut` function can't operate on a GenericImage,
 		// so we'll just have to implement our own gaussian noise here =(
@@ -171,7 +166,20 @@ impl Image {
 		Self::of(RgbImage::new(width, height))
 	}
 
-	pub fn montage<F>(count: usize, tile_width: u32, tile_height: u32, mut tile_renderer: F) -> Result<Self>
+	pub fn montage<F>(count: usize, tile_width: u32, tile_height: u32, mut tile_renderer: F) -> Self
+		where
+			for<'s,'i> F: FnMut(usize, SubImage<'i>)
+	{
+		let result = Self::try_montage(count, tile_width, tile_height, |tile_i, sub_image| {
+			tile_renderer(tile_i, sub_image);
+			Ok(())
+		});
+
+		result.unwrap()
+		// PANIC SAFETY: tile_renderer is infallible
+	}
+
+	pub fn try_montage<F>(count: usize, tile_width: u32, tile_height: u32, mut tile_renderer: F) -> Result<Self>
 		where
 			for<'s,'i> F: FnMut(usize, SubImage<'i>) -> Result<()>
 	{

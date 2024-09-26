@@ -1,6 +1,6 @@
 
 use crate::scale::{ValueA, ValueUnbinnedF, ValueUnbinnedU};
-
+use crate::tomography::PreprocessingArgs;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct TiltSeries {
@@ -30,6 +30,28 @@ pub struct Ctf {
 	pub binning_factor: u32,
 	pub cccc: f64,
 	pub counts: f64
+}
+
+impl Ctf {
+
+	pub fn from_preprocessing(pp_args: &PreprocessingArgs) -> Self {
+		Self {
+			mean_defocus: 0.0,
+			cc: 0.0,
+			defocus1: 0.0,
+			defocus2: 0.0,
+			angast: 0.0,
+			ccc: 0.0,
+			x: pp_args.tomogram_dims.width.to_f(),
+			y: pp_args.tomogram_dims.height.to_f(),
+			z: pp_args.tomogram_dims.depth.to_f(),
+			pixel_size: pp_args.pixel_size,
+			voltage: 0.0,
+			binning_factor: pp_args.tomogram_binning,
+			cccc: 0.0,
+			counts: 0.0,
+		}
+	}
 }
 
 
