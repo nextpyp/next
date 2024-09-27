@@ -1,6 +1,7 @@
 
 use crate::scale::{ValueA, ValueUnbinnedF, ValueUnbinnedU};
-use crate::tomography::PreprocessingArgs;
+use crate::{single_particle, tomography};
+
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct TiltSeries {
@@ -34,7 +35,7 @@ pub struct Ctf {
 
 impl Ctf {
 
-	pub fn from_preprocessing(pp_args: &PreprocessingArgs) -> Self {
+	pub fn from_tomo_preprocessing(pp_args: &tomography::PreprocessingArgs) -> Self {
 		Self {
 			mean_defocus: 0.0,
 			cc: 0.0,
@@ -48,6 +49,25 @@ impl Ctf {
 			pixel_size: pp_args.pixel_size,
 			voltage: 0.0,
 			binning_factor: pp_args.tomogram_binning,
+			cccc: 0.0,
+			counts: 0.0,
+		}
+	}
+
+	pub fn from_spa_preprocessing(pp_args: &single_particle::PreprocessingArgs) -> Self {
+		Self {
+			mean_defocus: 0.0,
+			cc: 0.0,
+			defocus1: 0.0,
+			defocus2: 0.0,
+			angast: 0.0,
+			ccc: 0.0,
+			x: pp_args.micrograph_dims.width.to_f(),
+			y: pp_args.micrograph_dims.height.to_f(),
+			z: ValueUnbinnedF(0.0),
+			pixel_size: pp_args.pixel_size,
+			voltage: 0.0,
+			binning_factor: pp_args.micrograph_binning,
 			cccc: 0.0,
 			counts: 0.0,
 		}
@@ -129,4 +149,22 @@ pub struct Particle3D {
 	pub z: ValueUnbinnedU,
 	pub r: ValueUnbinnedF,
 	pub threshold: Option<u32>
+}
+
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Micrograph {
+	pub micrograph_id: String,
+	pub ctf: Option<Ctf>,
+	pub xf: Option<Xf>,
+	pub avgrot: Option<AvgRot>,
+	pub particles: Option<Vec<Particle2D>>
+}
+
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Particle2D {
+	pub x: ValueUnbinnedU,
+	pub y: ValueUnbinnedU,
+	pub r: ValueUnbinnedF
 }

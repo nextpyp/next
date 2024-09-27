@@ -65,6 +65,8 @@ object MockPyp {
 				+ TomographySessionDataJob.mockArgs()
 				+ TomographyImportDataJob.mockArgs()
 				+ TomographyRelionDataJob.mockArgs()
+				+ SingleParticleRawDataJob.mockArgs()
+				+ SingleParticlePreprocessingJob.mockArgs()
 				// sessions
 				+ TomographySession.mockArgs()
 		)
@@ -200,6 +202,20 @@ private fun TomographyImportDataJob.Companion.mockArgs(): List<Arg> = listOf(
 
 private fun TomographyRelionDataJob.Companion.mockArgs(): List<Arg> = listOf(
 	mockArg("image_size", ArgType.TInt(), ArgValue.VInt(512))
+)
+
+
+private fun SingleParticleRawDataJob.Companion.mockArgs(): List<Arg> = listOf(
+	mockArg("image_size", ArgType.TInt(), ArgValue.VInt(512))
+)
+
+
+private fun SingleParticlePreprocessingJob.Companion.mockArgs(): List<Arg> = listOf(
+	mockArg("num_micrographs", ArgType.TInt(), ArgValue.VInt(4)),
+	mockArg("micrograph_width", ArgType.TInt(), ArgValue.VInt(8192)),
+	mockArg("micrograph_height", ArgType.TInt(), ArgValue.VInt(8192)),
+	mockArg("num_particles", ArgType.TInt(), ArgValue.VInt(20)),
+	mockArg("particle_radius", ArgType.TFloat(), ArgValue.VFloat(100.0))
 )
 
 

@@ -6,7 +6,7 @@ use serde_json::{json, Map, Value};
 use tracing::info;
 
 use crate::args::{Args, ArgsConfig, ArgType};
-use crate::metadata::TiltSeries;
+use crate::metadata::{Micrograph, TiltSeries};
 
 
 pub struct Web {
@@ -326,6 +326,75 @@ impl Web {
 		}
 
 		self.json_rpc("write_tiltseries", Value::Object(args))?;
+
+		Ok(())
+	}
+
+	pub fn write_micrograph(&self, micrograph: &Micrograph) -> Result<()> {
+
+		let mut args = Map::<String,Value>::new();
+		args.ins("webid", self.id.as_str());
+		args.ins("micrograph_id", micrograph.micrograph_id.as_str());
+
+		if let Some(ctf) = &micrograph.ctf {
+			args.ins("ctf", vec![
+				ctf.mean_defocus,
+				ctf.cc,
+				ctf.defocus1,
+				ctf.defocus2,
+				ctf.angast,
+				ctf.ccc,
+				ctf.x.0,
+				ctf.y.0,
+				ctf.z.0,
+				ctf.pixel_size.0,
+				ctf.voltage,
+				ctf.binning_factor as f64,
+				ctf.cccc,
+				ctf.counts
+			]);
+		}
+
+		if let Some(xf) = &micrograph.xf {
+			args.ins("xf", xf.samples.iter()
+				.map(|s| vec![
+					s.mat00,
+					s.mat01,
+					s.mat10,
+					s.mat11,
+					s.x,
+					s.y
+				])
+				.collect::<Vec<_>>()
+			);
+		}
+
+		if let Some(avgrot) = &micrograph.avgrot {
+			args.ins("avgrot", avgrot.samples.iter()
+				.map(|s| vec![
+					s.spatial_freq,
+					s.avg_rot_no_astig,
+					s.avg_rot,
+					s.ctf_fit,
+					s.cross_correlation,
+					s.two_sigma
+				])
+				.collect::<Vec<_>>()
+			);
+		}
+
+		if let Some(particles) = &micrograph.particles {
+			args.ins("boxx", particles.iter()
+				.map(|p| vec![
+					Value::from(p.x.0),
+					Value::from(p.y.0),
+					Value::from(p.r.0)
+				])
+				.collect::<Vec<_>>()
+			);
+		}
+
+		self.json_rpc("write_micrograph", Value::Object(args))?;
 
 		Ok(())
 	}

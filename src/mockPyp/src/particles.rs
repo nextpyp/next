@@ -4,8 +4,8 @@ use std::path::PathBuf;
 
 use anyhow::{Context, Result};
 
-use crate::metadata::{Particle3D, Virion3D};
-use crate::scale::{TomogramDimsUnbinned, ToValueU, ValueUnbinnedF, ValueUnbinnedU};
+use crate::metadata::{Particle2D, Particle3D, Virion3D};
+use crate::scale::{MicrographDimsUnbinned, TomogramDimsUnbinned, ToValueU, ValueUnbinnedF, ValueUnbinnedU};
 
 
 pub fn sample_particle_3d(dims: TomogramDimsUnbinned, radius: ValueUnbinnedF) -> Particle3D {
@@ -130,4 +130,13 @@ pub fn read_next_tomo_virions(threshold: u32) -> Result<Option<Vec<(String,Vec<V
 		});
 
 	Ok(tilt_series_virions)
+}
+
+
+pub fn sample_particle_2d(dims: MicrographDimsUnbinned, radius: ValueUnbinnedF) -> Particle2D {
+	Particle2D {
+		x: fastrand::u32(0 ..= dims.width.0).to_unbinned(),
+		y: fastrand::u32(0 ..= dims.height.0).to_unbinned(),
+		r: radius
+	}
 }

@@ -55,7 +55,7 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 
 		let tilt_series = TiltSeries {
 			tilt_series_id,
-			ctf: Some(sample_ctf(Ctf::from_preprocessing(&pp_args))),
+			ctf: Some(sample_ctf(Ctf::from_tomo_preprocessing(&pp_args))),
 			xf: None,
 			avgrot: None,
 			drift: None,

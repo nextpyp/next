@@ -141,7 +141,7 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 			tilt_series_id,
 
 			// sample some metadata
-			ctf: Some(sample_ctf(Ctf::from_preprocessing(&pp_args))),
+			ctf: Some(sample_ctf(Ctf::from_tomo_preprocessing(&pp_args))),
 			xf: Some(sample_xf(fastrand::usize(4..=8))),
 			avgrot: Some(sample_avgrot(fastrand::usize(4..=8))),
 

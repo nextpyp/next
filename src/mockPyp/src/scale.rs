@@ -192,3 +192,51 @@ impl TomogramDimsBinned {
 		}
 	}
 }
+
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct MicrographDimsUnbinned {
+	pub width: ValueUnbinnedU,
+	pub height: ValueUnbinnedU,
+}
+
+impl MicrographDimsUnbinned {
+
+	pub fn new(width: ValueUnbinnedU, height: ValueUnbinnedU) -> Self {
+		Self {
+			width,
+			height
+		}
+	}
+
+	pub fn to_binned(self, binning_factor: u32) -> MicrographDimsBinned {
+		MicrographDimsBinned {
+			width: self.width.to_binned(binning_factor),
+			height: self.height.to_binned(binning_factor)
+		}
+	}
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct MicrographDimsBinned {
+	pub width: ValueBinnedU,
+	pub height: ValueBinnedU,
+}
+
+
+impl MicrographDimsBinned {
+
+	pub fn new(width: ValueBinnedU, height: ValueBinnedU) -> Self {
+		Self {
+			width,
+			height
+		}
+	}
+
+	pub fn to_unbinned(self, binning_factor: u32) -> MicrographDimsUnbinned {
+		MicrographDimsUnbinned {
+			width: self.width.to_unbinned(binning_factor),
+			height: self.height.to_unbinned(binning_factor)
+		}
+	}
+}
