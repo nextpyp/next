@@ -264,7 +264,7 @@ class JobArgs<T> {
 	 * move the finished args to next
 	 */
 	fun unrun() {
-		if (finished != null) {
+		if (finished != null && next == null) {
 			next = finished
 			finished = null
 		}
