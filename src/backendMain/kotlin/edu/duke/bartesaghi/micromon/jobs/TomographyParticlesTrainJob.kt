@@ -78,9 +78,9 @@ class TomographyParticlesTrainJob(
 		val upstreamJob = inParticles?.resolveJob<Job>()
 			?: throw IllegalStateException("no particles input configured")
 
-		// write out manually-picked particles from the upstream job, if needed
+		// write out manual particles from the upstream job, so we can use them for training
 		ParticlesJobs.clear(project.osUsername, dir)
-		upstreamJob.manualParticlesList(newestArgs.particlesName)
+		upstreamJob.manualParticlesList()
 			?.let { ParticlesJobs.writeTomography(project.osUsername, upstreamJob, dir, it) }
 
 		// build the args for PYP
