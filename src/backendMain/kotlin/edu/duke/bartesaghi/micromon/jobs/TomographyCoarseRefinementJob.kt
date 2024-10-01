@@ -92,6 +92,11 @@ class TomographyCoarseRefinementJob(
 			upstreamJob.writeFilter(newestArgs.filter, dir, project.osUsername)
 		}
 
+		// write out manual particles from the upstream job, so we can use them for training
+		ParticlesJobs.clear(project.osUsername, dir)
+		upstreamJob.manualParticlesList()
+			?.let { ParticlesJobs.writeTomography(project.osUsername, upstreamJob, dir, it) }
+
 		// build the args for PYP
 		val pypArgs = launchArgValues(upstreamJob, newestArgs.values, args.finished?.values)
 
