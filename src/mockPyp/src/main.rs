@@ -12,6 +12,7 @@ use tracing::{error, info, warn};
 use mock_pyp::{blocks, logging, sessions};
 use mock_pyp::args::{Args, ArgsConfig};
 use mock_pyp::logging::ResultExt;
+use mock_pyp::web::Web;
 
 
 fn main() -> ExitCode {
@@ -41,14 +42,82 @@ fn run() -> Result<()> {
 		.context("missing pyp command as first argument")?;
 	info!("command: {}", cmd);
 
+	// look for an array element
+	let array_element = match env::var("SLURM_ARRAY_TASK_ID") {
+		Ok(s) => {
+			let i = s.parse::<u32>()
+				.context(format!("Failed to parse SLURM array id: {}", s))?;
+			Some(i)
+		}
+		Err(_) => None
+	};
+
+	// run the command
+	let result = match cmd.as_str() {
+		"webrpc" => run_webrpc(args, array_element),
+		"streampyp" => run_session(args, array_element),
+		_ => run_project(args, array_element)
+	};
+
+	result
+}
+
+
+fn run_webrpc(args: VecDeque<String>, array_element: Option<u32>) -> Result<()> {
+
+	let cmd = args.get(0).map(|s| s.as_str());
+	match cmd {
+
+		Some("slurm_started") => {
+			let web = Web::new()?;
+			web.slurm_started(array_element)?;
+		}
+
+		Some("slurm_ended") => {
+
+			// look for an optional exit code argument
+			let exit_code =  match args.get(0) {
+
+				Some(a) => {
+					const PREFIX: &str = "--exit=";
+					if a.starts_with(PREFIX) {
+						let code_str = &a[PREFIX.len()..];
+						let code = code_str
+							.parse::<u32>()
+							.context(format!("unrecognized exit code: {}", code_str))?;
+						Some(code)
+					} else {
+						None
+					}
+				}
+
+				None => None
+			};
+
+			let web = Web::new()?;
+			web.slurm_ended(array_element, exit_code)?;
+		}
+
+		_ => bail!("Unrecognized webrpc command: {:?}", cmd)
+	}
+
+	Ok(())
+}
+
+
+const ARGS_PATH: &str = "pyp_args.dat";
+
+
+fn parse_args(args: VecDeque<String>) -> Result<(Args,ArgsConfig)> {
+
 	// parse the new arguments
 	let new_args = Args::from(args);
 
 	// and combine with any old arguments
-	let args_path = Path::new("pyp_args.dat");
-	let mut args =
+	let args_path = Path::new(ARGS_PATH);
+	let args =
 		if args_path.exists() {
-			let mut old_args = Args::read(args_path)?;
+			let mut old_args = Args::read(&args_path)?;
 			old_args.set_all(&new_args);
 			old_args
 		} else {
@@ -62,32 +131,13 @@ fn run() -> Result<()> {
 	let args_config = ArgsConfig::from(args_config)
 		.context(format!("Failed to parse config file: {}", &args_config_path))?;
 
-	// look for an array element
-	let array_element = match env::var("SLURM_ARRAY_TASK_ID") {
-		Ok(s) => {
-			let i = s.parse::<u32>()
-				.context(format!("Failed to parse SLURM array id: {}", s))?;
-			Some(i)
-		}
-		Err(_) => None
-	};
-
-	// look at the command to see if we're running in project or session mode
-	let result = match cmd.as_str() {
-		"streampyp" => run_session(&mut args, &args_config),
-		_ => run_project(&mut args, &args_config, array_element)
-	};
-
-	// save the args for next time
-	if let Err(e) = args.write(args_path) {
-		warn!("Failed to write args: {}", e.deref().chain());
-	}
-
-	result
+	Ok((args, args_config))
 }
 
 
-fn run_project(args: &mut Args, args_config: &ArgsConfig, array_element: Option<u32>) -> Result<()> {
+fn run_project(args: VecDeque<String>, array_element: Option<u32>) -> Result<()> {
+
+	let (mut args, args_config) = parse_args(args)?;
 
 	// get the block
 	let block_id = args.get("micromon_block")
@@ -99,13 +149,20 @@ fn run_project(args: &mut Args, args_config: &ArgsConfig, array_element: Option<
 	info!("block id: {}", block_id);
 
 	// run the block command
-	blocks::run(block_id.as_str(), args, args_config, array_element)?;
+	blocks::run(block_id.as_str(), &mut args, &args_config, array_element)?;
+
+	// save the args for next time
+	if let Err(e) = args.write(ARGS_PATH) {
+		warn!("Failed to write args: {}", e.deref().chain());
+	}
 
 	Ok(())
 }
 
 
-fn run_session(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
+fn run_session(args: VecDeque<String>, _array_element: Option<u32>) -> Result<()> {
+
+	let (mut args, args_config) = parse_args(args)?;
 
 	// get the session type
 	let data_mode = args.get("data_mode")
@@ -116,8 +173,13 @@ fn run_session(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 	info!("session: {}", data_mode);
 
 	match data_mode {
-		"tomo" => sessions::tomo::run(args, args_config)?,
+		"tomo" => sessions::tomo::run(&mut args, &args_config)?,
 		_ => bail!("unrecognized session mode: {}", data_mode)
+	}
+
+	// save the args for next time
+	if let Err(e) = args.write(ARGS_PATH) {
+		warn!("Failed to write args: {}", e.deref().chain());
 	}
 
 	Ok(())

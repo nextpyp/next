@@ -2,6 +2,8 @@ package edu.duke.bartesaghi.micromon.cluster
 
 import edu.duke.bartesaghi.micromon.Backend
 import edu.duke.bartesaghi.micromon.Config
+import edu.duke.bartesaghi.micromon.cluster.Container.Pyp.Companion
+import edu.duke.bartesaghi.micromon.cluster.Container.Pyp.Companion.devBind
 import java.nio.file.Path
 import java.nio.file.Paths
 import kotlin.io.path.div
@@ -110,11 +112,18 @@ sealed interface Container {
 			const val id = "mock-pyp"
 
 			const val exec = "/usr/bin/mock-pyp"
-		}
 
-		private val configOrThrow: Config.Pyp.Mock get() =
-			Config.instance.pyp.mock
-				?: throw NoSuchElementException("missing pyp.mock config")
+			private val configOrThrow: Config.Pyp.Mock get() =
+				Config.instance.pyp.mock
+					?: throw NoSuchElementException("missing pyp.mock config")
+
+			fun cmdWebrpc(vararg args: String): String =
+				ArrayList<String>().apply {
+					add(configOrThrow.exec.toString())
+					add("webrpc")
+					addAll(args)
+				}.joinToString(" ")
+		}
 
 		override val sifPath = configOrThrow.container
 

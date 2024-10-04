@@ -78,6 +78,40 @@ impl Web {
 		Ok(result)
 	}
 
+	pub fn slurm_started(&self, array_element: Option<u32>) -> Result<()> {
+
+		// we have optional parameters here, so need to use map-building syntax instead of the nice json!() macro =(
+		let mut request = Map::<String,Value>::new();
+		request.insert("webid".to_string(), self.id.clone().into());
+
+		if let Some(array_element) = array_element {
+			request.insert("arrayid".to_string(), array_element.into());
+		}
+
+		self.json_rpc("slurm_started", request.into())?;
+
+		Ok(())
+	}
+
+	pub fn slurm_ended(&self, array_element: Option<u32>, exit_code: Option<u32>) -> Result<()> {
+
+		// we have optional parameters here, so need to use map-building syntax instead of the nice json!() macro =(
+		let mut request = Map::<String,Value>::new();
+		request.insert("webid".to_string(), self.id.clone().into());
+
+		if let Some(array_element) = array_element {
+			request.insert("arrayid".to_string(), array_element.into());
+		}
+
+		if let Some(exit_code) = exit_code {
+			request.insert("exit".to_string(), exit_code.into());
+		}
+
+		self.json_rpc("slurm_ended", request.into())?;
+
+		Ok(())
+	}
+
 	pub fn submit_cluster_job(&self,
 		web_name: impl Into<String>,
 		cluster_name: impl Into<String>,

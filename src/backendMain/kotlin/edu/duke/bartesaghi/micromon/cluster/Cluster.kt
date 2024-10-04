@@ -213,6 +213,12 @@ interface Cluster {
 
 			// write the script files
 			val scriptPath = clusterJob.batchPath()
+			fun cmdWebrpc(vararg args: String): String =
+				if (Config.instance.pyp.mock != null) {
+					Container.MockPyp.cmdWebrpc(*args)
+				} else {
+					Container.Pyp.cmdWebrpc(*args)
+				}
 			val commands = clusterJob.commands.render(clusterJob, instance.commandsConfig)
 			scriptPath.writeStringAs(clusterJob.osUsername, """
 				|#!/bin/bash
@@ -228,8 +234,8 @@ interface Cluster {
 				|# we never *ever* want pyp to have access to the home folder.
 				|cd /tmp || exit 1
 				|
-				|${Container.Pyp.cmdWebrpc("slurm_started")}
-				|trap "${Container.Pyp.cmdWebrpc("slurm_ended", "--exit=\\$?").replace("\"", "\\\"")}" exit
+				|${cmdWebrpc("slurm_started")}
+				|trap "${cmdWebrpc("slurm_ended", "--exit=\\$?").replace("\"", "\\\"")}" exit
 				|
 				|${commands.joinToString("\n")}
 			""".trimMargin())
