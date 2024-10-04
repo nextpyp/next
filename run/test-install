@@ -161,6 +161,23 @@ install() { #(acct, ...), sets install_exit
 }
 
 
+uninstall() { #(acct, ...), sets uninstall_exit
+
+  local cmddo
+  if [ "$1" = 'root' ]; then
+    cmddo=
+  else
+    cmddo="sudo -u \"$1\""
+  fi
+  shift
+
+  echo "----- UNINSTALL SCRIPT -----"
+  eval "$cmddo $* \"$rundir/uninstall\""
+  uninstall_exit=$?
+  echo "----- ---------------- -----"
+}
+
+
 # install as the service account with root
 # should always fail with an error
 test_as_root_folder_owned_by_service() {
@@ -179,6 +196,8 @@ test_as_root_folder_owned_by_root() {
   assert_owner "$installdir/local/logs" "$service_acct"
   assert_owner "$installdir/shared/log" "$service_acct"
   assert_owner "$installdir/sharedExec/containers/pyp.sif" "root"
+  uninstall "root"
+  assert_succeeded $uninstall_exit
 }
 
 
@@ -191,6 +210,8 @@ test_as_root_folder_owned_by_admin() {
   assert_owner "$installdir/local/logs" "$service_acct"
   assert_owner "$installdir/shared/log" "$service_acct"
   assert_owner "$installdir/sharedExec/containers/pyp.sif" "$admin_acct"
+  uninstall "root"
+  assert_succeeded $uninstall_exit
 }
 
 
@@ -223,6 +244,8 @@ test_as_root_with_local_owned_by_service() {
   assert_owner "$ldir/logs" "$service_acct"
   assert_owner "$installdir/shared/log" "$service_acct"
   assert_owner "$installdir/sharedExec/containers/pyp.sif" "root"
+  uninstall "root"
+  assert_succeeded $uninstall_exit
 }
 
 
@@ -254,6 +277,8 @@ test_as_root_with_shared_data_owned_by_service() {
   assert_owner "$installdir/local/logs" "$service_acct"
   assert_owner "$sddir/log" "$service_acct"
   assert_owner "$installdir/sharedExec/containers/pyp.sif" "root"
+  uninstall "root"
+  assert_succeeded $uninstall_exit
 }
 
 
@@ -285,6 +310,8 @@ test_as_root_with_shared_exec_owned_by_admin() {
   assert_owner "$installdir/local/logs" "$service_acct"
   assert_owner "$installdir/shared/log" "$service_acct"
   assert_owner "$sedir/containers/pyp.sif" "$admin_acct"
+  uninstall "root"
+  assert_succeeded $uninstall_exit
 }
 
 
@@ -297,6 +324,8 @@ test_as_service() {
   assert_owner "$installdir/local/logs" "$service_acct"
   assert_owner "$installdir/shared/log" "$service_acct"
   assert_owner "$installdir/sharedExec/containers/pyp.sif" "$service_acct"
+  uninstall "$service_acct"
+  assert_succeeded $uninstall_exit
 }
 
 
