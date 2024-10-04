@@ -43,7 +43,7 @@ class UserProcessor(
 
 		private suspend fun find(hostProcessor: HostProcessor, username: String): Path {
 
-			val path = Config.instance.web.sharedDir / "user-processors" / "user-processor-$username"
+			val path = Config.instance.web.sharedExecDir / "user-processors" / "user-processor-$username"
 			val failures = ArrayList<String>()
 
 			// find the uid

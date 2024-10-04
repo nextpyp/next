@@ -11,7 +11,8 @@ fun main(argsArray: Array<String>) {
 	// run the command
 	when (val cmd = args.firstOrNull()) {
 		"localdir" -> printLocalDir()
-		"shareddir" -> printSharedDir()
+		"shareddatadir" -> printSharedDataDir()
+		"sharedexecdir" -> printSharedExecDir()
 		"binds" -> printBinds()
 		"heapmib" -> printHeapMiB()
 		"jmx" -> printJmx()
@@ -35,8 +36,12 @@ private fun printLocalDir() {
 	println(Config.instance.web.localDir)
 }
 
-private fun printSharedDir() {
+private fun printSharedDataDir() {
 	println(Config.instance.web.sharedDir)
+}
+
+private fun printSharedExecDir() {
+	println(Config.instance.web.sharedExecDir)
 }
 
 private fun printBinds() {

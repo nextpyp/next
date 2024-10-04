@@ -8,6 +8,7 @@ binds = [
 	'/media/pyp/tests/'
 ]
 sources = '/media/pyp'
+mock = { container = "/media/micromon/run/nextPYP.sif", exec = "/media/micromon/run/mock-pyp" }
 
 [slurm]
 user = '$user'

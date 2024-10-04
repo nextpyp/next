@@ -140,6 +140,7 @@ class Config(toml: String) {
 		val port: Int,
 		val localDir: Path,
 		val sharedDir: Path,
+		val sharedExecDir: Path,
 		val auth: AuthType,
 		val webhost: String,
 		val debug: Boolean,
@@ -233,11 +234,15 @@ class Config(toml: String) {
 			// NOTE: for security reasons, we should only bind to localhost by default, rather than all network iterfaces
 			val port = getInt("port") ?: 8080
 			val sharedDir = getStringOrThrow("sharedDir").toPath()
+			val sharedExecDir = getString("sharedExecDir")
+				?.toPath()
+				?: sharedDir
 			Web(
 				host = host,
 				port = port,
 				localDir = getStringOrThrow("localDir").toPath(),
 				sharedDir = sharedDir,
+				sharedExecDir = sharedExecDir,
 				auth = AuthType[getString("auth")] ?: AuthType.Login,
 				webhost = getString("webhost") ?: "http://$host:$port",
 				debug = getBoolean("debug") ?: false,
@@ -313,6 +318,7 @@ class Config(toml: String) {
 			|             port:  ${web.port}
 			|        local dir:  ${web.localDir}
 			|       shared dir:  ${web.sharedDir}
+			|  shared exec dir:  ${web.sharedExecDir}
 			|             auth:  ${web.auth}
 			|          webhost:  ${web.webhost}
 			|            debug:  ${web.debug}

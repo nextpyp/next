@@ -86,6 +86,9 @@ setupdev()
   
     # set the "installation" folder to the project's run folder
     installdir="$devpath/run"
+
+    # use the config path from the dev folder
+    configpath="$devpath/run/config.toml"
   fi
 }
 
@@ -118,13 +121,15 @@ setup()
     fi
   fi
 
-  # look for the config file in the shared exec folder
-  configpath="$installdir/sharedExec/config.toml"
-  if [ -f "$configpath" ]; then
-    echo "Using configuration from install folder: $configpath"
-  else
-    echo "ERROR: Config file not found at: $configpath"
-    exit 1
+  if [ -z "$configpath" ]; then
+    # look for the config file in the install folder (may be a symlink)
+    configpath="$installdir/config.toml"
+    if [ -f "$configpath" ]; then
+      echo "Using configuration from install folder: $configpath"
+    else
+      echo "ERROR: Config file (or symlink) not found at: $configpath"
+      exit 1
+    fi
   fi
 
   # get the website container
@@ -154,30 +159,28 @@ setup()
     edu.duke.bartesaghi.micromon.CliKt \
   )
 
-  # get the local and shared directories from the canonical location (which may be a symlink)
-  resolve_dir() { #(path)
-    if [ -L "$1" ]; then
-      realpath "$1"
-    else
-      echo "$1"
-    fi
-  }
-  localdir="$(resolve_dir "$installdir/local")"
-  shareddir="$(resolve_dir "$installdir/shared")"
-  sharedexecdir="$(resolve_dir "$installdir/sharedExec")"
+  # get the local,shared folders from the config
+  localdir=$("${cli[@]}" localdir)
+  shareddatadir=$("${cli[@]}" shareddatadir)
+  sharedexecdir=$("${cli[@]}" sharedexecdir)
 
   # make sure the base directories exist
   if [ ! -d "$localdir" ] ; then
-    echo "Local dir does not exist. It should have been created during installation"
+    echo "Local folder does not exist. It should have been created during installation"
     exit 1
   fi
-  if [ ! -d "$shareddir" ] ; then
-    echo "Shared dir does not exist. It should have been created during installation"
+  if [ ! -d "$shareddatadir" ] ; then
+    echo "Shared data folder does not exist. It should have been created during installation"
+    exit 1
+  fi
+  if [ ! -d "$sharedexecdir" ] ; then
+    echo "Shared exec folder does not exist. It should have been created during installation"
     exit 1
   fi
 
   addbind "$localdir"
-  addbind "$shareddir"
+  addbind "$shareddatadir"
+  addbind "$sharedexecdir"
 
   sockdir="$localdir/sock"
 
@@ -209,7 +212,7 @@ usersetup()
   # make a way to run commands as the target user
   usdo="sudo -u $username"
 
-  upexec="$shareddir/user-processors/user-processor-$username"
+  upexec="$sharedexecdir/user-processors/user-processor-$username"
 }
 
 
@@ -258,16 +261,17 @@ case "$1" in
 
     # just do some check to see if the installation is viable
     setup
-    check_shared_perms "$shareddir"
+    check_shared_perms "$shareddatadir"
 
     echo "nextPYP seems to be fine"
     echo "  Installation folder: $installdir"
     echo "  Local folder: $localdir"
-    echo "  Shared folder: $shareddir"
+    echo "  Shared data folder: $shareddatadir"
     echo "  Shared exec folder: $sharedexecdir"
     echo "  Config file: $configpath"
 
     ;;
+
 
   start)
 
@@ -275,7 +279,7 @@ case "$1" in
     setupdev "$2" "$3" "$4"
 
     setup
-    check_shared_perms "$shareddir"
+    check_shared_perms "$shareddatadir"
 
     # add all the binds from the config file
     echo "Reading config.toml using CLI tool ..."
@@ -477,7 +481,7 @@ case "$1" in
 
     setup
 
-    updir="$shareddir/user-processors"
+    updir="$sharedexecdir/user-processors"
 
     upgraded=0
     for f in "$updir"/user-processor-* ; do

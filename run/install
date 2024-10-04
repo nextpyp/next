@@ -392,13 +392,19 @@ scratch = '/tmp/pyp'
 
 [web]
 
-# storage space for website files, database, etc
-# for best performance, this should be on a filesystem local to the web server
+# Storage space for website files, database, etc.
+# For best performance, this should be on a filesystem local to the web server.
 localDir = '$localDir'
 
-# storage space for files shared between the web server and the SLURM cluster
-# this area should have a lot of available space for large files
+# Storage space for files shared between the web server and the data processing jobs.
+# This area should have a lot of available space for large files
+# and should be writable by the account running nextpyp.
 sharedDir = '$sharedDataDir'
+
+# Storage space for the executables needed by data processing jobs,
+# and the and configuration (like this file) shared between the web server and the data processing jobs.
+# This area should be read-only to the account running nextpyp.
+sharedExecDir = '$sharedExecDir'
 
 # directories for workflow files
 workflowDirs = ['$workflowDir']

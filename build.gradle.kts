@@ -647,14 +647,13 @@ afterEvaluate {
 			doLast {
 
 				// make sure the needed files exist
-				val configPath = getConfigPath()
+				getConfigPath()
 				checkContainer("nextPYP.sif")
 
 				// run the start script with the development jar
 				exec {
 					workingDir = runDir
 					executable = "./nextpyp"
-					environment("PYP_CONFIG", configPath.toString())
 					environment("PYP_SRC", pypDir)
 					args("start", projectDir, gradleCachesDir, "run")
 				}
@@ -667,13 +666,12 @@ afterEvaluate {
 			doLast {
 
 				// make sure the needed files exist
-				val configPath = getConfigPath()
+				getConfigPath()
 				checkContainer("nextPYP.sif")
 
 				exec {
 					workingDir = runDir
 					executable = "./nextpyp"
-					environment("PYP_CONFIG", configPath.toString())
 					environment("PYP_SRC", pypDir)
 					args("stop", projectDir, gradleCachesDir, "run")
 
@@ -1138,12 +1136,11 @@ afterEvaluate {
 			doLast {
 
 				// make sure the needed files exist
-				val configPath = getConfigPath()
+				getConfigPath()
 				checkContainer("nextPYP.sif")
 
-				// run the start script in develoment mode with the `run` main
-				val vmConfigPath = vmRunDir.resolve(configPath.fileName)
-				vboxrun(vmid, "cd \"$vmRunDir\" && PYP_CONFIG=\"$vmConfigPath\" PYP_SRC=\"$vmPypDir\" ./nextpyp start \"$vmMicromonDir\" \"$vmGradleCachesDir\" run")
+				// run the start script in development mode with the `run` main
+				vboxrun(vmid, "cd \"$vmRunDir\" && PYP_SRC=\"$vmPypDir\" ./nextpyp start \"$vmMicromonDir\" \"$vmGradleCachesDir\" run")
 
 				println("""
 					|
@@ -1162,15 +1159,13 @@ afterEvaluate {
 			doLast {
 
 				// make sure the needed files exist
-				val configPath = getConfigPath()
-
-				val vmConfigPath = vmRunDir.resolve(configPath.fileName)
+				getConfigPath()
 
 				// if the container isn't running, Singularity will return an error exit code,
 				// which translates into a gradle exception by default
 				// except, if the container isn't running, we've already won! =D
 				// there's no need to stop it again, so just ignore errors from singularity entirely
-				vboxrun(vmid, "cd \"$vmRunDir\" && PYP_CONFIG=\"$vmConfigPath\" PYP_SRC=\"$vmPypDir\" ./nextpyp stop \"$vmMicromonDir\" \"$vmGradleCachesDir\" run", ignoreExit=true)
+				vboxrun(vmid, "cd \"$vmRunDir\" && PYP_SRC=\"$vmPypDir\" ./nextpyp stop \"$vmMicromonDir\" \"$vmGradleCachesDir\" run", ignoreExit=true)
 			}
 		}
 
@@ -1186,12 +1181,11 @@ afterEvaluate {
 			doLast {
 
 				// make sure the needed files exist
-				val configPath = getConfigPath()
+				getConfigPath()
 				checkContainer("nextPYP.sif")
 
 				// run the start script in production mode
-				val vmConfigPath = vmRunDir.resolve(configPath.fileName)
-				vboxrun(vmid, "cd \"$vmRunDir\" && PYP_CONFIG=\"$vmConfigPath\" ./nextpyp start")
+				vboxrun(vmid, "cd \"$vmRunDir\" && ./nextpyp start")
 
 				println("""
 					|
@@ -1209,15 +1203,13 @@ afterEvaluate {
 			doLast {
 
 				// make sure the needed files exist
-				val configPath = getConfigPath()
-
-				val vmConfigPath = vmRunDir.resolve(configPath.fileName)
+				getConfigPath()
 
 				// if the container isn't running, Singularity will return an error exit code,
 				// which translates into a gradle exception by default
 				// except, if the container isn't running, we've already won! =D
 				// there's no need to stop it again, so just ignore errors from singularity entirely
-				vboxrun(vmid, "cd \"$vmRunDir\" && PYP_CONFIG=\"$vmConfigPath\" ./nextpyp stop", ignoreExit=true)
+				vboxrun(vmid, "cd \"$vmRunDir\" && ./nextpyp stop", ignoreExit=true)
 			}
 		}
 
@@ -1228,12 +1220,11 @@ afterEvaluate {
 			doLast {
 
 				// make sure the needed files exist
-				val configPath = getConfigPath()
+				getConfigPath()
 				checkContainer("nextPYP.sif")
 
 				// run the start script in develoment mode with the `test` main
-				val vmConfigPath = vmRunDir.resolve(configPath.fileName)
-				vboxrun(vmid, "cd \"$vmRunDir\" && PYP_CONFIG=\"$vmConfigPath\" PYP_SRC=\"$vmPypDir\" ./nextpyp start \"$vmMicromonDir\" \"$vmGradleCachesDir\" test")
+				vboxrun(vmid, "cd \"$vmRunDir\" && PYP_SRC=\"$vmPypDir\" ./nextpyp start \"$vmMicromonDir\" \"$vmGradleCachesDir\" test")
 			}
 		}
 
