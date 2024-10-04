@@ -4,16 +4,34 @@
 set -e
 
 
-# build-time settings (to be filled in by a build script)
-version="__TARGET_VERSION__"
+# check for a testing override for the file download
+if [ -n "$PYP_DIST" ]; then
+
+  if [ -d "$PYP_DIST" ]; then
+    echo "Skipping file download from web, will copy from $PYP_DIST instead"
+  else
+    echo "Folder not found: $PYP_DIST"
+    exit 1
+  fi
+
+  version="testing"
+
+else
+
+  # release mode: download files from the public URL
+
+  # build-time settings (to be filled in by a build script)
+  version="__TARGET_VERSION__"
 
 
-# check that the build process actually ran
-tva=__TARGET
-tvb=_VERSION__
-if [ "$version" = "$tva$tvb" ]; then
-  echo "No version set by the build process."
-  exit
+  # check that the build process actually ran
+  tva=__TARGET
+  tvb=_VERSION__
+  if [ "$version" = "$tva$tvb" ]; then
+    echo "No version set by the build process."
+    exit
+  fi
+
 fi
 
 
@@ -23,7 +41,7 @@ here=$(pwd)
 
 mkdirdo() { #(do, path, chmod ops)
   if [ -d "$2" ]; then
-    echo "Using exixting folder $2"
+    echo "Using existing folder $2"
   else
     $1 mkdir -p "$2"
     if [ -n "$3" ]; then
@@ -38,7 +56,9 @@ mkdirdo() { #(do, path, chmod ops)
 whoami=$(whoami)
 if [ "$whoami" = "root" ]; then
 
-  echo "Installing in root mode: Will integrate with OS"
+  admin="$SUDO_USER"
+
+  echo "Installing in root mode (admin=$admin): Will integrate with OS"
   oscaps="root"
 
   # get the username for the service account
@@ -51,7 +71,7 @@ if [ "$whoami" = "root" ]; then
   # get the groupname for the service account
   groupname=$PYP_GROUP
   if [ -z "$groupname" ]; then
-    if getent group "$username"; then
+    if getent group "$username" > /dev/null; then
       groupname=$username
     else
       echo "$username is not a valid group. Choose the pyp group by setting PYP_GROUP"
@@ -61,43 +81,47 @@ if [ "$whoami" = "root" ]; then
 
   echo "Installing nextPYP $version for service account $username in group $groupname ..."
 
-  # make a way to do things as the service account, like sudo, but user-do
-  usdo="sudo -u $username"
+  # make a way to do things as the service account, like sudo, but service-do
+  srvdo="sudo -u $username"
 
   # determine filesystem capabilities
-  installowner="$(stat -c '%U' "$here")"
-  if [ "$installowner" = "root" ]; then
+  installOwner="$(stat -c '%U' "$here")"
+  if [ "$installOwner" = "root" ]; then
     echo "Install folder owned by root"
 
     heredo=
 
-    mkdirheresrv() { #(path, chmod ops)
-      mkdirdo "" "$1" "$2"
-      # folder will be owned by root: need to chmod to service account
-      chown "$username:$groupname" "$1"
-    }
+  elif [ "$installOwner" = "$admin" ]; then
+    echo "Install folder owned by administrator $admin"
 
-  elif [ "$installowner" = "$username" ]; then
+    heredo="sudo -u $admin"
+
+  elif [ "$installOwner" = "$username" ]; then
     echo "Install folder owned by service account"
 
-    heredo="$usdo"
-
-    mkdirheresrv() { #(path, chmod ops)
-      mkdirdo "$usdo" "$1" "$2"
-    }
+    echo "ERROR: This installation mode is not recommended for security reasons."
+    echo "       For installs as root, the service account should not have write access to the nextPYP executable files."
+    echo "       Instead, install into a folder owned by root or an administrator account."
+    exit 1
 
   else
-    echo "Install folder owned by $installowner"
+    echo "Install folder owned by $installOwner"
 
-    heredo="sudo -u $installowner"
+    echo "ERROR: install folder $here should be owned by administrator $admin or root."
+    exit 1
 
-    mkdirheresrv() { #(path, chmod ops)
-      # service account might not be able to write here, so temporarily make the folder world-writeable
-      $heredo chmod o+w "$here"
-      mkdirdo "$usdo" "$1" "$2"
-      $heredo chmod o-w "$here"
-    }
   fi
+
+  mkdirheresrv() { #(path, chmod ops)
+    mkdirdo "$heredo" "$1" "$2"
+    # folder will be owned by root/admin: need to chown to service account
+    chown "$username:$groupname" "$1"
+  }
+
+  mkdirherenotsrv() { #(path, chmod ops)
+    # folder will be owned by root/admin, which is not the service account
+    mkdirdo "$heredo" "$1" "$2"
+  }
 
   # install binaries to the OS bin dir
   bindir=/usr/bin
@@ -114,10 +138,14 @@ else
 
   echo "Installing nextPYP $version as current account $username ..."
 
-  usdo=
+  srvdo=
   heredo=
   mkdirheresrv() { #(path, chmod ops)
-    mkdirdo "$usdo" "$1" "$2"
+    mkdirdo "$srvdo" "$1" "$2"
+  }
+  mkdirherenotsrv() { #(path, chmod ops)
+    # not possible to have folders owned by another user, so just use this one and hope for the best
+    mkdirdo "$srvdo" "$1" "$2"
   }
 
   # "install" binaries here
@@ -128,6 +156,7 @@ fi
 
 
 if [ "$oscaps" = "root" ]; then
+
   # in root mode, save the installation folder somewhere canonical, so we can find it again later
   canondir="/opt/nextpyp"
   if [ "$here" = "$canondir" ]; then
@@ -148,40 +177,173 @@ if [ "$oscaps" = "root" ]; then
 fi
 
 
+# create initial folders and set up permissions
+
+# make the local folder, or use the one given
+if [ -n "$PYP_LOCAL" ]; then
+
+  # check existence
+  if [ ! -d "$PYP_LOCAL" ]; then
+    echo "ERROR: Local folder given by PYP_LOCAL not found"
+    echo "       PYP_LOCAL=$PYP_LOCAL"
+    exit 1
+  fi
+
+  # check ownership
+  localOwner="$(stat -c '%U' "$PYP_LOCAL")"
+  if [ "$localOwner" != "$username" ]; then
+    echo "ERROR: Local folder given by PYP_LOCAL should be owned by service account $username"
+    echo "       Instead it's owned by $localOwner"
+    echo "       PYP_LOCAL=$PYP_LOCAL"
+    exit 1
+  fi
+
+  localDir="$PYP_LOCAL"
+
+  # make a symlink to the local folder in the install dir so scripts can easily find it again later
+  $heredo ln -s "$localDir" "$here/local"
+
+else
+  # no folder given, make a new one here
+  localDir="$here/local"
+  mkdirheresrv "$localDir" g+s
+fi
+
+
+# make the shared data folder, or use the one given
+if [ -n "$PYP_SHARED_DATA" ]; then
+
+  # check existence
+  if [ ! -d "$PYP_SHARED_DATA" ]; then
+    echo "ERROR: Shared folder given by PYP_SHARED_DATA not found"
+    echo "       PYP_SHARED_DATA=$PYP_SHARED_DATA"
+    exit 1
+  fi
+
+  # check ownership
+  sharedOwner="$(stat -c '%U' "$PYP_SHARED_DATA")"
+  if [ "$sharedOwner" != "$username" ]; then
+    echo "ERROR: Shared folder given by PYP_SHARED_DATA should be owned by service account $username"
+    echo "       Instead it's owned by $sharedOwner"
+    echo "       PYP_SHARED_DATA=$PYP_SHARED_DATA"
+    exit 1
+  fi
+
+  sharedDataDir="$PYP_SHARED_DATA"
+
+  # make a symlink to the shared folder in the install dir so scripts can easily find it again later
+  $heredo ln -s "$sharedDataDir" "$here/shared"
+
+else
+  # no folder given, make a new one here
+  sharedDataDir="$here/shared"
+  mkdirheresrv "$sharedDataDir" ugo+rx,g+s
+fi
+
+
+# make the shared exec folder, or use the one given
+if [ -n "$PYP_SHARED_EXEC" ]; then
+
+  # check existence
+  if [ ! -d "$PYP_SHARED_EXEC" ]; then
+    echo "ERROR: Shared exec folder given by PYP_SHARED_EXEC not found"
+    echo "       PYP_SHARED_EXEC=$PYP_SHARED_EXEC"
+    exit 1
+  fi
+
+  # check ownership
+  sharedExecOwner="$(stat -c '%U' "$PYP_SHARED_EXEC")"
+  if [ "$sharedExecOwner" != "root" ] && [ "$sharedExecOwner" != "$admin" ]; then
+    echo "ERROR: Shared exec folder given by PYP_SHARED_EXEC should be owned by root or $admin"
+    echo "       Instead, it is owned by $sharedExecOwner"
+    echo "       PYP_SHARED_EXEC=$PYP_SHARED_EXEC"
+    exit 1
+  fi
+
+  sharedExecDir="$PYP_SHARED_EXEC"
+
+  sharedexecdo="sudo -u $admin"
+
+  # make a symlink to the shared exec folder in the install dir so scripts can easily find it again later
+  $heredo ln -s "$sharedExecDir" "$here/sharedExec"
+
+else
+  # no folder given, make a new one here
+  sharedExecDir="$here/sharedExec"
+  mkdirherenotsrv "$sharedExecDir" ugo+rx,g+s
+
+  sharedexecdo=$heredo
+fi
+
+
+# NOTE: The base folders have setgid (g+s) so all files inherit the service account group.
+#       Setgid will propagate automatically to all subfolders when they're created,
+#       so we don't need to re-set it for every folder.
+
+# make the local sub-folders
+mkdirdo "$srvdo" "$localDir/containers"
+mkdirdo "$srvdo" "$localDir/logs"
+mkdirdo "$srvdo" "$localDir/db"
+mkdirdo "$srvdo" "$localDir/sock" ugo=rwx,+t
+
+# make the shared sub-folders
+mkdirdo "$srvdo" "$sharedDataDir/batch" ugo=rwx,+t
+mkdirdo "$srvdo" "$sharedDataDir/log" ugo=rwx,+t
+mkdirdo "$srvdo" "$sharedDataDir/users"
+mkdirdo "$srvdo" "$sharedDataDir/os-users" ugo=rwx,+t
+mkdirdo "$srvdo" "$sharedDataDir/sessions"
+mkdirdo "$srvdo" "$sharedDataDir/groups"
+
+# make the shared exec sub-folders
+mkdirdo "$sharedexecdo" "$sharedExecDir/containers"
+mkdirdo "$sharedexecdo" "$sharedExecDir/user-processors" ugo=rwx,+t
+
+
 # configure downloads
 www="https://nextpyp.app/files/pyp/$version"
 wgetopts="-nv"
 # for interactive use, it's helpful to turn on the progress bar to track long downloads
 #wgetopts="$wgetopts --progress=bar"
 
-download() { #(path, chmod vops)
-  $heredo wget $wgetopts -O "$1" "$www/$1"
-  if [ -n "$2" ]; then
-    $heredo chmod "$2" "$1"
+download() { #(do, path, todir, chmod vops)
+  if [ -n "$PYP_DIST" ]; then
+    # copy distribution files from the local path
+    echo "Copying $2 ..."
+    $1 cp "$PYP_DIST/$2" "$3/$2"
+  else
+    # otherwise, download from the URL
+    $1 wget $wgetopts -O "$3/$2" "$www/$2"
   fi
+  $1 chmod "$4" "$3/$2"
 }
 
 # download the distribution files
 echo "Downloading installation files from $www ..."
-download "nextPYP.sif" ugo+r # container files need to be world-readable
-download "pyp.sif" ugo+r
-download "host-processor"
-download "user-processor" u=rw,go=r
-download "nextpyp"
-download "uninstall"
-download "install-rprox"
+download "$heredo" "nextPYP.sif" "$here" u=rw,go=r
+download "$heredo" "host-processor" "$here" u=rw,go=r
+download "$heredo" "user-processor" "$here" u=rw,go=r
+download "$heredo" "nextpyp" "$here" u=rw,go=r
+download "$heredo" "uninstall" "$here" u=rw,go=r
+download "$heredo" "install-rprox" "$here" u=rw,go=r
 
 # NOTE: we don't make the local scripts (eg other installers/uninstallers) in $here executable
 #       instead, the installation instructions ask the user to inspect them first
 #       and then chmod +x later if satisfied
 
 
+# download shared containers into the shared exec folder
+download_container() { #(name)
+  download "$sharedexecdo" "$1" "$sharedExecDir/containers" u=rw,go=r # shared container files need to be world-readable
+}
+download_container "pyp.sif"
+
+
 # download the workflow files
 workflowDir="$here/workflows"
-mkdirdo "$heredo" "$workflowDir" ugo+r
-download "workflows/spr_tutorial.toml" ugo+r
-download "workflows/tomo_tutorial.toml" ugo+r
-download "workflows/class_tutorial.toml" ugo+r
+mkdirdo "$heredo" "$workflowDir" u=rwx,go=r
+download "$heredo" "workflows/spr_tutorial.toml" "$here" u=rw,go=r
+download "$heredo" "workflows/tomo_tutorial.toml" "$here" u=rw,go=r
+download "$heredo" "workflows/class_tutorial.toml" "$here" u=rw,go=r
 
 
 install() { #(filename, dest filename)
@@ -204,33 +366,6 @@ install "nextpyp"
 install "host-processor" "nextpyp-host-processor"
 
 
-# create initial folders and set up permissions
-
-# make the base folders
-localDir="$here/local"
-mkdirheresrv "$localDir" g+s
-sharedDir="$here/shared"
-mkdirheresrv "$sharedDir" ugo+rx,g+s
-
-# NOTE: The base folders have setgid (g+s) so all files inherit the service account group.
-#       Setgid will propagate automatically to all subfolders when they're created,
-#       so we don't need to re-set it for every folder.
-
-# make the local sub-folders
-mkdirdo "$usdo" "$localDir/logs"
-mkdirdo "$usdo" "$localDir/db"
-mkdirdo "$usdo" "$localDir/sock" ugo=rwx,+t
-
-# make the shared sub-folders
-mkdirdo "$usdo" "$sharedDir/batch" ugo=rwx,+t
-mkdirdo "$usdo" "$sharedDir/log" ugo=rwx,+t
-mkdirdo "$usdo" "$sharedDir/users"
-mkdirdo "$usdo" "$sharedDir/os-users" ugo=rwx,+t
-mkdirdo "$usdo" "$sharedDir/user-processors" ugo=rwx,+t
-mkdirdo "$usdo" "$sharedDir/sessions" # TODO: how should user-switching work for sessions?
-mkdirdo "$usdo" "$sharedDir/groups"
-
-
 # create the home configuration folder, if needed (apptainer needs it)
 if [ "$oscaps" = "root" ]; then
   mkdirdo "" "$home" u+rwx,go+rx,go-w
@@ -241,15 +376,15 @@ fi
 
 
 # generate the initial configuration
-configPath="$here/config.toml"
+configPath="$sharedExecDir/config.toml"
 if [ -f "$configPath" ]; then
   echo "Using existing configuration file: $configPath"
 else
-  $heredo cat << EOF > "$configPath"
+  $sharedexecdo tee "$configPath" > /dev/null << EOF
 
 [pyp]
 # path to the PYP container file, from a SLURM compute node's point of view
-container = '$here/pyp.sif'
+container = '$sharedExecDir/containers/pyp.sif'
 
 # fast storage for temporary files, ideally local to the compute node
 scratch = '/tmp/pyp'
@@ -263,7 +398,7 @@ localDir = '$localDir'
 
 # storage space for files shared between the web server and the SLURM cluster
 # this area should have a lot of available space for large files
-sharedDir = '$sharedDir'
+sharedDir = '$sharedDataDir'
 
 # directories for workflow files
 workflowDirs = ['$workflowDir']
@@ -277,7 +412,7 @@ EOF
 fi
 
 # make sure others can't write to the config file
-$heredo chmod o-w "$configPath"
+$sharedexecdo chmod ug=rw,o=r "$configPath"
 
 
 if [ "$oscaps" = "root" ]; then
@@ -292,7 +427,7 @@ if [ "$oscaps" = "root" ]; then
   # make the unit file for the application server
   appDaemon="nextPYP"
   appFile="/lib/systemd/system/$appDaemon.service"
-  cat << EOF > "$appFile"
+  tee "$appFile" > /dev/null << EOF
 [Unit]
 Description=$appDaemon
 
@@ -310,17 +445,45 @@ EOF
   chmod go-w "$appFile"
 
 
-  # poke systemd to recognize the new daemons
+  # poke systemd to recognize the new daemon
   systemctl daemon-reload
 
   # start the demon now and at boot too
-  systemctl start $appDaemon
+  if ! systemctl start $appDaemon; then
+    echo "ERROR: Daemon start failure detected, dumping logs:"
+    date
+
+    echo "LOG: systemd service"
+    echo "-----"
+    journalctl -u "$appDaemon"
+    echo "-----"
+
+    dumplog() { #(name, path)
+      echo "LOG: $1"
+      if [ -f "$2" ]; then
+        echo "-----"
+        cat "$2"
+        echo "-----"
+      else
+        echo "   (log not present: $2)"
+      fi
+    }
+
+    dumplog "init" "$localDir/logs/init.log"
+    dumplog "supervisord" "$localDir/logs/superd"
+    dumplog "micromon" "$localDir/logs/micromon"
+
+    exit 1
+  fi
   systemctl enable $appDaemon
 
+  # seems to be running ok, show the status
+  systemctl --no-pager --full status $appDaemon
+
 else
-  echo "WARNING: Since you did not run the installer as root, nextPYP will not start automatically"
-  echo "To start manually, run: \"$here/nextpyp\" start"
-  echo "To stop nextPYP, run: \"$here/nextpyp\" stop"
+  echo "NOTE: Since you did not run the installer as root, nextPYP will not start automatically"
+  echo "      To start manually, run: \"$here/nextpyp\" start"
+  echo "      To stop nextPYP, run: \"$here/nextpyp\" stop"
 fi
 
 echo "Finished installing nextPYP $version"

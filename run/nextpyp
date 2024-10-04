@@ -25,7 +25,7 @@ binddevdir() #(host path, container path, allow missing)
     addbind "$1" "$2"
   else
     if [ -z "$3" ] ; then
-      echo "Error: development folder not found at \"$1\""
+      echo "ERROR: development folder not found at \"$1\""
       exit 1
     fi
   fi
@@ -37,7 +37,7 @@ binddevfile() #(host path, container path)
     echo "using development file at: \"$1\""
     addbind "$1" "$2"
   else
-    echo "Error: development file not found at \"$1\""
+    echo "ERROR: development file not found at \"$1\""
     exit 1
   fi
 }
@@ -111,32 +111,20 @@ setup()
       installdir="$scriptdir"
       echo "Found installation folder using script location: $installdir"
     else
-      echo "Failed to find installation folder, checked:"
+      echo "ERROR: Failed to find installation folder, checked:"
       echo " * $canondir"
       echo " * $scriptdir"
       exit 1
     fi
   fi
 
-  # look for the config file in the usual places
-  if [ -n "$PYP_CONFIG" ]; then
-    # environmental override: use that regardless of anything else
-    configpath=$(realpath "$PYP_CONFIG" || echo "")
-    if [ -f "$configpath" ]; then
-      echo "Using configuration from environment: $configpath"
-    else
-      echo "Config file not found at PYP_CONFIG=$PYP_CONFIG"
-      exit 1
-    fi
+  # look for the config file in the shared exec folder
+  configpath="$installdir/sharedExec/config.toml"
+  if [ -f "$configpath" ]; then
+    echo "Using configuration from install folder: $configpath"
   else
-    # otherwise, use the config in the install folder
-    configpath="$installdir/config.toml"
-    if [ -f "$configpath" ]; then
-      echo "Using configuration from install folder: $configpath"
-    else
-      echo "Config file not found at: $configpath"
-      exit 1
-    fi
+    echo "ERROR: Config file not found at: $configpath"
+    exit 1
   fi
 
   # get the website container
@@ -166,11 +154,17 @@ setup()
     edu.duke.bartesaghi.micromon.CliKt \
   )
 
-  echo "Reading config.toml using CLI tool ..."
-
-  # get the local and share directories from the config
-  localdir=$("${cli[@]}" localdir)
-  shareddir=$("${cli[@]}" shareddir)
+  # get the local and shared directories from the canonical location (which may be a symlink)
+  resolve_dir() { #(path)
+    if [ -L "$1" ]; then
+      realpath "$1"
+    else
+      echo "$1"
+    fi
+  }
+  localdir="$(resolve_dir "$installdir/local")"
+  shareddir="$(resolve_dir "$installdir/shared")"
+  sharedexecdir="$(resolve_dir "$installdir/sharedExec")"
 
   # make sure the base directories exist
   if [ ! -d "$localdir" ] ; then
@@ -234,8 +228,46 @@ create_upexec() # depends on usdo, installdir, and upexec
 }
 
 
+# the shared folder needs to have other-exec permissions all the way up to /
+check_shared_perms() { #(path)
+  local otherperms groupperms
+  pushd "$1" > /dev/null
+  while true; do
+    otherperms=$(stat --format=%A . | cut -c 10)
+    groupperms=$(stat --format=%A . | cut -c 7)
+    #echo "Check shared perms: $(pwd) => $perms"
+    if [ "$otherperms" == '-' ] || [ "$groupperms" == '-' ]; then
+      echo "Folder $(pwd) (and all parents of the shared folder) must have group and other execute permissions"
+      popd > /dev/null
+      namei -l "$1"
+      exit 1
+    fi
+    cd ..
+    if [ "$(pwd)" == "/" ]; then
+      break
+    fi
+  done
+  popd > /dev/null
+}
+
+
 # process the command
 case "$1" in
+
+  check)
+
+    # just do some check to see if the installation is viable
+    setup
+    check_shared_perms "$shareddir"
+
+    echo "nextPYP seems to be fine"
+    echo "  Installation folder: $installdir"
+    echo "  Local folder: $localdir"
+    echo "  Shared folder: $shareddir"
+    echo "  Shared exec folder: $sharedexecdir"
+    echo "  Config file: $configpath"
+
+    ;;
 
   start)
 
@@ -243,28 +275,10 @@ case "$1" in
     setupdev "$2" "$3" "$4"
 
     setup
-
-    # the shared folder needs to have other-exec permissions all the way up to /
-    pushd "$shareddir" > /dev/null
-    while true; do
-      otherperms=$(stat --format=%A . | cut -c 10)
-      groupperms=$(stat --format=%A . | cut -c 7)
-      #echo "Check shared perms: $(pwd) => $perms"
-      if [ "$otherperms" == '-' ] || [ "$groupperms" == '-' ]; then
-        echo "Folder $(pwd) (and all parents of the shared folder) must have group and other execute permissions"
-        popd > /dev/null
-        namei -l "$shareddir"
-        exit 1
-      fi
-      cd ..
-      if [ "$(pwd)" == "/" ]; then
-        break
-      fi
-    done
-    popd > /dev/null
-
+    check_shared_perms "$shareddir"
 
     # add all the binds from the config file
+    echo "Reading config.toml using CLI tool ..."
     configbinds=$("${cli[@]}" binds)
     declare -a configbinds="(${configbinds})"
     binds+=("${configbinds[@]}")
