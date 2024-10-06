@@ -420,6 +420,9 @@ fi
 # make sure others can't write to the config file
 $sharedexecdo chmod ug=rw,o=r "$configPath"
 
+# make the canonical link for the config file
+$heredo ln -s "$configPath" "config.toml"
+
 
 if [ "$oscaps" = "root" ]; then
   echo "Installing integrations with systemd ..."
