@@ -7,9 +7,7 @@ set -e
 # check for a testing override for the file download
 if [ -n "$PYP_DIST" ]; then
 
-  if [ -d "$PYP_DIST" ]; then
-    echo "Skipping file download from web, will copy from $PYP_DIST instead"
-  else
+  if [ ! -d "$PYP_DIST" ]; then
     echo "Folder not found: $PYP_DIST"
     exit 1
   fi
@@ -318,7 +316,12 @@ download() { #(do, path, todir, chmod vops)
 }
 
 # download the distribution files
-echo "Downloading installation files from $www ..."
+if [ -n "$PYP_DIST" ]; then
+  echo "Copying installation files from $PYP_DIST ..."
+else
+  echo "Downloading installation files from $www ..."
+fi
+
 download "$heredo" "nextPYP.sif" "$here" u=rw,go=r
 download "$heredo" "host-processor" "$here" u=rw,go=r
 download "$heredo" "user-processor" "$here" u=rw,go=r
