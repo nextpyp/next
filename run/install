@@ -199,6 +199,9 @@ if [ -n "$PYP_LOCAL" ]; then
   localDir="$PYP_LOCAL"
 
   # make a symlink to the local folder in the install dir so scripts can easily find it again later
+  if [ -L "$here/local" ]; then
+    $heredo rm "$here/local"
+  fi
   $heredo ln -s "$localDir" "$here/local"
 
 else
@@ -230,6 +233,9 @@ if [ -n "$PYP_SHARED_DATA" ]; then
   sharedDataDir="$PYP_SHARED_DATA"
 
   # make a symlink to the shared folder in the install dir so scripts can easily find it again later
+  if [ -L "$here/shared" ]; then
+    $heredo rm "$here/shared"
+  fi
   $heredo ln -s "$sharedDataDir" "$here/shared"
 
 else
@@ -263,6 +269,9 @@ if [ -n "$PYP_SHARED_EXEC" ]; then
   sharedexecdo="sudo -u $admin"
 
   # make a symlink to the shared exec folder in the install dir so scripts can easily find it again later
+  if [ -L "$here/sharedExec" ]; then
+    $heredo rm "$here/sharedExec"
+  fi
   $heredo ln -s "$sharedExecDir" "$here/sharedExec"
 
 else
@@ -423,9 +432,11 @@ fi
 # make sure others can't write to the config file
 $sharedexecdo chmod ug=rw,o=r "$configPath"
 
-# make the canonical link for the config file
-$heredo ln -s "$configPath" "config.toml"
-
+# make a symlink to the configuration file in the install dir so scripts can easily find it again later
+if [ -L "$here/config.toml" ]; then
+  $heredo rm "$here/config.toml"
+fi
+$heredo ln -s "$configPath" "$here/config.toml"
 
 if [ "$oscaps" = "root" ]; then
   echo "Installing integrations with systemd ..."
