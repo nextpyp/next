@@ -28,6 +28,13 @@ if [ "$(whoami)" != "root" ]; then
 fi
 
 
+appDaemon="nextPYP"
+
+srvstop() {
+  systemctl stop $appDaemon 2> /dev/null
+}
+
+
 clean() {
 
   echo "CLEAN"
@@ -36,8 +43,7 @@ clean() {
   cd /
 
   # remove any systemd services
-  local appDaemon="nextPYP"
-  systemctl stop $appDaemon 2> /dev/null
+  srvstop
   rm "/lib/systemd/system/$appDaemon.service" 2> /dev/null
   systemctl daemon-reload
 
@@ -180,14 +186,14 @@ uninstall() { #(acct, ...), sets uninstall_exit
 
 # install as the service account with root
 # should always fail with an error
-test_as_root_folder_owned_by_service() {
+test_install_as_root_folder_owned_by_service() {
   mkdir_install_service
   install "root" PYP_USER="$service_acct"
   assert_failed $install_exit
 }
 
 
-test_as_root_folder_owned_by_root() {
+test_install_as_root_folder_owned_by_root() {
   mkdir_install_root
   install "root" PYP_USER="$service_acct"
   assert_succeeded $install_exit
@@ -201,7 +207,7 @@ test_as_root_folder_owned_by_root() {
 }
 
 
-test_as_root_folder_owned_by_admin() {
+test_install_as_root_folder_owned_by_admin() {
   mkdir_install_admin
   install "root" PYP_USER="$service_acct"
   assert_succeeded $install_exit
@@ -215,7 +221,7 @@ test_as_root_folder_owned_by_admin() {
 }
 
 
-test_as_root_with_local_owned_by_root() {
+test_install_as_root_with_local_owned_by_root() {
 
   # make a local folder owned by root
   local ldir
@@ -228,7 +234,7 @@ test_as_root_with_local_owned_by_root() {
 }
 
 
-test_as_root_with_local_owned_by_service() {
+test_install_as_root_with_local_owned_by_service() {
 
   # make a local folder owned by the service account
   local ldir
@@ -249,7 +255,7 @@ test_as_root_with_local_owned_by_service() {
 }
 
 
-test_as_root_with_shared_data_owned_by_admin() {
+test_install_as_root_with_shared_data_owned_by_admin() {
 
   # make a shared data folder owned by the admin account
   local sddir
@@ -262,7 +268,7 @@ test_as_root_with_shared_data_owned_by_admin() {
 }
 
 
-test_as_root_with_shared_data_owned_by_service() {
+test_install_as_root_with_shared_data_owned_by_service() {
 
   # make a shared data folder owned by the service account
   local sddir
@@ -282,7 +288,7 @@ test_as_root_with_shared_data_owned_by_service() {
 }
 
 
-test_as_root_with_shared_exec_owned_by_service() {
+test_install_as_root_with_shared_exec_owned_by_service() {
 
   # make a shared exec folder owned by the service account
   local sedir
@@ -295,7 +301,7 @@ test_as_root_with_shared_exec_owned_by_service() {
 }
 
 
-test_as_root_with_shared_exec_owned_by_admin() {
+test_install_as_root_with_shared_exec_owned_by_admin() {
 
   # make a shared exec folder owned by the admin account
   local sedir
@@ -315,7 +321,7 @@ test_as_root_with_shared_exec_owned_by_admin() {
 }
 
 
-test_as_service() {
+test_install_as_service() {
   mkdir_install_service
   install "$service_acct"
   assert_succeeded $install_exit
@@ -329,18 +335,113 @@ test_as_service() {
 }
 
 
+test_upgrade_as_root_folder_owned_by_root() {
+  mkdir_install_root
+  install "root" PYP_USER="$service_acct"
+  assert_succeeded $install_exit
+  srvstop
+  install "root" PYP_USER="$service_acct"
+  assert_succeeded $install_exit
+  assert_install
+}
+
+
+test_upgrade_as_root_folder_owned_by_admin() {
+  mkdir_install_admin
+  install "root" PYP_USER="$service_acct"
+  assert_succeeded $install_exit
+  srvstop
+  install "root" PYP_USER="$service_acct"
+  assert_succeeded $install_exit
+  assert_install
+}
+
+
+test_upgrade_as_root_with_local() {
+
+  # make a local folder owned by the service account
+  local ldir
+  ldir="$localdir/test"
+  mkdir -p "$ldir"
+  chown "$service_acct:$service_acct" "$ldir"
+
+  mkdir_install_root
+  install "root" PYP_USER="$service_acct" PYP_LOCAL="$ldir"
+  assert_succeeded $install_exit
+  srvstop
+  install "root" PYP_USER="$service_acct" PYP_LOCAL="$ldir"
+  assert_succeeded $install_exit
+  assert_install
+}
+
+
+test_upgrade_as_root_with_shared_data() {
+
+  # make a shared data folder owned by the service account
+  local sddir
+  sddir="$shareddir/$service_acct/data"
+  sudo -u "$service_acct" mkdir -p "$sddir"
+
+  mkdir_install_root
+  install "root" PYP_USER="$service_acct" PYP_SHARED_DATA="$sddir"
+  assert_succeeded $install_exit
+  srvstop
+  install "root" PYP_USER="$service_acct" PYP_SHARED_DATA="$sddir"
+  assert_succeeded $install_exit
+  assert_install
+}
+
+
+test_upgrade_as_root_with_shared_exec() {
+
+  # make a shared exec folder owned by the admin account
+  local sedir
+  sedir="$shareddir/$admin_acct/exec"
+  sudo -u "$admin_acct" mkdir -p "$sedir"
+
+  mkdir_install_root
+  install "root" PYP_USER="$service_acct" PYP_SHARED_EXEC="$sedir"
+  assert_succeeded $install_exit
+  srvstop
+  install "root" PYP_USER="$service_acct" PYP_SHARED_EXEC="$sedir"
+  assert_succeeded $install_exit
+  assert_install
+}
+
+
+test_upgrade_as_service() {
+  mkdir_install_service
+  install "$service_acct"
+  assert_succeeded $install_exit
+  srvstop
+  install "$service_acct"
+  assert_succeeded $install_exit
+  assert_install
+}
+
+
+
 # run all the tests
 echo "Running tests..."
 
-run_test "test_as_root_folder_owned_by_service"
-run_test "test_as_root_folder_owned_by_root"
-run_test "test_as_root_folder_owned_by_admin"
-run_test "test_as_root_with_local_owned_by_root"
-run_test "test_as_root_with_local_owned_by_service"
-run_test "test_as_root_with_shared_data_owned_by_admin"
-run_test "test_as_root_with_shared_data_owned_by_service"
-run_test "test_as_root_with_shared_exec_owned_by_service"
-run_test "test_as_root_with_shared_exec_owned_by_admin"
-run_test "test_as_service"
+# installation tests
+run_test "test_install_as_root_folder_owned_by_service"
+run_test "test_install_as_root_folder_owned_by_root"
+run_test "test_install_as_root_folder_owned_by_admin"
+run_test "test_install_as_root_with_local_owned_by_root"
+run_test "test_install_as_root_with_local_owned_by_service"
+run_test "test_install_as_root_with_shared_data_owned_by_admin"
+run_test "test_install_as_root_with_shared_data_owned_by_service"
+run_test "test_install_as_root_with_shared_exec_owned_by_service"
+run_test "test_install_as_root_with_shared_exec_owned_by_admin"
+run_test "test_install_as_service"
+
+# upgrade tests
+run_test "test_upgrade_as_root_folder_owned_by_root"
+run_test "test_upgrade_as_root_folder_owned_by_admin"
+run_test "test_upgrade_as_root_with_local"
+run_test "test_upgrade_as_root_with_shared_data"
+run_test "test_upgrade_as_root_with_shared_exec"
+run_test "test_upgrade_as_service"
 
 echo "Testing completed successfully! =D =D =D"
