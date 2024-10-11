@@ -14,6 +14,17 @@ import io.kvision.toast.ToastPosition
 import kotlin.math.abs
 
 
+/*
+ * WARNING:
+ *
+ * SessionTomoMultiPanel is a copy of this code that does mostly the same thing,
+ * but has some subtle differences.
+ *
+ * If you're in here fixing things, also check to see if you need to fix the same thing in SessionTomoMultiPanel!!
+ *
+ * TODO: maybe someday we can merge TomoMultiPanel and SessionTomoMultiPanel together?
+ */
+
 class TomoMultiPanel(
 	val project: ProjectData,
 	val job: JobData,
