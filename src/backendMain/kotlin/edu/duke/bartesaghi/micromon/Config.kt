@@ -281,7 +281,7 @@ class Config(toml: String) {
 		val indent = "                    "
 		append("""
 			|[pyp]
-			|       conatainer:  ${pyp.container}
+			|        container:  ${pyp.container}
 			|          sources:  ${pyp.sources}
 			|          scratch:  ${pyp.scratch}
 			|            binds:  ${pyp.binds.joinToString("\n$indent")}
