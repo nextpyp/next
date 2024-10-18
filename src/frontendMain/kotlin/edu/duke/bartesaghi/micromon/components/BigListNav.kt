@@ -1,11 +1,16 @@
 package edu.duke.bartesaghi.micromon.components
 
+import edu.duke.bartesaghi.micromon.batch
 import edu.duke.bartesaghi.micromon.components.forms.enabled
+import edu.duke.bartesaghi.micromon.components.forms.focusASAP
+import edu.duke.bartesaghi.micromon.onClick
 import io.kvision.core.onEvent
 import io.kvision.form.check.checkBox
 import io.kvision.form.check.CheckBoxStyle
 import io.kvision.form.text.TextInput
+import io.kvision.form.text.text
 import io.kvision.html.*
+import io.kvision.modal.Modal
 
 
 /**
@@ -13,6 +18,7 @@ import io.kvision.html.*
  */
 class BigListNav private constructor(
 	private var core: Core,
+	private var onSearch: BigListNavSearchFn? = null,
 	var onShow: (Int) -> Unit
 ) : Div(classes = setOf("big-list-nav")) {
 
@@ -22,8 +28,9 @@ class BigListNav private constructor(
 		// NOTE: don't use if-like constructs in the above expression or it will trigger a compiler bug! =(
 		initialLive: Boolean = true,
 		has100: Boolean = true,
+		onSearch: BigListNavSearchFn? = null,
 		onShow: (Int) -> Unit = {}
-	) : this(Core(items, initialIndex, initialLive, has100), onShow)
+	) : this(Core(items, initialIndex, initialLive, has100), onSearch, onShow)
 
 	class Core(
 		val items: List<Any>,
@@ -134,6 +141,15 @@ class BigListNav private constructor(
 				?.let { core.showItem(it - 1, true) }
 		}
 		enabled = false
+	}
+
+	// add the search button, if needed
+	init {
+		if (onSearch != null) {
+			button("", icon = "fas fa-search").apply {
+				onClick { showSearch() }
+			}
+		}
 	}
 
 	private val navIndex = TextInput(classes = setOf("index")).apply {
@@ -291,12 +307,142 @@ class BigListNav private constructor(
 		core.showItem(newIndex, true)
 	}
 
+	private fun showSearch() {
+
+		val onSearch = onSearch
+			?: return
+
+		val win = Modal(
+			caption = "Search",
+			escape = true,
+			closeButton = true,
+			classes = setOf("dashboard-popup", "max-height-dialog", "big-list-nav-search")
+		)
+
+		val searchText = win.text(label = "Name:")
+
+		val resultsElem = win.div(classes = setOf("results"))
+
+		val selectButton = Button("Select")
+			.apply {
+				enabled = false
+				win.addButton(this)
+			}
+
+		var results: List<BigListNavSearchResult> = ArrayList()
+		val elems = LinkedHashMap<Int,Div>()
+
+		/** indexes into the results list */
+		var selectedIndex: Int? = null
+
+		fun select(index: Int?) {
+
+			val cname = "selected"
+
+			// clear any old selection
+			for (e in elems.values) {
+				e.removeCssClass(cname)
+			}
+			selectedIndex = null
+
+			// set the new selection, if any
+			val result = index?.let { results.getOrNull(it) }
+			if (result != null) {
+				elems[result.i]?.addCssClass(cname)
+				selectedIndex = index
+			}
+
+			selectButton.enabled = selectedIndex != null
+		}
+
+		fun search() {
+
+			resultsElem.removeAll()
+			elems.clear()
+
+			// do the search
+			results = searchText.value
+				?.takeIf { it.isNotBlank() }
+				?.let { onSearch(it) }
+				?: emptyList()
+
+			// show the results
+			batch {
+				if (results.isNotEmpty()) {
+					for ((index, result) in results.withIndex()) {
+						val elem = resultsElem.div(classes = setOf("result")) {
+							span("${result.i + 1}", classes = setOf("index"))
+							span(result.label, classes = setOf("label"))
+						}
+						elem.onClick {
+							select(index)
+						}
+						elems[result.i] = elem
+					}
+				} else {
+					resultsElem.div("No matching results", classes = setOf("empty", "spaced"))
+				}
+			}
+
+			// select the first result, if any
+			select(0)
+		}
+
+		fun choose() {
+
+			val result = selectedIndex
+				?.let { results.getOrNull(it) }
+				?: return
+
+			win.hide()
+			core.showItem(result.i, true)
+		}
+
+		// wire up events
+		searchText.onEvent {
+
+			input = f@{
+				search()
+			}
+
+			keydown = k@ { event ->
+				when (event.key.lowercase()) {
+					"enter" -> choose()
+					"arrowup" -> selectedIndex
+						?.let { it - 1 }
+						?.takeIf { it in results.indices }
+						?.let { select(it) }
+					"arrowdown" -> selectedIndex
+						?.let { it + 1 }
+						?.takeIf { it in results.indices }
+						?.let { select(it) }
+				}
+			}
+		}
+
+		win.focusASAP(searchText)
+		win.show()
+	}
+
 	/**
-	 * Creates another instance of this control that shares the same state,
+	 * Creates another instance of this control that shares the > 0same state,
 	 * but can call a different callback function when the value changes.
 	 *
 	 * Useful for sharing the same control across different tabs with each tab showing different content.
 	 */
 	fun clone(onShow: (Int) -> Unit = {}): BigListNav =
-		BigListNav(core, onShow)
+		BigListNav(core, onSearch, onShow)
 }
+
+
+typealias BigListNavSearchFn = (String) -> List<BigListNavSearchResult>
+
+data class BigListNavSearchResult(
+	val i: Int,
+	val label: String
+)
+
+/** to make implementing BigListNavSearchFn easier */
+fun <T> List<T>.indexSearch(predicate: (T) -> String?): List<BigListNavSearchResult> =
+	withIndex()
+		.mapNotNull { (i, thing) -> predicate(thing)?.let { BigListNavSearchResult(i,it) } }

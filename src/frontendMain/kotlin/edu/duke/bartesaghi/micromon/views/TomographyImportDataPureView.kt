@@ -232,7 +232,7 @@ class TomographyImportDataPureView(val project: ProjectData, val job: Tomography
 
 		private val tiltSeriesesElem = Div()
 
-		val listNav = BigListNav(data.tiltSerieses, has100 = false) e@{ index ->
+		val listNav = BigListNav(data.tiltSerieses, onSearch=data::searchById) e@{ index ->
 
 			// clear the previous contents
 			tiltSeriesesElem.removeAll()

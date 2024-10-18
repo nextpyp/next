@@ -3,6 +3,7 @@ package edu.duke.bartesaghi.micromon.views
 import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.components.*
 import edu.duke.bartesaghi.micromon.diagram.nodes.SingleParticleSessionDataNode
+import edu.duke.bartesaghi.micromon.pyp.searchById
 import edu.duke.bartesaghi.micromon.services.*
 import io.kvision.core.*
 import io.kvision.html.*
@@ -251,7 +252,7 @@ class SingleParticleSessionDataView(val project: ProjectData, val job: SinglePar
 
 		private val micrographElem = Div()
 
-		val listNav = BigListNav(micrographs) e@{ index ->
+		val listNav = BigListNav(micrographs, onSearch=micrographs::searchById) e@{ index ->
 
 			// clear the previous contents
 			micrographElem.removeAll()
