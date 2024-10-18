@@ -153,13 +153,8 @@ open class FileBrowser(
 				}
 				onEmptyClick(currentFolder)
 			}
-			location.onEvent {
-				keypress = { event ->
-					if (event.key == "Enter") {
-						navigate()
-						event.preventDefault()
-					}
-				}
+			location.onEnter {
+				navigate()
 			}
 			goButton.onClick {
 				navigate()

@@ -1,5 +1,6 @@
 package edu.duke.bartesaghi.micromon.components.forms
 
+import edu.duke.bartesaghi.micromon.AppScope
 import edu.duke.bartesaghi.micromon.IconStyled
 import edu.duke.bartesaghi.micromon.services.JobArgs
 import js.getHTMLElementOrThrow
@@ -7,17 +8,21 @@ import io.kvision.core.Widget
 import io.kvision.core.onEvent
 import io.kvision.dropdown.DropDown
 import io.kvision.form.FormControl
+import io.kvision.form.FormInput
 import io.kvision.form.FormPanel
 import io.kvision.form.check.CheckBox
 import io.kvision.form.select.SelectInput
+import io.kvision.form.text.Text
 import io.kvision.form.text.TextInput
 import io.kvision.html.Button
 import io.kvision.html.Icon
 import io.kvision.html.Link
 import io.kvision.html.div
 import io.kvision.modal.Modal
+import js.awaitHTMLElement
 import js.getHTMLElement
 import kotlinx.browser.document
+import kotlinx.coroutines.delay
 import org.w3c.dom.*
 import org.w3c.dom.events.MouseEvent
 
@@ -333,3 +338,57 @@ fun TextInput.copyToClipboard(): Boolean {
 	document.execCommand("copy")
 	return true
 }
+
+fun TextInput.onEnter(block: () -> Unit) {
+	onEvent {
+		keypress = { event ->
+			if (event.key.lowercase() == "enter") {
+				block()
+				event.preventDefault()
+			}
+		}
+	}
+}
+
+fun Text.onEnter(block: () -> Unit) =
+	input.onEnter(block)
+
+
+fun HTMLElement.isFocused(): Boolean =
+	document.activeElement === this
+
+
+/**
+ * Sigh ... tragically, KVision's usual AbstractTextInput.focus() function doesn't seem to work in some cases.
+ * So this function uses the lower-level DOM APIs directly, and waits as long as needed for the effect to actually happen.
+ */
+fun FormInput.focusASAP() {
+	AppScope.launch {
+
+		// wait for the element to hit the real DOM
+		val elem = awaitHTMLElement()
+
+		while (true) {
+			elem.focus()
+			if (elem.isFocused()) {
+				break
+			}
+			delay(200)
+		}
+	}
+}
+
+
+fun Modal.focusASAP(input: FormInput) {
+
+	// disable KVision's default tab index for the modal itself,
+	// since that will interfere with focusing the actual form control
+	tabindex = null
+
+	// then focus the actual element as soon as it's available
+	input.focusASAP()
+}
+
+
+fun Modal.focusASAP(control: FormControl) =
+	focusASAP(control.input)

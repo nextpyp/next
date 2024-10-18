@@ -3,6 +3,8 @@ package edu.duke.bartesaghi.micromon.diagram.nodes
 import edu.duke.bartesaghi.micromon.AppScope
 import edu.duke.bartesaghi.micromon.canWrite
 import edu.duke.bartesaghi.micromon.components.PathPopup
+import edu.duke.bartesaghi.micromon.components.forms.focusASAP
+import edu.duke.bartesaghi.micromon.components.forms.onEnter
 import edu.duke.bartesaghi.micromon.diagram.Diagram
 import edu.duke.bartesaghi.micromon.nodes.NodeConfig
 import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
@@ -12,9 +14,11 @@ import edu.duke.bartesaghi.micromon.services.JobData
 import edu.duke.bartesaghi.micromon.services.ProjectData
 import edu.duke.bartesaghi.micromon.services.Services
 import edu.duke.bartesaghi.micromon.views.Viewport
+import io.kvision.core.onEvent
 import io.kvision.form.text.textInput
 import io.kvision.html.Button
 import io.kvision.modal.Modal
+import js.getHTMLElement
 import js.micromondiagrams.MicromonDiagrams
 import js.react.React
 import js.react.ReactBuilder
@@ -23,6 +27,7 @@ import js.reactdiagrams.ReactDiagrams
 import js.values
 import kotlinx.browser.document
 import org.w3c.dom.HTMLElement
+import org.w3c.dom.HTMLInputElement
 
 
 abstract class Node(
@@ -456,12 +461,14 @@ abstract class Node(
 		)
 
 		val nameText = win.textInput(value = baseJob.name)
+		val renameButton = Button("Rename")
+			.also { win.addButton(it) }
 
-		win.addButton(Button("Rename").onClick {
+		fun submit() {
 
 			// get the name
 			val name = nameText.value
-				?: return@onClick
+				?: return
 
 			win.hide()
 
@@ -469,8 +476,13 @@ abstract class Node(
 			AppScope.launch {
 				baseJob = JobData.deserialize(Services.projects.renameJob(jobId, name))
 			}
-		})
+		}
 
+		// wire up events
+		renameButton.onClick { submit() }
+		nameText.onEnter { submit() }
+
+		win.focusASAP(nameText)
 		win.show()
 	}
 

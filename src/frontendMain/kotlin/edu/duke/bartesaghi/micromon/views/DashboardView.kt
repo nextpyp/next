@@ -2,18 +2,13 @@ package edu.duke.bartesaghi.micromon.views
 
 import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.components.*
-import edu.duke.bartesaghi.micromon.components.forms.enableClickIf
-import edu.duke.bartesaghi.micromon.components.forms.enabled
-import edu.duke.bartesaghi.micromon.components.forms.setSubmitButton
-import edu.duke.bartesaghi.micromon.components.forms.valueOption
+import edu.duke.bartesaghi.micromon.components.forms.*
 import edu.duke.bartesaghi.micromon.services.*
 import io.kvision.core.*
-import io.kvision.form.FormType
-import io.kvision.form.formPanel
 import io.kvision.form.select.SelectInput
 import io.kvision.form.select.SelectRemoteInput
-import io.kvision.form.text.Text
 import io.kvision.form.text.TextInput
+import io.kvision.form.text.text
 import io.kvision.html.*
 import io.kvision.modal.Alert
 import io.kvision.modal.Confirm
@@ -21,7 +16,6 @@ import io.kvision.modal.Modal
 import io.kvision.navbar.navLink
 import io.kvision.toast.Toast
 import io.kvision.utils.perc
-import kotlinx.serialization.Serializable
 import kotlin.js.Date
 
 
@@ -217,54 +211,57 @@ class DashboardView : View {
 		// show a button to create a new project
 		selectionButtonsElem.button("Create new project", icon = "fas fa-plus-square").enableClickIf(!isDemo) {
 
-			Modal(
+			val win = Modal(
 				caption = "Create new project",
 				escape = true,
 				closeButton = true,
 				classes = setOf("dashboard-popup")
-			).apply modal@{
+			)
 
-				val form = formPanel<CreateProjectArgs>(type = FormType.HORIZONTAL) {
-					add(CreateProjectArgs::name, Text(label = "Name"), required = true)
-				}
-				val errorsElem = div()
-				val createButton = button("Create").onClick create@{
+			val nameText = win.text(label = "Name")
+			val errorsElem = div()
+			val createButton = Button("Create")
+				.also { win.addButton(it) }
 
-					// make sure we have valid input
-					if (!form.validate()) {
-						return@create
+			fun submit() {
+
+				// make sure we have valid input
+				val name = nameText.value
+					?: return
+
+				createButton.disabled = true
+
+				AppScope.launch {
+
+					// create the project on the server
+					val project = try {
+						Services.projects.create(name)
+					} catch (t: Throwable) {
+						errorsElem.removeAll()
+						errorsElem.errorMessage(t)
+						return@launch
+					} finally {
+						createButton.enabled = true
 					}
-					val args = form.getData()
 
-					disabled = true
+					win.hide()
 
-					AppScope.launch {
+					// add the project locally
+					projects.add(0, project)
 
-						// create the project on the server
-						val project = try {
-							Services.projects.create(args.name)
-						} catch (t: Throwable) {
-							errorsElem.removeAll()
-							errorsElem.errorMessage(t)
-							return@launch
-						}
-
-						this@modal.hide()
-
-						// add the project locally
-						projects.add(0, project)
-
-						// update the UI
-						searchBox.value = null
-						updateSearchResults()
-						select(project)
-					}
+					// update the UI
+					searchBox.value = null
+					updateSearchResults()
+					select(project)
 				}
-
-				form.setSubmitButton(createButton)
-
-				show()
 			}
+
+			// wire up events
+			createButton.onClick { submit() }
+			nameText.onEnter { submit() }
+
+			win.focusASAP(nameText)
+			win.show()
 		}
 
 		// show a button to go do the sessions view
@@ -681,8 +678,3 @@ class DashboardView : View {
 		}
 	}
 }
-
-@Serializable
-data class CreateProjectArgs(
-	val name: String
-)

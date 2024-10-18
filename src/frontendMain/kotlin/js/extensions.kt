@@ -7,6 +7,7 @@ import io.kvision.core.Widget
 import kotlinext.js.getOwnPropertyNames
 import kotlinext.js.jsObject
 import kotlinx.browser.document
+import kotlinx.coroutines.delay
 import kotlinx.html.InputType
 import kotlinx.html.div
 import kotlinx.html.dom.create
@@ -66,6 +67,14 @@ fun Component.getHTMLElement(): HTMLElement? =
 fun Component.getHTMLElementOrThrow(): HTMLElement =
 	getHTMLElement()
 		?: throw RuntimeException("doesn't have a DOM node, try adding component to DOM first")
+
+suspend fun Component.awaitHTMLElement(): HTMLElement {
+	while (true) {
+		getHTMLElement()
+			?.let { return it }
+		delay(200)
+	}
+}
 
 
 data class ScreenPos(val x: Double, val y: Double)
