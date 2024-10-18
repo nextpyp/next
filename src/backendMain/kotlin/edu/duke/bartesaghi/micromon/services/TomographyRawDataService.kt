@@ -51,7 +51,7 @@ actual class TomographyRawDataService : ITomographyRawDataService, Service {
 		return job.data()
 	}
 
-	override suspend fun getArgs(): String = sanitizeExceptions {
-		return TomographyRawDataJob.args().toJson()
+	override suspend fun getArgs(includeForwarded: Boolean): String = sanitizeExceptions {
+		return TomographyRawDataJob.args(includeForwarded).toJson()
 	}
 }

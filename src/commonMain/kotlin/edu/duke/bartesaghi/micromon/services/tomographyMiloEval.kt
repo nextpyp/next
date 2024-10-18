@@ -20,7 +20,7 @@ interface ITomographyMiloEvalService {
 	suspend fun get(jobId: String): TomographyMiloEvalData
 
 	@KVBindingRoute("node/${TomographyMiloEvalNodeConfig.ID}/getArgs")
-	suspend fun getArgs(): String /* Args but serialized */
+	suspend fun getArgs(includeForwarded: Boolean): String /* Args but serialized */
 
 	@KVBindingRoute("node/${TomographyMiloEvalNodeConfig.ID}/data")
 	suspend fun data(jobId: String): Option<FileDownloadData>

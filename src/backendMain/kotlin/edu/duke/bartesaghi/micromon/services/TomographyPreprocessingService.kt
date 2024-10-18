@@ -48,7 +48,7 @@ actual class TomographyPreprocessingService : ITomographyPreprocessingService, S
 		return job.data()
 	}
 
-	override suspend fun getArgs(): String = sanitizeExceptions {
-		return TomographyPreprocessingJob.args().toJson()
+	override suspend fun getArgs(includeForwarded: Boolean): String = sanitizeExceptions {
+		return TomographyPreprocessingJob.args(includeForwarded).toJson()
 	}
 }

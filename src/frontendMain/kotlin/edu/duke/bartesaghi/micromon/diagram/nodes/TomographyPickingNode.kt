@@ -150,12 +150,13 @@ class TomographyPickingNode(
 		override suspend fun getJob(jobId: String): TomographyPickingData =
 			Services.tomographyPicking.get(jobId)
 
-		override val pypArgs = ServerVal {
-			Args.fromJson(Services.tomographyPicking.getArgs())
+		override val pypArgs = ClientPypArgs {
+			Services.tomographyPicking.getArgs(it)
 		}
 
 		private fun form(caption: String, upstreamNode: Node, args: JobArgs<TomographyPickingArgs>?, enabled: Boolean, onDone: (TomographyPickingArgs) -> Unit) = AppScope.launch {
 
+			val pypArgsWithForwarded = pypArgs.get(true)
 			val pypArgs = pypArgs.get()
 
 			val win = Modal(
@@ -241,7 +242,7 @@ class TomographyPickingNode(
 			val argsOrCopy: JobArgs<TomographyPickingArgs> = args
 				?: JobArgs.fromNext(TomographyPickingArgs(
 					filter = null,
-					values = upstreamNode.newestArgValues()?.filterForDownstreamCopy(pypArgs) ?: "",
+					values = upstreamNode.newestArgValues()?.filterForDownstreamCopy(pypArgsWithForwarded) ?: "",
 					particlesName = null
 				))
 

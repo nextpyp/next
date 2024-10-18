@@ -7,13 +7,11 @@ import edu.duke.bartesaghi.micromon.dynamicImageClassName
 import edu.duke.bartesaghi.micromon.formatWithDigitGroupsSeparator
 import edu.duke.bartesaghi.micromon.nodes.TomographyDenoisingEvalNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
-import edu.duke.bartesaghi.micromon.pyp.Args
 import edu.duke.bartesaghi.micromon.pyp.filterForDownstreamCopy
 import edu.duke.bartesaghi.micromon.refreshDynamicImages
 import edu.duke.bartesaghi.micromon.services.*
 import edu.duke.bartesaghi.micromon.views.TomographyDenoisingEvalView
 import edu.duke.bartesaghi.micromon.views.Viewport
-import io.kvision.form.select.SelectRemote
 import io.kvision.form.formPanel
 import io.kvision.modal.Modal
 import js.micromondiagrams.MicromonDiagrams
@@ -66,12 +64,13 @@ class TomographyDenoisingEvalNode(
 		override suspend fun getJob(jobId: String): TomographyDenoisingEvalData =
 			Services.tomographyDenoisingEval.get(jobId)
 
-		override val pypArgs = ServerVal {
-			Args.fromJson(Services.tomographyDenoisingEval.getArgs())
+		override val pypArgs = ClientPypArgs {
+			Services.tomographyDenoisingEval.getArgs(it)
 		}
 
 		private fun form(caption: String, upstreamNode: Node, args: JobArgs<TomographyDenoisingEvalArgs>?, enabled: Boolean, onDone: (TomographyDenoisingEvalArgs) -> Unit) = AppScope.launch {
 
+			val pypArgsWithForwarded = pypArgs.get(true)
 			val pypArgs = pypArgs.get()
 
 			val win = Modal(
@@ -88,7 +87,7 @@ class TomographyDenoisingEvalNode(
 			// by default, copy args values from the upstream node
 			val argsOrCopy: JobArgs<TomographyDenoisingEvalArgs> = args
 				?: JobArgs.fromNext(TomographyDenoisingEvalArgs(
-					values = upstreamNode.newestArgValues()?.filterForDownstreamCopy(pypArgs) ?: ""
+					values = upstreamNode.newestArgValues()?.filterForDownstreamCopy(pypArgsWithForwarded) ?: ""
 				))
 
 			form.init(argsOrCopy)

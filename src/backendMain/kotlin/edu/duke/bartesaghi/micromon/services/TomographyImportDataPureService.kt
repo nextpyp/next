@@ -90,8 +90,8 @@ actual class TomographyImportDataPureService : ITomographyImportDataPureService,
 		return job.data()
 	}
 
-	override suspend fun getArgs(): String = sanitizeExceptions {
-		return TomographyImportDataPureJob.args().toJson()
+	override suspend fun getArgs(includeForwarded: Boolean): String = sanitizeExceptions {
+		return TomographyImportDataPureJob.args(includeForwarded).toJson()
 	}
 
 	suspend fun getImage(jobId: String, size: ImageSize): ByteArray {

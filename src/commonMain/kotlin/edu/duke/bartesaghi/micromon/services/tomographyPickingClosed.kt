@@ -23,7 +23,7 @@ interface ITomographyPickingClosedService {
 	suspend fun get(jobId: String): TomographyPickingClosedData
 
 	@KVBindingRoute("node/${TomographyPickingClosedNodeConfig.ID}/getArgs")
-	suspend fun getArgs(): String /* Args but serialized */
+	suspend fun getArgs(includeForwarded: Boolean): String /* Args but serialized */
 }
 
 

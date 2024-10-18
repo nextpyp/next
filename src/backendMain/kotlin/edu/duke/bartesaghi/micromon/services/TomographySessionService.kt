@@ -165,9 +165,9 @@ actual class TomographySessionService : ITomographySessionService, Service {
 		session.delete()
 	}
 
-	override suspend fun getArgs(): String = sanitizeExceptions {
+	override suspend fun getArgs(includeForwarded: Boolean): String = sanitizeExceptions {
 		call.authOrThrow()
-		return TomographySession.args().toJson()
+		return TomographySession.args(includeForwarded).toJson()
 	}
 
 	fun getAlignedTiltSeriesMontage(sessionId: String, tiltSeriesId: String): ByteArray {

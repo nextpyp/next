@@ -51,7 +51,7 @@ actual class SingleParticleRawDataService : ISingleParticleRawDataService, Servi
 		return job.data()
 	}
 
-	override suspend fun getArgs(): String = sanitizeExceptions {
-		return SingleParticleRawDataJob.args().toJson()
+	override suspend fun getArgs(includeForwarded: Boolean): String = sanitizeExceptions {
+		return SingleParticleRawDataJob.args(includeForwarded).toJson()
 	}
 }

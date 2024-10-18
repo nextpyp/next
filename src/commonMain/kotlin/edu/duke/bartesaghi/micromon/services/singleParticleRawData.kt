@@ -21,7 +21,7 @@ interface ISingleParticleRawDataService {
 	suspend fun get(jobId: String): SingleParticleRawDataData
 
 	@KVBindingRoute("node/${SingleParticleRawDataNodeConfig.ID}/getArgs")
-	suspend fun getArgs(): String /* Args but serialized */
+	suspend fun getArgs(includeForwarded: Boolean): String /* Args but serialized */
 }
 
 

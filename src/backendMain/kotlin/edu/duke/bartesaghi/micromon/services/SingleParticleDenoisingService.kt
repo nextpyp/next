@@ -48,7 +48,7 @@ actual class SingleParticleDenoisingService : ISingleParticleDenoisingService, S
 		return job.data()
 	}
 
-	override suspend fun getArgs(): String = sanitizeExceptions {
-		return SingleParticleDenoisingJob.args().toJson()
+	override suspend fun getArgs(includeForwarded: Boolean): String = sanitizeExceptions {
+		return SingleParticleDenoisingJob.args(includeForwarded).toJson()
 	}
 }

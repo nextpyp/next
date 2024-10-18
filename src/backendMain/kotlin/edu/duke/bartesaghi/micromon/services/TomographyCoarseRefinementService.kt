@@ -48,7 +48,7 @@ actual class TomographyCoarseRefinementService : ITomographyCoarseRefinementServ
 		return job.data()
 	}
 
-	override suspend fun getArgs(): String = sanitizeExceptions {
-		return TomographyCoarseRefinementJob.args().toJson()
+	override suspend fun getArgs(includeForwarded: Boolean): String = sanitizeExceptions {
+		return TomographyCoarseRefinementJob.args(includeForwarded).toJson()
 	}
 }

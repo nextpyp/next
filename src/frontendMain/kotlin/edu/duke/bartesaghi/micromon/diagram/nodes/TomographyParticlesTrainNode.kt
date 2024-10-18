@@ -6,7 +6,6 @@ import edu.duke.bartesaghi.micromon.diagram.Diagram
 import edu.duke.bartesaghi.micromon.dynamicImageClassName
 import edu.duke.bartesaghi.micromon.nodes.TomographyParticlesTrainNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
-import edu.duke.bartesaghi.micromon.pyp.Args
 import edu.duke.bartesaghi.micromon.pyp.filterForDownstreamCopy
 import edu.duke.bartesaghi.micromon.refreshDynamicImages
 import edu.duke.bartesaghi.micromon.services.*
@@ -66,12 +65,13 @@ class TomographyParticlesTrainNode(
 		override suspend fun getJob(jobId: String): TomographyParticlesTrainData =
 			Services.tomographyParticlesTrain.get(jobId)
 
-		override val pypArgs = ServerVal {
-			Args.fromJson(Services.tomographyParticlesTrain.getArgs())
+		override val pypArgs = ClientPypArgs {
+			Services.tomographyParticlesTrain.getArgs(it)
 		}
 
 		private fun form(caption: String, upstreamNode: Node, args: JobArgs<TomographyParticlesTrainArgs>?, enabled: Boolean, onDone: (TomographyParticlesTrainArgs) -> Unit) = AppScope.launch {
 
+			val pypArgsWithForwarded = pypArgs.get(true)
 			val pypArgs = pypArgs.get()
 
 			val win = Modal(
@@ -127,7 +127,7 @@ class TomographyParticlesTrainNode(
 			// by default, copy args values from the upstream node
 			val argsOrCopy: JobArgs<TomographyParticlesTrainArgs> = args
 				?: JobArgs.fromNext(TomographyParticlesTrainArgs(
-					values = upstreamNode.newestArgValues()?.filterForDownstreamCopy(pypArgs) ?: "",
+					values = upstreamNode.newestArgValues()?.filterForDownstreamCopy(pypArgsWithForwarded) ?: "",
 					particlesName = null
 				))
 

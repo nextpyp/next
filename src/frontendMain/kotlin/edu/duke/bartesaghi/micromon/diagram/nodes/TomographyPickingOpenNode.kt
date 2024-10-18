@@ -7,7 +7,6 @@ import edu.duke.bartesaghi.micromon.dynamicImageClassName
 import edu.duke.bartesaghi.micromon.formatWithDigitGroupsSeparator
 import edu.duke.bartesaghi.micromon.nodes.TomographyPickingOpenNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
-import edu.duke.bartesaghi.micromon.pyp.Args
 import edu.duke.bartesaghi.micromon.pyp.filterForDownstreamCopy
 import edu.duke.bartesaghi.micromon.refreshDynamicImages
 import edu.duke.bartesaghi.micromon.services.*
@@ -65,12 +64,13 @@ class TomographyPickingOpenNode(
 		override suspend fun getJob(jobId: String): TomographyPickingOpenData =
 			Services.tomographyPickingOpen.get(jobId)
 
-		override val pypArgs = ServerVal {
-			Args.fromJson(Services.tomographyPickingOpen.getArgs())
+		override val pypArgs = ClientPypArgs {
+			Services.tomographyPickingOpen.getArgs(it)
 		}
 
 		private fun form(caption: String, upstreamNode: Node, args: JobArgs<TomographyPickingOpenArgs>?, enabled: Boolean, onDone: (TomographyPickingOpenArgs) -> Unit) = AppScope.launch {
 
+			val pypArgsWithForwarded = pypArgs.get(true)
 			val pypArgs = pypArgs.get()
 
 			val win = Modal(
@@ -87,7 +87,7 @@ class TomographyPickingOpenNode(
 			// by default, copy args values from the upstream node
 			val argsOrCopy: JobArgs<TomographyPickingOpenArgs> = args
 				?: JobArgs.fromNext(TomographyPickingOpenArgs(
-					values = upstreamNode.newestArgValues()?.filterForDownstreamCopy(pypArgs) ?: ""
+					values = upstreamNode.newestArgValues()?.filterForDownstreamCopy(pypArgsWithForwarded) ?: ""
 				))
 
 			form.init(argsOrCopy)

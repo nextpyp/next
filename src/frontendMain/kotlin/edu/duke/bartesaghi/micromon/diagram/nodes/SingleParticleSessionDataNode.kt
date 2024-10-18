@@ -7,7 +7,6 @@ import edu.duke.bartesaghi.micromon.diagram.Diagram
 import edu.duke.bartesaghi.micromon.dynamicImageClassName
 import edu.duke.bartesaghi.micromon.nodes.SingleParticleSessionDataNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
-import edu.duke.bartesaghi.micromon.pyp.Args
 import edu.duke.bartesaghi.micromon.refreshDynamicImages
 import edu.duke.bartesaghi.micromon.services.*
 import edu.duke.bartesaghi.micromon.views.SingleParticleSessionDataView
@@ -79,8 +78,8 @@ class SingleParticleSessionDataNode(
 		override suspend fun getJob(jobId: String): SingleParticleSessionDataData =
 			Services.singleParticleSessionData.get(jobId)
 
-		override val pypArgs = ServerVal {
-			Args.fromJson(Services.singleParticleSessionData.getArgs())
+		override val pypArgs = ClientPypArgs {
+			Services.singleParticleSessionData.getArgs(it)
 		}
 
 

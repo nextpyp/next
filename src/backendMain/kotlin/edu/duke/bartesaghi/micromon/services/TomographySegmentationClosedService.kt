@@ -48,7 +48,7 @@ actual class TomographySegmentationClosedService : ITomographySegmentationClosed
 		return job.data()
 	}
 
-	override suspend fun getArgs(): String = sanitizeExceptions {
-		return TomographySegmentationClosedJob.args().toJson()
+	override suspend fun getArgs(includeForwarded: Boolean): String = sanitizeExceptions {
+		return TomographySegmentationClosedJob.args(includeForwarded).toJson()
 	}
 }

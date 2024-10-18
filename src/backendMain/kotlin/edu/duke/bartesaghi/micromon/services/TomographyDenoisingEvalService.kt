@@ -48,7 +48,7 @@ actual class TomographyDenoisingEvalService : ITomographyDenoisingEvalService, S
 		return job.data()
 	}
 
-	override suspend fun getArgs(): String = sanitizeExceptions {
-		return TomographyDenoisingEvalJob.args().toJson()
+	override suspend fun getArgs(includeForwarded: Boolean): String = sanitizeExceptions {
+		return TomographyDenoisingEvalJob.args(includeForwarded).toJson()
 	}
 }

@@ -79,9 +79,9 @@ class Args(
 	fun args(group: ArgGroup) =
 		args(group.groupId)
 
-	fun filter(blockId: String): Args {
+	fun filter(blockId: String, includeForwarded: Boolean): Args {
 
-		val groups = blockOrThrow(blockId).groupIds
+		val groups = blockOrThrow(blockId).getGroupIds(includeForwarded)
 			.mapNotNull { group(it) }
 
 		val args = groups.flatMap { group ->
@@ -174,6 +174,13 @@ class Block(
 ) {
 
 	override fun toString() = name
+
+	fun getGroupIds(includeForwarded: Boolean): List<String> =
+		if (includeForwarded) {
+			groupIds + forwardedGroupIds
+		} else {
+			groupIds
+		}
 }
 
 @Serializable

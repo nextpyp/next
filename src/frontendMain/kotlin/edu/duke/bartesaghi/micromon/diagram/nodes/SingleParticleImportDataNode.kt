@@ -7,7 +7,6 @@ import edu.duke.bartesaghi.micromon.diagram.Diagram
 import edu.duke.bartesaghi.micromon.dynamicImageClassName
 import edu.duke.bartesaghi.micromon.nodes.SingleParticleImportDataNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
-import edu.duke.bartesaghi.micromon.pyp.Args
 import edu.duke.bartesaghi.micromon.refreshDynamicImages
 import edu.duke.bartesaghi.micromon.services.*
 import edu.duke.bartesaghi.micromon.views.SingleParticleImportDataView
@@ -15,7 +14,6 @@ import edu.duke.bartesaghi.micromon.views.Viewport
 import js.micromondiagrams.MicromonDiagrams
 import js.micromondiagrams.nodeType
 import io.kvision.form.formPanel
-import io.kvision.form.select.SelectRemote
 import io.kvision.modal.Modal
 
 
@@ -63,8 +61,8 @@ class SingleParticleImportDataNode(
 			Services.singleParticleImportData.get(jobId)
 
 
-		override val pypArgs = ServerVal {
-			Args.fromJson(Services.singleParticleImportData.getArgs())
+		override val pypArgs = ClientPypArgs {
+			Services.singleParticleImportData.getArgs(it)
 		}
 
 		private fun form(caption: String, args: JobArgs<SingleParticleImportDataArgs>?, enabled: Boolean, jobId: String? = null, onDone: (SingleParticleImportDataArgs) -> Unit) = AppScope.launch {

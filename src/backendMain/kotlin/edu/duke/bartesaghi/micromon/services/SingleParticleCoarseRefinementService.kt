@@ -48,7 +48,7 @@ actual class SingleParticleCoarseRefinementService : ISingleParticleCoarseRefine
 		return job.data()
 	}
 
-	override suspend fun getArgs(): String = sanitizeExceptions {
-		return SingleParticleCoarseRefinementJob.args().toJson()
+	override suspend fun getArgs(includeForwarded: Boolean): String = sanitizeExceptions {
+		return SingleParticleCoarseRefinementJob.args(includeForwarded).toJson()
 	}
 }

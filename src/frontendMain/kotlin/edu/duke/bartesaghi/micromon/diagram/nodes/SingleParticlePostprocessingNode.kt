@@ -8,7 +8,6 @@ import edu.duke.bartesaghi.micromon.diagram.Diagram
 import edu.duke.bartesaghi.micromon.dynamicImageClassName
 import edu.duke.bartesaghi.micromon.nodes.SingleParticlePostprocessingNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
-import edu.duke.bartesaghi.micromon.pyp.Args
 import edu.duke.bartesaghi.micromon.pyp.filterForDownstreamCopy
 import edu.duke.bartesaghi.micromon.refreshDynamicImages
 import edu.duke.bartesaghi.micromon.services.*
@@ -66,12 +65,13 @@ class SingleParticlePostprocessingNode(
 		override suspend fun getJob(jobId: String): SingleParticlePostprocessingData =
 			Services.singleParticlePostprocessing.get(jobId)
 
-		override val pypArgs = ServerVal {
-			Args.fromJson(Services.singleParticlePostprocessing.getArgs())
+		override val pypArgs = ClientPypArgs {
+			Services.singleParticlePostprocessing.getArgs(it)
 		}
 
 		private fun form(caption: String, upstreamNode: Node, args: JobArgs<SingleParticlePostprocessingArgs>?, enabled: Boolean, onDone: (SingleParticlePostprocessingArgs) -> Unit) = AppScope.launch {
 
+			val pypArgsWithForwarded = pypArgs.get(true)
 			val pypArgs = pypArgs.get()
 
 			val win = Modal(
@@ -88,7 +88,7 @@ class SingleParticlePostprocessingNode(
 			// by default, copy args values from the upstream block
 			val argsOrCopy: JobArgs<SingleParticlePostprocessingArgs> = args
 				?: JobArgs.fromNext(SingleParticlePostprocessingArgs(
-					values = upstreamNode.newestArgValues()?.filterForDownstreamCopy(pypArgs) ?: ""
+					values = upstreamNode.newestArgValues()?.filterForDownstreamCopy(pypArgsWithForwarded) ?: ""
 				))
 
 			form.init(argsOrCopy)

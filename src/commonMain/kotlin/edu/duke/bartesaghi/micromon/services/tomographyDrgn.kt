@@ -20,7 +20,7 @@ interface ITomographyDrgnService {
 	suspend fun get(jobId: String): TomographyDrgnData
 
 	@KVBindingRoute("node/${TomographyDrgnNodeConfig.ID}/getArgs")
-	suspend fun getArgs(): String /* Args but serialized */
+	suspend fun getArgs(includeForwarded: Boolean): String /* Args but serialized */
 }
 
 

@@ -49,9 +49,9 @@ class TomographySession(
 		fun fromIdOrThrow(sessionId: String): TomographySession =
 			Session.fromIdOrThrow(sessionId) as TomographySession
 
-		fun args() =
+		fun args(includeForwarded: Boolean = false) =
 			Backend.pypArgs
-				.filter(configId)
+				.filter(configId, includeForwarded)
 				.appendAll(MicromonArgs.slurmLaunch)
 
 		object StreampypListener : ClusterJob.OwnerListener {

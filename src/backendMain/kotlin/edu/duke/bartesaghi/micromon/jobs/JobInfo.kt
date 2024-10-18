@@ -18,9 +18,9 @@ interface JobInfo {
 		TiltSeries
 	}
 
-	fun args() =
+	fun args(includeForwarded: Boolean = false) =
 		Backend.pypArgs
-			.filter(config.configId)
+			.filter(config.configId, includeForwarded)
 			.appendAll(MicromonArgs.slurmLaunch)
 
 	fun launchArgValues(upstreamJob: Job?, currentValues: ArgValuesToml, prevValues: ArgValuesToml?): ArgValues {

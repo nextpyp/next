@@ -10,7 +10,6 @@ import edu.duke.bartesaghi.micromon.diagram.Diagram
 import edu.duke.bartesaghi.micromon.errorMessage
 import edu.duke.bartesaghi.micromon.nodes.TomographyRawDataNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
-import edu.duke.bartesaghi.micromon.pyp.Args
 import edu.duke.bartesaghi.micromon.pyp.dataPath
 import edu.duke.bartesaghi.micromon.pyp.toArgValues
 import edu.duke.bartesaghi.micromon.services.*
@@ -65,8 +64,8 @@ class TomographyRawDataNode(
 		override suspend fun getJob(jobId: String): TomographyRawDataData =
 			Services.tomographyRawData.get(jobId)
 
-		override val pypArgs = ServerVal {
-			Args.fromJson(Services.tomographyRawData.getArgs())
+		override val pypArgs = ClientPypArgs {
+			Services.tomographyRawData.getArgs(it)
 		}
 
 		private fun form(caption: String, args: JobArgs<TomographyRawDataArgs>?, enabled: Boolean, onDone: (TomographyRawDataArgs) -> Unit) = AppScope.launch {

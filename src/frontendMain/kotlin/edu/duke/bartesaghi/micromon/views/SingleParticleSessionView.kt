@@ -6,6 +6,7 @@ import edu.duke.bartesaghi.micromon.components.forms.ArgsForm
 import edu.duke.bartesaghi.micromon.components.forms.addSaveResetButtons
 import edu.duke.bartesaghi.micromon.components.forms.init
 import edu.duke.bartesaghi.micromon.components.forms.lookupDefault
+import edu.duke.bartesaghi.micromon.diagram.nodes.ClientPypArgs
 import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.*
 import io.kvision.core.Container
@@ -70,8 +71,8 @@ class SingleParticleSessionView(
 			viewport.setView(SingleParticleSessionView(session))
 		}
 
-		val pypArgs = ServerVal {
-			Args.fromJson(Services.singleParticleSessions.getArgs())
+		val pypArgs = ClientPypArgs {
+			Services.singleParticleSessions.getArgs(it)
 		}
 	}
 

@@ -49,9 +49,9 @@ class SingleParticleSession(
 		fun fromIdOrThrow(sessionId: String): SingleParticleSession =
 			Session.fromIdOrThrow(sessionId) as SingleParticleSession
 
-		fun args() =
+		fun args(includeForwarded: Boolean = false) =
 			Backend.pypArgs
-				.filter(configId)
+				.filter(configId, includeForwarded)
 				.appendAll(MicromonArgs.slurmLaunch)
 
 		object StreampypListener : ClusterJob.OwnerListener {

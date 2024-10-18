@@ -48,7 +48,7 @@ actual class TomographyParticlesEvalService : ITomographyParticlesEvalService, S
 		return job.data()
 	}
 
-	override suspend fun getArgs(): String = sanitizeExceptions {
-		return TomographyParticlesEvalJob.args().toJson()
+	override suspend fun getArgs(includeForwarded: Boolean): String = sanitizeExceptions {
+		return TomographyParticlesEvalJob.args(includeForwarded).toJson()
 	}
 }

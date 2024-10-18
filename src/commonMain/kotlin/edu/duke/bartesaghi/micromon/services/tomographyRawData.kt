@@ -21,7 +21,7 @@ interface ITomographyRawDataService {
 	suspend fun get(jobId: String): TomographyRawDataData
 
 	@KVBindingRoute("node/${TomographyRawDataNodeConfig.ID}/getArgs")
-	suspend fun getArgs(): String /* Args but serialized */
+	suspend fun getArgs(includeForwarded: Boolean): String /* Args but serialized */
 }
 
 

@@ -7,12 +7,10 @@ import edu.duke.bartesaghi.micromon.dynamicImageClassName
 import edu.duke.bartesaghi.micromon.formatWithDigitGroupsSeparator
 import edu.duke.bartesaghi.micromon.nodes.TomographyImportDataNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
-import edu.duke.bartesaghi.micromon.pyp.Args
 import edu.duke.bartesaghi.micromon.refreshDynamicImages
 import edu.duke.bartesaghi.micromon.services.*
 import edu.duke.bartesaghi.micromon.views.TomographyImportDataView
 import edu.duke.bartesaghi.micromon.views.Viewport
-import io.kvision.form.select.SelectRemote
 import io.kvision.modal.Modal
 import js.micromondiagrams.MicromonDiagrams
 import js.micromondiagrams.nodeType
@@ -60,8 +58,8 @@ class TomographyImportDataNode(
 		override suspend fun getJob(jobId: String): TomographyImportDataData =
 			Services.tomographyImportData.get(jobId)
 
-		override val pypArgs = ServerVal {
-			Args.fromJson(Services.tomographyImportData.getArgs())
+		override val pypArgs = ClientPypArgs {
+			Services.tomographyImportData.getArgs(it)
 		}
 
 		private fun form(caption: String, args: JobArgs<TomographyImportDataArgs>?, enabled: Boolean, jobId: String? = null, onDone: (TomographyImportDataArgs) -> Unit) = AppScope.launch {

@@ -8,7 +8,6 @@ import edu.duke.bartesaghi.micromon.diagram.Diagram
 import edu.duke.bartesaghi.micromon.dynamicImageClassName
 import edu.duke.bartesaghi.micromon.nodes.SingleParticleMaskingNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
-import edu.duke.bartesaghi.micromon.pyp.Args
 import edu.duke.bartesaghi.micromon.pyp.filterForDownstreamCopy
 import edu.duke.bartesaghi.micromon.refreshDynamicImages
 import edu.duke.bartesaghi.micromon.services.*
@@ -67,12 +66,13 @@ class SingleParticleMaskingNode(
 			Services.singleParticleMasking.get(jobId)
 
 
-		override val pypArgs = ServerVal {
-			Args.fromJson(Services.singleParticleMasking.getArgs())
+		override val pypArgs = ClientPypArgs {
+			Services.singleParticleMasking.getArgs(it)
 		}
 
 		private fun form(caption: String, upstreamNode: Node, args: JobArgs<SingleParticleMaskingArgs>?, enabled: Boolean, onDone: (SingleParticleMaskingArgs) -> Unit) = AppScope.launch {
 
+			val pypArgsWithForwarded = pypArgs.get(true)
 			val pypArgs = pypArgs.get()
 
 			val win = Modal(
@@ -89,7 +89,7 @@ class SingleParticleMaskingNode(
 			// by default, copy args values from the upstream node
 			val argsOrCopy: JobArgs<SingleParticleMaskingArgs> = args
 				?: JobArgs.fromNext(SingleParticleMaskingArgs(
-					values = upstreamNode.newestArgValues()?.filterForDownstreamCopy(pypArgs) ?: ""
+					values = upstreamNode.newestArgValues()?.filterForDownstreamCopy(pypArgsWithForwarded) ?: ""
 				))
 
 			form.init(argsOrCopy)

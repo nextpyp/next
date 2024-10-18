@@ -6,7 +6,6 @@ import edu.duke.bartesaghi.micromon.diagram.Diagram
 import edu.duke.bartesaghi.micromon.dynamicImageClassName
 import edu.duke.bartesaghi.micromon.nodes.SingleParticleCoarseRefinementNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
-import edu.duke.bartesaghi.micromon.pyp.Args
 import edu.duke.bartesaghi.micromon.pyp.filterForDownstreamCopy
 import edu.duke.bartesaghi.micromon.refreshDynamicImages
 import edu.duke.bartesaghi.micromon.services.*
@@ -63,8 +62,8 @@ class SingleParticleCoarseRefinementNode(
 			return Services.singleParticleCoarseRefinement.addNode(project.owner.id, project.projectId, input, args)
 		}
 
-		override val pypArgs = ServerVal {
-			Args.fromJson(Services.singleParticleCoarseRefinement.getArgs())
+		override val pypArgs = ClientPypArgs {
+			Services.singleParticleCoarseRefinement.getArgs(it)
 		}
 
 		override suspend fun getJob(jobId: String): SingleParticleCoarseRefinementData =
@@ -72,6 +71,7 @@ class SingleParticleCoarseRefinementNode(
 
 		fun form(caption: String, upstreamNode: Node, args: JobArgs<SingleParticleCoarseRefinementArgs>?, enabled: Boolean, onDone: (SingleParticleCoarseRefinementArgs) -> Unit) = AppScope.launch {
 
+			val pypArgsWithForwarded = pypArgs.get(true)
 			val pypArgs = pypArgs.get()
 
 			val win = Modal(
@@ -129,7 +129,7 @@ class SingleParticleCoarseRefinementNode(
 			val argsOrCopy: JobArgs<SingleParticleCoarseRefinementArgs> = args
 				?: JobArgs.fromNext(SingleParticleCoarseRefinementArgs(
 					filter = null,
-					values = upstreamNode.newestArgValues()?.filterForDownstreamCopy(pypArgs) ?: ""
+					values = upstreamNode.newestArgValues()?.filterForDownstreamCopy(pypArgsWithForwarded) ?: ""
 				))
 
 			form.init(argsOrCopy, mapper)

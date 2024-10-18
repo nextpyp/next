@@ -20,7 +20,7 @@ interface ISingleParticleDenoisingService {
 	suspend fun get(jobId: String): SingleParticleDenoisingData
 
 	@KVBindingRoute("node/${SingleParticleDenoisingNodeConfig.ID}/getArgs")
-	suspend fun getArgs(): String /* Args but serialized */
+	suspend fun getArgs(includeForwarded: Boolean): String /* Args but serialized */
 }
 
 

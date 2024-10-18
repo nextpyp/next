@@ -21,7 +21,7 @@ interface ITomographyRelionDataService {
 	suspend fun get(jobId: String): TomographyRelionDataData
 
 	@KVBindingRoute("node/${TomographyRelionDataNodeConfig.ID}/getArgs")
-	suspend fun getArgs(): String /* Args but serialized */
+	suspend fun getArgs(includeForwarded: Boolean): String /* Args but serialized */
 }
 
 

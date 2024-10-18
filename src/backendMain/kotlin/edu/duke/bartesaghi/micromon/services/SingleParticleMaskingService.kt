@@ -48,7 +48,7 @@ actual class SingleParticleMaskingService : ISingleParticleMaskingService, Servi
 		return job.data()
 	}
 
-	override suspend fun getArgs(): String = sanitizeExceptions {
-		return SingleParticleMaskingJob.args().toJson()
+	override suspend fun getArgs(includeForwarded: Boolean): String = sanitizeExceptions {
+		return SingleParticleMaskingJob.args(includeForwarded).toJson()
 	}
 }

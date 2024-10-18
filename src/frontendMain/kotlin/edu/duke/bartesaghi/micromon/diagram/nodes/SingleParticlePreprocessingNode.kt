@@ -7,7 +7,6 @@ import edu.duke.bartesaghi.micromon.diagram.Diagram
 import edu.duke.bartesaghi.micromon.dynamicImageClassName
 import edu.duke.bartesaghi.micromon.nodes.SingleParticlePreprocessingNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
-import edu.duke.bartesaghi.micromon.pyp.Args
 import edu.duke.bartesaghi.micromon.pyp.filterForDownstreamCopy
 import edu.duke.bartesaghi.micromon.refreshDynamicImages
 import edu.duke.bartesaghi.micromon.services.*
@@ -16,7 +15,6 @@ import edu.duke.bartesaghi.micromon.views.Viewport
 import js.micromondiagrams.MicromonDiagrams
 import js.micromondiagrams.nodeType
 import io.kvision.form.formPanel
-import io.kvision.form.select.SelectRemote
 import io.kvision.modal.Modal
 
 
@@ -66,12 +64,13 @@ class SingleParticlePreprocessingNode(
 		override suspend fun getJob(jobId: String): SingleParticlePreprocessingData =
 			Services.singleParticlePreprocessing.get(jobId)
 
-		override val pypArgs = ServerVal {
-			Args.fromJson(Services.singleParticlePreprocessing.getArgs())
+		override val pypArgs = ClientPypArgs {
+			Services.singleParticlePreprocessing.getArgs(it)
 		}
 
 		private fun form(caption: String, upstreamNode: Node, args: JobArgs<SingleParticlePreprocessingArgs>?, enabled: Boolean, jobId: String?=null, onDone: (SingleParticlePreprocessingArgs) -> Unit) = AppScope.launch {
 
+			val pypArgsWithForwarded = pypArgs.get(true)
 			val pypArgs = pypArgs.get()
 
 			val win = Modal(
@@ -88,7 +87,7 @@ class SingleParticlePreprocessingNode(
 			// by default, copy args values from the upstream node
 			val argsOrCopy: JobArgs<SingleParticlePreprocessingArgs> = args
 				?: JobArgs.fromNext(SingleParticlePreprocessingArgs(
-					values = upstreamNode.newestArgValues()?.filterForDownstreamCopy(pypArgs) ?: ""
+					values = upstreamNode.newestArgValues()?.filterForDownstreamCopy(pypArgsWithForwarded) ?: ""
 				))
 
 			form.init(argsOrCopy)

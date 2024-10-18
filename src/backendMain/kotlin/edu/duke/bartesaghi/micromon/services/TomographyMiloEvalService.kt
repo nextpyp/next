@@ -131,8 +131,8 @@ actual class TomographyMiloEvalService : ITomographyMiloEvalService, Service {
 		return job.data()
 	}
 
-	override suspend fun getArgs(): String = sanitizeExceptions {
-		return TomographyMiloEvalJob.args().toJson()
+	override suspend fun getArgs(includeForwarded: Boolean): String = sanitizeExceptions {
+		return TomographyMiloEvalJob.args(includeForwarded).toJson()
 	}
 
 	suspend fun getResults2d(jobId: String, size: ImageSize): ByteArray {

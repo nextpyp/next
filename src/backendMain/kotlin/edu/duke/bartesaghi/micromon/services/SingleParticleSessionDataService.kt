@@ -50,7 +50,7 @@ actual class SingleParticleSessionDataService : ISingleParticleSessionDataServic
 		return job.data()
 	}
 
-	override suspend fun getArgs(): String = sanitizeExceptions {
-		return SingleParticleSessionDataJob.args().toJson()
+	override suspend fun getArgs(includeForwarded: Boolean): String = sanitizeExceptions {
+		return SingleParticleSessionDataJob.args(includeForwarded).toJson()
 	}
 }

@@ -8,7 +8,6 @@ import edu.duke.bartesaghi.micromon.diagram.Diagram
 import edu.duke.bartesaghi.micromon.dynamicImageClassName
 import edu.duke.bartesaghi.micromon.nodes.SingleParticleFineRefinementNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
-import edu.duke.bartesaghi.micromon.pyp.Args
 import edu.duke.bartesaghi.micromon.pyp.filterForDownstreamCopy
 import edu.duke.bartesaghi.micromon.refreshDynamicImages
 import edu.duke.bartesaghi.micromon.services.*
@@ -63,8 +62,8 @@ class SingleParticleFineRefinementNode(
 			return Services.singleParticleFineRefinement.addNode(project.owner.id, project.projectId, input, args)
 		}
 
-		override val pypArgs = ServerVal {
-			Args.fromJson(Services.singleParticleFineRefinement.getArgs())
+		override val pypArgs = ClientPypArgs {
+			Services.singleParticleFineRefinement.getArgs(it)
 		}
 
 		override suspend fun getJob(jobId: String): SingleParticleFineRefinementData =
@@ -72,6 +71,7 @@ class SingleParticleFineRefinementNode(
 
 		private fun form(caption: String, upstreamNode: Node, args: JobArgs<SingleParticleFineRefinementArgs>?, enabled: Boolean, onDone: (SingleParticleFineRefinementArgs) -> Unit) = AppScope.launch {
 
+			val pypArgsWithForwarded = pypArgs.get(true)
 			val pypArgs = pypArgs.get()
 
 			val win = Modal(
@@ -88,7 +88,7 @@ class SingleParticleFineRefinementNode(
 			// by default, copy args values from the upstream node
 			val argsOrCopy: JobArgs<SingleParticleFineRefinementArgs> = args
 				?: JobArgs.fromNext(SingleParticleFineRefinementArgs(
-					values = upstreamNode.newestArgValues()?.filterForDownstreamCopy(pypArgs) ?: ""
+					values = upstreamNode.newestArgValues()?.filterForDownstreamCopy(pypArgsWithForwarded) ?: ""
 				))
 
 			form.init(argsOrCopy)
