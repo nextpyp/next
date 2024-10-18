@@ -41,6 +41,7 @@ interface JobInfo {
 				.blockOrThrow(config.configId)
 				.forwardedGroupIds
 				.flatMap { Backend.pypArgs.args(it) }
+				.filter { !values.contains(it) } // but don't overwrite any values already there
 				.forEach { values[it] = upstreamValues[it] }
 		}
 
