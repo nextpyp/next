@@ -157,9 +157,6 @@ class SingleParticleRawDataNode(
 		}
 	}
 
-	override fun newestArgValues() =
-		job.args.newest()?.args?.values
-
 	private fun popupDetail(refreshImages: Boolean) {
 
 		val win = Modal(

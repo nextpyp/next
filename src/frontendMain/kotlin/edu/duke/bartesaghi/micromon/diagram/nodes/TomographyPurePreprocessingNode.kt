@@ -139,7 +139,4 @@ class TomographyPurePreprocessingNode(
 			}
 		}
 	}
-
-	override fun newestArgValues() =
-		job.args.newest()?.args?.values
 }

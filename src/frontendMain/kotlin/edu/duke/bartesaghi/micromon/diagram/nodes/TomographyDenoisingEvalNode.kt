@@ -139,7 +139,4 @@ class TomographyDenoisingEvalNode(
 			}
 		}
 	}
-
-	override fun newestArgValues() =
-		job.args.newest()?.args?.values
 }

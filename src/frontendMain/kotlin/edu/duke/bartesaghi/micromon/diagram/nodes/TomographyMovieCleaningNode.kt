@@ -143,7 +143,4 @@ class TomographyMovieCleaningNode(
 			}
 		}
 	}
-
-	override fun newestArgValues() =
-		job.args.newest()?.args?.values
 }

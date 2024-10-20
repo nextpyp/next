@@ -178,7 +178,4 @@ class TomographySegmentationOpenNode(
 			}
 		}
 	}
-
-	override fun newestArgValues() =
-		job.args.newest()?.args?.values
 }

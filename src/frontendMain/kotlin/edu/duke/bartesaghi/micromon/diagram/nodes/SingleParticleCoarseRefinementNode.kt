@@ -184,7 +184,4 @@ class SingleParticleCoarseRefinementNode(
 			}
 		}
 	}
-
-	override fun newestArgValues() =
-		job.args.newest()?.args?.values
 }

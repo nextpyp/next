@@ -133,7 +133,4 @@ class SingleParticleDrgnNode(
 			}
 		}
 	}
-
-	override fun newestArgValues() =
-		job.args.newest()?.args?.values
 }

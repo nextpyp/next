@@ -184,7 +184,4 @@ class TomographyMiloEvalNode(
 			}
 		}
 	}
-
-	override fun newestArgValues() =
-		job.args.newest()?.args?.values
 }

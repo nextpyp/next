@@ -132,7 +132,4 @@ class SingleParticleImportDataNode(
 			}
 		}
 	}
-
-	override fun newestArgValues() =
-		job.args.newest()?.args?.values
 }

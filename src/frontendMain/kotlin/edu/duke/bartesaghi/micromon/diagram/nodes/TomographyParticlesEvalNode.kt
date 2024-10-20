@@ -183,7 +183,4 @@ class TomographyParticlesEvalNode(
 			}
 		}
 	}
-
-	override fun newestArgValues() =
-		job.args.newest()?.args?.values
 }

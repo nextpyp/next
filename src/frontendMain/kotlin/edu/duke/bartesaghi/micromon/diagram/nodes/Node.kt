@@ -507,7 +507,8 @@ abstract class Node(
 	val dir: String get() =
 		"$projectFolder/$jobFolder"
 
-	abstract fun newestArgValues(): ArgValuesToml?
+	fun newestArgValues(): ArgValuesToml? =
+		baseJob.newestArgValues()
 
 	/**
 	 * Returns true iff the node argument values have satisfied all the requirements,
