@@ -88,12 +88,15 @@ class TomographyFlexibleRefinementNode(
 			// by default, copy args values from the upstream node
 			val argsOrCopy: JobArgs<TomographyFlexibleRefinementArgs> = args
 				?: JobArgs.fromNext(TomographyFlexibleRefinementArgs(
-					values = upstreamNode.newestArgValues()?.filterForDownstreamCopy(pypArgsWithForwarded) ?: ""
+					values = upstreamNode.newestArgValues()?.filterForDownstreamCopy(pypArgs) ?: ""
 				))
 
 			form.init(argsOrCopy)
 			if (enabled) {
-				win.addSaveResetButtons(form, argsOrCopy, onDone)
+				win.addSaveResetButtons(form, argsOrCopy) { saving ->
+					val merged = Nodes.mergeForwardedArgsIfNeeded(pypArgs, pypArgsWithForwarded, saving.values, upstreamNode)
+					onDone(merged?.let { saving.copy(values = it) } ?: saving)
+				}
 			}
 			win.show()
 		}

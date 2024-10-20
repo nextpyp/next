@@ -133,12 +133,15 @@ class TomographyParticlesEvalNode(
 			val argsOrCopy: JobArgs<TomographyParticlesEvalArgs> = args
 				?: JobArgs.fromNext(TomographyParticlesEvalArgs(
 					filter = null,
-					values = upstreamNode.newestArgValues()?.filterForDownstreamCopy(pypArgsWithForwarded) ?: ""
+					values = upstreamNode.newestArgValues()?.filterForDownstreamCopy(pypArgs) ?: ""
 				))
 
 			form.init(argsOrCopy, mapper)
 			if (enabled) {
-				win.addSaveResetButtons(form, argsOrCopy, mapper, onDone)
+				win.addSaveResetButtons(form, argsOrCopy, mapper) { saving ->
+					val merged = Nodes.mergeForwardedArgsIfNeeded(pypArgs, pypArgsWithForwarded, saving.values, upstreamNode)
+					onDone(merged?.let { saving.copy(values = it) } ?: saving)
+				}
 			}
 			win.show()
 		}

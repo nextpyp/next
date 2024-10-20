@@ -127,13 +127,16 @@ class TomographyParticlesTrainNode(
 			// by default, copy args values from the upstream node
 			val argsOrCopy: JobArgs<TomographyParticlesTrainArgs> = args
 				?: JobArgs.fromNext(TomographyParticlesTrainArgs(
-					values = upstreamNode.newestArgValues()?.filterForDownstreamCopy(pypArgsWithForwarded) ?: "",
+					values = upstreamNode.newestArgValues()?.filterForDownstreamCopy(pypArgs) ?: "",
 					particlesName = null
 				))
 
 			form.init(argsOrCopy, mapper)
 			if (enabled) {
-				win.addSaveResetButtons(form, argsOrCopy, mapper, onDone)
+				win.addSaveResetButtons(form, argsOrCopy, mapper) { saving ->
+					val merged = Nodes.mergeForwardedArgsIfNeeded(pypArgs, pypArgsWithForwarded, saving.values, upstreamNode)
+					onDone(merged?.let { saving.copy(values = it) } ?: saving)
+				}
 			}
 			win.show()
 		}

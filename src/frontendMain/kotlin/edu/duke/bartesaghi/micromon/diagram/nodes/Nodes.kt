@@ -1,6 +1,10 @@
 package edu.duke.bartesaghi.micromon.diagram.nodes
 
 import edu.duke.bartesaghi.micromon.nodes.*
+import edu.duke.bartesaghi.micromon.pyp.ArgGroup
+import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
+import edu.duke.bartesaghi.micromon.pyp.Args
+import edu.duke.bartesaghi.micromon.pyp.toArgValues
 import edu.duke.bartesaghi.micromon.services.JobData
 
 
@@ -56,6 +60,42 @@ object Nodes {
 
 	fun clientInfo(job: JobData): NodeClientInfo =
 		infosByJob[job::class] ?: throw NoSuchElementException("client info not set for job display: ${job::class}")
+
+	fun mergeForwardedArgs(
+		args: Args,
+		forwardedGroups: List<ArgGroup>,
+		values: ArgValuesToml,
+		upstream: ArgValuesToml
+	): ArgValuesToml {
+		val out = values.toArgValues(args)
+		val upstreamValues = upstream.toArgValues(args)
+		for (group in forwardedGroups) {
+			for (arg in args.args(group)) {
+				out[arg] = upstreamValues[arg]
+			}
+		}
+		return out.toToml()
+	}
+
+	fun mergeForwardedArgsIfNeeded(
+		args: Args,
+		argsWithForwarded: Args,
+		values: ArgValuesToml,
+		upstreamNode: Node
+	): ArgValuesToml? {
+
+		val forwardedGroups = argsWithForwarded.groups
+			.filter { it !in args.groups }
+			.takeIf { it.isNotEmpty() }
+			?: return null
+
+		return mergeForwardedArgs(
+			argsWithForwarded,
+			forwardedGroups,
+			values,
+			upstreamNode.newestArgValues() ?: ""
+		)
+	}
 }
 
 

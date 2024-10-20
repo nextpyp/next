@@ -570,9 +570,6 @@ private fun showPypArgs(node: Node) {
 				return elem
 			}
 
-			console.log("toml" +
-				"", toml)
-
 			// parse the args
 			val args = node.config.clientInfo.pypArgs.get(true)
 			val values = toml.toArgValues(args)
