@@ -48,6 +48,8 @@ data class TomographyPickingData(
 	val numParticles: Long
 ) : JobData {
 	override fun isChanged() = args.hasNext()
+	override fun finishedArgValues() = args.finished?.values
+	override fun nextArgValues() = args.next?.values
 }
 
 

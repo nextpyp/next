@@ -44,4 +44,6 @@ data class TomographyParticlesTrainData(
 	val imageUrl: String
 ) : JobData {
 	override fun isChanged() = args.hasNext()
+	override fun finishedArgValues() = args.finished?.values
+	override fun nextArgValues() = args.next?.values
 }

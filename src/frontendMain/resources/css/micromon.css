@@ -3828,3 +3828,38 @@ div.file-browser .file-browser-bottom .file-browser-controls .file-browser-glob 
 		}
 	}
 }
+
+
+/* DEBUG PYP ARGS */
+
+.debug-pyp-args {
+
+	h2 {
+		font-size: 110%;
+	}
+
+	.group {
+		padding-left: 2em;
+
+		.arg {
+			display: flex;
+			flex-direction: row;
+			gap: 0.4em;
+			align-items: baseline;
+
+			.argId {
+				width: 200px;
+				font-weight: bold;
+			}
+
+			.type {
+				font-style: italic;
+				color: #666666;
+			}
+
+			.value {
+
+			}
+		}
+	}
+}

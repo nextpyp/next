@@ -12,9 +12,11 @@ import edu.duke.bartesaghi.micromon.services.JobData
 import edu.duke.bartesaghi.micromon.services.ProjectData
 import edu.duke.bartesaghi.micromon.services.Services
 import edu.duke.bartesaghi.micromon.views.Viewport
+import edu.duke.bartesaghi.micromon.views.admin.Admin
 import io.kvision.form.text.textInput
-import io.kvision.html.Button
+import io.kvision.html.*
 import io.kvision.modal.Modal
+import io.kvision.panel.tabPanel
 import js.micromondiagrams.MicromonDiagrams
 import js.react.React
 import js.react.ReactBuilder
@@ -416,6 +418,23 @@ abstract class Node(
 						icon("fas fa-trash", className = "icon")
 						text("Delete")
 					}
+
+					// debug options
+					if (Admin.info.peek()?.debug == true) {
+
+						dropdownDivider()
+						dropdownHeader {
+							text("Debug Tools:")
+						}
+
+						// tool to show the all of the pyp args saved in this block
+						dropdownItem(title = "Show pyp args", onClick = {
+							showPypArgs(this@Node)
+						}) {
+							icon("fas fa-user-shield", className = "icon")
+							text("pyp args")
+						}
+					}
 				}
 			)
 		}
@@ -527,5 +546,72 @@ fun List<Node>.deduplicate(): List<Node> {
 			lookup.add(it.jobId)
 			true
 		}
+	}
+}
+
+
+private fun showPypArgs(node: Node) {
+	AppScope.launch {
+
+		val win = Modal(
+			caption = "pyp args",
+			escape = true,
+			closeButton = true,
+			classes = setOf("dashboard-popup")
+		)
+
+		suspend fun renderArgs(toml: ArgValuesToml?): Div {
+
+			val elem = Div(classes = setOf("debug-pyp-args", "max-height-dialog"))
+
+			if (toml == null) {
+				elem.div("(no pyp args in this position)", classes = setOf("empty", "spaced"))
+				return elem
+			}
+
+			console.log("toml" +
+				"", toml)
+
+			// parse the args
+			val args = node.config.clientInfo.pypArgs.get(true)
+			val values = toml.toArgValues(args)
+
+			// render them in the groups
+			for (group in args.groups) {
+				elem.h2(group.groupId)
+				elem.div(classes = setOf("group")) {
+					for (arg in args.args(group)) {
+						div(classes = setOf("arg")) {
+							span(arg.argId, classes = setOf("argId"))
+							span(":")
+							val value = values[arg]
+							if (value == null) {
+								if (arg.default != null) {
+									span("(default)", classes = setOf("empty"))
+								} else {
+									span("(not present)", classes = setOf("empty"))
+								}
+							} else {
+								span("(${value::class.simpleName})", classes = setOf("type"))
+								span(":")
+								span(value.toString(), classes = setOf("value"))
+							}
+						}
+					}
+				}
+			}
+
+			return elem
+		}
+
+		val renderedFinished = renderArgs(node.baseJob.finishedArgValues())
+		val renderedNext = renderArgs(node.baseJob.nextArgValues())
+
+		win.tabPanel {
+			addTab("Finished", renderedFinished)
+			addTab("Next", renderedNext)
+		}
+
+		win.show()
 	}
 }

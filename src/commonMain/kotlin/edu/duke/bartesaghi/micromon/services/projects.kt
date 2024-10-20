@@ -2,6 +2,7 @@ package edu.duke.bartesaghi.micromon.services
 
 import edu.duke.bartesaghi.micromon.nodes.NodeConfig
 import edu.duke.bartesaghi.micromon.nodes.Workflow
+import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
 import io.kvision.annotations.KVBindingRoute
 import io.kvision.annotations.KVService
 import kotlinx.serialization.Serializable
@@ -344,6 +345,12 @@ interface JobData {
 
 	/** does this node have changes that haven't been run on the server yet? */
 	fun isChanged(): Boolean
+
+	fun finishedArgValues(): ArgValuesToml?
+	fun nextArgValues(): ArgValuesToml?
+
+	fun newestArgValues(): ArgValuesToml? =
+		nextArgValues() ?: finishedArgValues()
 
 	// sadly, KVision doesn't expose serialization library config
 	// so we have to add another seriaization layer to support polymorphism
