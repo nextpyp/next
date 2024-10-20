@@ -68,7 +68,6 @@ parent = "particlepickingclosed"
 
 [blocks.reference_refinement.args]
 refine_parfile_tomo = "auto"
-refine_model = { ask = true }
 particle_mw = 300
 particle_rad = 150
 particle_sym = "C6"
@@ -120,11 +119,6 @@ name = "Particle filtering"
 parent = "constrained_refinement"
 
 [blocks.particle_filtering.args]
-particle_mw = 300
-particle_rad = 150
-particle_sym = "C6"
-extract_box = 192
-extract_bin = 2
 clean_threshold = 2.5
 clean_dist = 10.0
 clean_mintilt = -15.0
@@ -133,8 +127,6 @@ clean_min_num_projections = 1
 clean_check_reconstruction = true
 clean_parfile = 'auto'
 refine_model = 'auto'
-dose_weighting_enable = true
-dose_weighting_fraction = 4
 
 [blocks.particle_deep_clean]
 blockId = "tomo-fine-refinement"
@@ -145,11 +137,6 @@ parent = "particle_filtering"
 clean_parfile = 'auto'
 refine_model = 'auto'
 clean_discard = true
-particle_mw = 300
-particle_rad = 150
-particle_sym = "C6"
-extract_box = 192
-extract_bin = 2
 
 [blocks.region_refinement]
 blockId = "tomo-coarse-refinement"

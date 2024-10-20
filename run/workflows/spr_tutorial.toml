@@ -44,7 +44,6 @@ particle_rad = 85
 particle_sym = "D7"
 extract_box = 128
 extract_bin = 4
-refine_model = { ask = true }
 refine_maxiter = 4
 refine_parfile = 'auto'
 refine_rhref = "8:7:6"

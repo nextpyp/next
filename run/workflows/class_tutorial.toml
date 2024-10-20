@@ -78,7 +78,6 @@ csp_ToleranceParticlesPhi = 180.0
 csp_ToleranceParticlesTheta = 180.0
 csp_ToleranceParticlesPsi = 180.0
 csp_ToleranceParticlesShifts = 50.0
-refine_model = { ask = true }
 
 [blocks.particle_filtering]
 blockId = "tomo-fine-refinement"
