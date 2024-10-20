@@ -18,6 +18,18 @@ class ServerVal<T:Any>(val getter: suspend () -> T) {
 		return value as T
 	}
 
+	fun peek(): T? =
+		if (hasValue) {
+			@Suppress("UNCHECKED_CAST")
+			value as T
+		} else {
+			null
+		}
+
+	fun clear() {
+		value = NOT_A_VALUE
+	}
+
 	// tragically, this can't be a property delegate class
 	// because Kotlin doesn't support suspend operators
 }

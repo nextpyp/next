@@ -7,6 +7,7 @@ import edu.duke.bartesaghi.micromon.components.forms.enabled
 import edu.duke.bartesaghi.micromon.components.forms.setSubmitButton
 import edu.duke.bartesaghi.micromon.components.forms.valueOption
 import edu.duke.bartesaghi.micromon.services.*
+import edu.duke.bartesaghi.micromon.views.admin.Admin
 import io.kvision.core.*
 import io.kvision.form.FormType
 import io.kvision.form.formPanel
@@ -112,7 +113,7 @@ class DashboardView : View {
 					AppScope.launch {
 
 						// find out the auth mode of the server
-						val info = Viewport.adminInfo.get()
+						val info = Admin.info.get()
 						when (info.authType) {
 
 							AuthType.Login -> {

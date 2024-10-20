@@ -5,7 +5,6 @@ import edu.duke.bartesaghi.micromon.components.lazyTabPanel
 import edu.duke.bartesaghi.micromon.services.AdminInfo
 import edu.duke.bartesaghi.micromon.services.AuthType
 import edu.duke.bartesaghi.micromon.services.ClusterMode
-import edu.duke.bartesaghi.micromon.services.Services
 import edu.duke.bartesaghi.micromon.views.admin.*
 import kotlinext.js.jsObject
 import io.kvision.jquery.JQueryAjaxSettings
@@ -60,7 +59,7 @@ class AdminView : View {
 			// get the current admin info
 			val loadingElem = elem.loading("Fetching info ...")
 			val info = try {
-				Services.admin.getInfo()
+				Admin.info.get()
 			} catch (t: Throwable) {
 				elem.errorMessage(t)
 				return@launch

@@ -2,8 +2,7 @@ package edu.duke.bartesaghi.micromon.views
 
 import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.services.AuthType
-import edu.duke.bartesaghi.micromon.services.ServerVal
-import edu.duke.bartesaghi.micromon.services.Services
+import edu.duke.bartesaghi.micromon.views.admin.Admin
 import org.w3c.dom.get
 import io.kvision.html.*
 import io.kvision.panel.Root
@@ -13,13 +12,6 @@ import kotlinx.dom.removeClass
 
 
 class Viewport(val rootElem: Root) : Div(classes = setOf("viewport")) {
-
-	companion object {
-
-		val adminInfo = ServerVal {
-			Services.admin.getInfo()
-		}
-	}
 
 	val htmlElem = document.getElementsByTagName("html")[0]
 	val bodyElem = document.getElementsByTagName("body")[0]
@@ -56,7 +48,7 @@ class Viewport(val rootElem: Root) : Div(classes = setOf("viewport")) {
 			userElem.link(session.name, icon = "fas fa-user").onGoToYourAccount()
 		} else {
 			AppScope.launch {
-				val info = adminInfo.get()
+				val info = Admin.info.get()
 				when (info.authType) {
 
 					AuthType.Login -> {

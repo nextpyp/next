@@ -2,7 +2,7 @@ package edu.duke.bartesaghi.micromon.views
 
 import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.services.AuthType
-import edu.duke.bartesaghi.micromon.services.Services
+import edu.duke.bartesaghi.micromon.views.admin.Admin
 import io.kvision.core.Container
 import io.kvision.core.Widget
 import io.kvision.html.*
@@ -57,7 +57,7 @@ class YourAccountView : View {
 			// check with the backend to see what kind of login system we're using
 			val loadingElem = loading("Checking...")
 			val info = try {
-				Services.admin.getInfo()
+				Admin.info.get()
 			} catch (t: Throwable) {
 				errorMessage(t)
 				null

@@ -15,6 +15,7 @@ import edu.duke.bartesaghi.micromon.nodes.NodeConfigs
 import edu.duke.bartesaghi.micromon.nodes.Workflow
 import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.*
+import edu.duke.bartesaghi.micromon.views.admin.Admin
 import io.kvision.core.Container
 import io.kvision.core.Widget
 import io.kvision.core.onEvent
@@ -61,10 +62,6 @@ class ProjectView(val project: ProjectData) : View {
 		}
 
 		fun path(project: ProjectData) = "/project/${project.owner.id}/${project.projectId}"
-
-		val adminInfo = ServerVal {
-			Services.admin.getInfo()
-		}
 	}
 
 	override val routed = Companion
@@ -782,7 +779,7 @@ class ProjectView(val project: ProjectData) : View {
 
 				// and if dev mode, show preview blocks too
 				AppScope.launch {
-					if (adminInfo.get().debug) {
+					if (Admin.info.get().debug) {
 						if (previewNodes.isNotEmpty()) {
 							div {
 								add(previewCheck)
