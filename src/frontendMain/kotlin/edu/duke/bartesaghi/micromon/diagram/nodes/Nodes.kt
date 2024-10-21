@@ -84,8 +84,12 @@ object Nodes {
 		upstreamNode: Node
 	): ArgValuesToml? {
 
+		val groupIds = args.groups
+			.map { it.groupId }
+			.toSet()
+
 		val forwardedGroups = argsWithForwarded.groups
-			.filter { it !in args.groups }
+			.filter { it.groupId !in groupIds }
 			.takeIf { it.isNotEmpty() }
 			?: return null
 
