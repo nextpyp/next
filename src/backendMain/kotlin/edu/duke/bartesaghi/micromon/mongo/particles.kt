@@ -1,14 +1,15 @@
 package edu.duke.bartesaghi.micromon.mongo
 
+import com.mongodb.client.MongoDatabase
 import com.mongodb.client.model.*
 import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.*
 import org.bson.Document
 
 
-class ParticleLists {
+class ParticleLists(db: MongoDatabase) {
 
-	private val collection = Database.db.getCollection("particleLists")
+	private val collection = db.getCollection("particleLists")
 
 	init {
 		collection.createIndex(Document().apply {
@@ -96,7 +97,7 @@ class SavedParticles<T>(
 ): Map<Int,T> by saved
 
 
-class Particles {
+class Particles(db: MongoDatabase) {
 
 	companion object {
 
@@ -113,7 +114,7 @@ class Particles {
 		}
 	}
 
-	private val collection = Database.db.getCollection("particles")
+	private val collection = db.getCollection("particles")
 
 	init {
 		collection.createIndex(Document().apply {

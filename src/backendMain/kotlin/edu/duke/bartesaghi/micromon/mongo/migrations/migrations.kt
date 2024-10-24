@@ -1,6 +1,6 @@
 package edu.duke.bartesaghi.micromon.mongo.migrations
 
-import edu.duke.bartesaghi.micromon.mongo.Database
+import edu.duke.bartesaghi.micromon.mongo.DatabaseConnection
 import edu.duke.bartesaghi.micromon.mongo.useCursor
 import edu.duke.bartesaghi.micromon.tryCleanupStackTraceOrDont
 import org.bson.Document
@@ -9,7 +9,7 @@ import org.slf4j.LoggerFactory
 import kotlin.system.exitProcess
 
 
-typealias MigrationRunner = (database: Database, log: Logger) -> Unit
+typealias MigrationRunner = (database: DatabaseConnection, log: Logger) -> Unit
 
 object Migrations {
 
@@ -40,7 +40,7 @@ object Migrations {
 	}
 
 
-	class AppliedMigrations(database: Database) {
+	class AppliedMigrations(database: DatabaseConnection) {
 
 		val collection = database.db.getCollection("migrations")
 
@@ -61,14 +61,14 @@ object Migrations {
 		}
 	}
 
-	private fun Database.applied() = AppliedMigrations(this)
+	private fun DatabaseConnection.applied() = AppliedMigrations(this)
 
 
 	/**
 	 * Run any necessary migrations, exactly once each.
 	 * Call this function exactly once at startup, and never more than once.
 	 */
-	fun update(database: Database) {
+	fun update(database: DatabaseConnection) {
 
 		// handle any first-time database init
 		val applied = database.applied()

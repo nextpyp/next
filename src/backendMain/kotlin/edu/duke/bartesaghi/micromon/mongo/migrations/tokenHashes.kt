@@ -2,7 +2,7 @@ package edu.duke.bartesaghi.micromon.mongo.migrations
 
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.Updates
-import edu.duke.bartesaghi.micromon.mongo.Database
+import edu.duke.bartesaghi.micromon.mongo.DatabaseConnection
 import edu.duke.bartesaghi.micromon.mongo.useCursor
 import org.slf4j.Logger
 
@@ -10,7 +10,7 @@ import org.slf4j.Logger
 /**
  * Migrate the single token hash to a list of token hashes
  */
-fun migrationTokenHashes(database: Database, log: Logger) {
+fun migrationTokenHashes(database: DatabaseConnection, log: Logger) {
 
 	val users = database.db.getCollection("permissions")
 

@@ -1,5 +1,6 @@
 package edu.duke.bartesaghi.micromon.mongo
 
+import com.mongodb.client.MongoDatabase
 import com.mongodb.client.model.*
 import edu.duke.bartesaghi.micromon.Backend
 import edu.duke.bartesaghi.micromon.files.*
@@ -12,9 +13,9 @@ import java.time.Instant
 /**
  * A database collection that holds data associated with data from another collection
  */
-private class AssociatedCollection(collectionName: String) {
+private class AssociatedCollection(db: MongoDatabase, collectionName: String) {
 
-	val collection = Database.db.getCollection(collectionName)
+	val collection = db.getCollection(collectionName)
 
 	init {
 		// create indices to speed up common but slow operations
@@ -71,9 +72,9 @@ private class AssociatedCollection(collectionName: String) {
 }
 
 
-class AvgRot(collectionName: String) {
+class AvgRot(db: MongoDatabase, collectionName: String) {
 
-	private val collection = AssociatedCollection(collectionName)
+	private val collection = AssociatedCollection(db, collectionName)
 
 	companion object {
 		const val key = "avgrot"
@@ -94,9 +95,9 @@ class AvgRot(collectionName: String) {
 		collection.deleteAll(jobId)
 }
 
-class DriftMetadata(collectionName: String) {
+class DriftMetadata(db: MongoDatabase, collectionName: String) {
 
-	private val collection = AssociatedCollection(collectionName)
+	private val collection = AssociatedCollection(db, collectionName)
 
 	companion object {
 		const val key = "driftMetadata"
@@ -144,9 +145,9 @@ class DriftMetadata(collectionName: String) {
 		collection.deleteAll(jobId)
 }
 
-class Parameters {
+class Parameters(db: MongoDatabase) {
 
-	private val collection = Database.db.getCollection("parameters")
+	private val collection = db.getCollection("parameters")
 
 	fun clear() =
 		collection.deleteMany(Document())
@@ -216,9 +217,9 @@ class Parameters {
 	}
 }
 
-class Micrographs {
+class Micrographs(db: MongoDatabase) {
 
-	private val collection = Database.db.getCollection("micrographs")
+	private val collection = db.getCollection("micrographs")
 
 	init {
 		// create indices to speed up common but slow operations
@@ -311,9 +312,9 @@ class Micrographs {
 }
 
 
-class PreprocessingFilters(val collectionName: String) {
+class PreprocessingFilters(db: MongoDatabase, val collectionName: String) {
 
-	private val collection = Database.db.getCollection(collectionName)
+	private val collection = db.getCollection(collectionName)
 
 	init {
 		// create indices to speed up common but slow operations
@@ -366,9 +367,9 @@ class PreprocessingFilters(val collectionName: String) {
 	So let's just make an improper pluralization here. >8]
 	Pretend it's Gollum talking or something.
 */
-class TiltSerieses {
+class TiltSerieses(db: MongoDatabase) {
 
-	private val collection = Database.db.getCollection("tiltSeries")
+	private val collection = db.getCollection("tiltSeries")
 
 	init {
 		// create indices to speed up common but slow operations
@@ -451,9 +452,9 @@ class TiltSerieses {
 	}
 }
 
-class Reconstructions {
+class Reconstructions(db: MongoDatabase) {
 
-	private val collection = Database.db.getCollection("reconstructions")
+	private val collection = db.getCollection("reconstructions")
 
 	init {
 		// create indices to speed up common but slow operations
@@ -508,9 +509,9 @@ class Reconstructions {
 }
 
 
-class Refinements {
+class Refinements(db: MongoDatabase) {
 
-	private val collection = Database.db.getCollection("refinements")
+	private val collection = db.getCollection("refinements")
 
 	init {
 		// create indices to speed up common but slow operations
@@ -573,9 +574,9 @@ class Refinements {
 	}
 }
 
-class RefinementBundles {
+class RefinementBundles(db: MongoDatabase) {
 
-	private val collection = Database.db.getCollection("refinementBundles")
+	private val collection = db.getCollection("refinementBundles")
 
 	init {
 		// create indices to speed up common but slow operations
@@ -638,9 +639,9 @@ class RefinementBundles {
 	}
 }
 
-class TwoDClasses {
+class TwoDClasses(db: MongoDatabase) {
 
-	private val collection = Database.db.getCollection("twoDClasses")
+	private val collection = db.getCollection("twoDClasses")
 
 	// NOTE: "owner" here can mean sessions as well as jobs
 
@@ -698,9 +699,9 @@ class TwoDClasses {
 }
 
 
-class TiltExclusions {
+class TiltExclusions(db: MongoDatabase) {
 
-	private val collection = Database.db.getCollection("tiltExclusions")
+	private val collection = db.getCollection("tiltExclusions")
 
 	private fun filter(jobId: String) =
 		Filters.eq("_id", jobId)

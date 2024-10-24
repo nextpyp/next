@@ -1,5 +1,6 @@
 package edu.duke.bartesaghi.micromon.mongo
 
+import com.mongodb.client.MongoDatabase
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.Projections
 import com.mongodb.client.model.Updates
@@ -12,9 +13,9 @@ import java.util.NoSuchElementException
 
 object SessionNumberLock
 
-class Sessions {
+class Sessions(db: MongoDatabase) {
 
-	private val collection = Database.db.getCollection("sessions")
+	private val collection = db.getCollection("sessions")
 
 	init {
 		// create indices to speed up common but slow operations
@@ -154,9 +155,9 @@ class Sessions {
 }
 
 
-class SessionExports {
+class SessionExports(db: MongoDatabase) {
 
-	private val collection = Database.db.getCollection("sessionExports")
+	private val collection = db.getCollection("sessionExports")
 
 	init {
 		// create indices to speed up common but slow operations

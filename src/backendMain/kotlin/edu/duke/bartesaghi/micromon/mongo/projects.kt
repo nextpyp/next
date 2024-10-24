@@ -1,5 +1,6 @@
 package edu.duke.bartesaghi.micromon.mongo
 
+import com.mongodb.client.MongoDatabase
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.Projections
 import com.mongodb.client.model.ReplaceOptions
@@ -18,9 +19,9 @@ import org.bson.conversions.Bson
 import java.util.NoSuchElementException
 
 
-class Projects {
+class Projects(db: MongoDatabase) {
 
-	private val collection = Database.db.getCollection("projects")
+	private val collection = db.getCollection("projects")
 
 	init {
 		// create indices to speed up common but slow operations
@@ -124,9 +125,9 @@ class Projects {
 }
 
 
-class ProjectReaders {
+class ProjectReaders(db: MongoDatabase) {
 
-	private val collection = Database.db.getCollection("projectReaders")
+	private val collection = db.getCollection("projectReaders")
 
 	private fun filter(userId: String) =
 		Filters.eq("_id", userId)
@@ -192,9 +193,9 @@ fun User?.permissions(project: Project): Set<ProjectPermission> =
 
 object JobNumberLock
 
-class Jobs {
+class Jobs(db: MongoDatabase) {
 
-	private val collection = Database.db.getCollection("jobs")
+	private val collection = db.getCollection("jobs")
 
 	init {
 		// create indices to speed up common but slow operations

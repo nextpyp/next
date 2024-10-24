@@ -1,10 +1,7 @@
 package edu.duke.bartesaghi.micromon.mongo.migrations
 
 import edu.duke.bartesaghi.micromon.jobs.Job
-import edu.duke.bartesaghi.micromon.mongo.Database
-import edu.duke.bartesaghi.micromon.mongo.SavedParticles
-import edu.duke.bartesaghi.micromon.mongo.getMap
-import edu.duke.bartesaghi.micromon.mongo.useCursor
+import edu.duke.bartesaghi.micromon.mongo.*
 import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.*
 import org.bson.Document
@@ -14,7 +11,7 @@ import org.slf4j.Logger
 /**
  * Migrate the auto particles and the picked particles to the new unified particles system
  */
-fun migrationParticles(database: Database, log: Logger) {
+fun migrationParticles(database: DatabaseConnection, log: Logger) {
 
 	// phase 1: particlepickings
 	run {
@@ -104,7 +101,7 @@ fun migrationParticles(database: Database, log: Logger) {
 
 
 private fun migrate(
-	database: Database,
+	database: DatabaseConnection,
 	log: Logger,
 	collectionName: String,
 	particlesType: ParticlesType,

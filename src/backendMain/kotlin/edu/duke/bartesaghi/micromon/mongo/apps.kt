@@ -1,5 +1,6 @@
 package edu.duke.bartesaghi.micromon.mongo
 
+import com.mongodb.client.MongoDatabase
 import com.mongodb.client.model.Filters
 import edu.duke.bartesaghi.micromon.auth.AppTokenInfo
 import edu.duke.bartesaghi.micromon.auth.AppTokenRequest
@@ -7,9 +8,9 @@ import edu.duke.bartesaghi.micromon.toObjectId
 import org.bson.Document
 
 
-class AppTokens {
+class AppTokens(db: MongoDatabase) {
 
-	private val collection = Database.db.getCollection("appTokens")
+	private val collection = db.getCollection("appTokens")
 
 	init {
 		// create indices to speed up common but slow operations
@@ -64,9 +65,9 @@ class AppTokens {
 
 
 
-class AppTokenRequests {
+class AppTokenRequests(db: MongoDatabase) {
 
-	private val collection = Database.db.getCollection("appTokenRequests")
+	private val collection = db.getCollection("appTokenRequests")
 
 	init {
 		// create indices to speed up common but slow operations

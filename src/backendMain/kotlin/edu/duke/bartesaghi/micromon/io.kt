@@ -56,8 +56,15 @@ class ProcessStreamer(processBuilder: ProcessBuilder, writer: ((OutputStream)->U
 	val console = ConcurrentLinkedQueue<String>()
 
 	private val thread = Thread {
-		process.inputStream.bufferedReader().forEachLine { line ->
-			console.add(line)
+		process.inputStream.bufferedReader().use { reader ->
+			try {
+				reader.forEachLine { line ->
+					console.add(line)
+				}
+			} catch (ex: IOException) {
+				// an IO error here probably means the stream closed
+				// probably these errors are safe to ignore
+			}
 		}
 	}.apply {
 		name = "ProcessStreamer"
@@ -90,6 +97,10 @@ class ProcessStreamer(processBuilder: ProcessBuilder, writer: ((OutputStream)->U
 			process.waitFor()
 			thread.join()
 		}
+	}
+
+	fun terminate() {
+		process.destroy()
 	}
 
 	val exitCode get() = process.exitValue()

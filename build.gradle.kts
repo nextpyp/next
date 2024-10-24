@@ -286,6 +286,7 @@ kotlin {
 				}
 				val junitVersion = "1.7.2" // the version of JUnit used by the version of kotest we're using
 				implementation("org.junit.platform:junit-platform-console:$junitVersion")
+				implementation("com.github.jnr:jnr-unixsocket:0.38.23") // needed for EphemeralMongo
 			}
 		}
 		val frontendMain by getting {
