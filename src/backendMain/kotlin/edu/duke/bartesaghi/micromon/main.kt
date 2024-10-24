@@ -28,16 +28,21 @@ import java.io.ByteArrayOutputStream
 import java.util.zip.GZIPOutputStream
 
 
+/**
+ * Process entry point for the website app
+ */
 fun main() {
+	startWebServer(Config.instance.web, true)
+}
 
-	// initialize the backend first-thing, so we can get access to the configuration
-	Backend.init()
+
+fun startWebServer(config: Config.Web, wait: Boolean): NettyApplicationEngine {
 
 	var initialized = false
 
-	embeddedServer(Netty,
-		host = Backend.config.web.host,
-		port = Backend.config.web.port,
+	return embeddedServer(Netty,
+		host = config.host,
+		port = config.port,
 		configure = {
 
 			// print out the engine configuration
@@ -75,13 +80,13 @@ fun main() {
 		}
 		initialized = true
 
-		this.main()
+		this.main(config)
 
-	}.start(wait = true)
+	}.start(wait)
 }
 
 
-fun Application.main() {
+fun Application.main(config: Config.Web) {
 
 	install(Compression)
 	// listen to headers forwarded from the Apache reverse-proxy
@@ -97,8 +102,8 @@ fun Application.main() {
 
 	// allocate space for cached static resources
 	Resources.init(javaClass)
-	val jsBundleBytes = Resources.readBytes("/assets/main.bundle.js")
-	val jsBundleBytesGzip = gzip(jsBundleBytes)
+	val jsBundleBytes = lazy { Resources.readBytes("/assets/main.bundle.js") }
+	val jsBundleBytesGzip = lazy { gzip(jsBundleBytes.value) }
 
 	routing {
 
@@ -116,10 +121,10 @@ fun Application.main() {
 				// serve the compressed bundle
 				call.attributes.put(Compression.SuppressionAttribute, true)
 				call.response.headers.append(HttpHeaders.ContentEncoding, "gzip")
-				call.respondBytes(jsBundleBytesGzip, ContentType.Application.OctetStream)
+				call.respondBytes(jsBundleBytesGzip.value, ContentType.Application.OctetStream)
 			} else {
 				// serve the uncompressed bundle
-				call.respondBytes(jsBundleBytes, ContentType.Application.OctetStream)
+				call.respondBytes(jsBundleBytes.value, ContentType.Application.OctetStream)
 			}
 		}
 
@@ -196,7 +201,7 @@ fun Application.main() {
 		TomographyMiloEvalService.init(this)
 
 		// only enable the debug service in debug mode
-		if (Backend.config.web.debug) {
+		if (config.debug) {
 			DebugService.init(this)
 		}
 	}
@@ -207,6 +212,7 @@ fun Application.main() {
 	kvisionInit(initStaticResources = false)
 
 	// finally, call initializers for singleton/companion objects
+	// TODO: instance-ize the singletons?
 	Database.init()
 	JobRunner.init()
 	AdminService.init()

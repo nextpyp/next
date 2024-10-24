@@ -102,7 +102,7 @@ class EphemeralMongo(
 	}
 
 
-	fun <R> install(block: () -> R): R = use {
+	fun <R> useInstalled(block: () -> R): R = use {
 
 		val path = sockPath(dir)
 			.toString()

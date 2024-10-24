@@ -25,8 +25,19 @@ class Config(toml: String) {
 			System.getenv("PYP_CONFIG_HOST")
 				?: throw NoSuchElementException("no host pyp config path")
 
-		val instance: Config =
-			Config(Paths.get("/var/micromon/config.toml").readString())
+		private var _instance: Config? = null
+
+		val instance: Config get() =
+			_instance ?: install(Config(Paths.get("/var/micromon/config.toml").readString()))
+
+		fun install(config: Config): Config {
+			_instance = config
+			return config
+		}
+
+		fun uninstall() {
+			_instance = null
+		}
 	}
 
 	data class Pyp(

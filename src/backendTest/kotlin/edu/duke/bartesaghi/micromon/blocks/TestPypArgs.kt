@@ -1,10 +1,11 @@
 package edu.duke.bartesaghi.micromon.blocks
 
-import edu.duke.bartesaghi.micromon.EphemeralMongo
-import edu.duke.bartesaghi.micromon.RuntimeEnvironment
-import edu.duke.bartesaghi.micromon.mongo.Database
+import edu.duke.bartesaghi.micromon.*
+import edu.duke.bartesaghi.micromon.services.IProjectsService
+import edu.duke.bartesaghi.micromon.services.ProjectData
 import io.kotest.core.annotation.EnabledIf
 import io.kotest.core.spec.style.DescribeSpec
+import kotlin.io.path.div
 
 
 @EnabledIf(RuntimeEnvironment.Website::class)
@@ -14,16 +15,20 @@ class TestPypArgs : DescribeSpec({
 
 		it("sends nothing for default values") {
 
-			// make a database
-			EphemeralMongo.start().install {
-				println("Database installed")
+			EphemeralMongo.start().useInstalled {
+				EphemeralWebsite().useInstalled { website ->
 
-				// TEMP
-				println("Users: ${Database.instance.users.getAllUsers().size}")
+					// TEMP
+					println("shared dir? ${Config.instance.web.sharedDir}")
+					println("users: ${Config.instance.web.sharedDir / "users"}")
+
+					// list projects
+					val projects: List<ProjectData> = website.services.rpc(IProjectsService::list, User.NoAuthId)
+					println("projects: $projects")
+
+					// TODO: NEXTTIME: make a project, make a block
+				}
 			}
-			println("database exited!")
-
-			// TODO: make a user, make a project, make a block
 		}
 
 		/* TODO

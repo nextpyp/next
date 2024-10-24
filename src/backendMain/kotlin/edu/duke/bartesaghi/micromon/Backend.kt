@@ -25,7 +25,7 @@ object Backend {
 	}
 
 	// get the config
-	val config = Config.instance
+	val config get() = Config.instance
 
 	init {
 		// echo the configuration, useful for troubleshooting issues
