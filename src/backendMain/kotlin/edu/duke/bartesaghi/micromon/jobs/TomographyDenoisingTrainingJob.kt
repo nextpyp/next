@@ -110,7 +110,7 @@ class TomographyDenoisingTrainingJob(
 	override fun wipeData() {
 
 		// also delete any associated data
-		Database.tiltSeries.deleteAll(idOrThrow)
+		Database.instance.tiltSeries.deleteAll(idOrThrow)
 
 		// also reset the finished args
 		args.unrun()

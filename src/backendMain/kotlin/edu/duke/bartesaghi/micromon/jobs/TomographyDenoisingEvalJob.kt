@@ -68,7 +68,7 @@ class TomographyDenoisingEvalJob(
 			commonData(),
 			args,
 			diagramImageURL(),
-			Database.tiltSeries.count(idOrThrow)
+			Database.instance.tiltSeries.count(idOrThrow)
 		)
 
 	override suspend fun launch(runId: Int) {
@@ -113,7 +113,7 @@ class TomographyDenoisingEvalJob(
 
 	override fun wipeData() {
 
-		Database.tiltSeries.deleteAll(idOrThrow)
+		Database.instance.tiltSeries.deleteAll(idOrThrow)
 
 		// also reset the finished args
 		args.unrun()

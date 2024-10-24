@@ -70,7 +70,7 @@ class TomographyPickingClosedJob(
 			diagramImageURL(),
 			args.finished
 				?.particlesList(args(), idOrThrow)
-				?.let { Database.particles.countAllParticles(idOrThrow, it.name) }
+				?.let { Database.instance.particles.countAllParticles(idOrThrow, it.name) }
 				?: 0
 		)
 
@@ -120,9 +120,9 @@ class TomographyPickingClosedJob(
 	override fun wipeData() {
 
 		// also delete any associated data
-		Database.tiltSeries.deleteAll(idOrThrow)
-		Database.particleLists.deleteAll(idOrThrow)
-		Database.particles.deleteAllParticles(idOrThrow)
+		Database.instance.tiltSeries.deleteAll(idOrThrow)
+		Database.instance.particleLists.deleteAll(idOrThrow)
+		Database.instance.particles.deleteAllParticles(idOrThrow)
 
 		// also reset the finished args
 		args.unrun()

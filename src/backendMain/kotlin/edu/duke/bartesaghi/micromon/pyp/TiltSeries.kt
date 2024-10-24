@@ -24,16 +24,16 @@ class TiltSeries(private val doc: Document) {
 	companion object {
 
 		fun get(jobId: String, tiltSeries: String): TiltSeries? =
-			Database.tiltSeries.get(jobId, tiltSeries)
+			Database.instance.tiltSeries.get(jobId, tiltSeries)
 				?.let { TiltSeries(it) }
 
 		fun <R> getAll(jobId: String, block: (Sequence<TiltSeries>) -> R): R =
-			Database.tiltSeries.getAll(jobId) {
+			Database.instance.tiltSeries.getAll(jobId) {
 				block(it.map { TiltSeries(it) })
 			}
 
 		suspend fun <R> getAllAsync(jobId: String, block: suspend (Sequence<TiltSeries>) -> R): R =
-			Database.tiltSeries.getAllAsync(jobId) {
+			Database.instance.tiltSeries.getAllAsync(jobId) {
 				block(it.map { TiltSeries(it) })
 			}
 
@@ -76,11 +76,11 @@ class TiltSeries(private val doc: Document) {
 	// for extra data storage, make a new collection, eg, BOXX and AVGROT
 
 	fun getAvgRot(): AVGROT =
-		Database.tiltSeriesAvgRot.get(jobId, tiltSeriesId)
+		Database.instance.tiltSeriesAvgRot.get(jobId, tiltSeriesId)
 			?: AVGROT()
 
 	fun getDriftMetadata(): DMD =
-		Database.tiltSeriesDriftMetadata.get(jobId, tiltSeriesId)
+		Database.instance.tiltSeriesDriftMetadata.get(jobId, tiltSeriesId)
 			?: DMD.empty()
 
 	private fun getLogs(dir: Path): List<LogInfo> =
@@ -137,7 +137,7 @@ class TiltSeries(private val doc: Document) {
 		val tiler = { image: BufferedImage ->
 
 			// get the montage sizes
-			val numTilts = Database.tiltSeriesDriftMetadata.countTilts(jobId, tiltSeriesId).toInt()
+			val numTilts = Database.instance.tiltSeriesDriftMetadata.countTilts(jobId, tiltSeriesId).toInt()
 			val montage = MontageSizes.fromSquaredMontageImage(image.width, image.height, numTilts)
 
 			// crop the image to the center tile

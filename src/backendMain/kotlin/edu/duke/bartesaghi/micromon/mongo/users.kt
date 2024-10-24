@@ -73,7 +73,7 @@ class Users(db: MongoDatabase) {
 				.mapNotNull { User.Permission[it] }
 				.toSet(),
 			groups = (getListOfStrings("groups") ?: emptyList())
-				.mapNotNull { groupId -> Database.groups.get(groupId) }
+				.mapNotNull { groupId -> Database.instance.groups.get(groupId) }
 				.toSet(),
 			haspw = getString("pwhash") != null,
 			osUsername = getString("osUsername")

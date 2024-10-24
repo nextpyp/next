@@ -50,7 +50,7 @@ class Project(
 			name.toSafeFileName()
 
 		operator fun get(userId: String, projectId: String): Project? =
-			Database.projects.get(userId, projectId)?.let { Project(it) }
+			Database.instance.projects.get(userId, projectId)?.let { Project(it) }
 
 		fun getOrThrow(userId: String, projectId: String): Project =
 			get(userId, projectId)
@@ -75,7 +75,7 @@ class Project(
 				val legacyJobId = "legacy-job-id"
 
 				// migrate from the old `images` format to the new `repImages` format if needed
-				val oldUrls = Database.projects.get(userId, projectId)
+				val oldUrls = Database.instance.projects.get(userId, projectId)
 					?.getMap<String>("images")
 				if (oldUrls != null) {
 
@@ -91,13 +91,13 @@ class Project(
 					}
 
 					// remove the old images
-					Database.projects.update(userId, projectId,
+					Database.instance.projects.update(userId, projectId,
 						unset("images")
 					)
 				}
 
 				// look up the current representative image for this type
-				val repImagesByTypeId = Database.projects.get(userId, projectId)
+				val repImagesByTypeId = Database.instance.projects.get(userId, projectId)
 					?.getMap<Document>("repImages")
 					?: return emptyList()
 
@@ -122,7 +122,7 @@ class Project(
 			}
 
 			operator fun set(userId: String, projectId: String, type: RepresentativeImageType, jobId: String, repImage: RepresentativeImage?) {
-				Database.projects.update(userId, projectId,
+				Database.instance.projects.update(userId, projectId,
 					if (repImage != null) {
 						set("repImages.${type.id}.$jobId", repImage.toDoc())
 					} else {
@@ -134,17 +134,17 @@ class Project(
 		val representativeImages = RepresentativeImages()
 
 		fun setReader(userId: String, projectId: String, readerUserId: String) {
-			Database.projects.update(userId, projectId,
+			Database.instance.projects.update(userId, projectId,
 				set("readerUserIds.${readerUserId.toMongoSafeKey()}", true)
 			)
-			Database.projectReaders.set(readerUserId, userId, projectId)
+			Database.instance.projectReaders.set(readerUserId, userId, projectId)
 		}
 
 		fun unsetReader(userId: String, projectId: String, readerUserId: String) {
-			Database.projects.update(userId, projectId,
+			Database.instance.projects.update(userId, projectId,
 				unset("readerUserIds.${readerUserId.toMongoSafeKey()}")
 			)
-			Database.projectReaders.unset(readerUserId, userId, projectId)
+			Database.instance.projectReaders.unset(readerUserId, userId, projectId)
 		}
 	}
 
@@ -154,7 +154,7 @@ class Project(
 	suspend fun create() {
 
 		// create the database entry
-		Database.projects.create(userId, projectId) {
+		Database.instance.projects.create(userId, projectId) {
 			set("osUsername", osUsername)
 			set("name", name)
 			set("projectNumber", projectNumber)
@@ -176,14 +176,14 @@ class Project(
 		})
 
 		// delete all the jobs
-		Database.jobs.deleteAllInProject(userId, projectId)
+		Database.instance.jobs.deleteAllInProject(userId, projectId)
 
 		// delete the database entry
-		Database.projects.delete(userId, projectId)
+		Database.instance.projects.delete(userId, projectId)
 
 		// delete from any readers
 		for (readerUserId in readerUserIds) {
-			Database.projectReaders.unset(readerUserId, userId, projectId)
+			Database.instance.projectReaders.unset(readerUserId, userId, projectId)
 		}
 
 		// delete the files and folders, asynchronously
@@ -205,14 +205,14 @@ class Project(
 			// if we matched all the job runs, remove the whole run from the database
 			if (jobRuns.size >= run.jobs.size) {
 
-				Database.projects.update(userId, projectId,
+				Database.instance.projects.update(userId, projectId,
 					set("running.${run.idOrThrow}", null)
 				)
 
 			} else {
 
 				// otherwise, remove just the matched job runs
-				Database.projects.update(userId, projectId,
+				Database.instance.projects.update(userId, projectId,
 					*jobRuns
 						.map { jobRun ->
 							pull("running.${run.idOrThrow}.jobs", Document().apply {
@@ -232,7 +232,7 @@ class Project(
 
 	fun toData(user: User?): ProjectData {
 
-		val ownerData = Database.users.getUser(userId)
+		val ownerData = Database.instance.users.getUser(userId)
 			?.toData()
 			?: UserData(userId, "(Unknown)")
 
@@ -249,7 +249,7 @@ class Project(
 	}
 
 	fun getRuns(): List<ProjectRun> =
-		Database.projects.getWithOnlyRunning(userId, projectId)
+		Database.instance.projects.getWithOnlyRunning(userId, projectId)
 			?.getListOfNullables<Document>("running")
 			?.withIndex()
 			?.mapNotNull { (doci, doc) -> doc?.let { ProjectRun.fromDoc(doci, it) } }
@@ -272,7 +272,7 @@ class Project(
 	}
 
 	fun getRun(runId: Int): ProjectRun? =
-		Database.projects.getWithOnlyRunning(userId, projectId)
+		Database.instance.projects.getWithOnlyRunning(userId, projectId)
 			?.getListOfNullables<Document>("running")
 			?.get(runId)
 			?.let { doc -> ProjectRun.fromDoc(runId, doc) }
@@ -284,19 +284,19 @@ class Project(
 		// this *should* work as long as the web server is the only process pushing runs to the database
 		synchronized(pushLock) {
 
-			Database.projects.update(userId, projectId,
+			Database.instance.projects.update(userId, projectId,
 				push("running", run.toDoc())
 			)
 
 			// get the index of the run we just pushed
-			return Database.projects.getWithOnlyRunning(userId, projectId)!!
+			return Database.instance.projects.getWithOnlyRunning(userId, projectId)!!
 				.getListOfNullables<Document>("running")!!
 				.size - 1
 		}
 	}
 
 	fun updateRun(run: ProjectRun) {
-		Database.projects.update(userId, projectId,
+		Database.instance.projects.update(userId, projectId,
 			set("running.${run.idOrThrow}", run.toDoc())
 		)
 	}

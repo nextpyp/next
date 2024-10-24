@@ -16,11 +16,11 @@ class Refinement(
 	companion object {
 
 		fun get(jobId: String, dataId: String): Refinement? =
-			Database.refinements.get(jobId, dataId)
+			Database.instance.refinements.get(jobId, dataId)
 				?.let { fromDoc(it) }
 
 		fun getAll(jobId: String): List<Refinement> =
-			Database.refinements.getAll(jobId) { cursor ->
+			Database.instance.refinements.getAll(jobId) { cursor ->
 				cursor
 					.map { fromDoc(it) }
 					.toList()
@@ -34,7 +34,7 @@ class Refinement(
 		)
 
 		fun deleteAllNotIteration(jobId: String, iteration: Int) {
-			Database.refinements.deleteAllNotIteration(jobId, iteration)
+			Database.instance.refinements.deleteAllNotIteration(jobId, iteration)
 		}
 	}
 
@@ -53,7 +53,7 @@ class Refinement(
 	)
 
 	fun write() {
-		Database.refinements.write(jobId, dataId) {
+		Database.instance.refinements.write(jobId, dataId) {
 			putAll(toDoc())
 		}
 	}

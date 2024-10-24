@@ -74,7 +74,7 @@ class TomographyPurePreprocessingJob(
 			commonData(),
 			args,
 			diagramImageURL(),
-			Database.tiltSeries.count(idOrThrow)
+			Database.instance.tiltSeries.count(idOrThrow)
 		)
 
 	override suspend fun launch(runId: Int) {
@@ -97,7 +97,7 @@ class TomographyPurePreprocessingJob(
 			dir.createDirsIfNeededAs(project.osUsername)
 
 			// write any new files
-			val exclusionsByTiltSeries = Database.tiltExclusions.getForJob(idOrThrow)
+			val exclusionsByTiltSeries = Database.instance.tiltExclusions.getForJob(idOrThrow)
 			if (exclusionsByTiltSeries != null) {
 				for ((tiltSeriesId, exclusionsByTiltIndex) in exclusionsByTiltSeries) {
 					val file = dir / "$tiltSeriesId$suffix"
@@ -146,11 +146,11 @@ class TomographyPurePreprocessingJob(
 	override fun wipeData() {
 
 		// also delete any associated data
-		Database.tiltSeries.deleteAll(idOrThrow)
-		Database.tiltSeriesAvgRot.deleteAll(idOrThrow)
-		Database.tiltSeriesDriftMetadata.deleteAll(idOrThrow)
-		Database.jobPreprocessingFilters.deleteAll(idOrThrow)
-		Database.tiltExclusions.delete(idOrThrow)
+		Database.instance.tiltSeries.deleteAll(idOrThrow)
+		Database.instance.tiltSeriesAvgRot.deleteAll(idOrThrow)
+		Database.instance.tiltSeriesDriftMetadata.deleteAll(idOrThrow)
+		Database.instance.jobPreprocessingFilters.deleteAll(idOrThrow)
+		Database.instance.tiltExclusions.delete(idOrThrow)
 
 		// also reset the finished args
 		args.unrun()

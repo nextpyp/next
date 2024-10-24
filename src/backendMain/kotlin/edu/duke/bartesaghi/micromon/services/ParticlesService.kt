@@ -105,7 +105,7 @@ actual class ParticlesService : IParticlesService, Service {
 
 	override suspend fun getLists(ownerType: OwnerType, ownerId: String): List<ParticlesList> = sanitizeExceptions {
 		authRead(ownerType, ownerId)
-		Database.particleLists.getAll(ownerId)
+		Database.instance.particleLists.getAll(ownerId)
 	}
 
 	override suspend fun getListOptions(search: String?, initial: String?, state: String?): List<RemoteOption> = sanitizeExceptions {
@@ -132,7 +132,7 @@ actual class ParticlesService : IParticlesService, Service {
 			RemoteOption(divider = true)
 		)
 
-		val options = Database.particleLists.getAll(ownerId)
+		val options = Database.instance.particleLists.getAll(ownerId)
 			.map { RemoteOption(it.name) }
 
 		return header + options
@@ -140,7 +140,7 @@ actual class ParticlesService : IParticlesService, Service {
 
 	override suspend fun getList(ownerType: OwnerType, ownerId: String, name: String): Option<ParticlesList> = sanitizeExceptions {
 		authRead(ownerType, ownerId)
-		Database.particleLists.get(ownerId, name)
+		Database.instance.particleLists.get(ownerId, name)
 			.toOption()
 	}
 
@@ -152,7 +152,7 @@ actual class ParticlesService : IParticlesService, Service {
 			type = type,
 			source = ParticlesSource.User
 		)
-		if (Database.particleLists.createIfNeeded(list)) {
+		if (Database.instance.particleLists.createIfNeeded(list)) {
 			list
 		} else {
 			null
@@ -163,19 +163,19 @@ actual class ParticlesService : IParticlesService, Service {
 		authWrite(ownerType, ownerId)
 
 		// can only delete user-created lists here
-		Database.particleLists.get(ownerId, name)
+		Database.instance.particleLists.get(ownerId, name)
 			?.takeIf { it.source == ParticlesSource.User }
 			?: return false
 
-		Database.particleLists.delete(ownerId, name)
-		Database.particles.deleteAllParticles(ownerId, name)
+		Database.instance.particleLists.delete(ownerId, name)
+		Database.instance.particles.deleteAllParticles(ownerId, name)
 		true
 	}
 
 	override suspend fun copyList(ownerType: OwnerType, ownerId: String, name: String, newName: String): Option<ParticlesList> = sanitizeExceptions {
 		authWrite(ownerType, ownerId)
 
-		val list = Database.particleLists.get(ownerId, name)
+		val list = Database.instance.particleLists.get(ownerId, name)
 			?: throw ServiceException("list not found: $name")
 
 		// copy the list
@@ -183,21 +183,21 @@ actual class ParticlesService : IParticlesService, Service {
 			name = newName,
 			source = ParticlesSource.User
 		)
-		if (!Database.particleLists.createIfNeeded(newList)) {
+		if (!Database.instance.particleLists.createIfNeeded(newList)) {
 			return null.toOption()
 		}
 
 		// copy the particles
-		Database.particles.copyAllParticles(ownerId, name, newName)
+		Database.instance.particles.copyAllParticles(ownerId, name, newName)
 
 		newList.toOption()
 	}
 
 	fun getParticles2D(ownerType: OwnerType, ownerId: String, name: String, datumId: String): Particles2DData = sanitizeExceptions {
 		val owner = authRead(ownerType, ownerId)
-		val particles = Database.particles.getParticles2D(ownerId, name, datumId)
+		val particles = Database.instance.particles.getParticles2D(ownerId, name, datumId)
 			?.let {
-				val list = Database.particleLists.getOrThrow(ownerId, name)
+				val list = Database.instance.particleLists.getOrThrow(ownerId, name)
 				it.toUnbinned2D(owner, list)
 			}
 			?: SavedParticles()
@@ -208,18 +208,18 @@ actual class ParticlesService : IParticlesService, Service {
 		authWrite(ownerType, ownerId)
 
 		// only add particles to user-sourced lists
-		Database.particleLists.get(ownerId, name)
+		Database.instance.particleLists.get(ownerId, name)
 			?.takeIf { it.source == ParticlesSource.User }
 			?: throw ServiceException("list is not user-writable")
 
-		Database.particles.addParticle2D(ownerId, name, datumId, particle)
+		Database.instance.particles.addParticle2D(ownerId, name, datumId, particle)
 	}
 
 	fun getParticles3D(ownerType: OwnerType, ownerId: String, name: String, datumId: String): Particles3DData = sanitizeExceptions {
 		val owner = authRead(ownerType, ownerId)
-		val particles = Database.particles.getParticles3D(ownerId, name, datumId)
+		val particles = Database.instance.particles.getParticles3D(ownerId, name, datumId)
 			?.let {
-				val list = Database.particleLists.getOrThrow(ownerId, name)
+				val list = Database.instance.particleLists.getOrThrow(ownerId, name)
 				it.toUnbinned3D(owner, list)
 			}
 			?: SavedParticles()
@@ -231,12 +231,12 @@ actual class ParticlesService : IParticlesService, Service {
 		val owner = authWrite(ownerType, ownerId)
 
 		// only add particles to user-sourced lists
-		val list = Database.particleLists.get(ownerId, name)
+		val list = Database.instance.particleLists.get(ownerId, name)
 			?.takeIf { it.source == ParticlesSource.User }
 			?: throw ServiceException("list is not user-writable")
 
 		// auto-migrate this particle list, if needed
-		when (Database.particles.getParticlesVersion(ownerId, name, datumId)) {
+		when (Database.instance.particles.getParticlesVersion(ownerId, name, datumId)) {
 			null -> Unit // no particles there yet, no migration needed
 			ParticlesVersion.Legacy -> {
 				LoggerFactory.getLogger("ParticleMigration")
@@ -246,23 +246,23 @@ actual class ParticlesService : IParticlesService, Service {
 						|        list: $name
 						|       datum: $datumId
 					""".trimMargin(), ownerType, ownerId, name, datumId)
-				val particlesUntyped = Database.particles.getParticles3D(ownerId, name, datumId)
+				val particlesUntyped = Database.instance.particles.getParticles3D(ownerId, name, datumId)
 					?: throw IllegalStateException("particles have version, expected coords too")
 				val particles = particlesUntyped.toUnbinned3D(owner, list)
-				Database.particles.importParticles3D(ownerId, name, datumId, particles)
+				Database.instance.particles.importParticles3D(ownerId, name, datumId, particles)
 			}
 			ParticlesVersion.Unbinned -> Unit // no migration needed
 		}
 
-		Database.particles.addParticle3D(ownerId, name, datumId, particle)
+		Database.instance.particles.addParticle3D(ownerId, name, datumId, particle)
 	}
 
 	override suspend fun countParticles(ownerType: OwnerType, ownerId: String, name: String, datumId: String?): Option<Long> = sanitizeExceptions {
 		authRead(ownerType, ownerId)
 		if (datumId != null) {
-			Database.particles.countParticles(ownerId, name, datumId)
+			Database.instance.particles.countParticles(ownerId, name, datumId)
 		} else {
-			Database.particles.countAllParticles(ownerId, name)
+			Database.instance.particles.countAllParticles(ownerId, name)
 		}.toOption()
 	}
 
@@ -270,22 +270,22 @@ actual class ParticlesService : IParticlesService, Service {
 		authWrite(ownerType, ownerId)
 
 		// only add particles to user-sourced lists
-		Database.particleLists.get(ownerId, name)
+		Database.instance.particleLists.get(ownerId, name)
 			?.takeIf { it.source == ParticlesSource.User }
 			?: throw ServiceException("list is not user-writable")
 
-		Database.particles.deleteParticle(ownerId, name, datumId, particleId)
+		Database.instance.particles.deleteParticle(ownerId, name, datumId, particleId)
 	}
 
 	override suspend fun getVirionThresholds(ownerType: OwnerType, ownerId: String, name: String, datumId: String): VirionThresholdData = sanitizeExceptions {
 		authRead(ownerType, ownerId)
-		val thresholds = Database.particles.getThresholds(ownerId, name, datumId)
+		val thresholds = Database.instance.particles.getThresholds(ownerId, name, datumId)
 			?: HashMap()
 		thresholds.toVirionThresholdData()
 	}
 
 	override suspend fun setVirionThreshold(ownerType: OwnerType, ownerId: String, name: String, datumId: String, virionId: Int, threshold: Int?) = sanitizeExceptions {
 		authWrite(ownerType, ownerId)
-		Database.particles.setThreshold(ownerId, name, datumId, virionId, threshold)
+		Database.instance.particles.setThreshold(ownerId, name, datumId, virionId, threshold)
 	}
 }

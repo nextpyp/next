@@ -50,7 +50,7 @@ class SessionExport(
 
 			// create the export
 			val export = SessionExport(session.idOrThrow, request)
-			export.id = Database.sessionExports.create {
+			export.id = Database.instance.sessionExports.create {
 				set("sessionId", export.sessionId)
 				set("request", export.request.serialize())
 				set("created", export.created.toEpochMilli())
@@ -58,7 +58,7 @@ class SessionExport(
 			session.fireEvents(export)
 
 			fun fail(reason: String) {
-				Database.sessionExports.update(export.idOrThrow,
+				Database.instance.sessionExports.update(export.idOrThrow,
 					set("result", SessionExportResult.Failed(reason).serialize())
 				)
 			}
@@ -93,18 +93,18 @@ class SessionExport(
 			export.clusterJobId = clusterJob.id
 
 			// update the database
-			Database.sessionExports.update(export.idOrThrow,
+			Database.instance.sessionExports.update(export.idOrThrow,
 				set("clusterJobId", export.clusterJobId),
 			)
 			session.fireEvents(export)
 		}
 
 		fun get(exportId: String): SessionExport? =
-			Database.sessionExports.get(exportId)
+			Database.instance.sessionExports.get(exportId)
 				?.let { fromDoc(it) }
 
 		fun getAll(sessionId: String): List<SessionExport> =
-			Database.sessionExports.getAll(sessionId) {
+			Database.instance.sessionExports.getAll(sessionId) {
 				it
 					.map { fromDoc(it) }
 					.toList()
@@ -148,7 +148,7 @@ class SessionExport(
 				ClusterJobResultType.Canceled -> SessionExportResult.Canceled()
 			}
 			export.result = result
-			Database.sessionExports.update(export.idOrThrow,
+			Database.instance.sessionExports.update(export.idOrThrow,
 				set("result", result.serialize())
 			)
 			session.fireEvents(export)
@@ -187,7 +187,7 @@ class SessionExport(
 		// cancel the export locally
 		val result = SessionExportResult.Canceled()
 		this.result = result
-		Database.sessionExports.update(idOrThrow,
+		Database.instance.sessionExports.update(idOrThrow,
 			set("result", result.serialize())
 		)
 		session.fireEvents(this)

@@ -33,7 +33,7 @@ interface FilteredJob {
 	companion object {
 
 		fun resolveFilterMicrographs(jobId: String, filter: PreprocessingFilter): List<String> =
-			Database.micrographs.getAll(jobId) { cursor ->
+			Database.instance.micrographs.getAll(jobId) { cursor ->
 				cursor
 					.map { Micrograph(it) }
 					.filter { it.isInRanges(filter) && it.micrographId !in filter.excludedIds }
@@ -42,7 +42,7 @@ interface FilteredJob {
 			}
 
 		fun resolveFilterTiltSeries(jobId: String, filter: PreprocessingFilter): List<String> =
-			Database.tiltSeries.getAll(jobId) { cursor ->
+			Database.instance.tiltSeries.getAll(jobId) { cursor ->
 				cursor
 					.map { TiltSeries(it) }
 					.filter { it.isInRanges(filter) && it.tiltSeriesId !in filter.excludedIds }

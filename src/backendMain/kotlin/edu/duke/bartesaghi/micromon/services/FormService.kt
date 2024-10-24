@@ -194,7 +194,7 @@ actual class FormService : IFormService, Service {
 		}
 
 		val query = search.lowercase()
-		return Database.users.getAllUsers()
+		return Database.instance.users.getAllUsers()
 			.filter { user -> query in user.id.lowercase() || query in user.name.lowercase() }
 			.map { user -> RemoteOption(user.id, user.name) }
 	}

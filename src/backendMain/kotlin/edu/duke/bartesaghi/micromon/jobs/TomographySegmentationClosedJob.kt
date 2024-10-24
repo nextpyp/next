@@ -72,7 +72,7 @@ class TomographySegmentationClosedJob(
 			diagramImageURL(),
 			args.finished
 				?.particlesList(idOrThrow)
-				?.let { Database.particles.countAllParticles(idOrThrow, it.name) }
+				?.let { Database.instance.particles.countAllParticles(idOrThrow, it.name) }
 				?: 0
 		)
 
@@ -129,7 +129,7 @@ class TomographySegmentationClosedJob(
 	override fun wipeData() {
 
 		// also delete any associated data
-		Database.tiltSeries.deleteAll(idOrThrow)
+		Database.instance.tiltSeries.deleteAll(idOrThrow)
 
 		// also reset the finished args
 		args.unrun()

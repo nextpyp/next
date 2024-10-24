@@ -340,7 +340,7 @@ object RealTimeService {
 
 			// send the large data (can take a while, so send it after the session status)
 			outgoing.sendMessage(RealTimeS2C.SessionLargeData(
-				autoParticlesCount = Database.particles.countAllParticles(session.idOrThrow, ParticlesList.AutoParticles),
+				autoParticlesCount = Database.instance.particles.countAllParticles(session.idOrThrow, ParticlesList.AutoParticles),
 				micrographs = Micrograph.getAll(session.idOrThrow) { cursor ->
 					cursor
 						.map { it.getMetadata() }
@@ -420,8 +420,8 @@ object RealTimeService {
 
 			// send the large data (can take a while, so send it after the session status)
 			outgoing.sendMessage(RealTimeS2C.SessionLargeData(
-				autoVirionsCount = Database.particles.countAllParticles(session.idOrThrow, ParticlesList.AutoVirions),
-				autoParticlesCount = Database.particles.countAllParticles(session.idOrThrow, ParticlesList.AutoParticles),
+				autoVirionsCount = Database.instance.particles.countAllParticles(session.idOrThrow, ParticlesList.AutoVirions),
+				autoParticlesCount = Database.instance.particles.countAllParticles(session.idOrThrow, ParticlesList.AutoParticles),
 				tiltSerieses = TiltSeries.getAll(session.idOrThrow) { cursor ->
 					cursor
 						.map { it.getMetadata() }

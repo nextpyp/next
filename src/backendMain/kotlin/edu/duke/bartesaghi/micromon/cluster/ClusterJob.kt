@@ -275,7 +275,7 @@ class ClusterJob(
 
 	fun create(): String {
 		// create a database record of the submission
-		val dbid = Database.cluster.launches.create {
+		val dbid = Database.instance.cluster.launches.create {
 			set("osUsername", osUsername)
 			set("container", containerId)
 			set("commands", commands.toDoc())
@@ -299,13 +299,13 @@ class ClusterJob(
 		getLog(arrayId) ?: throw NoSuchElementException("no log for SLURM job $id")
 
 	fun pushHistory(status: Status, arrayId: Int? = null) {
-		Database.cluster.log.update(idOrThrow, arrayId,
+		Database.instance.cluster.log.update(idOrThrow, arrayId,
 			push("history", HistoryEntry(status).toDBList())
 		)
 	}
 
 	fun pushFailure(entry: FailureEntry, arrayId: Int? = null) {
-		Database.cluster.log.update(idOrThrow, arrayId,
+		Database.instance.cluster.log.update(idOrThrow, arrayId,
 			push("failures", entry.toDoc())
 		)
 	}
@@ -408,13 +408,13 @@ class ClusterJob(
 	fun delete() {
 
 		// delete the database entries
-		Database.cluster.log.delete(idOrThrow)
+		Database.instance.cluster.log.delete(idOrThrow)
 		commands.arraySize?.let { arraySize ->
 			for (i in 0 until arraySize) {
-				Database.cluster.log.delete(idOrThrow, i)
+				Database.instance.cluster.log.delete(idOrThrow, i)
 			}
 		}
-		Database.cluster.launches.delete(idOrThrow)
+		Database.instance.cluster.launches.delete(idOrThrow)
 
 		// wipe the id
 		id = null
@@ -424,10 +424,10 @@ class ClusterJob(
 	companion object {
 
 		fun get(dbId: String): ClusterJob? =
-			fromDoc(Database.cluster.launches.get(dbId))
+			fromDoc(Database.instance.cluster.launches.get(dbId))
 
 		fun getByOwner(ownerId: String): List<ClusterJob> =
-			Database.cluster.launches.getByOwner(ownerId)
+			Database.instance.cluster.launches.getByOwner(ownerId)
 				.mapNotNull { fromDoc(it) }
 
 		fun find(
@@ -435,7 +435,7 @@ class ClusterJob(
 			clusterName: String? = null,
 			notClusterName: List<String>? = null
 		): List<ClusterJob> =
-			Database.cluster.launches.find(ownerId, clusterName, notClusterName)
+			Database.instance.cluster.launches.find(ownerId, clusterName, notClusterName)
 				.mapNotNull { fromDoc(it) }
 
 		fun fromDoc(doc: Document?): ClusterJob? {
@@ -468,7 +468,7 @@ class ClusterJob(
 		}
 
 		fun getLog(clusterJobId: String, arrayId: Int? = null): Log? =
-			Database.cluster.log.get(clusterJobId, arrayId)
+			Database.instance.cluster.log.get(clusterJobId, arrayId)
 				?.let { Log.fromDoc(it) }
 
 		private fun List<HistoryEntry>.toDBList() =

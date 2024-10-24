@@ -30,16 +30,16 @@ class Micrograph(doc: Document) {
 	companion object {
 
 		fun get(jobId: String, micrographId: String): Micrograph? =
-			Database.micrographs.get(jobId, micrographId)
+			Database.instance.micrographs.get(jobId, micrographId)
 				?.let { Micrograph(it) }
 
 		fun <R> getAll(jobId: String, block: (Sequence<Micrograph>) -> R): R =
-			Database.micrographs.getAll(jobId) {
+			Database.instance.micrographs.getAll(jobId) {
 				block(it.map { Micrograph(it) })
 			}
 
 		suspend fun <R> getAllAsync(jobId: String, block: suspend (Sequence<Micrograph>) -> R): R =
-			Database.micrographs.getAllAsync(jobId) {
+			Database.instance.micrographs.getAllAsync(jobId) {
 				block(it.map { Micrograph(it) })
 			}
 
@@ -72,7 +72,7 @@ class Micrograph(doc: Document) {
 	// for extra data storage, make a new collection, eg, BOXX and AVGROT
 
 	fun getAvgRot(): AVGROT =
-		Database.micrographsAvgRot.get(jobId, micrographId)
+		Database.instance.micrographsAvgRot.get(jobId, micrographId)
 			?: AVGROT()
 
 	private fun getLogs(dir: Path): List<LogInfo> =

@@ -55,7 +55,7 @@ fun generateLoginToken(userId: String): ByteArray {
 	SecureRandom().nextBytes(token)
 
 	// save the hash
-	Database.users.addTokenHash(userId, hashToken(token))
+	Database.instance.users.addTokenHash(userId, hashToken(token))
 
 	return token
 }
@@ -64,7 +64,7 @@ fun verifyLoginToken(userId: String, token: ByteArray?): Boolean {
 
 	token ?: return false
 
-	val tkhashes = Database.users.getTokenHashes(userId)
+	val tkhashes = Database.instance.users.getTokenHashes(userId)
 		// randomize the order of the hashes to hopefully keep the
 		// JVM JIT from profiling and optimizing away any comparisions
 		.shuffled()
@@ -83,7 +83,7 @@ fun verifyLoginToken(userId: String, token: ByteArray?): Boolean {
 }
 
 fun revokeLoginToken(userId: String, token: ByteArray) {
-	Database.users.removeTokenHashes(userId) { tkhash ->
+	Database.instance.users.removeTokenHashes(userId) { tkhash ->
 		argonForTokens.verify(tkhash, token)
 	}
 }
@@ -199,7 +199,7 @@ fun ApplicationCall.authPerson(): User? {
 				return if (verifyLoginToken(id, token)) {
 
 					// we got a live one 'ere!
-					Database.users.getUser(id)
+					Database.instance.users.getUser(id)
 
 				} else {
 
@@ -214,7 +214,7 @@ fun ApplicationCall.authPerson(): User? {
 			return if (Backend.config.web.demo) {
 
 				fun getDemoUser(): User? =
-					Database.users.getUser(User.DemoId)
+					Database.instance.users.getUser(User.DemoId)
 						?: run {
 							Backend.log.warn("""
 									|Demo mode active, but no demo user exists yet.
@@ -260,7 +260,7 @@ fun ApplicationCall.authPerson(): User? {
 				?: return null
 
 			// get the user account, if any was configured
-			val user = Database.users.getUser(userId)
+			val user = Database.instance.users.getUser(userId)
 				?: return null
 
 			// there's no explicit login process for pre-authed users
@@ -281,7 +281,7 @@ fun ApplicationCall.authPerson(): User? {
 fun ApplicationCall.authApp(userId: String, token: String): User? {
 
 	// validate the user and token
-	var user = Database.users.getUser(userId)
+	var user = Database.instance.users.getUser(userId)
 		?: return null
 	val tokenInfo = AppTokenInfo.find(userId, token)
 		?: return null

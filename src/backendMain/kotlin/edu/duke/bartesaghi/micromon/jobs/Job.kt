@@ -156,7 +156,7 @@ abstract class Job(
 		}
 
 		// create the job
-		val (id, number) = Database.jobs.create(userId, projectId) {
+		val (id, number) = Database.instance.jobs.create(userId, projectId) {
 			createDoc(this)
 		}
 		this.id = id
@@ -164,7 +164,7 @@ abstract class Job(
 
 		// set the name
 		name = baseConfig.name
-		Database.jobs.update(id, set("name", name))
+		Database.instance.jobs.update(id, set("name", name))
 
 		createFolder()
 		if (baseConfig.hasFiles) {
@@ -173,7 +173,7 @@ abstract class Job(
 	}
 
 	fun update() {
-		Database.jobs.update(idOrThrow, ArrayList<Bson>().apply {
+		Database.instance.jobs.update(idOrThrow, ArrayList<Bson>().apply {
 			updateDoc(this)
 		})
 	}
@@ -190,8 +190,8 @@ abstract class Job(
 			?.deleteJobRuns(idOrThrow)
 
 		// delete the job from the database
-		Database.jobs.delete(id)
-		Database.projects.update(userId, projectId,
+		Database.instance.jobs.delete(id)
+		Database.instance.projects.update(userId, projectId,
 			pull("jobIds", id)
 		)
 
@@ -307,7 +307,7 @@ abstract class Job(
 		null
 
 	fun pypParameters(): ArgValues? =
-		Database.parameters.getParams(idOrThrow)
+		Database.instance.parameters.getParams(idOrThrow)
 
 	fun pypParametersOrThrow(): ArgValues =
 		pypParameters()
@@ -331,7 +331,7 @@ abstract class Job(
 	fun manualParticlesList(chosenListName: String? = null): ParticlesList? {
 
 		// get all the particle lists
-		val lists = Database.particleLists.getAll(idOrThrow)
+		val lists = Database.instance.particleLists.getAll(idOrThrow)
 
 		// if no manual lists exists, there's nothing to return
 		val manualLists = lists
@@ -378,7 +378,7 @@ abstract class Job(
 		private val log = LoggerFactory.getLogger("Job")
 
 		fun fromId(jobId: String): Job? {
-			val doc = Database.jobs.get(jobId) ?: return null
+			val doc = Database.instance.jobs.get(jobId) ?: return null
 			return fromDoc(doc)
 		}
 
@@ -386,7 +386,7 @@ abstract class Job(
 			fromId(jobId) ?: throw NoSuchElementException("no job with id=$jobId")
 
 		fun allFromProject(userId: String, projectId: String): List<Job> =
-			Database.jobs.getAllInProject(userId, projectId) { docs ->
+			Database.instance.jobs.getAllInProject(userId, projectId) { docs ->
 				docs
 					// just ignore jobs we can't recognize (like jobs in the database whose code has been deleted)
 					.filter { configFromDoc(it) != null }
@@ -418,14 +418,14 @@ abstract class Job(
 		}
 
 		fun savePosition(jobId: String, x: Double, y: Double) {
-			Database.jobs.update(jobId,
+			Database.instance.jobs.update(jobId,
 				set("x", x),
 				set("y", y)
 			)
 		}
 
 		fun saveName(jobId: String, name: String) {
-			Database.jobs.update(jobId,
+			Database.instance.jobs.update(jobId,
 				set("name", name)
 			)
 		}

@@ -82,7 +82,7 @@ object ParticlesJobs {
 				Micrograph.getAllAsync(job.idOrThrow) { cursor ->
 					for (micrograph in cursor) {
 
-						val particlesUntyped = Database.particles.getParticles2D(job.idOrThrow, particlesList.name, micrograph.micrographId)
+						val particlesUntyped = Database.instance.particles.getParticles2D(job.idOrThrow, particlesList.name, micrograph.micrographId)
 							?.takeIf { it.isNotEmpty() }
 							?: continue
 
@@ -137,12 +137,12 @@ object ParticlesJobs {
 					TiltSeries.getAllAsync(job.idOrThrow) { cursor ->
 						for (tiltSeries in cursor) {
 
-							val particlesUntyped = Database.particles.getParticles3D(job.idOrThrow, particlesList.name, tiltSeries.tiltSeriesId)
+							val particlesUntyped = Database.instance.particles.getParticles3D(job.idOrThrow, particlesList.name, tiltSeries.tiltSeriesId)
 								?.takeIf { it.isNotEmpty() }
 								?: continue
 
 							val particles = particlesUntyped.toUnbinned3D(job, particlesList)
-							val thresholds = Database.particles.getThresholds(job.idOrThrow, particlesList.name, tiltSeries.tiltSeriesId)
+							val thresholds = Database.instance.particles.getThresholds(job.idOrThrow, particlesList.name, tiltSeries.tiltSeriesId)
 								?: HashMap()
 
 							writerImages.write("${tiltSeries.tiltSeriesId}\t$dir/mrc/${tiltSeries.tiltSeriesId}.rec\n")

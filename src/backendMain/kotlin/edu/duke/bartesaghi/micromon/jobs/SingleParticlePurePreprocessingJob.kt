@@ -69,7 +69,7 @@ class SingleParticlePurePreprocessingJob(
 			commonData(),
 			args,
 			diagramImageURL(),
-			Database.micrographs.count(idOrThrow)
+			Database.instance.micrographs.count(idOrThrow)
 		)
 
 	override suspend fun launch(runId: Int) {
@@ -115,9 +115,9 @@ class SingleParticlePurePreprocessingJob(
 	override fun wipeData() {
 
 		// also delete any associated data
-		Database.micrographs.deleteAll(idOrThrow)
-		Database.micrographsAvgRot.deleteAll(idOrThrow)
-		Database.jobPreprocessingFilters.deleteAll(idOrThrow)
+		Database.instance.micrographs.deleteAll(idOrThrow)
+		Database.instance.micrographsAvgRot.deleteAll(idOrThrow)
+		Database.instance.jobPreprocessingFilters.deleteAll(idOrThrow)
 
 		// also reset the finished args
 		args.unrun()

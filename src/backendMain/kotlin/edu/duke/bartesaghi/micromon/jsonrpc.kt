@@ -57,7 +57,7 @@ object JsonRpc {
 	private fun getOrMakeToken(): String {
 
 		// check the database for an existing token
-		val token = Database.settings.get("JsonRpc")?.getString("token")
+		val token = Database.instance.settings.get("JsonRpc")?.getString("token")
 		if (token != null) {
 			return token
 		}
@@ -68,7 +68,7 @@ object JsonRpc {
 		val newToken = bytes.base62Encode()
 
 		// update the database
-		Database.settings.set("JsonRpc", Document().apply {
+		Database.instance.settings.set("JsonRpc", Document().apply {
 			set("token", newToken)
 		})
 

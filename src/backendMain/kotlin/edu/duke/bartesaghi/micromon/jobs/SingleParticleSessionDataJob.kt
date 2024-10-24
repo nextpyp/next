@@ -68,8 +68,8 @@ class SingleParticleSessionDataJob(
 			commonData(),
 			args,
 			diagramImageURL(),
-			Database.micrographs.count(idOrThrow),
-			Database.particles.countAllParticles(idOrThrow, ParticlesList.AutoParticles)
+			Database.instance.micrographs.count(idOrThrow),
+			Database.instance.particles.countAllParticles(idOrThrow, ParticlesList.AutoParticles)
 		)
 
 	override suspend fun launch(runId: Int) {
@@ -82,7 +82,7 @@ class SingleParticleSessionDataJob(
 		val newestArgs = args.newestOrThrow().args
 
 		// authenticate the user for the session
-		val user = Database.users.getUser(userId)
+		val user = Database.instance.users.getUser(userId)
 			?: throw NoSuchElementException("no logged in user")
 		val session = user.authSessionForReadOrThrow(newestArgs.sessionId)
 

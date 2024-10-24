@@ -112,7 +112,7 @@ object DebugService {
 					}
 				}
 
-				Database.cluster.launches.update(sbatchId,
+				Database.instance.cluster.launches.update(sbatchId,
 					set("commands", CommandsGrid(commands).toDoc())
 				)
 
@@ -132,12 +132,12 @@ object DebugService {
 
 				val p = Profiler()
 				p.time("docs count") {
-					Database.micrographs.getAll(jobId) {
+					Database.instance.micrographs.getAll(jobId) {
 						it.count()
 					}
 				}
 				val data = p.time("getAll") {
-					Database.micrographs.getAll(jobId) { cursor ->
+					Database.instance.micrographs.getAll(jobId) { cursor ->
 						cursor
 							.map {
 								p.time("micrograph") {
@@ -497,7 +497,7 @@ object DebugService {
 
 			val micrographId = "synthetic_$i"
 
-			Database.micrographs.write(ownerId, micrographId) {
+			Database.instance.micrographs.write(ownerId, micrographId) {
 				set("jobId", ownerId)
 				set("micrographId", micrographId)
 				set("timestamp", Instant.now().toEpochMilli())
@@ -522,7 +522,7 @@ object DebugService {
 
 			val tiltSeriesId = "synthetic_$i"
 
-			Database.tiltSeries.write(ownerId, tiltSeriesId) {
+			Database.instance.tiltSeries.write(ownerId, tiltSeriesId) {
 				set("jobId", ownerId)
 				set("tiltSeriesId", tiltSeriesId)
 				set("timestamp", Instant.now().toEpochMilli())
@@ -1162,7 +1162,7 @@ object DebugService {
 			val micrographId = "synthetic_$i"
 
 			p.time("write") {
-				Database.micrographs.write(job.idOrThrow, micrographId) {
+				Database.instance.micrographs.write(job.idOrThrow, micrographId) {
 					p.time("doc") {
 						set("jobId", job.idOrThrow)
 						set("micrographId", micrographId)

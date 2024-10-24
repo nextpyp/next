@@ -20,7 +20,7 @@ import java.util.*
  */
 class JobRunner(val project: Project) {
 
-	constructor (userId: String, projectId: String) : this(Database.projects.getProjectOrThrow(userId, projectId))
+	constructor (userId: String, projectId: String) : this(Database.instance.projects.getProjectOrThrow(userId, projectId))
 
 	private fun isRunning(): Boolean =
 		project.getRuns()

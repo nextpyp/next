@@ -18,11 +18,11 @@ class Reconstruction(doc: Document) {
     companion object {
 
         fun get(jobId: String, reconstructionId: String): Reconstruction? =
-            Database.reconstructions.get(jobId, reconstructionId)
+            Database.instance.reconstructions.get(jobId, reconstructionId)
                 ?.let { Reconstruction(it) }
 
         fun <R> getAll(jobId: String, block: (Sequence<Reconstruction>) -> R): R =
-            Database.reconstructions.getAll(jobId) {
+            Database.instance.reconstructions.getAll(jobId) {
                 block(it.map { innerIt -> Reconstruction(innerIt) })
             }
 

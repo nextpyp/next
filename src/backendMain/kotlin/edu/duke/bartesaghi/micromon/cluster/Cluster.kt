@@ -112,7 +112,7 @@ interface Cluster {
 				?: return
 
 			// we'll never get any future events about this job, so end it now
-			Database.cluster.log.update(clusterJobId, null,
+			Database.instance.cluster.log.update(clusterJobId, null,
 				push("history", ClusterJob.HistoryEntry(ClusterJob.Status.Ended).toDBList()),
 
 				// also record error information, wherever we can get it
@@ -167,7 +167,7 @@ interface Cluster {
 			}
 
 			// init the log
-			Database.cluster.log.create(clusterJobId) {
+			Database.instance.cluster.log.create(clusterJobId) {
 				ClusterJob.Log.initDoc(this, ClusterJob.HistoryEntry(ClusterJob.Status.Submitted))
 			}
 
@@ -192,7 +192,7 @@ interface Cluster {
 						.split('_')
 						.let { it[0] to it.getOrNull(1) }
 
-					val launchId = Database.cluster.log.get(depIdJob)
+					val launchId = Database.instance.cluster.log.get(depIdJob)
 						?.let { ClusterJob.Log.fromDoc(it) }
 						?.launchResult
 						?.jobId
@@ -248,7 +248,7 @@ interface Cluster {
 				?: return null
 
 			// launch succeeded, update the database with the launch result
-			Database.cluster.log.update(clusterJobId, null,
+			Database.instance.cluster.log.update(clusterJobId, null,
 				push("history", ClusterJob.HistoryEntry(ClusterJob.Status.Launched).toDBList()),
 				set("sbatch", launchResult.toDoc())
 			)
@@ -269,7 +269,7 @@ interface Cluster {
 
 			// update array progress, if needed
 			if (arrayId != null) {
-				Database.cluster.log.update(clusterJobId, null,
+				Database.instance.cluster.log.update(clusterJobId, null,
 					Updates.inc("arrayProgress.started", 1)
 				)
 			}
@@ -318,7 +318,7 @@ interface Cluster {
 			clusterJob.pushHistory(ClusterJob.Status.Ended, arrayId)
 
 			// save the result to the database
-			Database.cluster.log.update(clusterJobId, arrayId,
+			Database.instance.cluster.log.update(clusterJobId, arrayId,
 				set("result", result.toDoc())
 			)
 
@@ -337,7 +337,7 @@ interface Cluster {
 					ClusterJobResultType.Failure -> updates.add(Updates.inc("arrayProgress.failed", 1))
 					ClusterJobResultType.Canceled -> updates.add(Updates.inc("arrayProgress.canceled", 1))
 				}
-				Database.cluster.log.update(clusterJobId, null, updates)
+				Database.instance.cluster.log.update(clusterJobId, null, updates)
 			}
 
 			// is the job all ended?

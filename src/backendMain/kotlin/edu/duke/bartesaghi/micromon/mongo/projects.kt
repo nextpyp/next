@@ -92,7 +92,7 @@ class Projects(db: MongoDatabase) {
 		).useCursor(block)
 
 	fun <R> getAllReadableBy(userId: String, block: (Sequence<Document>) -> R): R =
-		Database.projectReaders.get(userId)
+		Database.instance.projectReaders.get(userId)
 			.asSequence()
 			.mapNotNull { collection.find(Filters.eq("_id", it)).firstOrNull() }
 			.let { block(it) }
@@ -162,7 +162,7 @@ class ProjectReaders(db: MongoDatabase) {
 
 fun User.authProjectOrThrow(permission: ProjectPermission, userId: String, projectId: String): Project {
 
-	val project = Database.projects.getProject(userId, projectId)
+	val project = Database.instance.projects.getProject(userId, projectId)
 		?: throw ServiceException("project not found")
 
 	return if (permission in permissions(project)) {

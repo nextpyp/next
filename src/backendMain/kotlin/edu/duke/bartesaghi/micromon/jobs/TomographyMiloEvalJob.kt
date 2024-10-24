@@ -68,7 +68,7 @@ class TomographyMiloEvalJob(
 			args,
 			diagramImageURL(),
 			args.finished
-				?.let { Database.particles.countAllParticles(idOrThrow, ParticlesList.AutoParticles) }
+				?.let { Database.instance.particles.countAllParticles(idOrThrow, ParticlesList.AutoParticles) }
 				?: 0
 		)
 
@@ -107,8 +107,8 @@ class TomographyMiloEvalJob(
 
 	override fun wipeData() {
 
-		Database.particles.deleteAllParticles(idOrThrow)
-		Database.particleLists.deleteAll(idOrThrow)
+		Database.instance.particles.deleteAllParticles(idOrThrow)
+		Database.instance.particleLists.deleteAll(idOrThrow)
 
 		// also reset the finished args
 		args.unrun()

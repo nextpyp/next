@@ -9,7 +9,7 @@ import kotlin.io.path.div
 /** returns the user's name, or a default string if the user was not found */
 fun User.Companion.lookupName(id: String, default: String = "???"): String =
 	when {
-		Backend.config.web.auth.hasUsers -> Database.users.getUser(id)?.name ?: default
+		Backend.config.web.auth.hasUsers -> Database.instance.users.getUser(id)?.name ?: default
 		id == NoAuthId -> NoAuthName
 		else -> default
 	}
@@ -35,7 +35,7 @@ fun User.authUserOrThrow(userId: String): User {
 
 	// and admins are too
 	if (isAdmin) {
-		return Database.users.getUser(userId)
+		return Database.instance.users.getUser(userId)
 			?: throw ServiceException("user not found")
 	}
 

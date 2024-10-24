@@ -72,8 +72,8 @@ class TomographySessionDataJob(
 			commonData(),
 			args,
 			diagramImageURL(),
-			Database.tiltSeries.count(idOrThrow),
-			Database.particles.countAllParticles(idOrThrow, ParticlesList.AutoParticles)
+			Database.instance.tiltSeries.count(idOrThrow),
+			Database.instance.particles.countAllParticles(idOrThrow, ParticlesList.AutoParticles)
 		)
 
 	override suspend fun launch(runId: Int) {
@@ -86,7 +86,7 @@ class TomographySessionDataJob(
 		val newestArgs = args.newestOrThrow().args
 
 		// authenticate the user for the session
-		val user = Database.users.getUser(userId)
+		val user = Database.instance.users.getUser(userId)
 			?: throw NoSuchElementException("no logged in user")
 		val session = user.authSessionForReadOrThrow(newestArgs.sessionId)
 
@@ -123,13 +123,13 @@ class TomographySessionDataJob(
 	override fun wipeData() {
 
 		// also delete any associated data
-		Database.tiltSeries.deleteAll(idOrThrow)
-		Database.tiltSeriesAvgRot.deleteAll(idOrThrow)
-		Database.tiltSeriesDriftMetadata.deleteAll(idOrThrow)
-		Database.jobPreprocessingFilters.deleteAll(idOrThrow)
-		Database.particleLists.deleteAll(idOrThrow)
-		Database.particles.deleteAllParticles(idOrThrow)
-		Database.tiltExclusions.delete(idOrThrow)
+		Database.instance.tiltSeries.deleteAll(idOrThrow)
+		Database.instance.tiltSeriesAvgRot.deleteAll(idOrThrow)
+		Database.instance.tiltSeriesDriftMetadata.deleteAll(idOrThrow)
+		Database.instance.jobPreprocessingFilters.deleteAll(idOrThrow)
+		Database.instance.particleLists.deleteAll(idOrThrow)
+		Database.instance.particles.deleteAllParticles(idOrThrow)
+		Database.instance.tiltExclusions.delete(idOrThrow)
 
 		// also reset the finished args
 		args.unrun()

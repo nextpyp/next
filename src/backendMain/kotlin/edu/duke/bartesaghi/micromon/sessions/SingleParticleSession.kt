@@ -80,7 +80,7 @@ class SingleParticleSession(
 		args.newestOrThrow().args.values.toArgValues(Backend.pypArgs)
 
 	override fun data(user: User?): SingleParticleSessionData {
-		val (numMicrographs, numFrames) = Database.micrographs.counts(idOrThrow)
+		val (numMicrographs, numFrames) = Database.instance.micrographs.counts(idOrThrow)
 		return SingleParticleSessionData(
 			userId,
 			idOrThrow,
@@ -90,7 +90,7 @@ class SingleParticleSession(
 			dir.toString(),
 			args,
 			args.map { args ->
-				val group = Database.groups.get(args.groupId)
+				val group = Database.instance.groups.get(args.groupId)
 				SingleParticleSessionDisplay(
 					groupName = group?.name ?: "(unknown group)"
 				)
@@ -177,7 +177,7 @@ class SingleParticleSession(
 	}
 
 	override fun resolveFilter(filter: PreprocessingFilter): List<String> =
-		Database.micrographs.getAll(idOrThrow) { cursor ->
+		Database.instance.micrographs.getAll(idOrThrow) { cursor ->
 			cursor
 				.map { Micrograph(it) }
 				.filter { it.isInRanges(filter) && it.micrographId !in filter.excludedIds }

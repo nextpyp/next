@@ -37,9 +37,9 @@ actual class TomographyPickingService : ITomographyPickingService, Service {
 
 			// copy particles to manual, if requested
 			if (copyArgs.copyParticlesToManual) {
-				Database.particleLists.deleteAll(job.idOrThrow)
-				Database.particleLists.createIfNeeded(ParticlesList.manualParticles3D(job.idOrThrow))
-				Database.particles.renameAll(job.idOrThrow, ParticlesList.AutoParticles, ParticlesList.ManualParticles)
+				Database.instance.particleLists.deleteAll(job.idOrThrow)
+				Database.instance.particleLists.createIfNeeded(ParticlesList.manualParticles3D(job.idOrThrow))
+				Database.instance.particles.renameAll(job.idOrThrow, ParticlesList.AutoParticles, ParticlesList.ManualParticles)
 			}
 		}
 

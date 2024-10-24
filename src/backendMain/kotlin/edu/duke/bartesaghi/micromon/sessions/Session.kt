@@ -62,7 +62,7 @@ sealed class Session(
 		}
 
 		fun fromId(sessionId: String): Session? {
-			val doc = Database.sessions.get(sessionId) ?: return null
+			val doc = Database.instance.sessions.get(sessionId) ?: return null
 			return fromDoc(doc)
 		}
 
@@ -125,7 +125,7 @@ sealed class Session(
 		created = Instant.now()
 
 		// create the session
-		val (id, number) = Database.sessions.create {
+		val (id, number) = Database.instance.sessions.create {
 			createDoc(this)
 		}
 		this.id = id
@@ -134,7 +134,7 @@ sealed class Session(
 		// create the session folder, if needed
 		dir.createDirsIfNeeded()
 		wwwDir.createIfNeeded()
-		LinkTree.sessionCreated(this, Database.groups.getOrThrow(newestArgs().groupId))
+		LinkTree.sessionCreated(this, Database.instance.groups.getOrThrow(newestArgs().groupId))
 	}
 
 	fun update() {
@@ -142,16 +142,16 @@ sealed class Session(
 		// get the old session from the database before changing it
 		val oldArgs = fromIdOrThrow(idOrThrow).newestArgs()
 
-		Database.sessions.update(idOrThrow, ArrayList<Bson>().apply {
+		Database.instance.sessions.update(idOrThrow, ArrayList<Bson>().apply {
 			updateDoc(this)
 		})
 
 		// look for changes to the group or name
 		val newArgs = newestArgs()
 		if (oldArgs.groupId != newArgs.groupId || oldArgs.name != newArgs.name) {
-			val oldGroup = Database.groups.get(oldArgs.groupId)
+			val oldGroup = Database.instance.groups.get(oldArgs.groupId)
 			// NOTE: the old group may have been deleted
-			val newGroup = Database.groups.getOrThrow(newArgs.groupId)
+			val newGroup = Database.instance.groups.getOrThrow(newArgs.groupId)
 			LinkTree.sessionEdited(oldGroup, oldArgs.name, this, newGroup)
 		}
 	}
@@ -161,11 +161,11 @@ sealed class Session(
 		val id = id ?: throw IllegalStateException("session has no id")
 
 		// delete the session from the database
-		Database.sessions.delete(id)
+		Database.instance.sessions.delete(id)
 
 		// delete any folders/files associated with the session
 		dir.deleteDirRecursively()
-		LinkTree.sessionDeleted(this, Database.groups.getOrThrow(newestArgs().groupId))
+		LinkTree.sessionDeleted(this, Database.instance.groups.getOrThrow(newestArgs().groupId))
 
 		this.id = null
 	}
@@ -267,7 +267,7 @@ sealed class Session(
 		}
 
 		// delete any 2D classes associated with the session
-		Database.twoDClasses.deleteAll(idOrThrow)
+		Database.instance.twoDClasses.deleteAll(idOrThrow)
 
 		writeSignalFile(daemon, "clear", params = true)
 	}
@@ -325,7 +325,7 @@ sealed class Session(
 	}
 
 	fun pypParameters(): ArgValues? =
-		Database.parameters.getParams(idOrThrow)
+		Database.instance.parameters.getParams(idOrThrow)
 
 	fun pypParametersOrThrow(): ArgValues =
 		pypParameters()
@@ -348,7 +348,7 @@ sealed class Session(
 }
 
 fun SessionArgs.pypNames(): Session.PypNames? {
-	val group = Database.groups.get(groupId)
+	val group = Database.instance.groups.get(groupId)
 		?: return null
 	return Session.PypNames(
 		group = group.name.toSafeFileName(group.idOrThrow),
@@ -362,7 +362,7 @@ fun SessionArgs.pypNamesOrThrow(): Session.PypNames =
 
 fun User.authSessionForWriteOrThrow(sessionId: String): Session {
 	authPermissionOrThrow(User.Permission.EditSession)
-	val doc = Database.sessions.get(sessionId)
+	val doc = Database.instance.sessions.get(sessionId)
 		?: throw AuthException("no session with that id").withInternal("sessionId = $sessionId")
 	return Session.fromDoc(doc)
 }
@@ -370,7 +370,7 @@ fun User.authSessionForWriteOrThrow(sessionId: String): Session {
 fun User.authSessionForReadOrThrow(sessionId: String): Session {
 
 	// get the session
-	val doc = Database.sessions.get(sessionId)
+	val doc = Database.instance.sessions.get(sessionId)
 		?: throw AuthException("no session with that id").withInternal("sessionId = $sessionId")
 	val session = Session.fromDoc(doc)
 

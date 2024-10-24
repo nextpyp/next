@@ -103,8 +103,8 @@ class TomographyMiloTrainJob(
 
 	override fun wipeData() {
 
-		Database.particles.deleteAllParticles(idOrThrow)
-		Database.particleLists.deleteAll(idOrThrow)
+		Database.instance.particles.deleteAllParticles(idOrThrow)
+		Database.instance.particleLists.deleteAll(idOrThrow)
 
 		// also reset the finished args
 		args.unrun()

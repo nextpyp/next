@@ -52,7 +52,7 @@ actual class AdminService : IAdminService {
 
 		// don't need to authenticate for this one
 		return AdminInfo(
-			needsBootstrap = Backend.config.web.auth.hasUsers && Database.users.countUsers() <= 0,
+			needsBootstrap = Backend.config.web.auth.hasUsers && Database.instance.users.countUsers() <= 0,
 			adminLoggedIn = user?.isAdmin ?: false,
 			demoLoggedIn = user?.isDemo ?: false,
 			authType = Backend.config.web.auth,
@@ -66,7 +66,7 @@ actual class AdminService : IAdminService {
 		// authenticate the user as an admin
 		call.authOrThrow().adminOrThrow()
 
-		return Database.users.getAllUsers()
+		return Database.instance.users.getAllUsers()
 	}
 
 	override suspend fun createUser(user: User) = sanitizeExceptions {
@@ -76,12 +76,12 @@ actual class AdminService : IAdminService {
 		usersOnOrThrow(butAllowIfDev = true)
 
 		// don't create duplicate users
-		val oldUser = Database.users.getUser(user.id)
+		val oldUser = Database.instance.users.getUser(user.id)
 		if (oldUser != null) {
 			throw ServiceException("User already exists")
 		}
 
-		Database.users.create(user)
+		Database.instance.users.create(user)
 	}
 
 	override suspend fun editUser(user: User) = sanitizeExceptions {
@@ -96,7 +96,7 @@ actual class AdminService : IAdminService {
 			throw ServiceException("can't de-admin yourself")
 		}
 
-		Database.users.edit(user)
+		Database.instance.users.edit(user)
 	}
 
 	override suspend fun deleteUser(userId: String) = sanitizeExceptions {
@@ -111,7 +111,7 @@ actual class AdminService : IAdminService {
 			throw ServiceException("can't delete yourself")
 		}
 
-		Database.users.delete(userId)
+		Database.instance.users.delete(userId)
 	}
 
 	override suspend fun deleteUserPassword(userId: String) = sanitizeExceptions {
@@ -126,7 +126,7 @@ actual class AdminService : IAdminService {
 			throw ServiceException("can't delete your own password")
 		}
 
-		Database.users.removePasswordHash(userId)
+		Database.instance.users.removePasswordHash(userId)
 	}
 
 	override suspend fun generateLoginLink(userId: String): String = sanitizeExceptions {
@@ -176,7 +176,7 @@ actual class AdminService : IAdminService {
 		// authenticate the user as an admin
 		call.authOrThrow().adminOrThrow()
 
-		return Database.groups.getAll()
+		return Database.instance.groups.getAll()
 	}
 
 	override suspend fun createGroup(group: Group): Group = sanitizeExceptions {
@@ -184,7 +184,7 @@ actual class AdminService : IAdminService {
 		// authenticate the user as an admin
 		call.authOrThrow().adminOrThrow()
 
-		return Database.groups.create(group)
+		return Database.instance.groups.create(group)
 	}
 
 	override suspend fun editGroup(group: Group) = sanitizeExceptions {
@@ -195,10 +195,10 @@ actual class AdminService : IAdminService {
 		// make sure the group exists
 		val groupId = group.id
 			?: return
-		val oldGroup = Database.groups.get(groupId)
+		val oldGroup = Database.instance.groups.get(groupId)
 			?: return
 
-		Database.groups.edit(group)
+		Database.instance.groups.edit(group)
 
 		// look for name changes
 		if (oldGroup.name != group.name) {
@@ -211,10 +211,10 @@ actual class AdminService : IAdminService {
 		// authenticate the user as an admin
 		call.authOrThrow().adminOrThrow()
 
-		val group = Database.groups.get(groupId)
+		val group = Database.instance.groups.get(groupId)
 			?: return
 
-		Database.groups.delete(groupId)
+		Database.instance.groups.delete(groupId)
 
 		LinkTree.groupDeleted(group)
 	}
@@ -237,7 +237,7 @@ actual class AdminService : IAdminService {
 		call.authOrThrow().adminOrThrow()
 
 		// get all the projects currently running
-		val projects = Database.projects.getAllRunningOrWaiting { docs ->
+		val projects = Database.instance.projects.getAllRunningOrWaiting { docs ->
 			docs
 				.map { Project(it) }
 				.toList()

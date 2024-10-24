@@ -197,7 +197,7 @@ object PypService {
 		}
 
 		// update the database
-		Database.parameters.writeParams(owner.id, values)
+		Database.instance.parameters.writeParams(owner.id, values)
 
 		// notify any listening clients
 		when (owner) {
@@ -276,7 +276,7 @@ object PypService {
 
 		// update the database
 		val micrographId = params.getStringOrThrow("micrograph_id")
-		Database.micrographs.write(owner.id, micrographId) {
+		Database.instance.micrographs.write(owner.id, micrographId) {
 			set("jobId", owner.id)
 			set("micrographId", micrographId)
 			set("timestamp", Instant.now().toEpochMilli())
@@ -284,12 +284,12 @@ object PypService {
 			set("ctf", ctf.toDoc())
 			set("xf", xf.toDoc())
 		}
-		Database.micrographsAvgRot.write(owner.id, micrographId, avgrot)
+		Database.instance.micrographsAvgRot.write(owner.id, micrographId, avgrot)
 
 		if (particles != null) {
 			val list = ParticlesList.autoParticles2D(owner.id)
-			Database.particleLists.createIfNeeded(list)
-			Database.particles.importParticles2D(list.ownerId, list.name, micrographId, particles)
+			Database.instance.particleLists.createIfNeeded(list)
+			Database.instance.particles.importParticles2D(list.ownerId, list.name, micrographId, particles)
 		}
 
 		log.debug("writeMicrograph: {}: id={}, particles={}", owner, micrographId, particles?.size?.toString() ?: "none")
@@ -303,7 +303,7 @@ object PypService {
 					is MicrographsJob -> {
 
 						val isFirstMicrograph = job.latestMicrographId == null
-						Database.jobs.update(owner.id,
+						Database.instance.jobs.update(owner.id,
 							set("latestMicrographId", micrographId)
 						)
 						job.latestMicrographId = micrographId
@@ -346,7 +346,7 @@ object PypService {
 		val metadata = ReconstructionMetaData.fromJson(params.getObjectOrThrow("metadata"))
 		val plots = ReconstructionPlots.fromJson(params.getObjectOrThrow("plots"))
 
-		Database.reconstructions.write(owner.id, reconstructionId) {
+		Database.instance.reconstructions.write(owner.id, reconstructionId) {
 			set("jobId", owner.id)
 			set("reconstructionId", reconstructionId)
 			set("timestamp", Instant.now().toEpochMilli())
@@ -367,7 +367,7 @@ object PypService {
 				val formatter = NumberFormat.getIntegerInstance(Locale.US)
 				val particlesUsed = formatter.format(metadata.particlesUsed.toInt())
 				val particlesTotal = formatter.format(metadata.particlesTotal.toInt())
-				Database.jobs.update(owner.id,
+				Database.instance.jobs.update(owner.id,
 					set("latestReconstructionId", reconstructionId),
 					// TODO: we should store structured data in the database, and do presentation formatting in the UI
 					set("jobInfoString", "Iteration $iteration: $particlesUsed from $particlesTotal projections")
@@ -449,7 +449,7 @@ object PypService {
 
 		// update the database
 		val tiltSeriesId = params.getStringOrThrow("tiltseries_id")
-		Database.tiltSeries.write(owner.id, tiltSeriesId) {
+		Database.instance.tiltSeries.write(owner.id, tiltSeriesId) {
 			set("jobId", owner.id)
 			set("tiltSeriesId", tiltSeriesId)
 			set("timestamp", Instant.now().toEpochMilli())
@@ -458,21 +458,21 @@ object PypService {
 			ctf?.let { set("ctf", it.toDoc()) }
 			xf?.let { set("xf", it.toDoc()) }
 		}
-		avgrot?.let { Database.tiltSeriesAvgRot.write(owner.id, tiltSeriesId, it) }
-		dmd?.let { Database.tiltSeriesDriftMetadata.write(owner.id, tiltSeriesId, it) }
+		avgrot?.let { Database.instance.tiltSeriesAvgRot.write(owner.id, tiltSeriesId, it) }
+		dmd?.let { Database.instance.tiltSeriesDriftMetadata.write(owner.id, tiltSeriesId, it) }
 
 		virionsAndThresholds?.let { (virions, thresholds) ->
 			val list = ParticlesList.autoVirions(owner.id)
-			Database.particleLists.createIfNeeded(list)
-			Database.particles.importParticles3D(list.ownerId, list.name, tiltSeriesId, virions)
-			Database.particles.importThresholds(list.ownerId, list.name, tiltSeriesId, thresholds)
+			Database.instance.particleLists.createIfNeeded(list)
+			Database.instance.particles.importParticles3D(list.ownerId, list.name, tiltSeriesId, virions)
+			Database.instance.particles.importThresholds(list.ownerId, list.name, tiltSeriesId, thresholds)
 		}
 		if (particles != null) {
 			val list = ParticlesList.autoParticles3D(owner.id)
-			Database.particleLists.createIfNeeded(list)
-			Database.particles.importParticles3D(list.ownerId, list.name, tiltSeriesId, particles)
+			Database.instance.particleLists.createIfNeeded(list)
+			Database.instance.particles.importParticles3D(list.ownerId, list.name, tiltSeriesId, particles)
 			if (particleThresholds != null) {
-				Database.particles.importThresholds(list.ownerId, list.name, tiltSeriesId, particleThresholds)
+				Database.instance.particles.importThresholds(list.ownerId, list.name, tiltSeriesId, particleThresholds)
 			}
 		}
 
@@ -494,7 +494,7 @@ object PypService {
 
 						// update the latest tilt series
 						val isFirstTiltSeries = job.latestTiltSeriesId == null
-						Database.jobs.update(owner.id,
+						Database.instance.jobs.update(owner.id,
 							set("latestTiltSeriesId", tiltSeriesId)
 						)
 						job.latestTiltSeriesId = tiltSeriesId
@@ -551,7 +551,7 @@ object PypService {
 			is Owner.Job -> {
 
 				// clean up old iterations, if needed
-				val mostRecentIteration = Database.jobs.get(refinement.jobId)
+				val mostRecentIteration = Database.instance.jobs.get(refinement.jobId)
 					?.getInteger("latestRefinementIteration")
 				if (mostRecentIteration != null && refinement.iteration != mostRecentIteration) {
 					Refinement.deleteAllNotIteration(refinement.jobId, refinement.iteration)
@@ -559,7 +559,7 @@ object PypService {
 
 				// record the latest iteration, if it's newer
 				if (mostRecentIteration == null || refinement.iteration != mostRecentIteration) {
-					Database.jobs.update(refinement.jobId,
+					Database.instance.jobs.update(refinement.jobId,
 						set("latestRefinementIteration", refinement.iteration)
 					)
 				}
@@ -604,7 +604,7 @@ object PypService {
 			is Owner.Job -> {
 
 				// clean up old iterations, if needed
-				val mostRecentIteration = Database.jobs.get(refinementBundle.jobId)
+				val mostRecentIteration = Database.instance.jobs.get(refinementBundle.jobId)
 					?.getInteger("latestRefinementBundleIteration")
 				if (mostRecentIteration != null && refinementBundle.iteration != mostRecentIteration) {
 					RefinementBundle.deleteAllNotIteration(refinementBundle.jobId, refinementBundle.iteration)
@@ -612,7 +612,7 @@ object PypService {
 
 				// record the latest iteration, if it's newer
 				if (mostRecentIteration == null || refinementBundle.iteration != mostRecentIteration) {
-					Database.jobs.update(refinementBundle.jobId,
+					Database.instance.jobs.update(refinementBundle.jobId,
 						set("latestRefinementBundleIteration", refinementBundle.iteration)
 					)
 				}

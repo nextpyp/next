@@ -88,13 +88,13 @@ class TomographySession(
 		dir.toString(),
 		args,
 		args.map { args ->
-			val group = Database.groups.get(args.groupId)
+			val group = Database.instance.groups.get(args.groupId)
 			TomographySessionDisplay(
 				groupName = group?.name ?: "(unknown group)"
 			)
 		},
-		numTiltSeries = Database.tiltSeries.count(idOrThrow),
-		numTilts = Database.tiltSeriesDriftMetadata.countTilts(idOrThrow)
+		numTiltSeries = Database.instance.tiltSeries.count(idOrThrow),
+		numTilts = Database.instance.tiltSeriesDriftMetadata.countTilts(idOrThrow)
 	)
 
 	override fun createDoc(doc: Document) {
@@ -174,7 +174,7 @@ class TomographySession(
 	}
 
 	override fun resolveFilter(filter: PreprocessingFilter): List<String> =
-		Database.tiltSeries.getAll(idOrThrow) { cursor ->
+		Database.instance.tiltSeries.getAll(idOrThrow) { cursor ->
 			cursor
 				.map { TiltSeries(it) }
 				.filter { it.isInRanges(filter) && it.tiltSeriesId !in filter.excludedIds }

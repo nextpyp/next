@@ -73,7 +73,7 @@ class TomographyPickingJob(
 			diagramImageURL(),
 			args.finished
 				?.particlesList(args(), idOrThrow)
-				?.let { Database.particles.countAllParticles(idOrThrow, it.name) }
+				?.let { Database.instance.particles.countAllParticles(idOrThrow, it.name) }
 				?: 0
 		)
 
@@ -130,10 +130,10 @@ class TomographyPickingJob(
 	override fun wipeData() {
 
 		// also delete any associated data
-		Database.tiltSeries.deleteAll(idOrThrow)
-		Database.particleLists.deleteAll(idOrThrow)
-		Database.particles.deleteAllParticles(idOrThrow)
-		Database.parameters.delete(idOrThrow)
+		Database.instance.tiltSeries.deleteAll(idOrThrow)
+		Database.instance.particleLists.deleteAll(idOrThrow)
+		Database.instance.particles.deleteAllParticles(idOrThrow)
+		Database.instance.parameters.delete(idOrThrow)
 
 		// also reset the finished args
 		args.unrun()
@@ -143,10 +143,10 @@ class TomographyPickingJob(
 
 	override fun copyDataFrom(otherJobId: String) {
 
-		Database.tiltSeries.copyAll(otherJobId, idOrThrow)
-		Database.particleLists.copyAll(otherJobId, idOrThrow)
-		Database.particles.copyAllParticles(otherJobId, idOrThrow)
-		Database.parameters.copy(otherJobId, idOrThrow)
+		Database.instance.tiltSeries.copyAll(otherJobId, idOrThrow)
+		Database.instance.particleLists.copyAll(otherJobId, idOrThrow)
+		Database.instance.particles.copyAllParticles(otherJobId, idOrThrow)
+		Database.instance.parameters.copy(otherJobId, idOrThrow)
 
 		latestTiltSeriesId = fromIdOrThrow(otherJobId).cast<TomographyPickingJob>().latestTiltSeriesId
 		update()

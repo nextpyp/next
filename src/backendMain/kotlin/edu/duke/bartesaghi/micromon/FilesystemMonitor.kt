@@ -103,7 +103,7 @@ class FilesystemMonitor(val configs: List<Config.Web.Filesystem>, val email: Ema
 			}
 
 			// yup, did we already alert recently?
-			val alertDb = Database.alerts.get(alertTypeId, cfs.name)
+			val alertDb = Database.instance.alerts.get(alertTypeId, cfs.name)
 			val elapsedHrs = (System.nanoTime() - (alertDb.lastNotificationNs ?: 0))/NsPerHr
 			if (elapsedHrs <= alertConfig.intervalHrs) {
 				continue
@@ -124,7 +124,7 @@ class FilesystemMonitor(val configs: List<Config.Web.Filesystem>, val email: Ema
 
 			// update the database
 			alertDb.lastNotificationNs = System.nanoTime()
-			Database.alerts.put(alertDb)
+			Database.instance.alerts.put(alertDb)
 		}
 		*/
 	}

@@ -41,7 +41,7 @@ actual class ProjectsService : IProjectsService {
 			if (user.isAdmin && userId == user.id) {
 
 				// admins listing their own projects always get all projects instead
-				Database.projects.getAll { docs ->
+				Database.instance.projects.getAll { docs ->
 					docs
 						.map { Project(it).toData(user) }
 						.toList()
@@ -49,14 +49,14 @@ actual class ProjectsService : IProjectsService {
 
 			} else {
 				// get the projects owned by the target user
-				val ownedProjects = Database.projects.getAllOwnedBy(userId) { docs ->
+				val ownedProjects = Database.instance.projects.getAllOwnedBy(userId) { docs ->
 					docs
 						.map { Project(it).toData(user) }
 						.toList()
 				}
 
 				// and any projects they can read too
-				val readableProjects = Database.projects.getAllReadableBy(userId) { docs ->
+				val readableProjects = Database.instance.projects.getAllReadableBy(userId) { docs ->
 					docs
 						.map { Project(it).toData(user) }
 						.toList()
@@ -79,21 +79,21 @@ actual class ProjectsService : IProjectsService {
 		// check project limits, if any
 		Backend.config.web.maxProjectsPerUser
 			?.let { limit ->
-				if (Database.projects.countOwnedBy(user.id) >= limit) {
+				if (Database.instance.projects.countOwnedBy(user.id) >= limit) {
 					throw ServiceException("Can't create new project, limit of $limit reached")
 				}
 			}
 
-		val project = Database.transaction {
+		val project = Database.instance.transaction {
 
 			// make sure a project with that name doesn't already exist
 			val projectId = Project.makeId(name)
-			if (Database.projects.exists(user.id, projectId)) {
+			if (Database.instance.projects.exists(user.id, projectId)) {
 				throw ServiceException("A project with that name already exists")
 			}
 
 			// choose a new project number to be one more than the highest known project number
-			val projectNumber = Database.projects.getAllOwnedBy(user.id) { docs ->
+			val projectNumber = Database.instance.projects.getAllOwnedBy(user.id) { docs ->
 				docs
 					.maxOfOrNull { doc -> doc.getInteger("projectNumber") ?: 0 }
 					?.let { highestProjectNumber -> highestProjectNumber + 1 }
@@ -172,7 +172,7 @@ actual class ProjectsService : IProjectsService {
 		val user = call.authOrThrow()
 
 		// get the projects with running jobs, that the user can read
-		return Database.projects.getAllRunningOrWaitingOwnedBy(userId) { docs ->
+		return Database.instance.projects.getAllRunningOrWaitingOwnedBy(userId) { docs ->
 			docs
 				.map { Project(it) }
 				.filter { ProjectPermission.Read in user.permissions(it) }
@@ -242,7 +242,7 @@ actual class ProjectsService : IProjectsService {
 		val log = clusterJob.getLog()
 
 		// load log failures
-		val failedArrayIds = Database.cluster.log.findArrayIdsByResultType(clusterJobId, ClusterJobResultType.Failure)
+		val failedArrayIds = Database.instance.cluster.log.findArrayIdsByResultType(clusterJobId, ClusterJobResultType.Failure)
 			.sorted()
 
 		return ClusterJobLog(
@@ -351,7 +351,7 @@ actual class ProjectsService : IProjectsService {
 
 		project.readerUserIds
 			.map { userId ->
-				Database.users.getUser(userId)
+				Database.instance.users.getUser(userId)
 					?.toData()
 					?: UserData(userId, null)
 			}

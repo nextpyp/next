@@ -421,17 +421,17 @@ actual class JobsService : IJobsService, Service {
 
 	override suspend fun getTiltExclusions(jobId: String, tiltSeriesId: String): TiltExclusions = sanitizeExceptions {
 		jobId.authJob(ProjectPermission.Read).job
-		return TiltExclusions(Database.tiltExclusions.getForTiltSeries(jobId, tiltSeriesId) ?: emptyMap())
+		return TiltExclusions(Database.instance.tiltExclusions.getForTiltSeries(jobId, tiltSeriesId) ?: emptyMap())
 	}
 
 	override suspend fun setTiltExclusion(jobId: String, tiltSeriesId: String, tiltIndex: Int, value: Boolean) = sanitizeExceptions {
 		jobId.authJob(ProjectPermission.Write).job
-		Database.tiltExclusions.setForTilt(jobId, tiltSeriesId, tiltIndex, value)
+		Database.instance.tiltExclusions.setForTilt(jobId, tiltSeriesId, tiltIndex, value)
 	}
 
 	override suspend fun pypStats(jobId: String): PypStats = sanitizeExceptions {
 		jobId.authJob(ProjectPermission.Read).job
-		val argsValues = Database.parameters.getParams(jobId)
+		val argsValues = Database.instance.parameters.getParams(jobId)
 		PypStats.fromArgValues(argsValues)
 	}
 

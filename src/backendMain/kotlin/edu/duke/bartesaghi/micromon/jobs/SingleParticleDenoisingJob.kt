@@ -114,7 +114,7 @@ class SingleParticleDenoisingJob(
 	override fun wipeData() {
 
 		// also delete any associated data
-		Database.micrographs.deleteAll(idOrThrow)
+		Database.instance.micrographs.deleteAll(idOrThrow)
 
 		// also reset the finished args
 		args.unrun()
