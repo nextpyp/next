@@ -6,6 +6,7 @@ import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.services.AppPermission
 import edu.duke.bartesaghi.micromon.services.AuthType
 import io.ktor.application.ApplicationCall
+import io.ktor.features.*
 import io.ktor.request.*
 import io.ktor.sessions.clear
 import io.ktor.sessions.get
@@ -172,8 +173,10 @@ fun ApplicationCall.authPerson(): User? {
 
 			// there's no explicit login process when auth is disabled,
 			// so "log in" the dummy user now, so the UI doesn't think the user is logged out
-			if (sessions.get<User.Session>() == null) {
-				sessions.set(User.Session.fromUser(user))
+			if (!isWebSocket()) {
+				if (sessions.get<User.Session>() == null) {
+					sessions.set(User.Session.fromUser(user))
+				}
 			}
 
 			return user
@@ -205,7 +208,9 @@ fun ApplicationCall.authPerson(): User? {
 
 					// remove any invalid sessions and tokens
 					token?.let { revokeLoginToken(id, it) }
-					sessions.clear<User.Session>()
+					if (!isWebSocket()) {
+						sessions.clear<User.Session>()
+					}
 
 					null
 				}
@@ -240,7 +245,9 @@ fun ApplicationCall.authPerson(): User? {
 					// no existing session, log in as the demo user
 					val demoUser = getDemoUser()
 						?: return null
-					sessions.set(User.Session.fromDemo(demoUser))
+					if (!isWebSocket()) {
+						sessions.set(User.Session.fromDemo(demoUser))
+					}
 					demoUser
 				}
 
@@ -265,8 +272,10 @@ fun ApplicationCall.authPerson(): User? {
 
 			// there's no explicit login process for pre-authed users
 			// so just log them in now, if they're not logged in already
-			if (sessions.get<User.Session>() == null) {
-				sessions.set(User.Session.fromUser(user))
+			if (!isWebSocket()) {
+				if (sessions.get<User.Session>() == null) {
+					sessions.set(User.Session.fromUser(user))
+				}
 			}
 
 			return user
@@ -325,6 +334,18 @@ private fun pathMatchesEndpoint(path: String, endpoint: String): Boolean {
 
 	return path.toPath().startsWith(endpoint.toPath())
 }
+
+
+/**
+ * Check if a web request handler is running from a web socket connection,
+ * since HTTP response headers (like session cookies) can't be sent from a websocket handler
+ */
+private fun ApplicationCall.isWebSocket(): Boolean =
+	// NOTE: origin.scheme is "http" even for websocket connections! (not "ws" like it's supposed to)
+	//       so that's not a reliable signal =(
+	//request.origin.scheme in listOf("ws", "wss")
+	// let's use the uri path instead, since all the real-time service URL paths start with `/ws/`
+	request.uri.startsWith("/ws/")
 
 
 // unit tests for the path/endpoint matching logic

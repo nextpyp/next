@@ -684,6 +684,10 @@ class ArgValues(val args: Args) {
 				append("\n")
 			}
 		}.toString()
+
+	companion object {
+		// make a companion so we can extend it
+	}
 }
 
 private fun String.quote() = "\"$this\""

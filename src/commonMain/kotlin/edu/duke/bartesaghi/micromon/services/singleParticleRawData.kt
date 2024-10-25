@@ -26,7 +26,7 @@ interface ISingleParticleRawDataService {
 
 
 @Serializable
-class SingleParticleRawDataData(
+data class SingleParticleRawDataData(
 	override val common: CommonJobData,
 	val args: JobArgs<SingleParticleRawDataArgs>,
 	val display: JobArgs<SingleParticleRawDataDisplay>,

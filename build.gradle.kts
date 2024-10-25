@@ -226,6 +226,7 @@ kotlin {
 				implementation("io.ktor:ktor-server-netty:$ktorVersion") // Apache 2
 				implementation("io.ktor:ktor-auth:$ktorVersion") // Apache 2
 				implementation("io.ktor:ktor-client-cio:$ktorVersion") // Apache 2
+				implementation("io.ktor:ktor-client-websockets:$ktorVersion") // Apache 2
 				implementation("ch.qos.logback:logback-classic:$logbackVersion") // LGPL
 
 				// TODO: we don't even use these things, they were included in KVision, should we get rid of them?

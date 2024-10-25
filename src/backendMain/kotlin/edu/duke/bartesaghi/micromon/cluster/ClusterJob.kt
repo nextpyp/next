@@ -426,6 +426,10 @@ class ClusterJob(
 		fun get(dbId: String): ClusterJob? =
 			fromDoc(Database.instance.cluster.launches.get(dbId))
 
+		fun getOrThrow(dbId: String): ClusterJob =
+			get(dbId)
+				?: throw NoSuchElementException("No cluster job found with id=$dbId")
+
 		fun getByOwner(ownerId: String): List<ClusterJob> =
 			Database.instance.cluster.launches.getByOwner(ownerId)
 				.mapNotNull { fromDoc(it) }

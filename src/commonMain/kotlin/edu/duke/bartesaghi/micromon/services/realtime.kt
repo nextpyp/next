@@ -269,7 +269,7 @@ sealed class RealTimeS2C {
 	}
 
 	@Serializable
-	class ProjectRunFinish(
+	data class ProjectRunFinish(
 		val runId: Int,
 		val status: RunStatus
 	) : RealTimeS2C()

@@ -3,6 +3,8 @@
 package edu.duke.bartesaghi.micromon.pyp
 
 import edu.duke.bartesaghi.micromon.*
+import edu.duke.bartesaghi.micromon.cluster.Container
+import edu.duke.bartesaghi.micromon.linux.Posix
 import org.tomlj.Toml
 import org.tomlj.TomlArray
 import org.tomlj.TomlPosition
@@ -347,6 +349,59 @@ fun ArgValues.toPypCLI(): List<String> {
 		}
 	}
 	return out
+}
+
+
+/**
+ * Reverses the effect of ArgValues.toPypCLI()
+ */
+fun ArgValues.Companion.fromPypCLI(argTokens: List<String>, args: Args): ArgValues {
+
+	val values = ArgValues(args)
+
+	// parse the args
+	for (t in argTokens) {
+
+		// get the id,value from the argument
+		if (!t.startsWith('-')) {
+			throw IllegalArgumentException("unrecognized pyp CLI arg: $t")
+		}
+		val eqpos = t.indexOf('=')
+			.takeIf { it >= 0 }
+		if (eqpos != null) {
+
+			// non-boolean argument
+			val arg = args.argOrThrow(t.substring(1, eqpos))
+
+			val value = t.substring(eqpos + 1)
+			values[arg] = when (arg.type) {
+				is ArgType.TBool -> throw IllegalArgumentException("boolean value not expected for pyp argument CLI: $t")
+				is ArgType.TInt -> value.toLong()
+				is ArgType.TFloat -> value.toDouble()
+				is ArgType.TFloat2 -> value.split(',')
+					.map { it.toDouble() }
+					.let { it[0] to it[1] }
+				is ArgType.TStr -> value
+				is ArgType.TEnum -> value
+					.takeIf { arg.type.values.any { value == it.id } }
+					?: throw IllegalArgumentException("enum value \"$value\" was not one of ${arg.type.values.map { it.id }}")
+				is ArgType.TPath -> value
+			}
+
+		} else {
+
+			// boolean argument
+			if (t.startsWith("-no-")) {
+				val arg = args.argOrThrow(t.substring(4))
+				values[arg] = false
+			} else {
+				val arg = args.argOrThrow(t.substring(1))
+				values[arg] = true
+			}
+		}
+	}
+
+	return values
 }
 
 

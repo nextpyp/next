@@ -102,20 +102,22 @@ class EphemeralMongo(
 	}
 
 
-	fun <R> useInstalled(block: () -> R): R = use {
+	inner class Installed : AutoCloseable {
 
-		val path = sockPath(dir)
-			.toString()
-			// need to use URL encoding to get mongo to recognize the string as a socket path
-			.replace("/", "%2F")
+		init {
+			val path = sockPath(dir)
+				.toString()
+				// need to use URL encoding to get mongo to recognize the string as a socket path
+				.replace("/", "%2F")
 
-		Database.connect("mongodb://$path")
-		try {
-			block()
-		} finally {
+			Database.connect("mongodb://$path")
+		}
+
+		override fun close() {
 			Database.disconnect()
 		}
 	}
+	fun install() = Installed()
 
 	override fun close() {
 		stop(process, dir)
