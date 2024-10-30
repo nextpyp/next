@@ -87,7 +87,6 @@ class TomographyCoarseRefinementNode(
 					upstreamNode is TomographyPreprocessingNode
 					|| upstreamNode is TomographyImportDataNode
 					|| upstreamNode is TomographySessionDataNode
-					|| upstreamNode is TomographyRelionDataNode
 					|| upstreamNode is TomographyPurePreprocessingNode
 					|| upstreamNode is TomographyDenoisingNode
 				add(TomographyCoarseRefinementArgs::filter,
