@@ -1,7 +1,8 @@
-package edu.duke.bartesaghi.micromon.edu.duke.bartesaghi.micromon
+package edu.duke.bartesaghi.micromon
 
-import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.cluster.ClusterJob
+import edu.duke.bartesaghi.micromon.pyp.Args
+import edu.duke.bartesaghi.micromon.pyp.MockPyp
 import edu.duke.bartesaghi.micromon.services.*
 import io.ktor.client.features.websocket.*
 import org.slf4j.LoggerFactory
@@ -44,6 +45,9 @@ class EphemeralConfig(configurator: Configurator.() -> Unit = {}) : AutoCloseabl
 
 		var auth: String = "none"
 
+		var pypArgs: Args = Backend.pypArgsFromConfig
+		var includeMocks: Boolean = true
+
 		fun config(): Config =
 			Config("""
 				|
@@ -65,7 +69,9 @@ class EphemeralConfig(configurator: Configurator.() -> Unit = {}) : AutoCloseabl
 	}
 
 	// parse the configuration
-	val config = run {
+	val config: Config
+	val pypArgs: Args
+	init {
 
 		// build the config
 		val cfgtor = Configurator()
@@ -83,17 +89,29 @@ class EphemeralConfig(configurator: Configurator.() -> Unit = {}) : AutoCloseabl
 			(config.web.sharedExecDir / name).createDirsIfNeeded()
 		}
 
-		config
+		this.config = config
+
+		// build the pyp args
+		var pypArgs = cfgtor.pypArgs
+		if (cfgtor.includeMocks) {
+			pypArgs = MockPyp.combineArgs(pypArgs)
+		}
+
+		this.pypArgs = pypArgs
 	}
 
 
 	inner class Installed : AutoCloseable {
 
+		private val backend = Backend(config, pypArgs)
+
 		init {
 			Config.install(config)
+			Backend.install(backend)
 		}
 
 		override fun close() {
+			Backend.uninstall()
 			Config.uninstall()
 		}
 	}

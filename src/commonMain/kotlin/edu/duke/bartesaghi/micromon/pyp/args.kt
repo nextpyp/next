@@ -657,9 +657,13 @@ class ArgValues(val args: Args) {
 	}
 
 	override fun toString() = StringBuilder().apply {
+		append("ArgValues[numArgs=${args.args.size}] {\n")
 		for (arg in args.args) {
-			append("${arg.fullId} = ${get(arg)}\n")
+			val value = get(arg)
+				?: continue
+			append("\t${arg.fullId} = $value\n")
 		}
+		append("}")
 	}.toString()
 
 	/**
@@ -710,7 +714,9 @@ fun ArgValuesToml.filterForDownstreamCopy(args: Args): ArgValuesToml =
 
 
 /** a sentinel value that tells the pyp command-line formatter to ask pyp to reset this arg */
-object ArgValueReset
+object ArgValueReset {
+	override fun toString() = "<ArgValueReset>"
+}
 
 
 @Serializable

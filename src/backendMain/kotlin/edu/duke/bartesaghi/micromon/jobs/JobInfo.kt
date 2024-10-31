@@ -47,6 +47,13 @@ interface JobInfo {
 		// set the current job arg values
 		values.setAll(args().diff(currentValues, prevValues))
 
+		Backend.log.debug("""
+			|launchArgValues():
+			|  current:  ${currentValues.lines().filter { it.isNotBlank() }.joinToString("\n            ")}
+			|     prev:  ${prevValues?.lines()?.filter { it.isNotBlank() }?.joinToString("\n            ") ?: "(none)"}
+			|     diff:  ${values.toString().lines().joinToString("\n            ")}
+		""".trimMargin())
+
 		return values
 	}
 }
