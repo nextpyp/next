@@ -112,24 +112,44 @@ class Args(
 		)
 
 	/**
-	 * Returns all `values`,
-	 * plus default values for when an argument value is present in `prev` but not `values`
-	 *
-	 * ie, the argument value was removed, so explicitly set it to the default value
+	 * Removes values from `values` when:
+	 *   they're the same as the values in `prev`
+	 *   they're the same as the default values
+	 *     except when the value in `prev` is non-default
+	 * Additionally, adds explicit default values when:
+	 *   arguments are present in `prev` but not `values`
+	 *     ie, when the argument value was removed, explicitly set it to the default value
 	 */
 	fun diff(valuesToml: ArgValuesToml, prevToml: ArgValuesToml?): ArgValues {
 
 		val values = valuesToml.toArgValues(this)
-		if (prevToml == null || valuesToml === prevToml) {
-			return values
-		}
-		val prev = prevToml.toArgValues(this)
+		val prev = prevToml?.toArgValues(this)
+			?: ArgValues(this)
 
 		for (arg in args) {
-			if (arg in prev && arg !in values) {
+			if (arg in values) {
+
+				// remove default values
+				if (arg.default != null && values[arg] == arg.default.value) {
+
+					if (arg in prev && prev[arg] != arg.default.value) {
+						// unless they're overriding a previous non-default value
+					} else {
+						values[arg] = null
+					}
+
+				// remove values that are the same as the previous values
+				} else if (arg in prev && values[arg] == prev[arg]) {
+					values[arg] = null
+				}
+
+			} else if (arg in prev) {
+
+				// value was removed this time: add back the default value
 				if (arg.default != null) {
 					values[arg] = arg.default
 				} else {
+					// no default value in this case, so send a type-dependent "reset" value
 					values[arg] = ArgValueReset
 				}
 			}

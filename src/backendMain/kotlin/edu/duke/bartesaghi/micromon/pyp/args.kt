@@ -316,7 +316,7 @@ fun ArgValues.toPypCLI(): List<String> {
 
 				// for string-like values (including paths), send an empty string
 				is ArgType.TStr,
-				is ArgType.TPath -> out.add("-$id \"\"")
+				is ArgType.TPath -> out.add("-$id=\"\"")
 
 				// no special reset values exist for other arg types
 				else -> {
