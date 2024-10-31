@@ -472,26 +472,8 @@ val ArgValues.slurmLaunchGres: String?
 	get() = get(MicromonArgs.slurmLaunchGres) as String?
 
 
-/**
- * Args intended for pyp (or mock pyp), but aren't defined in the argument config file
- */
-object MicromonArgsForPyp {
-
-	private const val GROUP_ID = "micromon"
-
-	val block = Arg(
-		groupId = GROUP_ID,
-		argId = "block",
-		name = "",
-		description = "",
-		type = ArgType.TStr()
-	)
-
-	val all = listOf(
-		block
-	)
-}
-
+val Args.micromonBlock: Arg
+	get() = argOrThrow("micromon", "block")
 var ArgValues.micromonBlock: String?
-	get() = get(MicromonArgsForPyp.block) as String?
-	set(value) { set(MicromonArgsForPyp.block, value) }
+	get() = get(args.micromonBlock) as String?
+	set(value) { set(args.micromonBlock, value) }

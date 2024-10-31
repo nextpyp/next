@@ -26,7 +26,6 @@ interface JobInfo {
 	fun launchArgValues(upstreamJob: Job?, currentValues: ArgValuesToml, prevValues: ArgValuesToml?): ArgValues {
 
 		val args = Backend.pypArgs
-			.appendAll(MicromonArgsForPyp.all)
 		val values = ArgValues(args)
 
 		// explicitly set the block id
