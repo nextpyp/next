@@ -1,6 +1,8 @@
 package edu.duke.bartesaghi.micromon
 
 import edu.duke.bartesaghi.micromon.cluster.ClusterJob
+import edu.duke.bartesaghi.micromon.pyp.ArgValues
+import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
 import edu.duke.bartesaghi.micromon.pyp.Args
 import edu.duke.bartesaghi.micromon.pyp.MockPyp
 import edu.duke.bartesaghi.micromon.services.*
@@ -128,8 +130,13 @@ class EphemeralConfig(configurator: Configurator.() -> Unit = {}) : AutoCloseabl
 
 		// release the port
 		ports.remove(port)
-
 	}
+
+
+	fun argsToml(block: ArgValues.() -> Unit): ArgValuesToml =
+		ArgValues(pypArgs).apply {
+			block()
+		}.toToml()
 }
 
 
