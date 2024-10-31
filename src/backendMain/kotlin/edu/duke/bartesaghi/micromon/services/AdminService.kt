@@ -35,10 +35,10 @@ actual class AdminService : IAdminService {
 	private fun usersOnOrThrow(butAllowIfDev: Boolean = false) {
 
 		// don't bother if auth is disabled
-		if (!Backend.config.web.auth.hasUsers) {
+		if (!Config.instance.web.auth.hasUsers) {
 
 			// but allow in dev mode if explicitly enabled
-			if (butAllowIfDev && Backend.config.web.debug) {
+			if (butAllowIfDev && Config.instance.web.debug) {
 				return
 			}
 
@@ -52,11 +52,11 @@ actual class AdminService : IAdminService {
 
 		// don't need to authenticate for this one
 		return AdminInfo(
-			needsBootstrap = Backend.config.web.auth.hasUsers && Database.instance.users.countUsers() <= 0,
+			needsBootstrap = Config.instance.web.auth.hasUsers && Database.instance.users.countUsers() <= 0,
 			adminLoggedIn = user?.isAdmin ?: false,
 			demoLoggedIn = user?.isDemo ?: false,
-			authType = Backend.config.web.auth,
-			debug = Backend.config.web.debug,
+			authType = Config.instance.web.auth,
+			debug = Config.instance.web.debug,
 			clusterMode = Cluster.instance.clusterMode
 		)
 	}
@@ -357,7 +357,7 @@ actual class AdminService : IAdminService {
 	override suspend fun checkUserProcessor(osUsername: String): UserProcessorCheck = sanitizeExceptions {
 
 		val userProcessor = try {
-			Backend.userProcessors.get(osUsername)
+			Backend.instance.userProcessors.get(osUsername)
 		} catch (ex: UserProcessorException) {
 			return UserProcessorCheck.failure(ex.path.toString(), ex.problems)
 		}
@@ -372,7 +372,7 @@ actual class AdminService : IAdminService {
 
 		// look up the username, very carefully
 		val username = try {
-			Backend.hostProcessor.username(uids.euid)
+			Backend.instance.hostProcessor.username(uids.euid)
 		} catch (t: Throwable) {
 			return UserProcessorCheck.failure(userProcessor.path.toString(), listOf(
 				"Failed to lookup username from UID ${uids.euid}"

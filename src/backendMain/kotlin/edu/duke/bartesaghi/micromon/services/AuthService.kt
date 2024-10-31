@@ -25,7 +25,7 @@ object AuthService {
 
 			post("bootstrap") handler@{
 
-				when (Backend.config.web.auth) {
+				when (Config.instance.web.auth) {
 
 					// if there's no user auth, return a 404
 					AuthType.None -> {
@@ -114,7 +114,7 @@ object AuthService {
 			post("login") handler@{
 
 				// if there's no password auth, return a 404
-				if (Backend.config.web.auth != AuthType.Login) {
+				if (Config.instance.web.auth != AuthType.Login) {
 					call.respondText("fail",
 						contentType = ContentType.Text.Plain,
 						status = HttpStatusCode.NotFound
@@ -168,7 +168,7 @@ object AuthService {
 			get("logout") handler@{
 
 				// if there's no password auth, return a 404
-				if (Backend.config.web.auth != AuthType.Login) {
+				if (Config.instance.web.auth != AuthType.Login) {
 					call.respondText("fail",
 						contentType = ContentType.Text.Plain,
 						status = HttpStatusCode.NotFound
@@ -188,7 +188,7 @@ object AuthService {
 			get("token/{userId}/{encodedToken}") handler@{
 
 				// if there's no password auth, return a 404
-				if (Backend.config.web.auth != AuthType.Login) {
+				if (Config.instance.web.auth != AuthType.Login) {
 					call.respondText("Link logins disabled",
 						contentType = ContentType.Text.Plain,
 						status = HttpStatusCode.NotFound
@@ -232,7 +232,7 @@ object AuthService {
 			post("setpw") handler@{
 
 				// if there's no password auth, return a 404
-				if (Backend.config.web.auth != AuthType.Login) {
+				if (Config.instance.web.auth != AuthType.Login) {
 					call.respondText("fail",
 						contentType = ContentType.Text.Plain,
 						status = HttpStatusCode.NotFound
@@ -276,8 +276,8 @@ object AuthService {
 					Password(newpwPart.provider).use { pw ->
 
 						// enforce password restrictions
-						if (pw.len() < Backend.config.web.minPasswordLength) {
-							throw AuthException("New password must be at least ${Backend.config.web.minPasswordLength} characters long")
+						if (pw.len() < Config.instance.web.minPasswordLength) {
+							throw AuthException("New password must be at least ${Config.instance.web.minPasswordLength} characters long")
 						}
 
 						Database.instance.users.setPasswordHash(user.id, pw.hash())

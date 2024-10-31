@@ -1,9 +1,7 @@
 package edu.duke.bartesaghi.micromon.services
 
 import com.google.inject.Inject
-import edu.duke.bartesaghi.micromon.AuthException
-import edu.duke.bartesaghi.micromon.Backend
-import edu.duke.bartesaghi.micromon.LinkTree
+import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.projects.Project
 import edu.duke.bartesaghi.micromon.auth.authOrThrow
 import edu.duke.bartesaghi.micromon.cluster.Cluster
@@ -13,7 +11,6 @@ import edu.duke.bartesaghi.micromon.linux.DU
 import edu.duke.bartesaghi.micromon.mongo.*
 import edu.duke.bartesaghi.micromon.nodes.Workflow
 import edu.duke.bartesaghi.micromon.pyp.Workflows
-import edu.duke.bartesaghi.micromon.sanitizeExceptions
 import io.ktor.application.ApplicationCall
 import io.kvision.remote.ServiceException
 import kotlinx.coroutines.launch
@@ -77,7 +74,7 @@ actual class ProjectsService : IProjectsService {
 		user.notDemoOrThrow()
 
 		// check project limits, if any
-		Backend.config.web.maxProjectsPerUser
+		Config.instance.web.maxProjectsPerUser
 			?.let { limit ->
 				if (Database.instance.projects.countOwnedBy(user.id) >= limit) {
 					throw ServiceException("Can't create new project, limit of $limit reached")
@@ -150,7 +147,7 @@ actual class ProjectsService : IProjectsService {
 		runner.init(jobIds)
 
 		// then start the first job, but don't wait for the result so the UI stays responsive
-		Backend.scope.launch {
+		Backend.instance.scope.launch {
 			runner.startFistJobIfIdle()
 		}
 
@@ -393,7 +390,7 @@ actual class ProjectsService : IProjectsService {
 		val workflow = Workflows.workflows[workflowId]
 			?: throw ServiceException("Workflow not found with id=$workflowId")
 
-		Backend.pypArgs
+		Backend.instance.pypArgs
 			.filterArgs(workflow.blocks.flatMap { it.askArgs })
 			.toJson()
 	}

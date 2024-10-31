@@ -3,8 +3,6 @@
 package edu.duke.bartesaghi.micromon.pyp
 
 import edu.duke.bartesaghi.micromon.*
-import edu.duke.bartesaghi.micromon.cluster.Container
-import edu.duke.bartesaghi.micromon.linux.Posix
 import org.tomlj.Toml
 import org.tomlj.TomlArray
 import org.tomlj.TomlPosition

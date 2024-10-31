@@ -19,7 +19,7 @@ object Workflows {
 
 
 	fun init() {
-		for (dir in Backend.config.web.workflowDirs) {
+		for (dir in Config.instance.web.workflowDirs) {
 			for (file in dir.listFiles()) {
 				if (file.isRegularFile() && file.extension == "toml") {
 					Backend.log.info("Reading workflow: $file")
@@ -80,10 +80,10 @@ object Workflows {
 
 			// read the args values
 			val askArgs = ArrayList<String>()
-			val argValues = ArgValues(Backend.pypArgs)
+			val argValues = ArgValues(Backend.instance.pypArgs)
 			blockDoc.getTable("args")?.let { argsDoc ->
 				for (argFullId in argsDoc.keySetInOrder()) {
-					val arg = Backend.pypArgs.argOrThrow(argFullId)
+					val arg = Backend.instance.pypArgs.argOrThrow(argFullId)
 					val value = argsDoc.get(argFullId)
 
 					when (value) {

@@ -19,13 +19,13 @@ interface JobInfo {
 	}
 
 	fun args(includeForwarded: Boolean = false) =
-		Backend.pypArgs
+		Backend.instance.pypArgs
 			.filter(config.configId, includeForwarded)
 			.appendAll(MicromonArgs.slurmLaunch)
 
 	fun launchArgValues(upstreamJob: Job?, currentValues: ArgValuesToml, prevValues: ArgValuesToml?): ArgValues {
 
-		val args = Backend.pypArgs
+		val args = Backend.instance.pypArgs
 		val values = ArgValues(args)
 
 		// explicitly set the block id
@@ -34,12 +34,12 @@ interface JobInfo {
 		// forward upstream tabs, if needed
 		if (upstreamJob != null) {
 			val upstreamValues = upstreamJob.finishedArgValues()
-				?.toArgValues(Backend.pypArgs)
+				?.toArgValues(Backend.instance.pypArgs)
 				?: throw IllegalStateException("upstream job has no finished args")
-			Backend.pypArgs
+			Backend.instance.pypArgs
 				.blockOrThrow(config.configId)
 				.forwardedGroupIds
-				.flatMap { Backend.pypArgs.args(it) }
+				.flatMap { Backend.instance.pypArgs.args(it) }
 				.filter { !values.contains(it) } // but don't overwrite any values already there
 				.forEach { values[it] = upstreamValues[it] }
 		}

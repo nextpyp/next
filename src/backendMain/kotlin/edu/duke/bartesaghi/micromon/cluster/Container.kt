@@ -53,19 +53,19 @@ sealed interface Container {
 					devBind?.let {
 						add("--bind=\"$it\"")
 					}
-					add("\"${Backend.config.pyp.container}\"")
+					add("\"${Config.instance.pyp.container}\"")
 					add(run("webrpc"))
 					addAll(args)
 				}.joinToString(" ")
 
 			val devBind: String? =
-				Backend.config.pyp.sources?.let {
+				Config.instance.pyp.sources?.let {
 					"$it:/opt/pyp"
 				}
 		}
 
-		override val sifPath = Backend.config.pyp.container
-		override val binds = Backend.config.pyp.run {
+		override val sifPath = Config.instance.pyp.container
+		override val binds = Config.instance.pyp.run {
 			ArrayList<String>().apply {
 
 				// add the config file bind
@@ -87,13 +87,13 @@ sealed interface Container {
 		override fun prelaunchCommands() = ArrayList<String>().apply {
 
 			// make the scratch dir
-			add("mkdir -p \"${Backend.config.pyp.scratch}\"")
+			add("mkdir -p \"${Config.instance.pyp.scratch}\"")
 
 			// forward environment variables to PYP
 			add("export PYP_CONFIG=\"$canonicalConfigPath\"")
 
 			// add library lookup paths if needed
-			Backend.config.pyp.cudaLibs
+			Config.instance.pyp.cudaLibs
 				.takeIf { it.isNotEmpty() }
 				?.let { paths ->
 					val pathsList = paths.joinToString(":") { "\\\"$it\\\"" }

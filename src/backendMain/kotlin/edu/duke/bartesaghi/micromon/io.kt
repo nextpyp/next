@@ -230,7 +230,7 @@ fun Path.deleteDirRecursively() = apply {
 }
 
 fun Path.deleteDirRecursivelyAsync() {
-	Backend.scope.launch(Dispatchers.IO) {
+	Backend.instance.scope.launch(Dispatchers.IO) {
 		deleteDirRecursively()
 	}
 }

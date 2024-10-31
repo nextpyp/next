@@ -9,7 +9,7 @@ import kotlin.io.path.div
 /** returns the user's name, or a default string if the user was not found */
 fun User.Companion.lookupName(id: String, default: String = "???"): String =
 	when {
-		Backend.config.web.auth.hasUsers -> Database.instance.users.getUser(id)?.name ?: default
+		Config.instance.web.auth.hasUsers -> Database.instance.users.getUser(id)?.name ?: default
 		id == NoAuthId -> NoAuthName
 		else -> default
 	}
@@ -17,9 +17,9 @@ fun User.Companion.lookupName(id: String, default: String = "???"): String =
 
 fun User.Companion.dir(userId: String, osUsername: String?) =
 	if (osUsername != null) {
-		Backend.config.web.sharedDir / "os-users" / osUsername
+		Config.instance.web.sharedDir / "os-users" / osUsername
 	} else {
-		Backend.config.web.sharedDir / "users" / userId
+		Config.instance.web.sharedDir / "users" / userId
 	}
 
 fun User.dir() =

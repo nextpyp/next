@@ -62,7 +62,7 @@ actual class FormService : IFormService, Service {
 		val out = ArrayList<Path>()
 
 		// allow all binds configured by the administrator
-		out.addAll(Backend.config.pyp.binds)
+		out.addAll(Config.instance.pyp.binds)
 
 		// allow the user's folder
 		out.add(dir())

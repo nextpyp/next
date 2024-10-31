@@ -50,7 +50,7 @@ class TomographySession(
 			Session.fromIdOrThrow(sessionId) as TomographySession
 
 		fun args(includeForwarded: Boolean = false) =
-			Backend.pypArgs
+			Backend.instance.pypArgs
 				.filter(configId, includeForwarded)
 				.appendAll(MicromonArgs.slurmLaunch)
 
@@ -77,7 +77,7 @@ class TomographySession(
 		args.newestOrThrow().args
 
 	override fun newestPypValues(): ArgValues =
-		args.newestOrThrow().args.values.toArgValues(Backend.pypArgs)
+		args.newestOrThrow().args.values.toArgValues(Backend.instance.pypArgs)
 
 	override fun data(user: User?) = TomographySessionData(
 		userId,
@@ -117,7 +117,7 @@ class TomographySession(
 
 		// build the args for PYP
 		val sessionArgs = args.newestOrThrow().args
-		val pypArgs = ArgValues(Backend.pypArgs)
+		val pypArgs = ArgValues(Backend.instance.pypArgs)
 		pypArgs.setAll(args().diff(
 			sessionArgs.values,
 			args.finished?.values

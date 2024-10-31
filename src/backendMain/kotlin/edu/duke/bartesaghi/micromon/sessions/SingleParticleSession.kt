@@ -50,7 +50,7 @@ class SingleParticleSession(
 			Session.fromIdOrThrow(sessionId) as SingleParticleSession
 
 		fun args(includeForwarded: Boolean = false) =
-			Backend.pypArgs
+			Backend.instance.pypArgs
 				.filter(configId, includeForwarded)
 				.appendAll(MicromonArgs.slurmLaunch)
 
@@ -77,7 +77,7 @@ class SingleParticleSession(
 		args.newestOrThrow().args
 
 	override fun newestPypValues(): ArgValues =
-		args.newestOrThrow().args.values.toArgValues(Backend.pypArgs)
+		args.newestOrThrow().args.values.toArgValues(Backend.instance.pypArgs)
 
 	override fun data(user: User?): SingleParticleSessionData {
 		val (numMicrographs, numFrames) = Database.instance.micrographs.counts(idOrThrow)
@@ -120,7 +120,7 @@ class SingleParticleSession(
 
 		// build the args for PYP
 		val sessionArgs = args.newestOrThrow().args
-		val pypArgs = ArgValues(Backend.pypArgs)
+		val pypArgs = ArgValues(Backend.instance.pypArgs)
 		pypArgs.setAll(args().diff(
 			sessionArgs.values,
 			args.finished?.values

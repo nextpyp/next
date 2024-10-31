@@ -43,11 +43,11 @@ object RealTimeService {
 			outgoing.sendMessage(RealTimeS2C.ProjectStatus(
 				recentRuns = recentRuns.map { it.toData() },
 				hasOlderRuns = olderRuns.isNotEmpty(),
-				blocks = Backend.pypArgs.blocks
+				blocks = Backend.instance.pypArgs.blocks
 			))
 
 			// route job events to the client
-			val listenerId = Backend.projectEventListeners.add(
+			val listenerId = Backend.instance.projectEventListeners.add(
 				msg.userId,
 				msg.projectId,
 				listeners = object : ProjectEventListeners.Listeners {
@@ -105,7 +105,7 @@ object RealTimeService {
 
 			// wait for the connection to close, then cleanup the listeners
 			incoming.waitForClose(outgoing)
-			Backend.projectEventListeners.remove(listenerId)
+			Backend.instance.projectEventListeners.remove(listenerId)
 		}
 
 		suspend fun DefaultWebSocketServerSession.micrographsService() {
@@ -397,7 +397,7 @@ object RealTimeService {
 
 				// do all the cleanup steps, but independently
 				// ie, if one step fails, still try to do the other steps
-				attempt { Backend.filesystems.listeners.remove(filesystemListener) }
+				attempt { Backend.instance.filesystems.listeners.remove(filesystemListener) }
 				attempt { listener.close() }
 				slowIOs {
 					attempt { transfers.stopAndWait() }
@@ -475,7 +475,7 @@ object RealTimeService {
 
 				// do all the cleanup steps, but independently
 				// ie, if one step fails, still try to do the other steps
-				attempt { Backend.filesystems.listeners.remove(filesystemListener) }
+				attempt { Backend.instance.filesystems.listeners.remove(filesystemListener) }
 				attempt { listener.close() }
 				slowIOs {
 					attempt { transfers.stopAndWait() }
@@ -502,7 +502,7 @@ object RealTimeService {
 	private suspend fun SendChannel<Frame>.sendSessionStatus(session: Session) {
 
 		val values = session.pypParameters()
-		val defaults = ArgValues(Backend.pypArgs)
+		val defaults = ArgValues(Backend.instance.pypArgs)
 
 		// send the initial status
 		// NOTE: this should be FAST so the UI feels responsive
@@ -583,10 +583,10 @@ object RealTimeService {
 		}
 
 		// report the current filesystems
-		Backend.filesystems.filesystems().send()
+		Backend.instance.filesystems.filesystems().send()
 
 		// route filesystem events to the client
-		return Backend.filesystems.listeners.add { filesystems ->
+		return Backend.instance.filesystems.listeners.add { filesystems ->
 			filesystems.send()
 		}
 	}

@@ -488,6 +488,6 @@ actual class JobsService : IJobsService, Service {
 	}
 
 	override suspend fun getAllArgs(): Serialized<Args> = sanitizeExceptions {
-		Backend.pypArgs.toJson()
+		Backend.instance.pypArgs.toJson()
 	}
 }

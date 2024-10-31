@@ -131,9 +131,9 @@ class SingleParticlePostprocessingJob(
 		
 		return finished
 			.values
-			.toArgValues(Backend.pypArgs)
+			.toArgValues(Backend.instance.pypArgs)
 			.sharpenCistemHighResBfactor
-			?: Backend.pypArgs.defaultSharpenCistemHighResBfactor
+			?: Backend.instance.pypArgs.defaultSharpenCistemHighResBfactor
 	}
 
 	override fun newestArgValues(): ArgValuesToml? =

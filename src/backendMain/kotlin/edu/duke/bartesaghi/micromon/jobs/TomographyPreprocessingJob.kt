@@ -119,7 +119,7 @@ class TomographyPreprocessingJob(
 
 		// check if we need to pick a manual particles list or not
 		if (newestArgs.tomolist == null) {
-			val newestValues = newestArgs.values.toArgValues(Backend.pypArgs)
+			val newestValues = newestArgs.values.toArgValues(Backend.instance.pypArgs)
 			if (newestValues.tomoSpkMethodOrDefault.particlesList(idOrThrow)?.source == ParticlesSource.User) {
 				throw ServiceException("Manual particles list is required for particle picking method")
 			} else if (newestValues.tomoVirMethodOrDefault.particlesList(idOrThrow)?.source == ParticlesSource.User) {

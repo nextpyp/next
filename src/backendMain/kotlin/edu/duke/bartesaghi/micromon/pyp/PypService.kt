@@ -179,7 +179,7 @@ object PypService {
 		 */
 		// NOTE: I don't think we need the parameter_id, it seems to be redundant if we already have the webid
 		val pypParams = params.getObjectOrThrow("parameters")
-		val values = ArgValues(Backend.pypArgs)
+		val values = ArgValues(Backend.instance.pypArgs)
 		for (key in pypParams.fieldNames()) {
 			val arg = values.args.arg(key)
 				?: throw BadRequestException("unrecognized parameter: $key. Is this defined in the PYP parameters configuration file?")
@@ -310,7 +310,7 @@ object PypService {
 
 						// send the update to the clients, if needed
 						if (isFirstMicrograph) {
-							Backend.projectEventListeners.getAll(job.userId, job.projectId)
+							Backend.instance.projectEventListeners.getAll(job.userId, job.projectId)
 								.forEach { it.onJobUpdate(job.data()) }
 						}
 
@@ -377,7 +377,7 @@ object PypService {
 				// (reload the job so it gets the latest reconstruction we just wrote)
 				val job = Job.fromIdOrThrow(owner.job.idOrThrow)
 				val jobData = job.data()
-				Backend.projectEventListeners.getAll(job.userId, job.projectId)
+				Backend.instance.projectEventListeners.getAll(job.userId, job.projectId)
 					.forEach { it.onJobUpdate(jobData) }
 
 				// notify any listening clients
@@ -501,7 +501,7 @@ object PypService {
 
 						// send the update to the clients, if needed
 						if (isFirstTiltSeries) {
-							Backend.projectEventListeners.getAll(job.userId, job.projectId)
+							Backend.instance.projectEventListeners.getAll(job.userId, job.projectId)
 								.forEach { it.onJobUpdate(job.data()) }
 						}
 

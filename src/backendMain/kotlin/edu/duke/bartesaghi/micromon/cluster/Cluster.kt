@@ -51,7 +51,7 @@ interface Cluster {
 	companion object {
 
 		val instance: Cluster =
-			Backend.config.let { config ->
+			Config.instance.let { config ->
 				// prefer the slurm cluster if available
 				if (config.slurm != null) {
 					SBatch(config.slurm)
@@ -223,7 +223,7 @@ interface Cluster {
 			scriptPath.writeStringAs(clusterJob.osUsername, """
 				|#!/bin/bash
 				|
-				|export NEXTPYP_WEBHOST="${Backend.config.web.webhost}"
+				|export NEXTPYP_WEBHOST="${Config.instance.web.webhost}"
 				|export NEXTPYP_TOKEN="${JsonRpc.token}"
 				|export NEXTPYP_WEBID="$clusterJobId"
 				|

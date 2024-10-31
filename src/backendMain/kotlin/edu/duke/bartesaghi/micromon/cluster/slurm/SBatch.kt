@@ -118,7 +118,7 @@ class SBatch(val config: Config.Slurm) : Cluster {
 
 		// run the job as the specified OS user, if needed
 		if (clusterJob.osUsername != null) {
-			sbatch = Backend.userProcessors.get(clusterJob.osUsername).wrap(sbatch)
+			sbatch = Backend.instance.userProcessors.get(clusterJob.osUsername).wrap(sbatch)
 		}
 
 		// add environment vars from the job submission
@@ -186,7 +186,7 @@ class SBatch(val config: Config.Slurm) : Cluster {
 
 				// run the job as the specified OS user, if needed
 				if (clusterJob.osUsername != null) {
-					scancel = Backend.userProcessors.get(clusterJob.osUsername).wrap(scancel)
+					scancel = Backend.instance.userProcessors.get(clusterJob.osUsername).wrap(scancel)
 				}
 
 				scancel

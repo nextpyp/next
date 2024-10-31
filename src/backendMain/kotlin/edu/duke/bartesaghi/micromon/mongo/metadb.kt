@@ -175,7 +175,7 @@ class Parameters(db: MongoDatabase) {
 		get(ownerId)
 			?.getDocument("params")
 			?.let { params ->
-				ArgValues(Backend.pypArgs).apply {
+				ArgValues(Backend.instance.pypArgs).apply {
 					for (key in params.keys) {
 						val arg = args.arg(key)
 							?: continue // old database data might refer to args that were deleted, so ignore missing args

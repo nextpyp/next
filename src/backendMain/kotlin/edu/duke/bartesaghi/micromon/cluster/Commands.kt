@@ -1,6 +1,6 @@
 package edu.duke.bartesaghi.micromon.cluster
 
-import edu.duke.bartesaghi.micromon.Backend
+import edu.duke.bartesaghi.micromon.Config
 import edu.duke.bartesaghi.micromon.cluster.slurm.Gres
 import edu.duke.bartesaghi.micromon.linux.userprocessor.editPermissionsAs
 import edu.duke.bartesaghi.micromon.linux.userprocessor.writeStringAs
@@ -249,7 +249,7 @@ fun singularityWrapper(job: ClusterJob, container: Container): (String) -> Strin
 	for (path in container.binds) {
 		singularityArgs.add("--bind=\"$path\"")
 	}
-	singularityArgs.add("--bind=\"${Backend.config.web.sharedDir}\"")
+	singularityArgs.add("--bind=\"${Config.instance.web.sharedDir}\"")
 
 	// set the working directory
 	singularityArgs += listOf("--pwd \"${job.dir}\"")
@@ -259,7 +259,7 @@ fun singularityWrapper(job: ClusterJob, container: Container): (String) -> Strin
 		.firstOrNull { it.startsWith("--partition=") }
 		?.let { arg ->
 			val queue = arg.split("=").getOrNull(1) ?: ""
-			val gpuQueues = Backend.config.slurm?.gpuQueues
+			val gpuQueues = Config.instance.slurm?.gpuQueues
 			gpuQueues != null && queue in gpuQueues
 		}
 		?: false

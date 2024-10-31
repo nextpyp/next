@@ -79,7 +79,7 @@ sealed class Session(
 		}
 
 		fun dir(sessionId: String): Path =
-			Backend.config.web.sharedDir / "sessions" / sessionId
+			Config.instance.web.sharedDir / "sessions" / sessionId
 
 		/** get the session sub-directory that pyp uses, for some reason */
 		fun pypDir(session: Session, names: PypNames): Path =

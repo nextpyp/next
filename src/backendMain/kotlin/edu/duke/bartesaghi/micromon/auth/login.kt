@@ -6,7 +6,6 @@ import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.services.AppPermission
 import edu.duke.bartesaghi.micromon.services.AuthType
 import io.ktor.application.ApplicationCall
-import io.ktor.features.*
 import io.ktor.request.*
 import io.ktor.sessions.clear
 import io.ktor.sessions.get
@@ -158,7 +157,7 @@ fun ApplicationCall.authOrThrow() =
 fun ApplicationCall.authPerson(): User? {
 
 	// how to do auth?
-	when (Backend.config.web.auth) {
+	when (Config.instance.web.auth) {
 
 		AuthType.None -> {
 
@@ -216,7 +215,7 @@ fun ApplicationCall.authPerson(): User? {
 				}
 			}
 
-			return if (Backend.config.web.demo) {
+			return if (Config.instance.web.demo) {
 
 				fun getDemoUser(): User? =
 					Database.instance.users.getUser(User.DemoId)

@@ -315,8 +315,8 @@ abstract class Job(
 
 	fun pypParametersOrNewestArgs(): ArgValues =
 		pypParameters()
-			?: newestArgValues()?.toArgValues(Backend.pypArgs)
-			?: ArgValues(Backend.pypArgs)
+			?: newestArgValues()?.toArgValues(Backend.instance.pypArgs)
+			?: ArgValues(Backend.instance.pypArgs)
 
 	abstract fun newestArgValues(): ArgValuesToml?
 	abstract fun finishedArgValues(): ArgValuesToml?

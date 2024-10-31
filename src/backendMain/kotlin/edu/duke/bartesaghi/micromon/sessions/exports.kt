@@ -85,7 +85,7 @@ class SessionExport(
 				owner = export.idOrThrow,
 				ownerListener = this,
 				dir = export.dir,
-				args = ArgValues(Backend.pypArgs).apply {
+				args = ArgValues(Backend.instance.pypArgs).apply {
 						dataParent = pypDir.toString()
 					}.toPypCLI(),
 				launchArgs = slurmArgValues.toSbatchArgs()

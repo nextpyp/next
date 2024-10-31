@@ -48,7 +48,7 @@ object JsonRpc {
 			.also {
 				// in debug mode, print out the token so we can run test scripts against the RPC endpoints
 				// but never print out the token in production mode, that would be a security risk
-				if (Backend.config.web.debug) {
+				if (Config.instance.web.debug) {
 					println("JsonRpc token: $it")
 				}
 			}

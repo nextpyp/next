@@ -522,12 +522,12 @@ class ClusterJob(
 		 * This dir should be created by the install process.
 		 * We should never need to create it from the website process.
 		 */
-		val batchDir = Config.instance.web.sharedDir.resolve("batch")
+		val batchDir get() = Config.instance.web.sharedDir.resolve("batch")
 
 		/**
 		 * This dir should be created by the install process.
 		 * We should never need to create it from the website process.
 		 */
-		val logDir = Config.instance.web.sharedDir.resolve("log")
+		val logDir get() = Config.instance.web.sharedDir.resolve("log")
 	}
 }

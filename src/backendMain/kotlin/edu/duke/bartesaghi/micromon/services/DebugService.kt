@@ -48,7 +48,7 @@ object DebugService {
 
 	fun init(routing: Routing) {
 
-		if (!Backend.config.web.debug) {
+		if (!Config.instance.web.debug) {
 			throw Error("This is not the way")
 		}
 
