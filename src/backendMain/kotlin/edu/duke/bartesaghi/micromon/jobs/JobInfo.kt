@@ -25,34 +25,43 @@ interface JobInfo {
 
 	fun launchArgValues(upstreamJob: Job?, currentValues: ArgValuesToml, prevValues: ArgValuesToml?): ArgValues {
 
-		val args = Backend.instance.pypArgs
-		val values = ArgValues(args)
+		val values = ArgValues(Backend.instance.pypArgs)
 
 		// explicitly set the block id
 		values.micromonBlock = config.id
-
-		// forward upstream tabs, if needed
-		if (upstreamJob != null) {
-			val upstreamValues = upstreamJob.finishedArgValues()
-				?.toArgValues(Backend.instance.pypArgs)
-				?: throw IllegalStateException("upstream job has no finished args")
-			Backend.instance.pypArgs
-				.blockOrThrow(config.configId)
-				.forwardedGroupIds
-				.flatMap { Backend.instance.pypArgs.args(it) }
-				.filter { !values.contains(it) } // but don't overwrite any values already there
-				.forEach { values[it] = upstreamValues[it] }
-		}
 
 		// set the current job arg values
 		values.setAll(args().diff(currentValues, prevValues))
 
 		Backend.log.debug("""
-			|launchArgValues():
+			|launchArgValues()  job=${config.id}
 			|  current:  ${currentValues.lines().filter { it.isNotBlank() }.joinToString("\n            ")}
 			|     prev:  ${prevValues?.lines()?.filter { it.isNotBlank() }?.joinToString("\n            ") ?: "(none)"}
 			|     diff:  ${values.toString().lines().joinToString("\n            ")}
 		""".trimMargin())
+
+		// forward upstream tabs, if needed
+		if (upstreamJob != null) {
+
+			val upstreamValues = upstreamJob.finishedArgValues()
+				?.toArgValues(values.args)
+				?: throw IllegalStateException("upstream job has no finished args")
+
+			val forwardedValues = upstreamValues.project(Args.from(
+				Backend.instance.pypArgs
+					.blockOrThrow(config.configId)
+					.forwardedGroupIds
+					.flatMap { values.args.args(it) }
+					.filter { !(it.default != null && upstreamValues[it] == it.default.value) } // don't forward any default values
+			))
+
+			Backend.log.debug("""
+				|launchArgValues()  upstream=${upstreamJob.baseConfig.id}
+				|  forwarded:  ${forwardedValues.toString().lines().joinToString("\n              ")}
+			""".trimMargin())
+
+			values.setAll(forwardedValues)
+		}
 
 		return values
 	}

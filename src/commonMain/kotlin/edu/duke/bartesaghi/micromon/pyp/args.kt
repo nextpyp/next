@@ -18,6 +18,13 @@ class Args(
 
 		fun fromJson(json: String): Args =
 			Json.decodeFromString(json)
+
+		fun from(args: List<Arg>): Args =
+			Args(
+				blocks = emptyList(),
+				groups = emptyList(),
+				args
+			)
 	}
 
 	// build the index structures
@@ -185,7 +192,7 @@ class Args(
 
 
 @Serializable
-class Block(
+data class Block(
 	val blockId: String,
 	val name: String,
 	val description: String,
@@ -708,6 +715,14 @@ class ArgValues(val args: Args) {
 				append("\n")
 			}
 		}.toString()
+
+	fun project(args: Args): ArgValues {
+		val out = ArgValues(args)
+		for (arg in args.args) {
+			out[arg] = this[arg]
+		}
+		return out
+	}
 
 	companion object {
 		// make a companion so we can extend it
