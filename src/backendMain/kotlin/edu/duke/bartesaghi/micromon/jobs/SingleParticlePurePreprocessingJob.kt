@@ -25,6 +25,7 @@ class SingleParticlePurePreprocessingJob(
 
 		override val config = SingleParticlePurePreprocessingNodeConfig
 		override val dataType = JobInfo.DataType.Micrograph
+		override val dataClass = SingleParticlePurePreprocessingData::class
 
 		override fun fromDoc(doc: Document) = SingleParticlePurePreprocessingJob(
 			doc.getString("userId"),

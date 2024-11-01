@@ -27,6 +27,7 @@ class SingleParticleImportDataJob(
 
 		override val config = SingleParticleImportDataNodeConfig
 		override val dataType = JobInfo.DataType.Micrograph
+		override val dataClass = SingleParticleImportDataData::class
 
 		override fun fromDoc(doc: Document) = SingleParticleImportDataJob(
 			doc.getString("userId"),

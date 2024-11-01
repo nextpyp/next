@@ -24,6 +24,7 @@ class SingleParticleSessionDataJob(
 
 		override val config = SingleParticleSessionDataNodeConfig
 		override val dataType = JobInfo.DataType.Micrograph
+		override val dataClass = SingleParticleSessionDataData::class
 
 		override fun fromDoc(doc: Document) = SingleParticleSessionDataJob(
 			doc.getString("userId"),

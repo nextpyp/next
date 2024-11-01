@@ -27,6 +27,7 @@ class SingleParticlePostprocessingJob(
 
 		override val config = SingleParticlePostprocessingNodeConfig
 		override val dataType = JobInfo.DataType.Micrograph
+		override val dataClass = SingleParticlePostprocessingData::class
 
 		override fun fromDoc(doc: Document) = SingleParticlePostprocessingJob(
 			doc.getString("userId"),

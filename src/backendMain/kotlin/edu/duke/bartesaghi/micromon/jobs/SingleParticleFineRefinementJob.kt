@@ -27,6 +27,7 @@ class SingleParticleFineRefinementJob(
 
 		override val config = SingleParticleFineRefinementNodeConfig
 		override val dataType = JobInfo.DataType.Micrograph
+		override val dataClass = SingleParticleFineRefinementData::class
 
 		override fun fromDoc(doc: Document) = SingleParticleFineRefinementJob(
 			doc.getString("userId"),

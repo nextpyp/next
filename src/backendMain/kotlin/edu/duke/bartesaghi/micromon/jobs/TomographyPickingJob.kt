@@ -24,6 +24,7 @@ class TomographyPickingJob(
 
 		override val config = TomographyPickingNodeConfig
 		override val dataType = JobInfo.DataType.TiltSeries
+		override val dataClass = TomographyPickingData::class
 
 		override fun fromDoc(doc: Document) = TomographyPickingJob(
 			doc.getString("userId"),

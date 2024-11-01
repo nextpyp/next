@@ -52,23 +52,23 @@ object MockPyp {
 					)
 				}
 				// blocks
-				+ TomographyRawDataJob.mockArgs()
-				+ TomographyPreprocessingJob.mockArgs()
-				+ TomographyPurePreprocessingJob.mockArgs()
-				+ TomographyDenoisingJob.mockArgs()
-				+ TomographyPickingJob.mockArgs()
-				+ TomographySegmentationClosedJob.mockArgs()
-				+ TomographyPickingOpenJob.mockArgs()
-				+ TomographyPickingClosedJob.mockArgs()
-				+ TomographyParticlesEvalJob.mockArgs()
-				+ TomographyMiloEvalJob.mockArgs()
-				+ TomographySessionDataJob.mockArgs()
-				+ TomographyImportDataJob.mockArgs()
-				+ TomographyRelionDataJob.mockArgs()
-				+ SingleParticleRawDataJob.mockArgs()
-				+ SingleParticlePreprocessingJob.mockArgs()
+				+ TomographyRawDataMockArgs.all
+				+ TomographyPreprocessingMockArgs.all
+				+ TomographyPurePreprocessingMockArgs.all
+				+ TomographyDenoisingMockArgs.all
+				+ TomographyPickingMockArgs.all
+				+ TomographySegmentationClosedMockArgs.all
+				+ TomographyPickingOpenMockArgs.all
+				+ TomographyPickingClosedMockArgs.all
+				+ TomographyParticlesEvalMockArgs.all
+				+ TomographyMiloEvalMockArgs.all
+				+ TomographySessionDataMockArgs.all
+				+ TomographyImportDataMockArgs.all
+				+ TomographyRelionDataMockArgs.all
+				+ SingleParticleRawDataMockArgs.all
+				+ SingleParticlePreprocessingMockArgs.all
 				// sessions
-				+ TomographySession.mockArgs()
+				+ TomographySessionMockArgs.all
 		)
 }
 
@@ -80,164 +80,178 @@ private val Block.nodeConfig: NodeConfig? get() =
 private val JobInfo.mockGroupId: String get() =
 	"${config.id.replace('-', '_')}_mock"
 
-
-private fun JobInfo.mockArg(id: String, type: ArgType, default: ArgValue? = null): Arg =
-	Arg(
-		groupId = mockGroupId,
-		argId = id,
-		name = id,
-		description = "",
-		type = type,
-		default = default
-	)
-
-
-private fun TomographyRawDataJob.Companion.mockArgs(): List<Arg> = listOf(
-	mockArg("image_size", ArgType.TInt(), ArgValue.VInt(512))
-)
-
-
-private fun TomographyPreprocessingJob.Companion.mockArgs(): List<Arg> = listOf(
-	mockArg("num_tilt_series", ArgType.TInt(), ArgValue.VInt(4)),
-	mockArg("num_tilts", ArgType.TInt(), ArgValue.VInt(4)),
-	mockArg("tomogram_width", ArgType.TInt(), ArgValue.VInt(8192)),
-	mockArg("tomogram_height", ArgType.TInt(), ArgValue.VInt(8192)),
-	mockArg("num_virions", ArgType.TInt(), ArgValue.VInt(5)),
-	mockArg("num_spikes", ArgType.TInt(), ArgValue.VInt(10)),
-	mockArg("tilt_angle_magnitude", ArgType.TInt(), ArgValue.VInt(45))
-)
+open class JobMockArgs(val jobInfo: JobInfo) {
+	
+	private val _all = ArrayList<Arg>()
+	val all: List<Arg> get() = _all
+	
+	fun mockArg(id: String, type: ArgType, default: ArgValue? = null): Arg =
+		Arg(
+			groupId = jobInfo.mockGroupId,
+			argId = id,
+			name = id,
+			description = "",
+			type = type,
+			default = default
+		)
+			.also { _all.add(it) }
+}
 
 
-private fun TomographyPurePreprocessingJob.Companion.mockArgs(): List<Arg> = listOf(
-	mockArg("num_tilt_series", ArgType.TInt(), ArgValue.VInt(4)),
-	mockArg("num_tilts", ArgType.TInt(), ArgValue.VInt(4)),
-	mockArg("tomogram_width", ArgType.TInt(), ArgValue.VInt(8192)),
-	mockArg("tomogram_height", ArgType.TInt(), ArgValue.VInt(8192)),
-	mockArg("tilt_angle_magnitude", ArgType.TInt(), ArgValue.VInt(45)),
-	mockArg("split_mode", ArgType.TBool(), ArgValue.VBool(false))
-)
+object TomographyRawDataMockArgs : JobMockArgs(TomographyRawDataJob) {
+	val imageSize = mockArg("image_size", ArgType.TInt(), ArgValue.VInt(512))
+}
 
 
-private fun TomographyDenoisingJob.Companion.mockArgs(): List<Arg> = listOf(
-	mockArg("num_tilt_series", ArgType.TInt(), ArgValue.VInt(4)),
-	mockArg("tomogram_width", ArgType.TInt(), ArgValue.VInt(8192)),
-	mockArg("tomogram_height", ArgType.TInt(), ArgValue.VInt(8192)),
-)
+object TomographyPreprocessingMockArgs : JobMockArgs(TomographyPreprocessingJob) {
+	val numTiltSeries = mockArg("num_tilt_series", ArgType.TInt(), ArgValue.VInt(4))
+	val numTilts = mockArg("num_tilts", ArgType.TInt(), ArgValue.VInt(4))
+	val tomogramWidth = mockArg("tomogram_width", ArgType.TInt(), ArgValue.VInt(8192))
+	val tomogramHeight = mockArg("tomogram_height", ArgType.TInt(), ArgValue.VInt(8192))
+	val numVirions = mockArg("num_virions", ArgType.TInt(), ArgValue.VInt(5))
+	val numSpiked = mockArg("num_spikes", ArgType.TInt(), ArgValue.VInt(10))
+	val tiltAngleMagnitude = mockArg("tilt_angle_magnitude", ArgType.TInt(), ArgValue.VInt(45))
+}
 
 
-private fun TomographyPickingJob.Companion.mockArgs(): List<Arg> = listOf(
-	mockArg("num_tilt_series", ArgType.TInt(), ArgValue.VInt(4)),
-	mockArg("tomogram_width", ArgType.TInt(), ArgValue.VInt(8192)),
-	mockArg("tomogram_height", ArgType.TInt(), ArgValue.VInt(8192)),
-	mockArg("num_particles", ArgType.TInt(), ArgValue.VInt(20))
-)
+object TomographyPurePreprocessingMockArgs : JobMockArgs(TomographyPurePreprocessingJob) {
+	val numTiltSeries = mockArg("num_tilt_series", ArgType.TInt(), ArgValue.VInt(4))
+	val numTilts = mockArg("num_tilts", ArgType.TInt(), ArgValue.VInt(4))
+	val tomogramWidth = mockArg("tomogram_width", ArgType.TInt(), ArgValue.VInt(8192))
+	val tomogramHeight = mockArg("tomogram_height", ArgType.TInt(), ArgValue.VInt(8192))
+	val tiltAngleMagnitude = mockArg("tilt_angle_magnitude", ArgType.TInt(), ArgValue.VInt(45))
+	val splitMode = mockArg("split_mode", ArgType.TBool(), ArgValue.VBool(false))
+}
 
 
-private fun TomographySegmentationClosedJob.Companion.mockArgs(): List<Arg> = listOf(
-	mockArg("num_tilt_series", ArgType.TInt(), ArgValue.VInt(4)),
-	mockArg("tomogram_width", ArgType.TInt(), ArgValue.VInt(8192)),
-	mockArg("tomogram_height", ArgType.TInt(), ArgValue.VInt(8192)),
-	mockArg("virion_radius", ArgType.TFloat(), ArgValue.VFloat(1000.0)),
-	mockArg("num_particles", ArgType.TInt(), ArgValue.VInt(20))
-)
+object TomographyDenoisingMockArgs : JobMockArgs(TomographyDenoisingJob) {
+	val numTiltSeries = mockArg("num_tilt_series", ArgType.TInt(), ArgValue.VInt(4))
+	val tomogramWidth = mockArg("tomogram_width", ArgType.TInt(), ArgValue.VInt(8192))
+	val tomogramHeight = mockArg("tomogram_height", ArgType.TInt(), ArgValue.VInt(8192))
+}
 
 
-private fun TomographyPickingOpenJob.Companion.mockArgs(): List<Arg> = listOf(
-	mockArg("num_tilt_series", ArgType.TInt(), ArgValue.VInt(4)),
-	mockArg("tomogram_width", ArgType.TInt(), ArgValue.VInt(8192)),
-	mockArg("tomogram_height", ArgType.TInt(), ArgValue.VInt(8192)),
-	mockArg("num_particles", ArgType.TInt(), ArgValue.VInt(20))
-)
+object TomographyPickingMockArgs : JobMockArgs(TomographyPickingJob) {
+	val numTiltSeries = mockArg("num_tilt_series", ArgType.TInt(), ArgValue.VInt(4))
+	val tomogramWidth = mockArg("tomogram_width", ArgType.TInt(), ArgValue.VInt(8192))
+	val tomogramHeight = mockArg("tomogram_height", ArgType.TInt(), ArgValue.VInt(8192))
+	val numParticles = mockArg("num_particles", ArgType.TInt(), ArgValue.VInt(20))
+}
 
 
-private fun TomographyPickingClosedJob.Companion.mockArgs(): List<Arg> = listOf(
-	mockArg("num_tilt_series", ArgType.TInt(), ArgValue.VInt(4)),
-	mockArg("tomogram_width", ArgType.TInt(), ArgValue.VInt(8192)),
-	mockArg("tomogram_height", ArgType.TInt(), ArgValue.VInt(8192)),
-	mockArg("num_virions", ArgType.TInt(), ArgValue.VInt(20)),
-	mockArg("virion_radius", ArgType.TFloat(), ArgValue.VFloat(1000.0)),
-	mockArg("num_spikes", ArgType.TInt(), ArgValue.VInt(40)),
-	mockArg("spike_radius", ArgType.TFloat(), ArgValue.VFloat(500.0))
-)
+object TomographySegmentationClosedMockArgs : JobMockArgs(TomographySegmentationClosedJob) {
+	val numTiltSeries = mockArg("num_tilt_series", ArgType.TInt(), ArgValue.VInt(4))
+	val tomogramWidth = mockArg("tomogram_width", ArgType.TInt(), ArgValue.VInt(8192))
+	val tomogramHeight = mockArg("tomogram_height", ArgType.TInt(), ArgValue.VInt(8192))
+	val virionRadius = mockArg("virion_radius", ArgType.TFloat(), ArgValue.VFloat(1000.0))
+	val numParticles = mockArg("num_particles", ArgType.TInt(), ArgValue.VInt(20))
+}
 
 
-private fun TomographyParticlesEvalJob.Companion.mockArgs(): List<Arg> = listOf(
-	mockArg("num_tilt_series", ArgType.TInt(), ArgValue.VInt(4)),
-	mockArg("tomogram_width", ArgType.TInt(), ArgValue.VInt(8192)),
-	mockArg("tomogram_height", ArgType.TInt(), ArgValue.VInt(8192)),
-	mockArg("num_particles", ArgType.TInt(), ArgValue.VInt(20)),
-	mockArg("particle_radius", ArgType.TFloat(), ArgValue.VFloat(500.0))
-)
+object TomographyPickingOpenMockArgs : JobMockArgs(TomographyPickingOpenJob) {
+	val numTiltSeries = mockArg("num_tilt_series", ArgType.TInt(), ArgValue.VInt(4))
+	val tomogramWidth = mockArg("tomogram_width", ArgType.TInt(), ArgValue.VInt(8192))
+	val tomogramHeight = mockArg("tomogram_height", ArgType.TInt(), ArgValue.VInt(8192))
+	val numParticles = mockArg("num_particles", ArgType.TInt(), ArgValue.VInt(20))
+}
 
 
-private fun TomographyMiloEvalJob.Companion.mockArgs(): List<Arg> = listOf(
-	mockArg("num_tilt_series", ArgType.TInt(), ArgValue.VInt(4)),
-	mockArg("tomogram_width", ArgType.TInt(), ArgValue.VInt(8192)),
-	mockArg("tomogram_height", ArgType.TInt(), ArgValue.VInt(8192)),
-	mockArg("num_particles", ArgType.TInt(), ArgValue.VInt(20))
-)
+object TomographyPickingClosedMockArgs : JobMockArgs(TomographyPickingClosedJob) {
+	val numTiltSeries = mockArg("num_tilt_series", ArgType.TInt(), ArgValue.VInt(4))
+	val tomogramWidth = mockArg("tomogram_width", ArgType.TInt(), ArgValue.VInt(8192))
+	val tomogramHeight = mockArg("tomogram_height", ArgType.TInt(), ArgValue.VInt(8192))
+	val numVirions = mockArg("num_virions", ArgType.TInt(), ArgValue.VInt(20))
+	val virionRadius = mockArg("virion_radius", ArgType.TFloat(), ArgValue.VFloat(1000.0))
+	val numSpikes = mockArg("num_spikes", ArgType.TInt(), ArgValue.VInt(40))
+	val spikeRadius = mockArg("spike_radius", ArgType.TFloat(), ArgValue.VFloat(500.0))
+}
 
 
-private fun TomographySessionDataJob.Companion.mockArgs(): List<Arg> = listOf(
-	mockArg("num_tilt_series", ArgType.TInt(), ArgValue.VInt(4)),
-	mockArg("num_tilts", ArgType.TInt(), ArgValue.VInt(4)),
-	mockArg("tomogram_width", ArgType.TInt(), ArgValue.VInt(8192)),
-	mockArg("tomogram_height", ArgType.TInt(), ArgValue.VInt(8192)),
-	mockArg("num_virions", ArgType.TInt(), ArgValue.VInt(5)),
-	mockArg("num_spikes", ArgType.TInt(), ArgValue.VInt(10)),
-	mockArg("tilt_angle_magnitude", ArgType.TInt(), ArgValue.VInt(45))
-)
+object TomographyParticlesEvalMockArgs : JobMockArgs(TomographyParticlesEvalJob) {
+	val numTiltSeries = mockArg("num_tilt_series", ArgType.TInt(), ArgValue.VInt(4))
+	val tomogramWidth = mockArg("tomogram_width", ArgType.TInt(), ArgValue.VInt(8192))
+	val tomogramHeight = mockArg("tomogram_height", ArgType.TInt(), ArgValue.VInt(8192))
+	val numParticles = mockArg("num_particles", ArgType.TInt(), ArgValue.VInt(20))
+	val particleRadius = mockArg("particle_radius", ArgType.TFloat(), ArgValue.VFloat(500.0))
+}
 
 
-private fun TomographyImportDataJob.Companion.mockArgs(): List<Arg> = listOf(
-	mockArg("num_tilt_series", ArgType.TInt(), ArgValue.VInt(4)),
-	mockArg("num_tilts", ArgType.TInt(), ArgValue.VInt(4)),
-	mockArg("tomogram_width", ArgType.TInt(), ArgValue.VInt(8192)),
-	mockArg("tomogram_height", ArgType.TInt(), ArgValue.VInt(8192)),
-	mockArg("num_virions", ArgType.TInt(), ArgValue.VInt(5)),
-	mockArg("num_spikes", ArgType.TInt(), ArgValue.VInt(10)),
-	mockArg("tilt_angle_magnitude", ArgType.TInt(), ArgValue.VInt(45))
-)
+object TomographyMiloEvalMockArgs : JobMockArgs(TomographyMiloEvalJob) {
+	val numTiltSeries = mockArg("num_tilt_series", ArgType.TInt(), ArgValue.VInt(4))
+	val tomogramWidth = mockArg("tomogram_width", ArgType.TInt(), ArgValue.VInt(8192))
+	val tomogramHeight = mockArg("tomogram_height", ArgType.TInt(), ArgValue.VInt(8192))
+	val numParticles = mockArg("num_particles", ArgType.TInt(), ArgValue.VInt(20))
+}
 
 
-private fun TomographyRelionDataJob.Companion.mockArgs(): List<Arg> = listOf(
-	mockArg("image_size", ArgType.TInt(), ArgValue.VInt(512))
-)
+object TomographySessionDataMockArgs : JobMockArgs(TomographySessionDataJob) {
+	val numTiltSeries = mockArg("num_tilt_series", ArgType.TInt(), ArgValue.VInt(4))
+	val numTilts = mockArg("num_tilts", ArgType.TInt(), ArgValue.VInt(4))
+	val tomogramWidth = mockArg("tomogram_width", ArgType.TInt(), ArgValue.VInt(8192))
+	val tomogramHeight = mockArg("tomogram_height", ArgType.TInt(), ArgValue.VInt(8192))
+	val numVirions = mockArg("num_virions", ArgType.TInt(), ArgValue.VInt(5))
+	val numSpikes = mockArg("num_spikes", ArgType.TInt(), ArgValue.VInt(10))
+	val tiltAngleMagnitde = mockArg("tilt_angle_magnitude", ArgType.TInt(), ArgValue.VInt(45))
+}
 
 
-private fun SingleParticleRawDataJob.Companion.mockArgs(): List<Arg> = listOf(
-	mockArg("image_size", ArgType.TInt(), ArgValue.VInt(512))
-)
+object TomographyImportDataMockArgs : JobMockArgs(TomographyImportDataJob) {
+	val numTiltSeries = mockArg("num_tilt_series", ArgType.TInt(), ArgValue.VInt(4))
+	val numTilts = mockArg("num_tilts", ArgType.TInt(), ArgValue.VInt(4))
+	val tomogramWidth = mockArg("tomogram_width", ArgType.TInt(), ArgValue.VInt(8192))
+	val tomogramHeight = mockArg("tomogram_height", ArgType.TInt(), ArgValue.VInt(8192))
+	val numVirions = mockArg("num_virions", ArgType.TInt(), ArgValue.VInt(5))
+	val numSpikes = mockArg("num_spikes", ArgType.TInt(), ArgValue.VInt(10))
+	val tiltAngleMagnitde = mockArg("tilt_angle_magnitude", ArgType.TInt(), ArgValue.VInt(45))
+}
 
 
-private fun SingleParticlePreprocessingJob.Companion.mockArgs(): List<Arg> = listOf(
-	mockArg("num_micrographs", ArgType.TInt(), ArgValue.VInt(4)),
-	mockArg("micrograph_width", ArgType.TInt(), ArgValue.VInt(8192)),
-	mockArg("micrograph_height", ArgType.TInt(), ArgValue.VInt(8192)),
-	mockArg("num_particles", ArgType.TInt(), ArgValue.VInt(20)),
-	mockArg("particle_radius", ArgType.TFloat(), ArgValue.VFloat(100.0))
-)
+object TomographyRelionDataMockArgs : JobMockArgs(TomographyRelionDataJob) {
+	val imageSize = mockArg("image_size", ArgType.TInt(), ArgValue.VInt(512))
+}
+
+
+object SingleParticleRawDataMockArgs : JobMockArgs(SingleParticleRawDataJob) {
+	val imageSize = mockArg("image_size", ArgType.TInt(), ArgValue.VInt(512))
+}
+
+
+object SingleParticlePreprocessingMockArgs : JobMockArgs(SingleParticlePreprocessingJob) {
+	val numMicrographs = mockArg("num_micrographs", ArgType.TInt(), ArgValue.VInt(4))
+	val micrographWidth = mockArg("micrograph_width", ArgType.TInt(), ArgValue.VInt(8192))
+	val micrigraphHeight = mockArg("micrograph_height", ArgType.TInt(), ArgValue.VInt(8192))
+	val numParticles = mockArg("num_particles", ArgType.TInt(), ArgValue.VInt(20))
+	val particleRadius = mockArg("particle_radius", ArgType.TFloat(), ArgValue.VFloat(100.0))
+}
 
 
 private val Session.Type.mockGroupId: String get() =
 	"${configId.replace('-', '_')}_mock"
 
-private fun Session.Type.mockArg(id: String, type: ArgType, default: ArgValue? = null): Arg =
-	Arg(
-		groupId = mockGroupId,
-		argId = id,
-		name = id,
-		description = "",
-		type = type,
-		default = default
-	)
+open class SessionMockArgs(val sessionType: Session.Type) {
 
-private fun TomographySession.Companion.mockArgs(): List<Arg> = listOf(
-	mockArg("num_tilt_series", ArgType.TInt(), ArgValue.VInt(4)),
-	mockArg("num_tilts", ArgType.TInt(), ArgValue.VInt(4)),
-	mockArg("tomogram_width", ArgType.TInt(), ArgValue.VInt(8192)),
-	mockArg("tomogram_height", ArgType.TInt(), ArgValue.VInt(8192)),
-	mockArg("num_virions", ArgType.TInt(), ArgValue.VInt(5)),
-	mockArg("num_spikes", ArgType.TInt(), ArgValue.VInt(10)),
-	mockArg("tilt_angle_magnitude", ArgType.TInt(), ArgValue.VInt(45))
-)
+	private val _all = ArrayList<Arg>()
+	val all: List<Arg> get() = _all
+
+	fun mockArg(id: String, type: ArgType, default: ArgValue? = null): Arg =
+		Arg(
+			groupId = sessionType.mockGroupId,
+			argId = id,
+			name = id,
+			description = "",
+			type = type,
+			default = default
+		)
+			.also { _all.add(it) }
+}
+
+
+object TomographySessionMockArgs : SessionMockArgs(TomographySession) {
+	val numTiltSeries = mockArg("num_tilt_series", ArgType.TInt(), ArgValue.VInt(4))
+	val numTilts = mockArg("num_tilts", ArgType.TInt(), ArgValue.VInt(4))
+	val tomogramWidth = mockArg("tomogram_width", ArgType.TInt(), ArgValue.VInt(8192))
+	val tomogramHeight = mockArg("tomogram_height", ArgType.TInt(), ArgValue.VInt(8192))
+	val numVirions = mockArg("num_virions", ArgType.TInt(), ArgValue.VInt(5))
+	val numSpikes = mockArg("num_spikes", ArgType.TInt(), ArgValue.VInt(10))
+	val tiltAngleMagnitde = mockArg("tilt_angle_magnitude", ArgType.TInt(), ArgValue.VInt(45))
+}

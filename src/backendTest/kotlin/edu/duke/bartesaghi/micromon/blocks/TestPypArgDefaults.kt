@@ -35,7 +35,7 @@ class TestPypArgDefaults : FunSpec({
 
 
 	test("sends nothing for default values") {
-		website.createProject { project, ws ->
+		website.createProjectAndListen { project, ws ->
 
 			// make a block, with no args
 			val args = SingleParticleRawDataArgs(econfig.argsToml {
@@ -43,14 +43,14 @@ class TestPypArgDefaults : FunSpec({
 				// explicity set arg2 to the default value
 				this[argInt] = argInt.defaultOrThrow.value
 			})
-			val job = website.services.rpc(ISingleParticleRawDataService::import, website.getUserId(), project.projectId, args)
+			val job = website.importBlock(project, ISingleParticleRawDataService::import, args)
 
 			// run the project
-			val clusterJobs = website.runProject(project, listOf(job), ws)
-			clusterJobs.size shouldBe 1
+			val runResult = website.runProject(project, listOf(job), ws)
+			runResult.clusterJobs.size shouldBe 1
 
 			// the CLI shouldn't have any of the arg values
-			val sentValues = clusterJobs[0].pypValues(econfig)
+			val sentValues = runResult.clusterJobs[0].pypValues(econfig)
 			println("CLI args: $sentValues")
 			sentValues[argBool] shouldBe null
 			sentValues[argInt] shouldBe null
@@ -58,21 +58,21 @@ class TestPypArgDefaults : FunSpec({
 	}
 
 	test("sends something for non-default values") {
-		website.createProject { project, ws ->
+		website.createProjectAndListen { project, ws ->
 
 			// make a block, with some non-default args
 			val args = SingleParticleRawDataArgs(econfig.argsToml {
 				this[argBool] = true
 				this[argInt] = 5
 			})
-			val job = website.services.rpc(ISingleParticleRawDataService::import, website.getUserId(), project.projectId, args)
+			val job = website.importBlock(project, ISingleParticleRawDataService::import, args)
 
 			// run the project
-			val clusterJobs = website.runProject(project, listOf(job), ws)
-			clusterJobs.size shouldBe 1
+			val runResult = website.runProject(project, listOf(job), ws)
+			runResult.clusterJobs.size shouldBe 1
 
 			// the CLI shouldn't have the arg values
-			val sentValues = clusterJobs[0].pypValues(econfig)
+			val sentValues = runResult.clusterJobs[0].pypValues(econfig)
 			println("CLI args: $sentValues")
 			sentValues[argBool] shouldBe true
 			sentValues[argInt] shouldBe 5
@@ -80,24 +80,24 @@ class TestPypArgDefaults : FunSpec({
 	}
 
 	test("resends nothing for unchanged values") {
-		website.createProject { project, ws ->
+		website.createProjectAndListen { project, ws ->
 
 			// make a block, with some non-default args
 			val args = SingleParticleRawDataArgs(econfig.argsToml {
 				this[argBool] = true
 				this[argInt] = 5
 			})
-			val job = website.services.rpc(ISingleParticleRawDataService::import, website.getUserId(), project.projectId, args)
+			val job = website.importBlock(project, ISingleParticleRawDataService::import, args)
 
 			// run the project
 			website.runProject(project, listOf(job), ws)
 
 			// run the project again
-			val clusterJobs = website.runProject(project, listOf(job), ws)
-			clusterJobs.size shouldBe 1
+			val runResult = website.runProject(project, listOf(job), ws)
+			runResult.clusterJobs.size shouldBe 1
 
 			// the CLI shouldn't have any of the arg values
-			val sentValues = clusterJobs[0].pypValues(econfig)
+			val sentValues = runResult.clusterJobs[0].pypValues(econfig)
 			println("CLI args: $sentValues")
 			sentValues[argBool] shouldBe null
 			sentValues[argInt] shouldBe null
@@ -105,14 +105,14 @@ class TestPypArgDefaults : FunSpec({
 	}
 
 	test("resends something for changed values") {
-		website.createProject { project, ws ->
+		website.createProjectAndListen { project, ws ->
 
 			// make a block, with some non-default args
 			var args = SingleParticleRawDataArgs(econfig.argsToml {
 				this[argBool] = true
 				this[argInt] = 5
 			})
-			val job = website.services.rpc(ISingleParticleRawDataService::import, website.getUserId(), project.projectId, args)
+			val job = website.importBlock(project, ISingleParticleRawDataService::import, args)
 
 			// run the project
 			website.runProject(project, listOf(job), ws)
@@ -124,11 +124,11 @@ class TestPypArgDefaults : FunSpec({
 			website.services.rpc(ISingleParticleRawDataService::edit, job.jobId, args)
 
 			// run the project again
-			val clusterJobs = website.runProject(project, listOf(job), ws)
-			clusterJobs.size shouldBe 1
+			val runResult = website.runProject(project, listOf(job), ws)
+			runResult.clusterJobs.size shouldBe 1
 
 			// the CLI should have the new arg value
-			val sentValues = clusterJobs[0].pypValues(econfig)
+			val sentValues = runResult.clusterJobs[0].pypValues(econfig)
 			println("CLI args: $sentValues")
 			sentValues[argBool] shouldBe null
 			sentValues[argInt] shouldBe 42
@@ -136,14 +136,14 @@ class TestPypArgDefaults : FunSpec({
 	}
 
 	test("resends something for re-defaulted values") {
-		website.createProject { project, ws ->
+		website.createProjectAndListen { project, ws ->
 
 			// make a block, with some non-default args
 			var args = SingleParticleRawDataArgs(econfig.argsToml {
 				this[argBool] = true
 				this[argInt] = 5
 			})
-			val job = website.services.rpc(ISingleParticleRawDataService::import, website.getUserId(), project.projectId, args)
+			val job = website.importBlock(project, ISingleParticleRawDataService::import, args)
 
 			// run the project
 			website.runProject(project, listOf(job), ws)
@@ -156,11 +156,11 @@ class TestPypArgDefaults : FunSpec({
 			website.services.rpc(ISingleParticleRawDataService::edit, job.jobId, args)
 
 			// run the project again
-			val clusterJobs = website.runProject(project, listOf(job), ws)
-			clusterJobs.size shouldBe 1
+			val runResult = website.runProject(project, listOf(job), ws)
+			runResult.clusterJobs.size shouldBe 1
 
 			// the CLI should have explicit default values for the args
-			val sentValues = clusterJobs[0].pypValues(econfig)
+			val sentValues = runResult.clusterJobs[0].pypValues(econfig)
 			println("CLI args: $sentValues")
 			sentValues[argBool] shouldBe false
 			sentValues[argInt] shouldBe 1
@@ -168,7 +168,7 @@ class TestPypArgDefaults : FunSpec({
 	}
 
 	test("resends something for removed values") {
-		website.createProject { project, ws ->
+		website.createProjectAndListen { project, ws ->
 
 			// make a block, with some non-default args
 			var args = SingleParticleRawDataArgs(econfig.argsToml {
@@ -176,7 +176,7 @@ class TestPypArgDefaults : FunSpec({
 				this[argInt] = 5
 				this[argStr] = "foo"
 			})
-			val job = website.services.rpc(ISingleParticleRawDataService::import, website.getUserId(), project.projectId, args)
+			val job = website.importBlock(project, ISingleParticleRawDataService::import, args)
 
 			// run the project
 			website.runProject(project, listOf(job), ws)
@@ -190,11 +190,11 @@ class TestPypArgDefaults : FunSpec({
 			website.services.rpc(ISingleParticleRawDataService::edit, job.jobId, args)
 
 			// run the project again
-			val clusterJobs = website.runProject(project, listOf(job), ws)
-			clusterJobs.size shouldBe 1
+			val runResult = website.runProject(project, listOf(job), ws)
+			runResult.clusterJobs.size shouldBe 1
 
 			// the CLI should have explicit default values for the args
-			val sentValues = clusterJobs[0].pypValues(econfig)
+			val sentValues = runResult.clusterJobs[0].pypValues(econfig)
 			println("CLI args: $sentValues")
 			sentValues[argBool] shouldBe false
 			sentValues[argInt] shouldBe 1

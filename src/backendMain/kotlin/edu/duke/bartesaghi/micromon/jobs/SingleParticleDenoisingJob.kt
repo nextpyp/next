@@ -25,6 +25,7 @@ class SingleParticleDenoisingJob(
 
 		override val config = SingleParticleDenoisingNodeConfig
 		override val dataType = JobInfo.DataType.Micrograph
+		override val dataClass = SingleParticleDenoisingData::class
 
 		override fun fromDoc(doc: Document) = SingleParticleDenoisingJob(
 			doc.getString("userId"),

@@ -24,6 +24,7 @@ class TomographyMiloEvalJob(
 
 		override val config = TomographyMiloEvalNodeConfig
 		override val dataType = JobInfo.DataType.TiltSeries
+		override val dataClass = TomographyMiloEvalData::class
 
 		override fun fromDoc(doc: Document) = TomographyMiloEvalJob(
 			doc.getString("userId"),

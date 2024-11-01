@@ -25,6 +25,7 @@ class TomographySegmentationClosedJob(
 
 		override val config = TomographySegmentationClosedNodeConfig
 		override val dataType = JobInfo.DataType.TiltSeries
+		override val dataClass = TomographySegmentationClosedData::class
 
 		override fun fromDoc(doc: Document) = TomographySegmentationClosedJob(
 			doc.getString("userId"),

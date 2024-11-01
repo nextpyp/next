@@ -1,16 +1,16 @@
 package edu.duke.bartesaghi.micromon.blocks
 
-import edu.duke.bartesaghi.micromon.EphemeralConfig
-import edu.duke.bartesaghi.micromon.EphemeralMongo
-import edu.duke.bartesaghi.micromon.EphemeralWebsite
+import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.nodes.SingleParticlePurePreprocessingNodeConfig
 import edu.duke.bartesaghi.micromon.nodes.SingleParticleRawDataNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.*
+import io.kotest.core.annotation.EnabledIf
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 
 
+@EnabledIf(RuntimeEnvironment.Website::class)
 class TestForwardedGroups : FunSpec({
 
 	// start one database for all of these tests
@@ -52,32 +52,31 @@ class TestForwardedGroups : FunSpec({
 
 
 	test("forwards groups") {
-		website.createProject { project, ws ->
+		website.createProjectAndListen { project, ws ->
 
 			// make a raw data block, with some arg values
 			val rawDataArgs = SingleParticleRawDataArgs(econfig.argsToml {
 				this[argInt] = 5
 				this[argStr] = "foo"
 			})
-			val rawDataJob = website.services.rpc(ISingleParticleRawDataService::import, website.getUserId(), project.projectId, rawDataArgs)
+			val rawDataJob = website.importBlock(project, ISingleParticleRawDataService::import, rawDataArgs)
 
 			// make a downstream preprocessing block, with no args
-			val link = CommonJobData.DataId(rawDataJob.jobId, SingleParticleRawDataNodeConfig.movies.id)
 			val preprocessingArgs = SingleParticlePurePreprocessingArgs("")
-			val preprocessingJob = website.services.rpc(ISingleParticlePurePreprocessingService::addNode, website.getUserId(), project.projectId, link, preprocessingArgs)
+			val preprocessingJob = website.addBlock(project, rawDataJob, ISingleParticlePurePreprocessingService::addNode, preprocessingArgs)
 
 			// run the project
-			val clusterJobs = website.runProject(project, listOf(rawDataJob, preprocessingJob), ws)
-			clusterJobs.size shouldBe 2
+			val runResult = website.runProject(project, listOf(rawDataJob, preprocessingJob), ws)
+			runResult.clusterJobs.size shouldBe 2
 
 			// the raw data CLI should have the arg values
-			val rawDataValues = clusterJobs[0].pypValues(econfig)
+			val rawDataValues = runResult.clusterJobs[0].pypValues(econfig)
 			println("raw data CLI args: $rawDataValues")
 			rawDataValues[argInt] shouldBe 5
 			rawDataValues[argStr] shouldBe "foo"
 
 			// the preprocessing CLI should have them too
-			val preprocessingValues = clusterJobs[1].pypValues(econfig)
+			val preprocessingValues = runResult.clusterJobs[1].pypValues(econfig)
 			println("preprocessing CLI args: $preprocessingValues")
 			preprocessingValues[argInt] shouldBe 5
 			preprocessingValues[argStr] shouldBe "foo"
@@ -85,29 +84,28 @@ class TestForwardedGroups : FunSpec({
 	}
 
 	test("doesn't forward implicit default values") {
-		website.createProject { project, ws ->
+		website.createProjectAndListen { project, ws ->
 
 			// make a raw data block, with some arg values
 			val rawDataArgs = SingleParticleRawDataArgs("")
-			val rawDataJob = website.services.rpc(ISingleParticleRawDataService::import, website.getUserId(), project.projectId, rawDataArgs)
+			val rawDataJob = website.importBlock(project, ISingleParticleRawDataService::import, rawDataArgs)
 
 			// make a downstream preprocessing block, with no args
-			val link = CommonJobData.DataId(rawDataJob.jobId, SingleParticleRawDataNodeConfig.movies.id)
 			val preprocessingArgs = SingleParticlePurePreprocessingArgs("")
-			val preprocessingJob = website.services.rpc(ISingleParticlePurePreprocessingService::addNode, website.getUserId(), project.projectId, link, preprocessingArgs)
+			val preprocessingJob = website.addBlock(project, rawDataJob, ISingleParticlePurePreprocessingService::addNode, preprocessingArgs)
 
 			// run the project
-			val clusterJobs = website.runProject(project, listOf(rawDataJob, preprocessingJob), ws)
-			clusterJobs.size shouldBe 2
+			val runResult = website.runProject(project, listOf(rawDataJob, preprocessingJob), ws)
+			runResult.clusterJobs.size shouldBe 2
 
 			// the raw data CLI shouldn't have any values
-			val rawDataValues = clusterJobs[0].pypValues(econfig)
+			val rawDataValues = runResult.clusterJobs[0].pypValues(econfig)
 			println("raw data CLI args: $rawDataValues")
 			rawDataValues[argInt] shouldBe null
 			rawDataValues[argStr] shouldBe null
 
 			// the preprocessing CLI shouldn't have any either
-			val preprocessingValues = clusterJobs[1].pypValues(econfig)
+			val preprocessingValues = runResult.clusterJobs[1].pypValues(econfig)
 			println("preprocessing CLI args: $preprocessingValues")
 			preprocessingValues[argInt] shouldBe null
 			preprocessingValues[argStr] shouldBe null
@@ -115,31 +113,30 @@ class TestForwardedGroups : FunSpec({
 	}
 
 	test("doesn't forward explicit default values") {
-		website.createProject { project, ws ->
+		website.createProjectAndListen { project, ws ->
 
 			// make a raw data block, with explicit default values
 			val rawDataArgs = SingleParticleRawDataArgs(econfig.argsToml {
 				this[argInt] = argInt.defaultOrThrow.value
 			})
-			val rawDataJob = website.services.rpc(ISingleParticleRawDataService::import, website.getUserId(), project.projectId, rawDataArgs)
+			val rawDataJob = website.importBlock(project, ISingleParticleRawDataService::import, rawDataArgs)
 
 			// make a downstream preprocessing block, with no args
-			val link = CommonJobData.DataId(rawDataJob.jobId, SingleParticleRawDataNodeConfig.movies.id)
 			val preprocessingArgs = SingleParticlePurePreprocessingArgs("")
-			val preprocessingJob = website.services.rpc(ISingleParticlePurePreprocessingService::addNode, website.getUserId(), project.projectId, link, preprocessingArgs)
+			val preprocessingJob = website.addBlock(project, rawDataJob, ISingleParticlePurePreprocessingService::addNode, preprocessingArgs)
 
 			// run the project
-			val clusterJobs = website.runProject(project, listOf(rawDataJob, preprocessingJob), ws)
-			clusterJobs.size shouldBe 2
+			val runResult = website.runProject(project, listOf(rawDataJob, preprocessingJob), ws)
+			runResult.clusterJobs.size shouldBe 2
 
 			// the raw data CLI shouldn't have any values
-			val rawDataValues = clusterJobs[0].pypValues(econfig)
+			val rawDataValues = runResult.clusterJobs[0].pypValues(econfig)
 			println("raw data CLI args: $rawDataValues")
 			rawDataValues[argInt] shouldBe null
 			rawDataValues[argStr] shouldBe null
 
 			// the preprocessing CLI shouldn't have any either
-			val preprocessingValues = clusterJobs[1].pypValues(econfig)
+			val preprocessingValues = runResult.clusterJobs[1].pypValues(econfig)
 			println("preprocessing CLI args: $preprocessingValues")
 			preprocessingValues[argInt] shouldBe null
 			preprocessingValues[argStr] shouldBe null

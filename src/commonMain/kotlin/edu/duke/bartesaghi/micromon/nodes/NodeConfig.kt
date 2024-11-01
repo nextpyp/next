@@ -121,6 +121,12 @@ interface NodeConfig {
 		outputs.find { id == it.id }
 			?: throw NoSuchElementException("no data output with id $id in node ${this.id}")
 
+	fun singleOutputOrThrow() =
+		outputs
+			.takeIf { it.size == 1 }
+			?.let { it[0] }
+			?: throw IllegalStateException("can't pick single output, node ${this.id} has ${outputs.size} outputs")
+
 	fun findInputs(dataType: Data.Type) =
 		inputs.filter { it.type == dataType }
 

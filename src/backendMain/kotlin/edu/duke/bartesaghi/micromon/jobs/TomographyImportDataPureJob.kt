@@ -29,6 +29,7 @@ class TomographyImportDataPureJob(
 
 		override val config = TomographyImportDataPureNodeConfig
 		override val dataType = JobInfo.DataType.TiltSeries
+		override val dataClass = TomographyImportDataPureData::class
 
 		override fun fromDoc(doc: Document) = TomographyImportDataPureJob(
 			doc.getString("userId"),

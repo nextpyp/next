@@ -23,6 +23,7 @@ class TomographyMiloTrainJob(
 
 		override val config = TomographyMiloTrainNodeConfig
 		override val dataType = JobInfo.DataType.TiltSeries
+		override val dataClass = TomographyMiloTrainData::class
 
 		override fun fromDoc(doc: Document) = TomographyMiloTrainJob(
 			doc.getString("userId"),

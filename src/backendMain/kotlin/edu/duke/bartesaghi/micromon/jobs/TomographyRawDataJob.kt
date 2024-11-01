@@ -27,6 +27,7 @@ class TomographyRawDataJob(
 
 		override val config = TomographyRawDataNodeConfig
 		override val dataType = JobInfo.DataType.TiltSeries
+		override val dataClass = TomographyRawDataData::class
 
 		override fun fromDoc(doc: Document) = TomographyRawDataJob(
 			doc.getString("userId"),

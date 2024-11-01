@@ -1,6 +1,7 @@
 package edu.duke.bartesaghi.micromon.jobs
 
 import edu.duke.bartesaghi.micromon.nodes.*
+import edu.duke.bartesaghi.micromon.services.JobData
 
 
 object Jobs {
@@ -49,6 +50,15 @@ object Jobs {
 
 	fun info(config: NodeConfig): JobInfo =
 		infos[config] ?: throw NoSuchElementException("job info not set for node configuration: ${config.id}")
+
+	private val infosByData = infos.values
+		.filter { it.dataClass != null }
+		.associateBy { it.dataClass }
+
+	fun info(data: JobData): JobInfo =
+		infosByData[data::class] ?: throw NoSuchElementException("job info not set for job data class: ${data::class}")
 }
 
-val NodeConfig.jobInfo get() = Jobs.info(this)
+val NodeConfig.jobInfo get(): JobInfo = Jobs.info(this)
+
+val JobData.jobInfo get(): JobInfo = Jobs.info(this)

@@ -26,6 +26,7 @@ class TomographySessionDataJob(
 
 		override val config = TomographySessionDataNodeConfig
 		override val dataType = JobInfo.DataType.TiltSeries
+		override val dataClass = TomographySessionDataData::class
 
 		override fun fromDoc(doc: Document) = TomographySessionDataJob(
 			doc.getString("userId"),

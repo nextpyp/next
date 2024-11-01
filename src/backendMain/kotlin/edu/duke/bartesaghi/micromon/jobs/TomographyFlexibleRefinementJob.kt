@@ -27,6 +27,7 @@ class TomographyFlexibleRefinementJob(
 
 		override val config = TomographyFlexibleRefinementNodeConfig
 		override val dataType = JobInfo.DataType.TiltSeries
+		override val dataClass = TomographyFlexibleRefinementData::class
 
 		override fun fromDoc(doc: Document) = TomographyFlexibleRefinementJob(
 			doc.getString("userId"),

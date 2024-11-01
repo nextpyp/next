@@ -1,6 +1,8 @@
 package edu.duke.bartesaghi.micromon
 
 import edu.duke.bartesaghi.micromon.cluster.ClusterJob
+import edu.duke.bartesaghi.micromon.jobs.jobInfo
+import edu.duke.bartesaghi.micromon.nodes.NodeConfig
 import edu.duke.bartesaghi.micromon.pyp.ArgValues
 import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
 import edu.duke.bartesaghi.micromon.pyp.Args
@@ -177,7 +179,7 @@ class EphemeralWebsite: AutoCloseable {
 		return User.NoAuthId
 	}
 
-	suspend fun <R> createProject(name: String? = null, block: suspend (project: ProjectData, ws: DefaultClientWebSocketSession) -> R): R {
+	suspend fun createProject(name: String? = null): ProjectData {
 
 		@Suppress("NAME_SHADOWING")
 		val name = name ?: "Project-${uniqueNumber()}"
@@ -185,6 +187,10 @@ class EphemeralWebsite: AutoCloseable {
 		val project = services.rpc(IProjectsService::create, name)
 		log.info("Created project: ${project.projectName}")
 
+		return project
+	}
+
+	suspend fun <R> listenToProject(project: ProjectData, block: suspend (ws: DefaultClientWebSocketSession) -> R): R {
 		return services.websocket(RealTimeServices.project) { ws ->
 
 			ws.outgoing.sendMessage(RealTimeC2S.ListenToProject(
@@ -192,18 +198,55 @@ class EphemeralWebsite: AutoCloseable {
 				project.projectId
 			))
 
+			block(ws)
+		}
+	}
+
+	suspend fun <R> createProjectAndListen(name: String? = null, block: suspend (project: ProjectData, ws: DefaultClientWebSocketSession) -> R): R {
+		val project = createProject(name)
+		return listenToProject(project) { ws ->
 			block(project, ws)
 		}
 	}
 
-	suspend fun runProject(project: ProjectData, jobs: List<JobData>, ws: DefaultClientWebSocketSession, timeout: Duration = 30.seconds): List<ClusterJob> {
+	suspend inline fun <reified S:Any, reified A, reified D, F:suspend S.(String, String, A) -> D> importBlock(project: ProjectData, f: F, args: A): D =
+		services.rpc(f, getUserId(), project.projectId, args)
+
+	suspend inline fun <reified S:Any, reified A, reified D, F:suspend S.(String, String, CommonJobData.DataId, A) -> D> addBlock(project: ProjectData, upstream: JobData, f: F, args: A): D =
+		services.rpc(f, getUserId(), project.projectId, upstream.link(), args)
+
+	suspend inline fun <reified S:Any, reified A, reified C, reified D, F:suspend S.(String, String, CommonJobData.DataId, A, C?) -> D> addBlock(project: ProjectData, upstream: JobData, f: F, args: A, copyArgs: C? = null): D =
+		services.rpc(f, getUserId(), project.projectId, upstream.link(), args, copyArgs)
+
+	suspend inline fun <reified D:JobData> getBlock(project: ProjectData, job: D): D =
+		// this is a bit inefficient, but whatever ... we don't actually have a single job data getter in the API
+		services.rpc(IProjectsService::getJobs, getUserId(), project.projectId)
+			.map { JobData.deserialize(it) }
+			.find { it.jobId == job.jobId }
+			?.let { it as D }
+			?: throw NoSuchElementException("no job with id=${job.jobId} in project with id=${project.projectId}")
+
+	class ProjectRunResult(
+		val clusterJobs: List<ClusterJob>,
+		val jobs: List<JobData>
+	) {
+
+		inline fun <reified D:JobData> getJobData(job: D): D =
+			jobs
+				.find { it.jobId == job.jobId }
+				?.let { it as D }
+				?: throw NoSuchElementException("no job with id=${job.jobId} in project run result")
+	}
+
+	suspend fun runProject(project: ProjectData, jobs: List<JobData>, ws: DefaultClientWebSocketSession, timeout: Duration = 30.seconds): ProjectRunResult {
 
 		// start the project run
 		services.rpc(IProjectsService::run, getUserId(), project.projectId, jobs.map { it.jobId })
 		log.info("runProject(${project.projectName}, jobs=${jobs.map { it.name }}")
 
-		// wait for the run to finish, but collect the launched cluster jobs
+		// wait for the run to finish, but collect the interesting bits from progress messages
 		val clusterJobIds = ArrayList<String>()
+		val jobs = ArrayList<JobData>()
 		val finish = ws.incoming.waitForMessage<RealTimeS2C.ProjectRunFinish>(timeout) { otherMsg ->
 			when (otherMsg) {
 
@@ -214,6 +257,11 @@ class EphemeralWebsite: AutoCloseable {
 
 				is RealTimeS2C.ClusterJobEnd -> {
 					log.info("\tCluster job ended: id=${otherMsg.clusterJobId}, status=${otherMsg.resultType}")
+				}
+
+				is RealTimeS2C.JobFinish -> {
+					jobs.add(otherMsg.job())
+					log.info("\tJob finish: id=${otherMsg.jobId}, status=${otherMsg.status}")
 				}
 
 				else -> {
@@ -229,6 +277,13 @@ class EphemeralWebsite: AutoCloseable {
 		}
 
 		// lookup the cluster jobs
-		return clusterJobIds.map { ClusterJob.getOrThrow(it) }
+		return ProjectRunResult(
+			clusterJobs = clusterJobIds.map { ClusterJob.getOrThrow(it) },
+			jobs
+		)
 	}
 }
+
+
+fun JobData.link(outputData: NodeConfig.Data = jobInfo.config.singleOutputOrThrow()) =
+	CommonJobData.DataId(jobId, outputData.id)

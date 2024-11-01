@@ -30,6 +30,7 @@ class TomographyPurePreprocessingJob(
 
 		override val config = TomographyPurePreprocessingNodeConfig
 		override val dataType = JobInfo.DataType.TiltSeries
+		override val dataClass = TomographyPurePreprocessingData::class
 
 		override fun fromDoc(doc: Document) = TomographyPurePreprocessingJob(
 			doc.getString("userId"),

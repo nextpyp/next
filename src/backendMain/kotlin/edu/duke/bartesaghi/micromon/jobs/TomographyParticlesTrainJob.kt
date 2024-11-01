@@ -22,6 +22,7 @@ class TomographyParticlesTrainJob(
 
 		override val config = TomographyParticlesTrainNodeConfig
 		override val dataType = JobInfo.DataType.TiltSeries
+		override val dataClass = TomographyParticlesTrainData::class
 
 		override fun fromDoc(doc: Document) = TomographyParticlesTrainJob(
 			doc.getString("userId"),

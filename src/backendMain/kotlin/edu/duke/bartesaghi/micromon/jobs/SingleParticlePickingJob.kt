@@ -25,6 +25,7 @@ class SingleParticlePickingJob(
 
 		override val config = SingleParticlePickingNodeConfig
 		override val dataType = JobInfo.DataType.Micrograph
+		override val dataClass = SingleParticlePickingData::class
 
 		override fun fromDoc(doc: Document) = SingleParticlePickingJob(
 			doc.getString("userId"),

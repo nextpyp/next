@@ -25,6 +25,7 @@ class TomographyDenoisingJob(
 
 		override val config = TomographyDenoisingNodeConfig
 		override val dataType = JobInfo.DataType.TiltSeries
+		override val dataClass = TomographyDenoisingData::class
 
 		override fun fromDoc(doc: Document) = TomographyDenoisingJob(
 			doc.getString("userId"),

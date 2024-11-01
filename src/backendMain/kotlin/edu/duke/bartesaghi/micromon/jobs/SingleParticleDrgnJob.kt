@@ -22,6 +22,7 @@ class SingleParticleDrgnJob(
 
 		override val config = SingleParticleDrgnNodeConfig
 		override val dataType = JobInfo.DataType.Micrograph
+		override val dataClass = SingleParticleDrgnData::class
 
 		override fun fromDoc(doc: Document) = SingleParticleDrgnJob(
 			doc.getString("userId"),

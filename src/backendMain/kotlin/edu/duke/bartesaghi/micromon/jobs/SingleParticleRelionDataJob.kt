@@ -27,6 +27,7 @@ class SingleParticleRelionDataJob(
 
 		override val config = SingleParticleRelionDataNodeConfig
 		override val dataType = JobInfo.DataType.Micrograph
+		override val dataClass = SingleParticleRelionDataData::class
 
 		override fun fromDoc(doc: Document) = SingleParticleRelionDataJob(
 			doc.getString("userId"),

@@ -27,6 +27,7 @@ class SingleParticleMaskingJob(
 
 		override val config = SingleParticleMaskingNodeConfig
 		override val dataType = JobInfo.DataType.Micrograph
+		override val dataClass = SingleParticleMaskingData::class
 
 		override fun fromDoc(doc: Document) = SingleParticleMaskingJob(
 			doc.getString("userId"),

@@ -22,6 +22,7 @@ class TomographyDrgnJob(
 
 		override val config = TomographyDrgnNodeConfig
 		override val dataType = JobInfo.DataType.TiltSeries
+		override val dataClass = TomographyDrgnData::class
 
 		override fun fromDoc(doc: Document) = TomographyDrgnJob(
 			doc.getString("userId"),
