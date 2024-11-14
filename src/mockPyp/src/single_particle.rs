@@ -44,7 +44,7 @@ impl PreprocessingArgs {
 		};
 
 		// write defaults not defined by the config
-		args.set("scope_pixel", ArgValue::String(pp_args.pixel_size.0.to_string()));
+		args.set("scope_pixel", ArgValue::Float(pp_args.pixel_size.0));
 
 		// set default arg values that the website will use, but we won't
 		args.set_default(&args_config, "ctf", "min_res")?;

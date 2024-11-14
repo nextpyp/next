@@ -76,6 +76,9 @@ class SingleParticleSession(
 	override fun newestArgs(): SingleParticleSessionArgs =
 		args.newestOrThrow().args
 
+	override fun newestArgValues(): ArgValuesToml? =
+		args.newest()?.args?.values
+
 	override fun newestPypValues(): ArgValues =
 		args.newestOrThrow().args.values.toArgValues(Backend.instance.pypArgs)
 
@@ -116,19 +119,6 @@ class SingleParticleSession(
 		Pyp.cancel(idOrThrow)
 	}
 
-	override fun argsDiff(): ArgValues {
-
-		// build the args for PYP
-		val sessionArgs = args.newestOrThrow().args
-		val pypArgs = ArgValues(Backend.instance.pypArgs)
-		pypArgs.setAll(args().diff(
-			sessionArgs.values,
-			args.finished?.values
-		))
-
-		return pypArgs
-	}
-
 	override suspend fun start(daemon: SessionDaemon) {
 
 		// only the main daemon can be started
@@ -145,7 +135,7 @@ class SingleParticleSession(
 		(pypDir / "raw").createDirsIfNeeded()
 
 		// build the args for PYP
-		val pypArgs = argsDiff()
+		val pypArgs = launchArgValues()
 		pypArgs.dataMode = "spr"
 		pypArgs.streamTransferTarget = dir.toString()
 		pypArgs.streamSessionGroup = names.group
@@ -160,16 +150,7 @@ class SingleParticleSession(
 
 		events.sessionStarted(idOrThrow)
 
-		Pyp.streampyp.launch(
-			osUsername = null,
-			webName = "Single Particle Session",
-			clusterName = SessionDaemon.Streampyp.clusterJobClusterName,
-			owner = idOrThrow,
-			ownerListener = StreampypListener,
-			dir = dir,
-			args = pypArgs.toPypCLI(),
-			launchArgs = pypArgs.toSbatchArgs()
-		)
+		launch(pypArgs, "Single Particle Session")
 
 		// daemon was started, move the args over
 		args.run()

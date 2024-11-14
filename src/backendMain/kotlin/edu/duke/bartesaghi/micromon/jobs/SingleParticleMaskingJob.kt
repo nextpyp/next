@@ -80,12 +80,7 @@ class SingleParticleMaskingJob(
 		wwwDir.recreateAs(project.osUsername)
 
 		// build the args for PYP
-		val upstreamJob = inRefinements?.resolveJob<Job>()
-			?: throw IllegalStateException("no refinements input configured")
-		val pypArgs = launchArgValues(upstreamJob, args.newestOrThrow().args.values, args.finished?.values)
-
-		// set the hidden args
-		pypArgs.dataParent = upstreamJob.dir.toString()
+		val pypArgs = launchArgValues()
 
 		Pyp.pmk.launch(project.osUsername, runId, pypArgs, "Launch", "pyp_launch")
 

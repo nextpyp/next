@@ -5,6 +5,7 @@ import edu.duke.bartesaghi.micromon.cluster.Cluster
 import edu.duke.bartesaghi.micromon.cluster.ClusterJob
 import edu.duke.bartesaghi.micromon.cluster.CommandsScript
 import edu.duke.bartesaghi.micromon.cluster.Container
+import edu.duke.bartesaghi.micromon.linux.Posix
 import java.nio.file.Path
 
 
@@ -58,7 +59,7 @@ enum class Pyp(private val cmdName: String) {
 			osUsername = osUsername,
 			containerId = containerId,
 			commands = CommandsScript(commands = listOf(
-				runCmd + " " + args.joinToString(" ")
+				runCmd + " " + args.joinToString(" ", transform=Posix::quote)
 			)),
 			dir = dir,
 			args = launchArgs,

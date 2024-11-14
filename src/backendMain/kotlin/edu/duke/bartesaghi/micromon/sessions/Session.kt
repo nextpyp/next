@@ -3,16 +3,22 @@ package edu.duke.bartesaghi.micromon.sessions
 import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.auth.authOrThrow
 import edu.duke.bartesaghi.micromon.cluster.ClusterJob
+import edu.duke.bartesaghi.micromon.cluster.slurm.toSbatchArgs
 import edu.duke.bartesaghi.micromon.files.Speeds
+import edu.duke.bartesaghi.micromon.jobs.Job
+import edu.duke.bartesaghi.micromon.jobs.resolveJob
 import edu.duke.bartesaghi.micromon.linux.userprocessor.WebCacheDir
+import edu.duke.bartesaghi.micromon.linux.userprocessor.writeStringAs
 import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.*
+import edu.duke.bartesaghi.micromon.sessions.SingleParticleSession.Companion.StreampypListener
 import io.kvision.remote.ServiceException
 import org.bson.Document
 import org.bson.conversions.Bson
 import java.nio.file.Path
 import java.time.Instant
+import java.util.ArrayDeque
 import java.util.ArrayList
 import java.util.NoSuchElementException
 import kotlin.io.path.div
@@ -90,6 +96,9 @@ sealed class Session(
 				type.init()
 			}
 		}
+
+		fun pypParamsPath(session: Session): Path =
+			session.dir / "pyp_params.toml"
 	}
 
 	protected open fun createDoc(doc: Document) {
@@ -201,7 +210,11 @@ sealed class Session(
 	val wwwDir: WebCacheDir get() =
 		WebCacheDir(dir / "www")
 
+	fun pypParamsPath(): Path =
+		pypParamsPath(this)
+
 	abstract fun newestArgs(): SessionArgs
+	abstract fun newestArgValues(): ArgValuesToml?
 
 	/** get the newest pyp values from the database entry for this session */
 	abstract fun newestPypValues(): ArgValues
@@ -211,6 +224,54 @@ sealed class Session(
 
 	fun findNonDaemonJobs(): List<ClusterJob> =
 		ClusterJob.find(idOrThrow, notClusterName = SessionDaemon.values().map { it.clusterJobClusterName })
+
+
+	protected fun launchArgValues(): ArgValues {
+
+		val values = ArgValues(Backend.instance.pypArgs)
+
+		// add arg values from this session
+		val jobValues = (this.newestArgValues() ?: "")
+			.toArgValues(Backend.instance.pypArgs)
+		for (arg in values.args.args) {
+
+			// skip args whose value is the default value
+			if (arg.default != null && jobValues[arg] == arg.default.value) {
+				continue
+			}
+
+			// otherwise, add the value
+			values[arg] = jobValues[arg]
+		}
+
+		if (Backend.log.isDebugEnabled) {
+			Backend.log.debug("""
+				|launchArgValues()  session=$type  id=$idOrThrow
+				|  ${values.toString().lines().joinToString("\n  ")}
+			""".trimMargin())
+		}
+
+		return values
+	}
+
+	protected suspend fun launch(argValues: ArgValues, webName: String) {
+
+		// write the parameters file
+		val paramsPath = pypParamsPath()
+		paramsPath.writeStringAs(null, argValues.toToml())
+
+		// launch the cluster job
+		Pyp.streampyp.launch(
+			osUsername = null,
+			webName = webName,
+			clusterName = SessionDaemon.Streampyp.clusterJobClusterName,
+			owner = idOrThrow,
+			ownerListener = StreampypListener,
+			dir = dir,
+			args = listOf("-params_file=$paramsPath"),
+			launchArgs = argValues.toSbatchArgs()
+		)
+	}
 
 	/** returns true iff the specified daemon is running */
 	fun isRunning(daemon: SessionDaemon): Boolean {
@@ -237,12 +298,6 @@ sealed class Session(
 			.filter { it.clusterName !in daemonNames }
 			.filter { it.getLog()?.status() == ClusterJob.Status.Started }
 	}
-
-	/**
-	 * returns the PYP argument values that are different from the defaults,
-	 * and also explicit default values when needed to override non-default values from the previous start
-	 */
-	abstract fun argsDiff(): ArgValues
 
 	/** starts one of the daemons */
 	abstract suspend fun start(daemon: SessionDaemon)
@@ -288,7 +343,7 @@ sealed class Session(
 
 		// add pyp arguments to the signal file, if needed
 		val payload = if (params) {
-			argsDiff().toToml()
+			launchArgValues().toToml()
 		} else {
 			""
 		}

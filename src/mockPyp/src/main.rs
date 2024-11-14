@@ -2,7 +2,6 @@
 use std::collections::VecDeque;
 use std::{env, fs};
 use std::ops::Deref;
-use std::path::Path;
 use std::process::ExitCode;
 
 use anyhow::{bail, Context, Result};
@@ -105,24 +104,7 @@ fn run_webrpc(args: VecDeque<String>, array_element: Option<u32>) -> Result<()> 
 }
 
 
-const ARGS_PATH: &str = "pyp_args.dat";
-
-
 fn parse_args(args: VecDeque<String>) -> Result<(Args,ArgsConfig)> {
-
-	// parse the new arguments
-	let new_args = Args::from(args);
-
-	// and combine with any old arguments
-	let args_path = Path::new(ARGS_PATH);
-	let args =
-		if args_path.exists() {
-			let mut old_args = Args::read(&args_path)?;
-			old_args.set_all(&new_args);
-			old_args
-		} else {
-			new_args
-		};
 
 	// load the arguments config
 	let args_config_path = "/opt/pyp/config/pyp_config.toml";
@@ -130,6 +112,16 @@ fn parse_args(args: VecDeque<String>) -> Result<(Args,ArgsConfig)> {
 		.context(format!("Failed to read args config file: {}", &args_config_path))?;
 	let args_config = ArgsConfig::from(args_config)
 		.context(format!("Failed to parse config file: {}", &args_config_path))?;
+
+	// we should only get one argument: -params_file=<path>
+	const PREFIX: &'static str = "-params_file=";
+	if args.len() != 1 || !args[0].starts_with(PREFIX) {
+		bail!("Expected a single argument: -params_file=<path>, instead got: {:?}", args);
+	}
+	let params_path = &args[0][PREFIX.len()..];
+
+	// read the params file
+	let args = Args::read(&params_path, &args_config)?;
 
 	Ok((args, args_config))
 }
@@ -151,11 +143,6 @@ fn run_project(args: VecDeque<String>, array_element: Option<u32>) -> Result<()>
 	// run the block command
 	blocks::run(block_id.as_str(), &mut args, &args_config, array_element)?;
 
-	// save the args for next time
-	if let Err(e) = args.write(ARGS_PATH) {
-		warn!("Failed to write args: {}", e.deref().chain());
-	}
-
 	Ok(())
 }
 
@@ -175,11 +162,6 @@ fn run_session(args: VecDeque<String>, _array_element: Option<u32>) -> Result<()
 	match data_mode {
 		"tomo" => sessions::tomo::run(&mut args, &args_config)?,
 		_ => bail!("unrecognized session mode: {}", data_mode)
-	}
-
-	// save the args for next time
-	if let Err(e) = args.write(ARGS_PATH) {
-		warn!("Failed to write args: {}", e.deref().chain());
 	}
 
 	Ok(())

@@ -1,7 +1,6 @@
 package edu.duke.bartesaghi.micromon.blocks
 
 import edu.duke.bartesaghi.micromon.*
-import edu.duke.bartesaghi.micromon.nodes.SingleParticlePurePreprocessingNodeConfig
 import edu.duke.bartesaghi.micromon.nodes.SingleParticleRawDataNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.*
@@ -17,7 +16,7 @@ class TestForwardedGroups : FunSpec({
 	val database = autoClose(EphemeralMongo.start())
 	autoClose(database.install())
 
-	// define some synthetic args in forwarded groups
+	// define some synthetic args for testing
 	val testGroup = ArgGroup("forwarded", "", "")
 	fun testArg(argId: String, type: ArgType, default: ArgValue? = null): Arg =
 		Arg(testGroup.groupId, argId, "Test Arg", "This is a test", type = type, default = default)
@@ -30,14 +29,9 @@ class TestForwardedGroups : FunSpec({
 			blocks = pypArgs.blocks.map { block ->
 				when (block.blockId) {
 
-					// add the test group to the raw data block as a regluar group
+					// add the test group to the raw data block
 					SingleParticleRawDataNodeConfig.configId -> block.copy(
 						groupIds = block.groupIds + listOf(testGroup.groupId)
-					)
-
-					// add the test group to the preprocessing block as a forwarded group
-					SingleParticlePurePreprocessingNodeConfig.configId -> block.copy(
-						forwardedGroupIds = block.forwardedGroupIds + listOf(testGroup.groupId)
 					)
 
 					else -> block
@@ -71,13 +65,13 @@ class TestForwardedGroups : FunSpec({
 
 			// the raw data CLI should have the arg values
 			val rawDataValues = runResult.clusterJobs[0].pypValues(econfig)
-			println("raw data CLI args: $rawDataValues")
+			println("raw data args: $rawDataValues")
 			rawDataValues[argInt] shouldBe 5
 			rawDataValues[argStr] shouldBe "foo"
 
 			// the preprocessing CLI should have them too
 			val preprocessingValues = runResult.clusterJobs[1].pypValues(econfig)
-			println("preprocessing CLI args: $preprocessingValues")
+			println("preprocessing args: $preprocessingValues")
 			preprocessingValues[argInt] shouldBe 5
 			preprocessingValues[argStr] shouldBe "foo"
 		}
@@ -100,13 +94,13 @@ class TestForwardedGroups : FunSpec({
 
 			// the raw data CLI shouldn't have any values
 			val rawDataValues = runResult.clusterJobs[0].pypValues(econfig)
-			println("raw data CLI args: $rawDataValues")
+			println("raw data args: $rawDataValues")
 			rawDataValues[argInt] shouldBe null
 			rawDataValues[argStr] shouldBe null
 
 			// the preprocessing CLI shouldn't have any either
 			val preprocessingValues = runResult.clusterJobs[1].pypValues(econfig)
-			println("preprocessing CLI args: $preprocessingValues")
+			println("preprocessing args: $preprocessingValues")
 			preprocessingValues[argInt] shouldBe null
 			preprocessingValues[argStr] shouldBe null
 		}
@@ -131,13 +125,13 @@ class TestForwardedGroups : FunSpec({
 
 			// the raw data CLI shouldn't have any values
 			val rawDataValues = runResult.clusterJobs[0].pypValues(econfig)
-			println("raw data CLI args: $rawDataValues")
+			println("raw data args: $rawDataValues")
 			rawDataValues[argInt] shouldBe null
 			rawDataValues[argStr] shouldBe null
 
 			// the preprocessing CLI shouldn't have any either
 			val preprocessingValues = runResult.clusterJobs[1].pypValues(econfig)
-			println("preprocessing CLI args: $preprocessingValues")
+			println("preprocessing args: $preprocessingValues")
 			preprocessingValues[argInt] shouldBe null
 			preprocessingValues[argStr] shouldBe null
 		}

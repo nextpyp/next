@@ -85,12 +85,8 @@ class TomographyImportDataJob(
 		// clear caches
 		wwwDir.recreateAs(project.osUsername)
 
-		val newestArgs = args.newestOrThrow().args
-
 		// build the args for PYP
-		val pypArgs = launchArgValues(null, newestArgs.values, args.finished?.values)
-
-		// set the hidden args
+		val pypArgs = launchArgValues()
 		pypArgs.dataImport = true
 
 		Pyp.pyp.launch(project.osUsername, runId, pypArgs, "Import Tomography", "pyp_import")

@@ -1,6 +1,6 @@
 
 use std::fs;
-
+use std::path::PathBuf;
 use anyhow::{Context, Result};
 use tracing::info;
 
@@ -68,13 +68,17 @@ fn launch(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 	let web = Web::new()?;
 	web.write_parameters(&args, &args_config)?;
 
+	// write the params file
+	let params_path = PathBuf::from("pyp_params.toml");
+	args.write(&params_path)?;
+
 	// send the split job
 	web.submit_cluster_job(
 		"Split",
 		"tomoppre_split",
 		&Commands::Script {
 			commands: vec![
-				Commands::mock_pyp("pyp", args)
+				Commands::mock_pyp("pyp", &params_path)
 			],
 			array_size: Some(num_tilt_series),
 			bundle_size: None

@@ -509,7 +509,7 @@ pub enum Commands {
 
 impl Commands {
 
-	pub fn mock_pyp(cmd: impl AsRef<str>, args: &Args) -> String {
-		format!("RUST_BACKTRACE=1 /usr/bin/mock-pyp {} {}", cmd.as_ref(), args.to_cli())
+	pub fn mock_pyp(cmd: impl AsRef<str>, args_path: &Path) -> String {
+		format!("RUST_BACKTRACE=1 /usr/bin/mock-pyp {} -params_file=\"{}\"", cmd.as_ref(), args_path.to_string_lossy())
 	}
 }

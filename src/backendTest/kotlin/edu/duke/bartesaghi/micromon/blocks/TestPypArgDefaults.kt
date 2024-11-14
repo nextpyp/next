@@ -7,9 +7,11 @@ import edu.duke.bartesaghi.micromon.cluster.Container
 import edu.duke.bartesaghi.micromon.linux.Posix
 import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.*
+import io.kotest.assertions.fail
 import io.kotest.core.annotation.EnabledIf
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
+import kotlin.io.path.div
 
 
 @EnabledIf(RuntimeEnvironment.Website::class)
@@ -51,7 +53,7 @@ class TestPypArgDefaults : FunSpec({
 
 			// the CLI shouldn't have any of the arg values
 			val sentValues = runResult.clusterJobs[0].pypValues(econfig)
-			println("CLI args: $sentValues")
+			println("sent args: $sentValues")
 			sentValues[argBool] shouldBe null
 			sentValues[argInt] shouldBe null
 		}
@@ -73,13 +75,13 @@ class TestPypArgDefaults : FunSpec({
 
 			// the CLI shouldn't have the arg values
 			val sentValues = runResult.clusterJobs[0].pypValues(econfig)
-			println("CLI args: $sentValues")
+			println("sent args: $sentValues")
 			sentValues[argBool] shouldBe true
 			sentValues[argInt] shouldBe 5
 		}
 	}
 
-	test("resends nothing for unchanged values") {
+	test("resends everything for unchanged values") {
 		website.createProjectAndListen { project, ws ->
 
 			// make a block, with some non-default args
@@ -98,13 +100,13 @@ class TestPypArgDefaults : FunSpec({
 
 			// the CLI shouldn't have any of the arg values
 			val sentValues = runResult.clusterJobs[0].pypValues(econfig)
-			println("CLI args: $sentValues")
-			sentValues[argBool] shouldBe null
-			sentValues[argInt] shouldBe null
+			println("sent args: $sentValues")
+			sentValues[argBool] shouldBe true
+			sentValues[argInt] shouldBe 5
 		}
 	}
 
-	test("resends something for changed values") {
+	test("resends everything for changed values") {
 		website.createProjectAndListen { project, ws ->
 
 			// make a block, with some non-default args
@@ -129,13 +131,13 @@ class TestPypArgDefaults : FunSpec({
 
 			// the CLI should have the new arg value
 			val sentValues = runResult.clusterJobs[0].pypValues(econfig)
-			println("CLI args: $sentValues")
-			sentValues[argBool] shouldBe null
+			println("sent args: $sentValues")
+			sentValues[argBool] shouldBe true
 			sentValues[argInt] shouldBe 42
 		}
 	}
 
-	test("resends something for re-defaulted values") {
+	test("resends nothing for re-defaulted values") {
 		website.createProjectAndListen { project, ws ->
 
 			// make a block, with some non-default args
@@ -161,13 +163,13 @@ class TestPypArgDefaults : FunSpec({
 
 			// the CLI should have explicit default values for the args
 			val sentValues = runResult.clusterJobs[0].pypValues(econfig)
-			println("CLI args: $sentValues")
-			sentValues[argBool] shouldBe false
-			sentValues[argInt] shouldBe 1
+			println("sent args: $sentValues")
+			sentValues[argBool] shouldBe null
+			sentValues[argInt] shouldBe null
 		}
 	}
 
-	test("resends something for removed values") {
+	test("resends nothing for removed values") {
 		website.createProjectAndListen { project, ws ->
 
 			// make a block, with some non-default args
@@ -195,10 +197,10 @@ class TestPypArgDefaults : FunSpec({
 
 			// the CLI should have explicit default values for the args
 			val sentValues = runResult.clusterJobs[0].pypValues(econfig)
-			println("CLI args: $sentValues")
-			sentValues[argBool] shouldBe false
-			sentValues[argInt] shouldBe 1
-			sentValues[argStr] shouldBe ""
+			println("sent args: $sentValues")
+			sentValues[argBool] shouldBe null
+			sentValues[argInt] shouldBe null
+			sentValues[argStr] shouldBe null
 		}
 	}
 })
@@ -214,5 +216,15 @@ fun ClusterJob.pypValues(econfig: EphemeralConfig): ArgValues {
 		.drop(1) // drop the exec path we just matched above
 		.drop(1) // drop one more for the pyp command name, eg `gyp`
 
-	return ArgValues.fromPypCLI(tokens, econfig.pypArgs)
+	// the CLI args should just be `-params_file=<path>`, so pull out the path
+	val prefix = "-params_file="
+	if (tokens.size != 1 || !tokens[0].startsWith(prefix)) {
+		fail("invalid CLI: $tokens")
+	}
+	val paramsPath = dir / tokens[0].substring(prefix.length)
+	if (!paramsPath.exists()) {
+		fail("pyp params file not found at: $paramsPath")
+	}
+
+	return paramsPath.readString().toArgValues(econfig.pypArgs)
 }

@@ -77,7 +77,7 @@ class TomographyMiloTrainJob(
 		// clear caches
 		wwwDir.recreateAs(project.osUsername)
 
-		// build the args for PYP
+		// get the input jobs
 		val upstreamJob = inTomograms?.resolveJob<Job>()
 			?: throw IllegalStateException("no tomograms input configured")
 
@@ -86,11 +86,9 @@ class TomographyMiloTrainJob(
 			upstreamJob.writeFilter(newestArgs.filter, dir, project.osUsername)
 		}
 
-		val pypArgs = launchArgValues(upstreamJob, newestArgs.values, args.finished?.values)
-
-		// set the hidden args
+		// build the args for PYP
+		val pypArgs = launchArgValues()
 		pypArgs.dataMode = "tomo"
-		pypArgs.dataParent = upstreamJob.dir.toString()
 
 		Pyp.pyp.launch(project.osUsername, runId, pypArgs, "Launch", "pyp_launch")
 

@@ -20,6 +20,7 @@ mod tomo_reliondata;
 mod tomo_session;
 mod spa_rawdata;
 mod spa_preprocessing;
+mod spa_pure_preprocessing;
 
 
 use anyhow::{anyhow, Result};
@@ -71,6 +72,8 @@ pub fn run(block_id: &str, args: &mut Args, args_config: &ArgsConfig, array_elem
 		spa_rawdata::run(args, args_config)
 	} else if block_id == spa_preprocessing::BLOCK_ID {
 		spa_preprocessing::run(args, args_config)
+	} else if block_id == spa_pure_preprocessing::BLOCK_ID {
+		spa_pure_preprocessing::run(args, args_config)
 	} else {
 		Err(anyhow!("unrecognized block id: {}", block_id))
 	}

@@ -276,10 +276,90 @@ abstract class Job(
 	val wwwDir: WebCacheDir get() =
 		WebCacheDir(dir / "www")
 
+	protected fun launchArgValues(): ArgValues {
+
+		val values = ArgValues(Backend.instance.pypArgs)
+
+		val debugMsg =
+			if (Backend.log.isDebugEnabled) {
+				StringBuilder().apply {
+					append("launchArgValues()  job=${baseConfig.id}")
+				}
+			} else {
+				null
+			}
+
+		// add arg values from this job, and all ancestor jobs
+		// ie, do BFS on the job graph going backwards to the source node(s)
+		val jobs = ArrayDeque<Job>()
+		val queuedJobs = HashSet<String>()
+
+		fun Job.queue() {
+			jobs.add(this)
+			queuedJobs.add(idOrThrow)
+		}
+
+		// start with this job
+		this.queue()
+
+		while (jobs.isNotEmpty()) {
+
+			val job = jobs.removeFirst()
+
+			// combine values from the job
+			val jobValues = (job.newestArgValues() ?: "")
+				.toArgValues(Backend.instance.pypArgs)
+			for (arg in values.args.args) {
+
+				// skip args whose value is the default value
+				if (arg.default != null && jobValues[arg] == arg.default.value) {
+					continue
+				}
+
+				// otherwise, add the value
+				values[arg] = jobValues[arg]
+			}
+
+			if (Backend.log.isDebugEnabled) {
+				debugMsg?.append("""
+					|
+					|  ${job.baseConfig.id}=${job.id}
+					|    ${values.toString().lines().joinToString("\n    ")}
+				""".trimMargin())
+			}
+
+			// recurse to parent jobs that we haven't seen yet
+			for (input in job.inputs.filter { it.jobId !in queuedJobs }) {
+				input.resolveJob<Job>()
+					.queue()
+			}
+		}
+
+		if (Backend.log.isDebugEnabled) {
+			Backend.log.debug(debugMsg?.toString())
+		}
+
+		// explicitly set the block id
+		values.micromonBlock = baseConfig.id
+
+		// set the data parent, if needed
+		inputs.firstOrNull()
+			?.resolveJob<Job>()
+			?.let { job -> values.dataParent = job.dir.toString() }
+
+		return values
+	}
+
 	/** runs this job on the server */
 	abstract suspend fun launch(runId: Int)
 
-	protected fun Pyp.launch(osUsername: String?, runId: Int, argValues: ArgValues, webName: String, clusterName: String) {
+	protected suspend fun Pyp.launch(osUsername: String?, runId: Int, argValues: ArgValues, webName: String, clusterName: String) {
+
+		// write the parameters file
+		val paramsPath = pypParamsPath()
+		paramsPath.writeStringAs(osUsername, argValues.toToml())
+
+		// launch the cluster job
 		launch(
 			osUsername = osUsername,
 			webName = webName,
@@ -287,7 +367,7 @@ abstract class Job(
 			owner = JobOwner(idOrThrow, runId).toString(),
 			ownerListener = JobRunner,
 			dir = dir,
-			args = argValues.toPypCLI(),
+			args = listOf("-params_file=$paramsPath"),
 			launchArgs = argValues.toSbatchArgs()
 		)
 	}
@@ -373,6 +453,10 @@ abstract class Job(
 			?: throw ServiceException("No manual particles list found with name: $listName")
 	}
 
+	fun pypParamsPath(): Path =
+		pypParamsPath(this)
+
+
 	companion object {
 
 		private val log = LoggerFactory.getLogger("Job")
@@ -429,6 +513,9 @@ abstract class Job(
 				set("name", name)
 			)
 		}
+
+		fun pypParamsPath(job: Job): Path =
+			job.dir / "pyp_params.toml"
 	}
 }
 

@@ -92,9 +92,7 @@ class TomographyRawDataJob(
 		wwwDir.recreateAs(project.osUsername)
 
 		// build the args for PYP
-		val pypArgs = launchArgValues(null, args.newestOrThrow().args.values, args.finished?.values)
-
-		// set the hidden args
+		val pypArgs = launchArgValues()
 		pypArgs.dataMode = "tomo"
 
 		Pyp.gyp.launch(project.osUsername, runId, pypArgs, "Check gain reference", "pyp_gainref")

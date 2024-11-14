@@ -82,12 +82,7 @@ class TomographyFineRefinementJob(
 		wwwDir.recreateAs(project.osUsername)
 
 		// build the args for PYP
-		val upstreamJob = inMovieRefinements?.resolveJob<Job>()
-			?: throw IllegalStateException("no movie refinements input configured")
-		val pypArgs = launchArgValues(upstreamJob, args.newestOrThrow().args.values, args.finished?.values)
-
-		// set the hidden args
-		pypArgs.dataParent = upstreamJob.dir.toString()
+		val pypArgs = launchArgValues()
 
 		Pyp.pcl.launch(project.osUsername, runId, pypArgs, "Launch", "pyp_launch")
 

@@ -8,8 +8,6 @@ import edu.duke.bartesaghi.micromon.linux.userprocessor.createDirsIfNeededAs
 import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.pyp.ArgValues
 import edu.duke.bartesaghi.micromon.pyp.Pyp
-import edu.duke.bartesaghi.micromon.pyp.dataParent
-import edu.duke.bartesaghi.micromon.pyp.toPypCLI
 import edu.duke.bartesaghi.micromon.services.*
 import org.bson.Document
 import java.nio.file.Path
@@ -85,9 +83,7 @@ class SessionExport(
 				owner = export.idOrThrow,
 				ownerListener = this,
 				dir = export.dir,
-				args = ArgValues(Backend.instance.pypArgs).apply {
-						dataParent = pypDir.toString()
-					}.toPypCLI(),
+				args = listOf("-data_parent=${pypDir}"),
 				launchArgs = slurmArgValues.toSbatchArgs()
 			)
 			export.clusterJobId = clusterJob.id

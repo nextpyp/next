@@ -99,10 +99,7 @@ class TomographyCoarseRefinementJob(
 			?.let { ParticlesJobs.writeTomography(project.osUsername, upstreamJob, dir, it) }
 
 		// build the args for PYP
-		val pypArgs = launchArgValues(upstreamJob, newestArgs.values, args.finished?.values)
-
-		// set the hidden args
-		pypArgs.dataParent = upstreamJob.dir.toString()
+		val pypArgs = launchArgValues()
 		pypArgs.extractFmt = "frealign"
 
 		Pyp.csp.launch(project.osUsername, runId, pypArgs, "Launch", "pyp_launch")

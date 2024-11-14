@@ -1,8 +1,6 @@
 
-use std::collections::{HashMap, VecDeque};
+use std::collections::HashMap;
 use std::fs;
-use std::fs::File;
-use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use anyhow::{bail, Context, Result};
@@ -15,102 +13,98 @@ pub struct Args {
 
 impl Args {
 
-	pub fn from(raw: VecDeque<String>) -> Self {
-
-		// parse the arguments as a key-value map
-		let mut args = HashMap::<String,ArgValue>::new();
-		let mut iter = raw.iter().peekable();
-		loop {
-			let Some(arg) = iter.next()
-				.map(String::as_str)
-				else { break; };
-
-			const PREDECESSOR: &str = "-";
-			if arg.starts_with(PREDECESSOR) {
-
-				// trim off the - and look for an = in the middle
-				let arg = &arg[PREDECESSOR.len()..];
-				if arg.is_empty() {
-					continue;
-				}
-				let mut parts = arg.splitn(2, "=");
-
-				// the argument key is always the part
-				let Some(key) = parts.next()
-					else { continue; };
-
-				// the value is either the part after the first =, or the next argument,
-				// or nothing if the next argument is another flag or there is no next argument
-				let (key, value) = match parts.next() {
-
-					// arg has a part atfer the =, so it's a string value
-					Some(value) => {
-						(key.to_string(), ArgValue::String(value.to_string()))
-					},
-
-					// arg has no part after the =, look ahead to the next arg
-					None => {
-						let value = iter.peek()
-							.take_if(|next| !next.starts_with(PREDECESSOR));
-						match value {
-
-							Some(value) => {
-								// next "arg" is actually value for this arg
-								(key.to_string(), ArgValue::String(value.to_string()))
-							}
-
-							None => {
-								// no value in the next arg, so this is a bool flag
-								const NO_FLAG: &str = "no-";
-								if key.starts_with(NO_FLAG) {
-									(key[NO_FLAG.len()..].to_string(), ArgValue::Bool(false))
-								} else {
-									(key.to_string(), ArgValue::Bool(true))
-								}
-							}
-						}
-					}
-				};
-				args.insert(key, value);
-			}
-		}
-
-		Self {
-			args
-		}
-	}
-
-	pub fn read(path: impl AsRef<Path>) -> Result<Self> {
+	pub fn read(path: impl AsRef<Path>, args_config: &ArgsConfig) -> Result<Self> {
 
 		let path = path.as_ref();
 		let contents = fs::read_to_string(path)
 			.context(format!("Failed to read file to string: {}", path.to_string_lossy()))?;
 
+		// parse the TOML
+		let toml = contents.parse::<Table>()
+			.context("Failed to parse TOML")?;
+
 		let mut args = HashMap::<String,ArgValue>::new();
 
-		for (linei, line) in contents.lines().enumerate() {
-			if line.len() <= 0 {
-				continue;
-			}
-			let mut parts = line.splitn(3, " ");
-			let key = parts.next()
-				.context(format!("line {} has no key", linei))?;
-			match parts.next() {
-				Some("S") => {
-					let value = parts.next()
-						.context(format!("line {} has no value", linei))?;
-					args.insert(key.to_string(), ArgValue::String(value.to_string()));
-				}
-				Some("B") => {
-					let value = parts.next()
-						.context(format!("line {} has no value", linei))?;
-					let value = bool::from_str(value)
-						.context(format!("line {} has unrecognizable boolean value: {}", linei, value))?;
-					args.insert(key.to_string(), ArgValue::String(value.to_string()));
+		for key in toml.keys() {
+
+			let val = toml.get(key)
+				.context(format!("Missing value for key: {}", key))?;
+
+			// transform the value
+			let val = match args_config.get(key) {
+
+				// have a defined argument: enforce the configured type
+				Some(arg_config) => match &arg_config.arg_type {
+
+					ArgType::Bool => ArgValue::Bool(match val {
+						Value::Boolean(b) => *b,
+						_ => bail!("Unexpected type {} for arg {}, expected bool", val.type_str(), key)
+					}),
+
+					ArgType::Int => ArgValue::Int(match val {
+						Value::Integer(i) => *i,
+						_ => bail!("Unexpected type {} for arg {}, expected int", val.type_str(), key)
+					}),
+
+					ArgType::Float => ArgValue::Float(match val {
+						Value::Float(f) => *f,
+						Value::Integer(i) => *i as f64,
+						_ => bail!("Unexpected type {} for arg {}, expected float", val.type_str(), key)
+					}),
+
+					ArgType::Float2 => ArgValue::Float2(match val {
+						Value::Array(a) => {
+							let x = match a.get(0) {
+								None => bail!("Missing x coordinate for arg {}", key),
+								Some(Value::Float(f)) => *f,
+								Some(Value::Integer(i)) => *i as f64,
+								Some(v) => bail!("Unexpected type {} for x coordinate for arg {}, expected float", v.type_str(), key)
+							};
+							let y = match a.get(1) {
+								None => bail!("Missing y coordinate for arg {}", key),
+								Some(Value::Float(f)) => *f,
+								Some(Value::Integer(i)) => *i as f64,
+								Some(v) => bail!("Unexpected type {} for y coordinate for arg {}, expected float", v.type_str(), key)
+							};
+							(x, y)
+						},
+						_ => bail!("Unexpected type {} for arg {}, expected array", val.type_str(), key)
+					}),
+
+					ArgType::Str => ArgValue::Str(match val {
+						Value::String(s) => s.clone(),
+						_ => bail!("Unexpected type {} for arg {}, expected string", val.type_str(), key)
+					}),
+
+					ArgType::Enum { values } => ArgValue::Str(match val {
+						Value::String(e) => {
+							if !values.contains(e) {
+								bail!("Unexpected value {} for enum arg {}, expected one of [{:?}]", e, key, values);
+							}
+							e.clone()
+						},
+						_ => bail!("Unexpected type {} for arg {}, expected string", val.type_str(), key)
+					}),
+
+					ArgType::Path => ArgValue::Str(match val {
+						Value::String(p) => p.clone(),
+						_ => bail!("Unexpected type {} for arg {}, expected string", val.type_str(), key)
+					})
 				},
-				Some(t) => bail!("line {} has invalid type: {}", linei, t),
-				None => bail!("line {} has no type", linei)
-			}
+
+				// don't have a defined argument: just try to guess the type based on the value
+				None => match val {
+					Value::String(s) => ArgValue::Str(s.clone()),
+					Value::Integer(i) => ArgValue::Int(*i),
+					Value::Float(f) => ArgValue::Float(*f),
+					Value::Boolean(b) => ArgValue::Bool(*b),
+					Value::Datetime(_) => bail!("Unsupported arg type: datetime"),
+					Value::Array(_) => bail!("Unsupported arg type: array"), // TODO: could support float2 here if needed?
+					Value::Table(_) => bail!("Unsupported arg type: table")
+				}
+			};
+
+			args.insert(key.clone(), val);
 		}
 
 		Ok(Self {
@@ -119,34 +113,32 @@ impl Args {
 	}
 
 	pub fn write(&self, path: impl AsRef<Path>) -> Result<()> {
-		let path = path.as_ref();
-		let mut file = File::create(path)
-			.context(format!("Failed to open file for writing: {}", path.to_string_lossy()))?;
-		for (key, value) in &self.args {
-			if key.contains(' ') {
-				bail!("Key contains space characters: `{}`", key);
-			}
-			match value {
-				ArgValue::String(s) => file.write_all(format!("{} S {}\n", key, s).as_bytes()),
-				ArgValue::Bool(b) => file.write_all(format!("{} B {}\n", key, b).as_bytes()),
-			}.context(format!("Failed to write to: {}", path.to_string_lossy()))?;
-		}
-		Ok(())
-	}
 
-	pub fn to_cli(&self) -> String {
-		self.args.iter()
-			.map(|(key, value)| {
-				match value {
-					ArgValue::String(s) => format!("-{}={}", key, s),
-					ArgValue::Bool(b) => match b {
-						true => format!("-{}", key),
-						false => format!("-no-{}", key)
-					}
-				}
-			})
-			.collect::<Vec<String>>()
-			.join(" ")
+		// build the TOML
+		let mut toml = String::new();
+		for (key, val) in &self.args {
+			toml.push_str(key.as_str());
+			toml.push_str(" = ");
+			toml.push_str(&match val {
+				ArgValue::Bool(b) => match b {
+					true => "true".to_string(),
+					false => "false".to_string()
+				},
+				ArgValue::Int(i) => format!("{}", i),
+				ArgValue::Float(f) => format!("{}", f),
+				ArgValue::Float2((x, y)) => format!("[{}, {}]", x, y),
+				ArgValue::Str(s) => format!("\"{}\"", s),
+				ArgValue::Enum(e) => format!("\"{}\"", e),
+				ArgValue::Path(p) => format!("\"{}\"", p)
+			});
+			toml.push_str("\n");
+		}
+
+		let path = path.as_ref();
+		fs::write(path, toml)
+			.context(format!("Failed to write string to file: {}", path.to_string_lossy()))?;
+
+		Ok(())
 	}
 
 	pub fn get(&self, full_id: impl AsRef<str>) -> Arg<Option<&ArgValue>> {
@@ -163,14 +155,6 @@ impl Args {
 
 	pub fn get_mock(&self, block_id: impl AsRef<str>, arg_id: impl AsRef<str>) -> Arg<Option<&ArgValue>> {
 		self.get(format!("{}_mock_{}", block_id.as_ref().replace('-', "_"), arg_id.as_ref()))
-	}
-
-	pub fn set_string(&mut self, group_id: impl AsRef<str>, arg_id: impl AsRef<str>, value: impl Into<String>) {
-		self.args.insert(full_id(group_id, arg_id), ArgValue::String(value.into()));
-	}
-
-	pub fn set_bool(&mut self, group_id: impl AsRef<str>, arg_id: impl AsRef<str>, value: bool) {
-		self.args.insert(full_id(group_id, arg_id), ArgValue::Bool(value));
 	}
 
 	pub fn set_default(&mut self, args_config: &ArgsConfig, group_id: impl AsRef<str>, arg_id: impl AsRef<str>) -> Result<()> {
@@ -197,10 +181,30 @@ impl Args {
 }
 
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ArgValue {
-	String(String),
-	Bool(bool)
+	Bool(bool),
+	Int(i64),
+	Float(f64),
+	Float2((f64, f64)),
+	Str(String),
+	Enum(String),
+	Path(String)
+}
+
+impl ArgValue {
+
+	fn type_name(&self) -> &'static str {
+		match self {
+			ArgValue::Bool(_) => "Bool",
+			ArgValue::Int(_) => "Int",
+			ArgValue::Float(_) => "Float",
+			ArgValue::Float2(_) => "Float2",
+			ArgValue::Str(_) => "Str",
+			ArgValue::Enum(_) => "Enum",
+			ArgValue::Path(_) => "Path"
+		}
+	}
 }
 
 
@@ -360,87 +364,89 @@ impl<'a> Arg<Option<&'a ArgValue>> {
 
 impl<'a> Arg<&'a ArgValue> {
 
-	fn try_map_string<T,F>(self, f: F) -> Result<Arg<T>>
-		where F: FnOnce(&'a str) -> Result<T>
-	{
+	pub fn into_str(self) -> Result<Arg<&'a str>> {
 		self.try_map(|value| {
 			match value {
-				ArgValue::String(value) => f(value),
-				ArgValue::Bool(_) => bail!("boolean flag value was not transformable")
+				ArgValue::Str(s) => Ok(s.as_ref()),
+				_ => bail!("value was a(n) {}, not a Str", value.type_name())
 			}
 		})
-	}
-
-	pub fn into_str(self) -> Result<Arg<&'a str>> {
-		self.try_map_string(|value| Ok(value))
 	}
 
 	pub fn into_bool(self) -> Result<Arg<bool>> {
 		self.try_map(|value| {
 			match value {
-				ArgValue::String(_) => bail!("value was not a boolean flag"),
-				ArgValue::Bool(value) => Ok(*value)
+				ArgValue::Bool(b) => Ok(*b),
+				_ => bail!("value was a(n) {}, not a Bool", value.type_name())
 			}
 		})
 	}
 
 	pub fn into_u32(self) -> Result<Arg<u32>> {
-		self.try_map_string(|value| {
-			u32::from_str(value)
-				.context(format!("value was not a u32: {}", value))
+		self.try_map(|value| {
+			match value {
+				ArgValue::Int(i) => Ok(*i as u32),
+				_ => bail!("value was a(n) {}, not an Int", value.type_name())
+			}
 		})
 	}
 
 	pub fn into_u64(self) -> Result<Arg<u64>> {
-		self.try_map_string(|value| {
-			u64::from_str(value)
-				.context(format!("value was not a u64: {}", value))
+		self.try_map(|value| {
+			match value {
+				ArgValue::Int(i) => Ok(*i as u64),
+				_ => bail!("value was a(n) {}, not an Int", value.type_name())
+			}
 		})
 	}
 
 	pub fn into_i64(self) -> Result<Arg<i64>> {
-		self.try_map_string(|value| {
-			i64::from_str(value)
-				.context(format!("value was not an i64: {}", value))
+		self.try_map(|value| {
+			match value {
+				ArgValue::Int(i) => Ok(*i),
+				_ => bail!("value was a(n) {}, not an Int", value.type_name())
+			}
 		})
 	}
 
 	pub fn into_f64(self) -> Result<Arg<f64>> {
-		self.try_map_string(|value| {
-			f64::from_str(value)
-				.context(format!("value was not an f64: {}", value))
+		self.try_map(|value| {
+			match value {
+				ArgValue::Float(i) => Ok(*i),
+				_ => bail!("value was a(n) {}, not a Float", value.type_name())
+			}
 		})
 	}
 
 	pub fn into_f64_2(self) -> Result<Arg<(f64,f64)>> {
-		self.try_map_string(|value| {
-			let mut parts = value.splitn(2, ',');
-			let x = parts.next()
-				.context(format!("f64 pair has no x: {}", value))?;
-			let x = f64::from_str(x)
-				.context(format!("x was not an f64: {}", value))?;
-			let y = parts.next()
-				.context(format!("f64 pair has no y: {}", value))?;
-			let y = f64::from_str(y)
-				.context(format!("y was not an f64: {}", value))?;
-			Ok((x, y))
+		self.try_map(|value| {
+			match value {
+				ArgValue::Float2((x, y)) => Ok((*x, *y)),
+				_ => bail!("value was a(n) {}, not a Float2", value.type_name())
+			}
 		})
 	}
 
 	pub fn into_data_mode(self) -> Result<Arg<DataMode>> {
-		self.try_map_string(|value| {
+		self.try_map(|value| {
 			match value {
-				"spr" => Ok(DataMode::Spr),
-				"tomo" => Ok(DataMode::Tomo),
-				_ => bail!("Unrecognized data_mode: {}", value)
+				ArgValue::Str(s) => match s.as_str() {
+					"spr" => Ok(DataMode::Spr),
+					"tomo" => Ok(DataMode::Tomo),
+					_ => bail!("Unrecognized data_mode: {}", s)
+				},
+				_ => bail!("value was a(n) {}, not a Str", value.type_name())
 			}
 		})
 	}
 
 	pub fn into_path(self) -> Result<Arg<PathBuf>> {
-		self.try_map_string(|value| {
-			PathBuf::from_str(value)
-				.context(format!("value was not a valid path: {}", value))
+		self.try_map(|value| {
+			match value {
+				ArgValue::Str(s) => PathBuf::from_str(s)
+					.context(format!("value was not a valid path: {}", s)),
+				_ => bail!("value was a(n) {}, not a Str", value.type_name())
+			}
 		})
 	}
 }
@@ -455,19 +461,9 @@ impl Arg<ArgValue> {
 		}
 	}
 
-	fn try_map_string<T,F>(self, f: F) -> Result<Arg<T>>
-		where F: FnOnce(String) -> Result<T>
-	{
-		self.try_map(|value| {
-			match value {
-				ArgValue::String(value) => f(value),
-				ArgValue::Bool(_) => bail!("boolean flag value was not transformable")
-			}
-		})
-	}
-
 	pub fn into_string(self) -> Result<Arg<String>> {
-		self.try_map_string(|value| Ok(value))
+		let v = self.as_ref().into_str()?;
+		Ok(v.map(|v| v.to_string()))
 	}
 
 	pub fn into_bool(self) -> Result<Arg<bool>> {
@@ -612,12 +608,12 @@ impl ArgsConfig {
 
 		match arg_config {
 			ArgConfigValue::Bool(v) => Ok(ArgValue::Bool(*v)),
-			ArgConfigValue::Int(v) => Ok(ArgValue::String(v.to_string())),
-			ArgConfigValue::Float(v) => Ok(ArgValue::String(v.to_string())),
-			ArgConfigValue::Float2(x, y) => Ok(ArgValue::String(format!("{},{}", x, y))),
-			ArgConfigValue::Str(v)
-			| ArgConfigValue::Enum(v)
-			| ArgConfigValue::Path(v) => Ok(ArgValue::String(v.clone())),
+			ArgConfigValue::Int(v) => Ok(ArgValue::Int(*v)),
+			ArgConfigValue::Float(v) => Ok(ArgValue::Float(*v)),
+			ArgConfigValue::Float2(x, y) => Ok(ArgValue::Float2((*x, *y))),
+			ArgConfigValue::Str(v) => Ok(ArgValue::Str(v.clone())),
+			ArgConfigValue::Enum(v) => Ok(ArgValue::Enum(v.clone())),
+			ArgConfigValue::Path(v) => Ok(ArgValue::Path(v.clone())),
 			ArgConfigValue::Ref { src_group_id, src_arg_id, .. } => {
 				// recurse to ref source
 				self.default_value(&full_id(src_group_id, src_arg_id))
@@ -625,7 +621,6 @@ impl ArgsConfig {
 			}
 		}
 	}
-
 }
 
 

@@ -118,53 +118,6 @@ class Args(
 			args = args.filter { it.copyToNewBlock }
 		)
 
-	/**
-	 * Removes values from `values` when:
-	 *   they're the same as the values in `prev`
-	 *   they're the same as the default values
-	 *     except when the value in `prev` is non-default
-	 * Additionally, adds explicit default values when:
-	 *   arguments are present in `prev` but not `values`
-	 *     ie, when the argument value was removed, explicitly set it to the default value
-	 */
-	fun diff(valuesToml: ArgValuesToml, prevToml: ArgValuesToml?): ArgValues {
-
-		val values = valuesToml.toArgValues(this)
-		val prev = prevToml?.toArgValues(this)
-			?: ArgValues(this)
-
-		for (arg in args) {
-			if (arg in values) {
-
-				// remove default values
-				if (arg.default != null && values[arg] == arg.default.value) {
-
-					if (arg in prev && prev[arg] != arg.default.value) {
-						// unless they're overriding a previous non-default value
-					} else {
-						values[arg] = null
-					}
-
-				// remove values that are the same as the previous values
-				} else if (arg in prev && values[arg] == prev[arg]) {
-					values[arg] = null
-				}
-
-			} else if (arg in prev) {
-
-				// value was removed this time: add back the default value
-				if (arg.default != null) {
-					values[arg] = arg.default
-				} else {
-					// no default value in this case, so send a type-dependent "reset" value
-					values[arg] = ArgValueReset
-				}
-			}
-		}
-
-		return values
-	}
-
 	fun appendAll(args: List<Arg>): Args {
 		return Args(
 			blocks,
@@ -653,13 +606,8 @@ class ArgValues(val args: Args) {
 
 	operator fun set(arg: Arg, value: Any?) {
 		if (value != null) {
-			if (value == ArgValueReset) {
-				// skip runtime type checking for sentinel values
-				values[arg.fullId] = value
-			} else {
-				// enforce type safety at runtime
-				values[arg.fullId] = arg.type.check(value)
-			}
+			// enforce type safety at runtime
+			values[arg.fullId] = arg.type.check(value)
 		} else {
 			values.remove(arg.fullId)
 		}
@@ -746,12 +694,6 @@ expect fun ArgValuesToml.toArgValues(args: Args): ArgValues
 fun ArgValuesToml.filterForDownstreamCopy(args: Args): ArgValuesToml =
 	toArgValues(args.filterForDownstreamCopy())
 		.toToml()
-
-
-/** a sentinel value that tells the pyp command-line formatter to ask pyp to reset this arg */
-object ArgValueReset {
-	override fun toString() = "<ArgValueReset>"
-}
 
 
 @Serializable
