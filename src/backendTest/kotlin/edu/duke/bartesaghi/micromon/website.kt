@@ -257,6 +257,19 @@ class EphemeralWebsite: AutoCloseable {
 
 				is RealTimeS2C.ClusterJobEnd -> {
 					log.info("\tCluster job ended: id=${otherMsg.clusterJobId}, status=${otherMsg.resultType}")
+
+					if (otherMsg.resultType == ClusterJobResultType.Failure) {
+						// job failed, show the log, if possible
+						val output = ClusterJob.get(otherMsg.clusterJobId)
+							?.getLog()
+							?.result
+							?.out
+							?: "(no log)"
+						log.error("""
+							|Failed cluster job log:
+							|  ${output.lines().joinToString("\n   ")}
+						""".trimMargin())
+					}
 				}
 
 				is RealTimeS2C.JobFinish -> {

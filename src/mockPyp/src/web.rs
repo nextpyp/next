@@ -104,7 +104,7 @@ impl Web {
 		}
 
 		if let Some(exit_code) = exit_code {
-			request.insert("exit".to_string(), exit_code.into());
+			request.insert("exit_code".to_string(), exit_code.into());
 		}
 
 		self.json_rpc("slurm_ended", request.into())?;

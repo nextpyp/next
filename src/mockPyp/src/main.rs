@@ -39,7 +39,6 @@ fn run() -> Result<()> {
 	args.pop_front(); // ignore the executable path, no info there
 	let cmd = args.pop_front()
 		.context("missing pyp command as first argument")?;
-	info!("command: {}", cmd);
 
 	// look for an array element
 	let array_element = match env::var("SLURM_ARRAY_TASK_ID") {
@@ -52,13 +51,14 @@ fn run() -> Result<()> {
 	};
 
 	// run the command
-	let result = match cmd.as_str() {
+	match cmd.as_str() {
 		"webrpc" => run_webrpc(args, array_element),
 		"streampyp" => run_session(args, array_element),
-		_ => run_project(args, array_element)
-	};
-
-	result
+		_ => {
+			info!("command: {}", cmd);
+			run_project(args, array_element)
+		}
+	}
 }
 
 
@@ -68,6 +68,9 @@ fn run_webrpc(args: VecDeque<String>, array_element: Option<u32>) -> Result<()> 
 	match cmd {
 
 		Some("slurm_started") => {
+
+			info!("webrpc: slurm_started");
+
 			let web = Web::new()?;
 			web.slurm_started(array_element)?;
 		}
@@ -75,7 +78,7 @@ fn run_webrpc(args: VecDeque<String>, array_element: Option<u32>) -> Result<()> 
 		Some("slurm_ended") => {
 
 			// look for an optional exit code argument
-			let exit_code =  match args.get(0) {
+			let exit_code =  match args.get(1) {
 
 				Some(a) => {
 					const PREFIX: &str = "--exit=";
@@ -92,6 +95,8 @@ fn run_webrpc(args: VecDeque<String>, array_element: Option<u32>) -> Result<()> 
 
 				None => None
 			};
+
+			info!("webrpc: slurm_ended: exit={:?}", exit_code);
 
 			let web = Web::new()?;
 			web.slurm_ended(array_element, exit_code)?;
