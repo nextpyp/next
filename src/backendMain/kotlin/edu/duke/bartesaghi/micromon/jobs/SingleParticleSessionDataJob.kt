@@ -15,10 +15,11 @@ import org.bson.conversions.Bson
 class SingleParticleSessionDataJob(
 	userId: String,
 	projectId: String
-) : Job(userId, projectId, config), FilteredJob {
+) : Job(userId, projectId, config), FilteredJob, MicrographsJob {
 
 	val args = JobArgs<SingleParticleSessionDataArgs>()
-	var latestMicrographId: String? = null
+	override var latestMicrographId: String? = null
+	override val eventListeners get() = Companion.eventListeners
 
 	companion object : JobInfo {
 
@@ -48,6 +49,8 @@ class SingleParticleSessionDataJob(
 				doc.getString("values"),
 				doc.getString("list")
 			)
+
+		val eventListeners = MicrographEventListeners(this)
 	}
 
 	override fun createDoc(doc: Document) {
