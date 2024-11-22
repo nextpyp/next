@@ -94,7 +94,10 @@ class TomographySessionDataView(val project: ProjectData, val job: TomographySes
 					data.loadForProject(job, job.args.finished?.values)
 					// load the auto list by default
 					when (data.particles) {
-						null -> Unit
+						null -> {
+							pickingControls.newParticlesType = null
+							pickingControls.setList(null)
+						}
 						is TiltSeriesesParticlesData.VirusMode -> {
 							pickingControls.newParticlesType = ParticlesType.Virions3D
 							pickingControls.setList(ParticlesList.autoVirions(job.jobId))
