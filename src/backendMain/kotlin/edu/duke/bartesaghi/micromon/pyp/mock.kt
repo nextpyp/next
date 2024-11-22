@@ -4,6 +4,7 @@ import edu.duke.bartesaghi.micromon.jobs.*
 import edu.duke.bartesaghi.micromon.nodes.NodeConfig
 import edu.duke.bartesaghi.micromon.nodes.NodeConfigs
 import edu.duke.bartesaghi.micromon.sessions.Session
+import edu.duke.bartesaghi.micromon.sessions.SingleParticleSession
 import edu.duke.bartesaghi.micromon.sessions.TomographySession
 
 
@@ -69,6 +70,7 @@ object MockPyp {
 				+ SingleParticlePreprocessingMockArgs.all
 				// sessions
 				+ TomographySessionMockArgs.all
+				+ SingleParticleSessionMockArgs.all
 		)
 }
 
@@ -254,4 +256,13 @@ object TomographySessionMockArgs : SessionMockArgs(TomographySession) {
 	val numVirions = mockArg("num_virions", ArgType.TInt(), ArgValue.VInt(5))
 	val numSpikes = mockArg("num_spikes", ArgType.TInt(), ArgValue.VInt(10))
 	val tiltAngleMagnitde = mockArg("tilt_angle_magnitude", ArgType.TInt(), ArgValue.VInt(45))
+}
+
+
+object SingleParticleSessionMockArgs : SessionMockArgs(SingleParticleSession) {
+	val numMicrographs = mockArg("num_micrographs", ArgType.TInt(), ArgValue.VInt(4))
+	val micrographWidth = mockArg("micrograph_width", ArgType.TInt(), ArgValue.VInt(8192))
+	val micrigraphHeight = mockArg("micrograph_height", ArgType.TInt(), ArgValue.VInt(8192))
+	val numParticles = mockArg("num_particles", ArgType.TInt(), ArgValue.VInt(20))
+	val particleRadius = mockArg("particle_radius", ArgType.TFloat(), ArgValue.VFloat(100.0))
 }

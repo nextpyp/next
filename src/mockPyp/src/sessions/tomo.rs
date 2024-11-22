@@ -55,6 +55,8 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 		.context("Failed to create mrc dir")?;
 	fs::create_dir_all(dir.join("webp"))
 		.context("Failed to create webp dir")?;
+	fs::create_dir_all(dir.join("log"))
+		.context("Failed to create log dir")?;
 
 	let web = Web::new()?;
 	web.write_parameters(&args, &args_config)?;
@@ -164,17 +166,23 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 
 		// generate images
 		tomography::images::tilt_series(GROUP_ID, &tilt_series, tilt_series_i, &pp_args, &DEFAULT_NOISE)
-			.save(format!("webp/{}.webp", &tilt_series.tilt_series_id))?;
+			.save(dir.join(format!("webp/{}.webp", &tilt_series.tilt_series_id)))?;
 		tomography::images::sides(GROUP_ID, &tilt_series, tilt_series_i, &pp_args, &DEFAULT_NOISE)
-			.save(format!("webp/{}_sides.webp", &tilt_series.tilt_series_id))?;
+			.save(dir.join(format!("webp/{}_sides.webp", &tilt_series.tilt_series_id)))?;
 		tomography::images::raw_tilts_montage(GROUP_ID, &tilt_series, tilt_series_i, &pp_args, &DEFAULT_NOISE)
-			.save(format!("webp/{}_raw.webp", &tilt_series.tilt_series_id))?;
+			.save(dir.join(format!("webp/{}_raw.webp", &tilt_series.tilt_series_id)))?;
 		tomography::images::aligned_tilts_montage(GROUP_ID, &tilt_series, tilt_series_i, &pp_args, &DEFAULT_NOISE)
-			.save(format!("webp/{}_ali.webp", &tilt_series.tilt_series_id))?;
+			.save(dir.join(format!("webp/{}_ali.webp", &tilt_series.tilt_series_id)))?;
 		tomography::images::twod_ctf_montage(GROUP_ID, &tilt_series, tilt_series_i, &pp_args, &DEFAULT_NOISE)
-			.save(format!("webp/{}_2D_ctftilt.webp", &tilt_series.tilt_series_id))?;
+			.save(dir.join(format!("webp/{}_2D_ctftilt.webp", &tilt_series.tilt_series_id)))?;
 		tomography::images::reconstruction_montage(GROUP_ID, &tilt_series, tilt_series_i, &pp_args, &DEFAULT_NOISE)
-			.save(format!("webp/{}_rec.webp", &tilt_series.tilt_series_id))?;
+			.save(dir.join(format!("webp/{}_rec.webp", &tilt_series.tilt_series_id)))?;
+
+		// write the log file
+		let log_path = dir.join(format!("log/{}.log", &tilt_series.tilt_series_id));
+		fs::write(&log_path, format!("Things happened for tilt series {}", &tilt_series.tilt_series_id))
+			.context(format!("Failed to write log file: {}", &log_path.to_string_lossy()))?;
+		info!("Wrote log file: {}", &log_path.to_string_lossy());
 
 		// tell the website
 		web.write_tilt_series(&tilt_series)?;

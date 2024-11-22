@@ -166,6 +166,7 @@ fn run_session(args: VecDeque<String>, _array_element: Option<u32>) -> Result<()
 
 	match data_mode {
 		"tomo" => sessions::tomo::run(&mut args, &args_config)?,
+		"spr" => sessions::spr::run(&mut args, &args_config)?,
 		_ => bail!("unrecognized session mode: {}", data_mode)
 	}
 
