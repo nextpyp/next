@@ -368,6 +368,8 @@ impl<'a> Arg<&'a ArgValue> {
 		self.try_map(|value| {
 			match value {
 				ArgValue::Str(s) => Ok(s.as_ref()),
+				ArgValue::Enum(s) => Ok(s.as_ref()),
+				ArgValue::Path(s) => Ok(s.as_ref()),
 				_ => bail!("value was a(n) {}, not a Str", value.type_name())
 			}
 		})
