@@ -20,8 +20,7 @@ object MockPyp {
 					blockId = it.blockId,
 					name = it.name,
 					description = it.description,
-					groupIds = it.groupIds + listOf(nodeConfig.jobInfo.mockGroupId),
-					forwardedGroupIds = it.forwardedGroupIds
+					groupIds = it.groupIds + listOf(nodeConfig.jobInfo.mockGroupId)
 				)
 			},
 			groups = args.groups + args.blocks.mapNotNull {

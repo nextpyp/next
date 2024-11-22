@@ -21,8 +21,8 @@ interface JobInfo {
 		TiltSeries
 	}
 
-	fun args(includeForwarded: Boolean = false) =
+	fun args() =
 		Backend.instance.pypArgs
-			.filter(config.configId, includeForwarded)
+			.filter(config.configId)
 			.appendAll(MicromonArgs.slurmLaunch)
 }

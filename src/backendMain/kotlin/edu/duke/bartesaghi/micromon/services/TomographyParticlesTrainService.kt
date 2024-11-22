@@ -89,8 +89,8 @@ actual class TomographyParticlesTrainService : ITomographyParticlesTrainService,
 		return job.data()
 	}
 
-	override suspend fun getArgs(includeForwarded: Boolean): String = sanitizeExceptions {
-		return TomographyParticlesTrainJob.args(includeForwarded).toJson()
+	override suspend fun getArgs(): String = sanitizeExceptions {
+		return TomographyParticlesTrainJob.args().toJson()
 	}
 
 	fun getResults(jobId: String): ByteArray {

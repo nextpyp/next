@@ -51,7 +51,7 @@ actual class SingleParticleRelionDataService : ISingleParticleRelionDataService,
 		return job.data()
 	}
 
-	override suspend fun getArgs(includeForwarded: Boolean): String = sanitizeExceptions {
-		return SingleParticleRelionDataJob.args(includeForwarded).toJson()
+	override suspend fun getArgs(): String = sanitizeExceptions {
+		return SingleParticleRelionDataJob.args().toJson()
 	}
 }

@@ -571,7 +571,7 @@ private fun showPypArgs(node: Node) {
 			}
 
 			// parse the args
-			val args = node.config.clientInfo.pypArgs.get(true)
+			val args = node.config.clientInfo.pypArgs.get()
 			val values = toml.toArgValues(args)
 
 			// render them in the groups

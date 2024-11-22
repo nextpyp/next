@@ -51,7 +51,7 @@ actual class TomographyRelionDataService : ITomographyRelionDataService, Service
 		return job.data()
 	}
 
-	override suspend fun getArgs(includeForwarded: Boolean): String = sanitizeExceptions {
-		return TomographyRelionDataJob.args(includeForwarded).toJson()
+	override suspend fun getArgs(): String = sanitizeExceptions {
+		return TomographyRelionDataJob.args().toJson()
 	}
 }

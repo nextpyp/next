@@ -48,7 +48,7 @@ actual class SingleParticleDrgnService : ISingleParticleDrgnService, Service {
 		return job.data()
 	}
 
-	override suspend fun getArgs(includeForwarded: Boolean): String = sanitizeExceptions {
-		return SingleParticleDrgnJob.args(includeForwarded).toJson()
+	override suspend fun getArgs(): String = sanitizeExceptions {
+		return SingleParticleDrgnJob.args().toJson()
 	}
 }

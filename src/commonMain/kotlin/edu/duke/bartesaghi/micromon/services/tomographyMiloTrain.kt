@@ -20,7 +20,7 @@ interface ITomographyMiloTrainService {
 	suspend fun get(jobId: String): TomographyMiloTrainData
 
 	@KVBindingRoute("node/${TomographyMiloTrainNodeConfig.ID}/getArgs")
-	suspend fun getArgs(includeForwarded: Boolean): String /* Args but serialized */
+	suspend fun getArgs(): String /* Args but serialized */
 
 
 	companion object {

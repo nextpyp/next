@@ -7,7 +7,7 @@ import edu.duke.bartesaghi.micromon.diagram.Diagram
 import edu.duke.bartesaghi.micromon.dynamicImageClassName
 import edu.duke.bartesaghi.micromon.nodes.SingleParticlePurePreprocessingNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
-import edu.duke.bartesaghi.micromon.pyp.filterForDownstreamCopy
+import edu.duke.bartesaghi.micromon.pyp.Args
 import edu.duke.bartesaghi.micromon.refreshDynamicImages
 import edu.duke.bartesaghi.micromon.services.*
 import edu.duke.bartesaghi.micromon.views.Viewport
@@ -63,13 +63,12 @@ class SingleParticlePurePreprocessingNode(
 		override suspend fun getJob(jobId: String): SingleParticlePurePreprocessingData =
 			Services.singleParticlePurePreprocessing.get(jobId)
 
-		override val pypArgs = ClientPypArgs {
-			Services.singleParticlePurePreprocessing.getArgs(it)
+		override val pypArgs = ServerVal {
+			Args.fromJson(Services.singleParticlePurePreprocessing.getArgs())
 		}
 
 		private fun form(caption: String, upstreamNode: Node, args: JobArgs<SingleParticlePurePreprocessingArgs>?, enabled: Boolean, onDone: (SingleParticlePurePreprocessingArgs) -> Unit) = AppScope.launch {
 
-			val pypArgsWithForwarded = pypArgs.get(true)
 			val pypArgs = pypArgs.get()
 
 			val win = Modal(
@@ -83,18 +82,9 @@ class SingleParticlePurePreprocessingNode(
 				add(SingleParticlePurePreprocessingArgs::values, ArgsForm(pypArgs, listOf(upstreamNode), enabled, config.configId))
 			}
 
-			// by default, copy args values from the upstream node
-			val argsOrCopy: JobArgs<SingleParticlePurePreprocessingArgs> = args
-				?: JobArgs.fromNext(SingleParticlePurePreprocessingArgs(
-					values = upstreamNode.newestArgValues()?.filterForDownstreamCopy(pypArgs) ?: ""
-				))
-
-			form.init(argsOrCopy)
+			form.init(args)
 			if (enabled) {
-				win.addSaveResetButtons(form, argsOrCopy) { saving ->
-					val merged = Nodes.mergeForwardedArgsIfNeeded(pypArgs, pypArgsWithForwarded, saving.values, upstreamNode)
-					onDone(merged?.let { saving.copy(values = it) } ?: saving)
-				}
+				win.addSaveResetButtons(form, args, onDone)
 			}
 			win.show()
 		}

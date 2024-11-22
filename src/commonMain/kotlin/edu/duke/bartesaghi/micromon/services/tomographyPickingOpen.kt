@@ -20,7 +20,7 @@ interface ITomographyPickingOpenService {
 	suspend fun get(jobId: String): TomographyPickingOpenData
 
 	@KVBindingRoute("node/${TomographyPickingOpenNodeConfig.ID}/getArgs")
-	suspend fun getArgs(includeForwarded: Boolean): String /* Args but serialized */
+	suspend fun getArgs(): String /* Args but serialized */
 }
 
 

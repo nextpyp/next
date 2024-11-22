@@ -48,7 +48,7 @@ actual class SingleParticleFlexibleRefinementService : ISingleParticleFlexibleRe
 		return job.data()
 	}
 
-	override suspend fun getArgs(includeForwarded: Boolean): String = sanitizeExceptions {
-		return SingleParticleFlexibleRefinementJob.args(includeForwarded).toJson()
+	override suspend fun getArgs(): String = sanitizeExceptions {
+		return SingleParticleFlexibleRefinementJob.args().toJson()
 	}
 }

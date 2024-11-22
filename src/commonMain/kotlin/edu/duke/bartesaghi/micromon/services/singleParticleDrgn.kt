@@ -20,7 +20,7 @@ interface ISingleParticleDrgnService {
 	suspend fun get(jobId: String): SingleParticleDrgnData
 
 	@KVBindingRoute("node/${SingleParticleDrgnNodeConfig.ID}/getArgs")
-	suspend fun getArgs(includeForwarded: Boolean): String /* Args but serialized */
+	suspend fun getArgs(): String /* Args but serialized */
 }
 
 

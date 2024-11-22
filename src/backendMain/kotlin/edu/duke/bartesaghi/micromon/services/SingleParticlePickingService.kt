@@ -48,7 +48,7 @@ actual class SingleParticlePickingService : ISingleParticlePickingService, Servi
 		return job.data()
 	}
 
-	override suspend fun getArgs(includeForwarded: Boolean): String = sanitizeExceptions {
-		return SingleParticlePickingJob.args(includeForwarded).toJson()
+	override suspend fun getArgs(): String = sanitizeExceptions {
+		return SingleParticlePickingJob.args().toJson()
 	}
 }

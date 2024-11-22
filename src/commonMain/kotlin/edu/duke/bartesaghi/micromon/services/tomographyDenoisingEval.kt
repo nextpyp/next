@@ -20,7 +20,7 @@ interface ITomographyDenoisingEvalService {
 	suspend fun get(jobId: String): TomographyDenoisingEvalData
 
 	@KVBindingRoute("node/${TomographyDenoisingEvalNodeConfig.ID}/getArgs")
-	suspend fun getArgs(includeForwarded: Boolean): String /* Args but serialized */
+	suspend fun getArgs(): String /* Args but serialized */
 }
 
 

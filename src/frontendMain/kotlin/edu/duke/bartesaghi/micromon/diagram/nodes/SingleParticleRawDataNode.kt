@@ -7,6 +7,7 @@ import edu.duke.bartesaghi.micromon.diagram.Diagram
 import edu.duke.bartesaghi.micromon.errorMessage
 import edu.duke.bartesaghi.micromon.nodes.SingleParticleRawDataNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
+import edu.duke.bartesaghi.micromon.pyp.Args
 import edu.duke.bartesaghi.micromon.pyp.dataPath
 import edu.duke.bartesaghi.micromon.services.*
 import edu.duke.bartesaghi.micromon.pyp.toArgValues
@@ -61,8 +62,8 @@ class SingleParticleRawDataNode(
 		override suspend fun getJob(jobId: String): SingleParticleRawDataData =
 			Services.singleParticleRawData.get(jobId)
 
-		override val pypArgs = ClientPypArgs {
-			Services.singleParticleRawData.getArgs(it)
+		override val pypArgs = ServerVal {
+			Args.fromJson(Services.singleParticleRawData.getArgs())
 		}
 
 		private fun form(caption: String, args: JobArgs<SingleParticleRawDataArgs>?, enabled: Boolean, onDone: (SingleParticleRawDataArgs) -> Unit) = AppScope.launch {

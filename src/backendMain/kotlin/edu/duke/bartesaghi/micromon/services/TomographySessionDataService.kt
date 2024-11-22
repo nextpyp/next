@@ -50,7 +50,7 @@ actual class TomographySessionDataService : ITomographySessionDataService, Servi
 		return job.data()
 	}
 
-	override suspend fun getArgs(includeForwarded: Boolean): String = sanitizeExceptions {
-		return TomographySessionDataJob.args(includeForwarded).toJson()
+	override suspend fun getArgs(): String = sanitizeExceptions {
+		return TomographySessionDataJob.args().toJson()
 	}
 }

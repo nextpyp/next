@@ -20,7 +20,7 @@ interface ITomographyParticlesEvalService {
 	suspend fun get(jobId: String): TomographyParticlesEvalData
 
 	@KVBindingRoute("node/${TomographyParticlesEvalNodeConfig.ID}/getArgs")
-	suspend fun getArgs(includeForwarded: Boolean): String /* Args but serialized */
+	suspend fun getArgs(): String /* Args but serialized */
 }
 
 

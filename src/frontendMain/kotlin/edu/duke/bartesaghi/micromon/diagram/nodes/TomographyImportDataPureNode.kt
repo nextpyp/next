@@ -6,6 +6,7 @@ import edu.duke.bartesaghi.micromon.diagram.Diagram
 import edu.duke.bartesaghi.micromon.dynamicImageClassName
 import edu.duke.bartesaghi.micromon.nodes.TomographyImportDataPureNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
+import edu.duke.bartesaghi.micromon.pyp.Args
 import edu.duke.bartesaghi.micromon.refreshDynamicImages
 import edu.duke.bartesaghi.micromon.services.*
 import edu.duke.bartesaghi.micromon.views.TomographyImportDataPureView
@@ -57,8 +58,8 @@ class TomographyImportDataPureNode(
 		override suspend fun getJob(jobId: String): TomographyImportDataPureData =
 			Services.tomographyImportDataPure.get(jobId)
 
-		override val pypArgs = ClientPypArgs {
-			Services.tomographyImportDataPure.getArgs(it)
+		override val pypArgs = ServerVal {
+			Args.fromJson(Services.tomographyImportDataPure.getArgs())
 		}
 
 		private fun form(caption: String, args: JobArgs<TomographyImportDataPureArgs>?, enabled: Boolean, jobId: String? = null, onDone: (TomographyImportDataPureArgs) -> Unit) = AppScope.launch {

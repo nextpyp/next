@@ -6,7 +6,6 @@ import edu.duke.bartesaghi.micromon.components.forms.ArgsForm
 import edu.duke.bartesaghi.micromon.components.forms.addSaveResetButtons
 import edu.duke.bartesaghi.micromon.components.forms.init
 import edu.duke.bartesaghi.micromon.components.forms.lookupDefault
-import edu.duke.bartesaghi.micromon.diagram.nodes.ClientPypArgs
 import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.*
 import io.kvision.core.Container
@@ -71,8 +70,8 @@ class TomographySessionView(
 			viewport.setView(TomographySessionView(session))
 		}
 
-		val pypArgs = ClientPypArgs {
-			Services.tomographySessions.getArgs(it)
+		val pypArgs = ServerVal {
+			Args.fromJson(Services.tomographySessions.getArgs())
 		}
 	}
 

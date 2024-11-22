@@ -20,7 +20,7 @@ interface ISingleParticleFineRefinementService {
 	suspend fun get(jobId: String): SingleParticleFineRefinementData
 
 	@KVBindingRoute("node/${SingleParticleFineRefinementNodeConfig.ID}/getArgs")
-	suspend fun getArgs(includeForwarded: Boolean): String /* Args but serialized */
+	suspend fun getArgs(): String /* Args but serialized */
 }
 
 

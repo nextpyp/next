@@ -42,24 +42,5 @@ interface NodeClientInfo {
 
 	fun makeNode(viewport: Viewport, diagram: Diagram, project: ProjectData, job: JobData): Node
 
-	val pypArgs: ClientPypArgs
-}
-
-
-class ClientPypArgs(getter: suspend (includeForwarded: Boolean) -> String) {
-
-	private val args = ServerVal {
-		Args.fromJson(getter(false))
-	}
-
-	private val argsWithForwarded = ServerVal {
-		Args.fromJson(getter(true))
-	}
-
-	suspend fun get(includeForwarded: Boolean = false): Args =
-		if (includeForwarded) {
-			argsWithForwarded.get()
-		} else {
-			args.get()
-		}
+	val pypArgs: ServerVal<Args>
 }

@@ -7,6 +7,7 @@ import edu.duke.bartesaghi.micromon.diagram.Diagram
 import edu.duke.bartesaghi.micromon.errorMessage
 import edu.duke.bartesaghi.micromon.nodes.TomographyRelionDataNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
+import edu.duke.bartesaghi.micromon.pyp.Args
 import edu.duke.bartesaghi.micromon.pyp.importRelionPath
 import edu.duke.bartesaghi.micromon.pyp.toArgValues
 import edu.duke.bartesaghi.micromon.services.*
@@ -60,8 +61,8 @@ class TomographyRelionDataNode(
 		override suspend fun getJob(jobId: String): TomographyRelionDataData =
 			Services.tomographyRelionData.get(jobId)
 
-		override val pypArgs = ClientPypArgs {
-			Services.tomographyRelionData.getArgs(it)
+		override val pypArgs = ServerVal {
+			Args.fromJson(Services.tomographyRelionData.getArgs())
 		}
 
 		private fun form(caption: String, args: JobArgs<TomographyRelionDataArgs>?, enabled: Boolean, jobId: String? = null, onDone: (TomographyRelionDataArgs) -> Unit) = AppScope.launch {

@@ -20,7 +20,7 @@ interface ITomographyCoarseRefinementService {
 	suspend fun get(jobId: String): TomographyCoarseRefinementData
 
 	@KVBindingRoute("node/${TomographyCoarseRefinementNodeConfig.ID}/getArgs")
-	suspend fun getArgs(includeForwarded: Boolean): String /* Args but serialized */
+	suspend fun getArgs(): String /* Args but serialized */
 }
 
 

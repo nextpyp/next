@@ -73,9 +73,9 @@ actual class SingleParticleSessionService : ISingleParticleSessionService, Servi
 		session.delete()
 	}
 
-	override suspend fun getArgs(includeForwarded: Boolean): String = sanitizeExceptions {
+	override suspend fun getArgs(): String = sanitizeExceptions {
 		call.authOrThrow()
-		return SingleParticleSession.args(includeForwarded).toJson()
+		return SingleParticleSession.args().toJson()
 	}
 
 	override suspend fun copy(sessionId: String, args: CopySessionArgs): SingleParticleSessionData = sanitizeExceptions {

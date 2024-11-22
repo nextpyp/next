@@ -39,24 +39,11 @@ fun Args.Companion.fromToml(toml: String): Args {
 			}
 		}
 
-		val forwardedGroupIds = blockTable.getArray("forwarded_tabs")
-			?.let { array ->
-				(0 until array.size()).map { i ->
-					val id = array.getString(i)
-					if (id in groupIds) {
-						throw TomlParseException("forwarded tab shouldn't also be a regular tab: $id", array.inputPositionOf(i))
-					}
-					id
-				}
-			}
-			?: emptyList()
-
 		blocks.add(Block(
 			blockId,
 			name = blockTable.getStringOrThrow("name", blockPos),
 			description = blockTable.getStringOrThrow("description", blockPos),
-			groupIds = groupIds,
-			forwardedGroupIds = forwardedGroupIds
+			groupIds = groupIds
 		))
 	}
 

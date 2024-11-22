@@ -6,7 +6,7 @@ import edu.duke.bartesaghi.micromon.diagram.Diagram
 import edu.duke.bartesaghi.micromon.dynamicImageClassName
 import edu.duke.bartesaghi.micromon.nodes.SingleParticlePickingNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
-import edu.duke.bartesaghi.micromon.pyp.filterForDownstreamCopy
+import edu.duke.bartesaghi.micromon.pyp.Args
 import edu.duke.bartesaghi.micromon.refreshDynamicImages
 import edu.duke.bartesaghi.micromon.services.*
 import edu.duke.bartesaghi.micromon.views.Viewport
@@ -62,13 +62,12 @@ class SingleParticlePickingNode(
 		override suspend fun getJob(jobId: String): SingleParticlePickingData =
 			Services.singleParticlePicking.get(jobId)
 
-		override val pypArgs = ClientPypArgs {
-			Services.singleParticlePicking.getArgs(it)
+		override val pypArgs = ServerVal {
+			Args.fromJson(Services.singleParticlePicking.getArgs())
 		}
 
 		private fun form(caption: String, upstreamNode: Node, args: JobArgs<SingleParticlePickingArgs>?, enabled: Boolean, onDone: (SingleParticlePickingArgs) -> Unit) = AppScope.launch {
 
-			val pypArgsWithForwarded = pypArgs.get(true)
 			val pypArgs = pypArgs.get()
 
 			val win = Modal(
@@ -82,18 +81,9 @@ class SingleParticlePickingNode(
 				add(SingleParticlePickingArgs::values, ArgsForm(pypArgs, listOf(upstreamNode), enabled, config.configId))
 			}
 
-			// by default, copy args values from the upstream node
-			val argsOrCopy: JobArgs<SingleParticlePickingArgs> = args
-				?: JobArgs.fromNext(SingleParticlePickingArgs(
-					values = upstreamNode.newestArgValues()?.filterForDownstreamCopy(pypArgs) ?: ""
-				))
-
-			form.init(argsOrCopy)
+			form.init(args)
 			if (enabled) {
-				win.addSaveResetButtons(form, argsOrCopy) { saving ->
-					val merged = Nodes.mergeForwardedArgsIfNeeded(pypArgs, pypArgsWithForwarded, saving.values, upstreamNode)
-					onDone(merged?.let { saving.copy(values = it) } ?: saving)
-				}
+				win.addSaveResetButtons(form, args, onDone)
 			}
 			win.show()
 		}

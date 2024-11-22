@@ -48,7 +48,7 @@ actual class TomographyFineRefinementService : ITomographyFineRefinementService,
 		return job.data()
 	}
 
-	override suspend fun getArgs(includeForwarded: Boolean): String = sanitizeExceptions {
-		return TomographyFineRefinementJob.args(includeForwarded).toJson()
+	override suspend fun getArgs(): String = sanitizeExceptions {
+		return TomographyFineRefinementJob.args().toJson()
 	}
 }

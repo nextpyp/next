@@ -21,7 +21,7 @@ interface ISingleParticleRelionDataService {
 	suspend fun get(jobId: String): SingleParticleRelionDataData
 
 	@KVBindingRoute("node/${SingleParticleRelionDataNodeConfig.ID}/getArgs")
-	suspend fun getArgs(includeForwarded: Boolean): String /* Args but serialized */
+	suspend fun getArgs(): String /* Args but serialized */
 }
 
 

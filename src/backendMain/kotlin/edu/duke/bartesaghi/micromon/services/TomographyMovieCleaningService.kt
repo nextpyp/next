@@ -48,7 +48,7 @@ actual class TomographyMovieCleaningService : ITomographyMovieCleaningService, S
 		return job.data()
 	}
 
-	override suspend fun getArgs(includeForwarded: Boolean): String = sanitizeExceptions {
-		return TomographyMovieCleaningJob.args(includeForwarded).toJson()
+	override suspend fun getArgs(): String = sanitizeExceptions {
+		return TomographyMovieCleaningJob.args().toJson()
 	}
 }

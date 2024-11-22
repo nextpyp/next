@@ -7,6 +7,7 @@ import edu.duke.bartesaghi.micromon.diagram.Diagram
 import edu.duke.bartesaghi.micromon.dynamicImageClassName
 import edu.duke.bartesaghi.micromon.nodes.TomographySessionDataNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
+import edu.duke.bartesaghi.micromon.pyp.Args
 import edu.duke.bartesaghi.micromon.refreshDynamicImages
 import edu.duke.bartesaghi.micromon.services.*
 import edu.duke.bartesaghi.micromon.views.TomographySessionDataView
@@ -78,8 +79,8 @@ class TomographySessionDataNode(
 		override suspend fun getJob(jobId: String): TomographySessionDataData =
 			Services.tomographySessionData.get(jobId)
 
-		override val pypArgs = ClientPypArgs {
-			Services.tomographySessionData.getArgs(it)
+		override val pypArgs = ServerVal {
+			Args.fromJson(Services.tomographySessionData.getArgs())
 		}
 
 		private fun form(caption: String, args: JobArgs<TomographySessionDataArgs>?, enabled: Boolean, onDone: (TomographySessionDataArgs) -> Unit) = AppScope.launch {

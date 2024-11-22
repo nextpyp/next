@@ -3,7 +3,6 @@ package edu.duke.bartesaghi.micromon.sessions
 import com.mongodb.client.model.Updates
 import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.cluster.ClusterJob
-import edu.duke.bartesaghi.micromon.cluster.slurm.toSbatchArgs
 import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.mongo.getDocument
 import edu.duke.bartesaghi.micromon.pyp.*
@@ -49,9 +48,9 @@ class SingleParticleSession(
 		fun fromIdOrThrow(sessionId: String): SingleParticleSession =
 			Session.fromIdOrThrow(sessionId) as SingleParticleSession
 
-		fun args(includeForwarded: Boolean = false) =
+		fun args() =
 			Backend.instance.pypArgs
-				.filter(configId, includeForwarded)
+				.filter(configId)
 				.appendAll(MicromonArgs.slurmLaunch)
 
 		object StreampypListener : ClusterJob.OwnerListener {

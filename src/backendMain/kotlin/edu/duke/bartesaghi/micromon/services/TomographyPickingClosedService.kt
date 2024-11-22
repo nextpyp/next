@@ -48,7 +48,7 @@ actual class TomographyPickingClosedService : ITomographyPickingClosedService, S
 		return job.data()
 	}
 
-	override suspend fun getArgs(includeForwarded: Boolean): String = sanitizeExceptions {
-		return TomographyPickingClosedJob.args(includeForwarded).toJson()
+	override suspend fun getArgs(): String = sanitizeExceptions {
+		return TomographyPickingClosedJob.args().toJson()
 	}
 }

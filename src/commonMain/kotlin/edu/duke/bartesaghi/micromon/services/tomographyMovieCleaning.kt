@@ -20,7 +20,7 @@ interface ITomographyMovieCleaningService {
 	suspend fun get(jobId: String): TomographyMovieCleaningData
 
 	@KVBindingRoute("node/${TomographyMovieCleaningNodeConfig.ID}/getArgs")
-	suspend fun getArgs(includeForwarded: Boolean): String /* Args but serialized */
+	suspend fun getArgs(): String /* Args but serialized */
 }
 
 

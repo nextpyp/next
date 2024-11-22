@@ -86,8 +86,8 @@ actual class SingleParticleImportDataService : ISingleParticleImportDataService,
 		return job.data()
 	}
 
-	override suspend fun getArgs(includeForwarded: Boolean): String = sanitizeExceptions {
-		return SingleParticleImportDataJob.args(includeForwarded).toJson()
+	override suspend fun getArgs(): String = sanitizeExceptions {
+		return SingleParticleImportDataJob.args().toJson()
 	}
 
 	suspend fun getImage(jobId: String, size: ImageSize): ByteArray {

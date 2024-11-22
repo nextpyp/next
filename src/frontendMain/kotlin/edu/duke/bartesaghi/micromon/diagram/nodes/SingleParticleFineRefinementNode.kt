@@ -8,7 +8,7 @@ import edu.duke.bartesaghi.micromon.diagram.Diagram
 import edu.duke.bartesaghi.micromon.dynamicImageClassName
 import edu.duke.bartesaghi.micromon.nodes.SingleParticleFineRefinementNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
-import edu.duke.bartesaghi.micromon.pyp.filterForDownstreamCopy
+import edu.duke.bartesaghi.micromon.pyp.Args
 import edu.duke.bartesaghi.micromon.refreshDynamicImages
 import edu.duke.bartesaghi.micromon.services.*
 import edu.duke.bartesaghi.micromon.views.IntegratedRefinementView
@@ -62,8 +62,8 @@ class SingleParticleFineRefinementNode(
 			return Services.singleParticleFineRefinement.addNode(project.owner.id, project.projectId, input, args)
 		}
 
-		override val pypArgs = ClientPypArgs {
-			Services.singleParticleFineRefinement.getArgs(it)
+		override val pypArgs = ServerVal {
+			Args.fromJson(Services.singleParticleFineRefinement.getArgs())
 		}
 
 		override suspend fun getJob(jobId: String): SingleParticleFineRefinementData =
@@ -71,7 +71,6 @@ class SingleParticleFineRefinementNode(
 
 		private fun form(caption: String, upstreamNode: Node, args: JobArgs<SingleParticleFineRefinementArgs>?, enabled: Boolean, onDone: (SingleParticleFineRefinementArgs) -> Unit) = AppScope.launch {
 
-			val pypArgsWithForwarded = pypArgs.get(true)
 			val pypArgs = pypArgs.get()
 
 			val win = Modal(
@@ -85,18 +84,9 @@ class SingleParticleFineRefinementNode(
 				add(SingleParticleFineRefinementArgs::values, ArgsForm(pypArgs, listOf(upstreamNode), enabled, config.configId))
 			}
 
-			// by default, copy args values from the upstream node
-			val argsOrCopy: JobArgs<SingleParticleFineRefinementArgs> = args
-				?: JobArgs.fromNext(SingleParticleFineRefinementArgs(
-					values = upstreamNode.newestArgValues()?.filterForDownstreamCopy(pypArgs) ?: ""
-				))
-
-			form.init(argsOrCopy)
+			form.init(args)
 			if (enabled) {
-				win.addSaveResetButtons(form, argsOrCopy) { saving ->
-					val merged = Nodes.mergeForwardedArgsIfNeeded(pypArgs, pypArgsWithForwarded, saving.values, upstreamNode)
-					onDone(merged?.let { saving.copy(values = it) } ?: saving)
-				}
+				win.addSaveResetButtons(form, args, onDone)
 			}
 			win.show()
 		}

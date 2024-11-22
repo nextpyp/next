@@ -86,9 +86,9 @@ class Args(
 	fun args(group: ArgGroup) =
 		args(group.groupId)
 
-	fun filter(blockId: String, includeForwarded: Boolean): Args {
+	fun filter(blockId: String): Args {
 
-		val groups = blockOrThrow(blockId).getGroupIds(includeForwarded)
+		val groups = blockOrThrow(blockId).groupIds
 			.mapNotNull { group(it) }
 
 		val args = groups.flatMap { group ->
@@ -149,18 +149,10 @@ data class Block(
 	val blockId: String,
 	val name: String,
 	val description: String,
-	val groupIds: List<String>,
-	val forwardedGroupIds: List<String>,
+	val groupIds: List<String>
 ) {
 
 	override fun toString() = name
-
-	fun getGroupIds(includeForwarded: Boolean): List<String> =
-		if (includeForwarded) {
-			groupIds + forwardedGroupIds
-		} else {
-			groupIds
-		}
 }
 
 @Serializable

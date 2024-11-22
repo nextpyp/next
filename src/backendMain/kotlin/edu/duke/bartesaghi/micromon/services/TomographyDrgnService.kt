@@ -48,7 +48,7 @@ actual class TomographyDrgnService : ITomographyDrgnService, Service {
 		return job.data()
 	}
 
-	override suspend fun getArgs(includeForwarded: Boolean): String = sanitizeExceptions {
-		return TomographyDrgnJob.args(includeForwarded).toJson()
+	override suspend fun getArgs(): String = sanitizeExceptions {
+		return TomographyDrgnJob.args().toJson()
 	}
 }

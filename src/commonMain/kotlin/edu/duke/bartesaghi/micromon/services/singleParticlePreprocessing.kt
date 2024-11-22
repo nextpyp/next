@@ -21,7 +21,7 @@ interface ISingleParticlePreprocessingService {
 	suspend fun get(jobId: String): SingleParticlePreprocessingData
 
 	@KVBindingRoute("node/${SingleParticlePreprocessingNodeConfig.ID}/getArgs")
-	suspend fun getArgs(includeForwarded: Boolean): String /* Args but serialized */
+	suspend fun getArgs(): String /* Args but serialized */
 }
 
 

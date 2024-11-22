@@ -7,7 +7,7 @@ import edu.duke.bartesaghi.micromon.dynamicImageClassName
 import edu.duke.bartesaghi.micromon.formatWithDigitGroupsSeparator
 import edu.duke.bartesaghi.micromon.nodes.TomographySegmentationClosedNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
-import edu.duke.bartesaghi.micromon.pyp.filterForDownstreamCopy
+import edu.duke.bartesaghi.micromon.pyp.Args
 import edu.duke.bartesaghi.micromon.refreshDynamicImages
 import edu.duke.bartesaghi.micromon.services.*
 import edu.duke.bartesaghi.micromon.views.TomographySegmentationClosedView
@@ -66,13 +66,12 @@ class TomographySegmentationClosedNode(
 		override suspend fun getJob(jobId: String): TomographySegmentationClosedData =
 			Services.tomographySegmentationClosed.get(jobId)
 
-		override val pypArgs = ClientPypArgs {
-			Services.tomographySegmentationClosed.getArgs(it)
+		override val pypArgs = ServerVal {
+			Args.fromJson(Services.tomographySegmentationClosed.getArgs())
 		}
 
 		private fun form(caption: String, upstreamNode: Node, args: JobArgs<TomographySegmentationClosedArgs>?, enabled: Boolean, onDone: (TomographySegmentationClosedArgs) -> Unit) = AppScope.launch {
 
-			val pypArgsWithForwarded = pypArgs.get(true)
 			val pypArgs = pypArgs.get()
 
 			val win = Modal(
@@ -128,19 +127,9 @@ class TomographySegmentationClosedNode(
 				}
 			)
 	
-			// by default, copy args values from the upstream node
-			val argsOrCopy: JobArgs<TomographySegmentationClosedArgs> = args
-				?: JobArgs.fromNext(TomographySegmentationClosedArgs(
-					filter = null,
-					values = upstreamNode.newestArgValues()?.filterForDownstreamCopy(pypArgs) ?: ""
-				))
-
-			form.init(argsOrCopy, mapper)
+			form.init(args, mapper)
 			if (enabled) {
-				win.addSaveResetButtons(form, argsOrCopy, mapper) { saving ->
-					val merged = Nodes.mergeForwardedArgsIfNeeded(pypArgs, pypArgsWithForwarded, saving.values, upstreamNode)
-					onDone(merged?.let { saving.copy(values = it) } ?: saving)
-				}
+				win.addSaveResetButtons(form, args, mapper, onDone)
 			}
 			win.show()
 		}

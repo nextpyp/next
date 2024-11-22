@@ -7,6 +7,7 @@ import edu.duke.bartesaghi.micromon.diagram.Diagram
 import edu.duke.bartesaghi.micromon.errorMessage
 import edu.duke.bartesaghi.micromon.nodes.SingleParticleRelionDataNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
+import edu.duke.bartesaghi.micromon.pyp.Args
 import edu.duke.bartesaghi.micromon.pyp.importRelionPath
 import edu.duke.bartesaghi.micromon.services.*
 import edu.duke.bartesaghi.micromon.pyp.toArgValues
@@ -60,8 +61,8 @@ class SingleParticleRelionDataNode(
 		override suspend fun getJob(jobId: String): SingleParticleRelionDataData =
 			Services.singleParticleRelionData.get(jobId)
 
-		override val pypArgs = ClientPypArgs {
-			Services.singleParticleRelionData.getArgs(it)
+		override val pypArgs = ServerVal {
+			Args.fromJson(Services.singleParticleRelionData.getArgs())
 		}
 
 		private fun form(caption: String, args: JobArgs<SingleParticleRelionDataArgs>?, enabled: Boolean, jobId: String? = null, onDone: (SingleParticleRelionDataArgs) -> Unit) = AppScope.launch {

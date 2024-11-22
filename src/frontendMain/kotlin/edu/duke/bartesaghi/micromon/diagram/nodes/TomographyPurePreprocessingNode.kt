@@ -7,7 +7,7 @@ import edu.duke.bartesaghi.micromon.diagram.Diagram
 import edu.duke.bartesaghi.micromon.dynamicImageClassName
 import edu.duke.bartesaghi.micromon.nodes.TomographyPurePreprocessingNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
-import edu.duke.bartesaghi.micromon.pyp.filterForDownstreamCopy
+import edu.duke.bartesaghi.micromon.pyp.Args
 import edu.duke.bartesaghi.micromon.refreshDynamicImages
 import edu.duke.bartesaghi.micromon.services.*
 import edu.duke.bartesaghi.micromon.views.TomographyPurePreprocessingView
@@ -64,13 +64,12 @@ class TomographyPurePreprocessingNode(
 		override suspend fun getJob(jobId: String): TomographyPurePreprocessingData =
 			Services.tomographyPurePreprocessing.get(jobId)
 
-		override val pypArgs = ClientPypArgs {
-			Services.tomographyPurePreprocessing.getArgs(it)
+		override val pypArgs = ServerVal {
+			Args.fromJson(Services.tomographyPurePreprocessing.getArgs())
 		}
 
 		private fun form(caption: String, upstreamNode: Node, args: JobArgs<TomographyPurePreprocessingArgs>?, enabled: Boolean, onDone: (TomographyPurePreprocessingArgs) -> Unit) = AppScope.launch {
 
-			val pypArgsWithForwarded = pypArgs.get(true)
 			val pypArgs = pypArgs.get()
 
 			val win = Modal(
@@ -84,18 +83,9 @@ class TomographyPurePreprocessingNode(
 				add(TomographyPurePreprocessingArgs::values, ArgsForm(pypArgs, listOf(upstreamNode), enabled, config.configId))
 			}
 
-			// by default, copy args values from the upstream node
-			val argsOrCopy: JobArgs<TomographyPurePreprocessingArgs> = args
-				?: JobArgs.fromNext(TomographyPurePreprocessingArgs(
-					values = upstreamNode.newestArgValues()?.filterForDownstreamCopy(pypArgs) ?: ""
-				))
-
-			form.init(argsOrCopy)
+			form.init(args)
 			if (enabled) {
-				win.addSaveResetButtons(form, argsOrCopy) { saving ->
-					val merged = Nodes.mergeForwardedArgsIfNeeded(pypArgs, pypArgsWithForwarded, saving.values, upstreamNode)
-					onDone(merged?.let { saving.copy(values = it) } ?: saving)
-				}
+				win.addSaveResetButtons(form, args, onDone)
 			}
 			win.show()
 		}

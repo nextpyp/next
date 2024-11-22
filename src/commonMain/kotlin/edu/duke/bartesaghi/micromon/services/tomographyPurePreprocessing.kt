@@ -20,7 +20,7 @@ interface ITomographyPurePreprocessingService {
 	suspend fun get(jobId: String): TomographyPurePreprocessingData
 
 	@KVBindingRoute("node/${TomographyPurePreprocessingNodeConfig.ID}/getArgs")
-	suspend fun getArgs(includeForwarded: Boolean): String /* Args but serialized */
+	suspend fun getArgs(): String /* Args but serialized */
 }
 
 

@@ -48,7 +48,7 @@ actual class SingleParticlePreprocessingService : ISingleParticlePreprocessingSe
 		return job.data()
 	}
 
-	override suspend fun getArgs(includeForwarded: Boolean): String = sanitizeExceptions {
-		return SingleParticlePreprocessingJob.args(includeForwarded).toJson()
+	override suspend fun getArgs(): String = sanitizeExceptions {
+		return SingleParticlePreprocessingJob.args().toJson()
 	}
 }
