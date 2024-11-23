@@ -316,15 +316,15 @@ abstract class Job(
 					continue
 				}
 
-				// otherwise, add the value
-				values[arg] = jobValues[arg]
+				// otherwise, add the value, if any
+				jobValues[arg]?.let { values[arg] = it }
 			}
 
 			if (Backend.log.isDebugEnabled) {
 				debugMsg?.append("""
 					|
 					|  ${job.baseConfig.id}=${job.id}
-					|    ${values.toString().lines().joinToString("\n    ")}
+					|    ${jobValues.toString().lines().joinToString("\n    ")}
 				""".trimMargin())
 			}
 
