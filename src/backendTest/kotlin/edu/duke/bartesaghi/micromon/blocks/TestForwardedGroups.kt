@@ -1,6 +1,7 @@
 package edu.duke.bartesaghi.micromon.blocks
 
 import edu.duke.bartesaghi.micromon.*
+import edu.duke.bartesaghi.micromon.nodes.NodeConfig
 import edu.duke.bartesaghi.micromon.nodes.SingleParticlePurePreprocessingNodeConfig
 import edu.duke.bartesaghi.micromon.nodes.SingleParticleRawDataNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.*
@@ -17,38 +18,76 @@ class TestForwardedGroups : FunSpec({
 	val database = autoClose(EphemeralMongo.start())
 	autoClose(database.install())
 
-	fun ArgGroup.testArg(argId: String, type: ArgType, default: ArgValue? = null): Arg =
-		Arg(groupId, argId, "Test Arg", "This is a test", type = type, default = default)
+	// TODO: refactor this into a shared space?
+	class ArgExtensions {
 
-	fun Block.addGroup(group: ArgGroup): Block =
-		copy(
-			groupIds = groupIds + listOf(group.groupId)
+		private val groups = ArrayList<GroupExtension>()
+		private val blockGroups = HashMap<String,List<String>>()
+
+		inner class GroupExtension(id: String) {
+
+			private val _args = ArrayList<Arg>()
+			val args: List<Arg> get() = _args
+
+			val group = ArgGroup(
+				"test_$id",
+				name = "Test Group",
+				description = "This is a test"
+			)
+
+			fun arg(
+				id: String,
+				type: ArgType,
+				default: ArgValue? = null,
+				copyToNewBlock: Boolean = true
+			) = Arg(
+					group.groupId,
+					id,
+					"Test Arg",
+					"This is a test",
+					type = type,
+					default = default,
+					copyToNewBlock = copyToNewBlock
+				)
+				.also { _args.add(it) }
+		}
+
+		fun group(id: String) =
+			GroupExtension(id)
+				.also { groups.add(it) }
+
+		fun extendBlock(config: NodeConfig, vararg groups: GroupExtension) {
+			blockGroups[config.configId] = groups.map { it.group.groupId }
+		}
+
+		fun apply(args: Args) = Args(
+			blocks = args.blocks.map { block ->
+				blockGroups[block.blockId]
+					?.let { block.copy(groupIds = block.groupIds + it) }
+					?: block
+			},
+			groups = args.groups + groups.map { it.group },
+			args = args.args + groups.flatMap { it.args }
 		)
+	}
 
 	// define some synthetic args for testing
-	val upstreamGroup = ArgGroup("upstream", "", "")
-	val argInt = upstreamGroup.testArg("argInt", ArgType.TInt(), default = ArgValue.VInt(1))
-	val argStr = upstreamGroup.testArg("argStr", ArgType.TStr())
-	val downstreamGroup = ArgGroup("downstream", "", "")
-	val argIntD = downstreamGroup.testArg("argInt", ArgType.TInt(), default = ArgValue.VInt(5))
-	val argStrD = downstreamGroup.testArg("argStr", ArgType.TStr(), default = ArgValue.VStr("bar"))
+	val argExtensions = ArgExtensions()
+	val upstreamGroup = argExtensions.group("upstream")
+	val argInt = upstreamGroup.arg("argInt", ArgType.TInt(), default = ArgValue.VInt(1))
+	val argStr = upstreamGroup.arg("argStr", ArgType.TStr())
+	val downstreamGroup = argExtensions.group("downstream")
+	val argIntD = downstreamGroup.arg("argInt", ArgType.TInt(), default = ArgValue.VInt(5))
+	val argStrD = downstreamGroup.arg("argStr", ArgType.TStr(), default = ArgValue.VStr("bar"))
+	val sharedGroup = argExtensions.group("shared")
+	val argIntS = sharedGroup.arg("argInt", ArgType.TInt())
+	val argIntSNoCopy = sharedGroup.arg("argIntNoCopy", ArgType.TInt(), copyToNewBlock=false)
+	argExtensions.extendBlock(SingleParticleRawDataNodeConfig, upstreamGroup, sharedGroup)
+	argExtensions.extendBlock(SingleParticlePurePreprocessingNodeConfig, downstreamGroup, sharedGroup)
 
 	// start one website for all of these tests
 	val econfig = autoClose(EphemeralConfig {
-		pypArgs = Args(
-			blocks = pypArgs.blocks.map { block ->
-				when (block.blockId) {
-
-					// add the test groups to the blocks
-					SingleParticleRawDataNodeConfig.configId -> block.addGroup(upstreamGroup)
-					SingleParticlePurePreprocessingNodeConfig.configId -> block.addGroup(downstreamGroup)
-
-					else -> block
-				}
-			},
-			groups = pypArgs.groups + listOf(upstreamGroup, downstreamGroup),
-			args = pypArgs.args + listOf(argInt, argStr, argIntD, argStrD)
-		)
+		pypArgs = argExtensions.apply(pypArgs)
 	})
 	autoClose(econfig.install())
 	val website = autoClose(EphemeralWebsite())
@@ -72,13 +111,13 @@ class TestForwardedGroups : FunSpec({
 			val runResult = website.runProject(project, listOf(rawDataJob, preprocessingJob), ws)
 			runResult.clusterJobs.size shouldBe 2
 
-			// the raw data CLI should have the arg values
+			// the raw data block should have the arg values
 			val rawDataValues = runResult.clusterJobs[0].pypValues(econfig)
 			println("raw data args: $rawDataValues")
 			rawDataValues[argInt] shouldBe 5
 			rawDataValues[argStr] shouldBe "foo"
 
-			// the preprocessing CLI should have them too
+			// the preprocessing block should have them too
 			val preprocessingValues = runResult.clusterJobs[1].pypValues(econfig)
 			println("preprocessing args: $preprocessingValues")
 			preprocessingValues[argInt] shouldBe 5
@@ -123,6 +162,67 @@ class TestForwardedGroups : FunSpec({
 		}
 	}
 
+	test("copies upstream shared args") {
+		website.createProjectAndListen { project, ws ->
+
+			// make a raw data block, with some shared arg values
+			val rawDataArgs = SingleParticleRawDataArgs(econfig.argsToml {
+				this[argIntS] = 5
+				this[argIntSNoCopy] = 7
+			})
+			val rawDataJob = website.importBlock(project, ISingleParticleRawDataService::import, rawDataArgs)
+
+			// make a downstream preprocessing block, with no args
+			val preprocessingArgs = SingleParticlePurePreprocessingArgs("")
+			val preprocessingJob = website.addBlock(project, rawDataJob, ISingleParticlePurePreprocessingService::addNode, preprocessingArgs)
+
+			// run the project
+			val runResult = website.runProject(project, listOf(rawDataJob, preprocessingJob), ws)
+			runResult.clusterJobs.size shouldBe 2
+
+			// the raw data block should have the arg values
+			val rawDataValues = runResult.clusterJobs[0].pypValues(econfig)
+			println("raw data args: $rawDataValues")
+			rawDataValues[argIntS] shouldBe 5
+			rawDataValues[argIntSNoCopy] shouldBe 7
+
+			// the preprocessing block should have only the copied shared args
+			val preprocessingValues = runResult.clusterJobs[1].pypValues(econfig)
+			println("preprocessing args: $preprocessingValues")
+			preprocessingValues[argIntS] shouldBe 5
+			preprocessingValues[argIntSNoCopy] shouldBe null
+		}
+	}
+
+	test("overwrites upstream shared args") {
+		website.createProjectAndListen { project, ws ->
+
+			// make a raw data block, with some arg shared values
+			val rawDataArgs = SingleParticleRawDataArgs(econfig.argsToml {
+				this[argIntS] = 5
+				this[argIntSNoCopy] = 7
+			})
+			val rawDataJob = website.importBlock(project, ISingleParticleRawDataService::import, rawDataArgs)
+
+			// make a downstream preprocessing block, with the same shared args
+			val preprocessingArgs = SingleParticlePurePreprocessingArgs(econfig.argsToml {
+				this[argIntS] = 7
+				this[argIntSNoCopy] = 42
+			})
+			val preprocessingJob = website.addBlock(project, rawDataJob, ISingleParticlePurePreprocessingService::addNode, preprocessingArgs)
+
+			// run the project
+			val runResult = website.runProject(project, listOf(rawDataJob, preprocessingJob), ws)
+			runResult.clusterJobs.size shouldBe 2
+
+			// the preprocessing block should have args from both blocks
+			val preprocessingValues = runResult.clusterJobs[1].pypValues(econfig)
+			println("preprocessing args: $preprocessingValues")
+			preprocessingValues[argIntS] shouldBe 7
+			preprocessingValues[argIntSNoCopy] shouldBe 42
+		}
+	}
+
 	test("doesn't forward implicit default values") {
 		website.createProjectAndListen { project, ws ->
 
@@ -138,13 +238,13 @@ class TestForwardedGroups : FunSpec({
 			val runResult = website.runProject(project, listOf(rawDataJob, preprocessingJob), ws)
 			runResult.clusterJobs.size shouldBe 2
 
-			// the raw data CLI shouldn't have any values
+			// the raw data block shouldn't have any values
 			val rawDataValues = runResult.clusterJobs[0].pypValues(econfig)
 			println("raw data args: $rawDataValues")
 			rawDataValues[argInt] shouldBe null
 			rawDataValues[argStr] shouldBe null
 
-			// the preprocessing CLI shouldn't have any either
+			// the preprocessing block shouldn't have any either
 			val preprocessingValues = runResult.clusterJobs[1].pypValues(econfig)
 			println("preprocessing args: $preprocessingValues")
 			preprocessingValues[argInt] shouldBe null
@@ -169,13 +269,13 @@ class TestForwardedGroups : FunSpec({
 			val runResult = website.runProject(project, listOf(rawDataJob, preprocessingJob), ws)
 			runResult.clusterJobs.size shouldBe 2
 
-			// the raw data CLI shouldn't have any values
+			// the raw data block shouldn't have any values
 			val rawDataValues = runResult.clusterJobs[0].pypValues(econfig)
 			println("raw data args: $rawDataValues")
 			rawDataValues[argInt] shouldBe null
 			rawDataValues[argStr] shouldBe null
 
-			// the preprocessing CLI shouldn't have any either
+			// the preprocessing block shouldn't have any either
 			val preprocessingValues = runResult.clusterJobs[1].pypValues(econfig)
 			println("preprocessing args: $preprocessingValues")
 			preprocessingValues[argInt] shouldBe null

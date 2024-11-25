@@ -276,6 +276,29 @@ abstract class Job(
 	val wwwDir: WebCacheDir get() =
 		WebCacheDir(dir / "www")
 
+	fun ancestry(includeThis: Boolean = true): List<Job> {
+
+		val jobs = ArrayList<Job>()
+
+		var job = this
+		while (true) {
+
+			if (job !== this || includeThis) {
+				jobs.add(job)
+			}
+
+			// recurse to the parent job
+			val inputs = job.inputs.toList()
+			when (inputs.size) {
+				0 -> break // source job: no parents
+				1 -> job = inputs[0].resolveJob<Job>()
+				else -> throw IllegalStateException("Can't get job ancestry: Job ${job.baseConfig.id}=${job.idOrThrow} has multiple parents")
+			}
+		}
+
+		return jobs
+	}
+
 	protected fun launchArgValues(): ArgValues {
 
 		val values = ArgValues(Backend.instance.pypArgs)
@@ -289,36 +312,27 @@ abstract class Job(
 				null
 			}
 
-		// add arg values from this job, and all ancestor jobs
-		// ie, do BFS on the job graph going backwards to the source node(s)
-		val jobs = ArrayDeque<Job>()
-		val queuedJobs = HashSet<String>()
-
-		fun Job.queue() {
-			jobs.add(this)
-			queuedJobs.add(idOrThrow)
-		}
-
-		// start with this job
-		this.queue()
-
-		while (jobs.isNotEmpty()) {
-
-			val job = jobs.removeFirst()
+		// iterate jobs in stream order, so downstream jobs overwrite upstream jobs
+		for (job in ancestry().reversed()) {
 
 			// combine values from the job
 			val jobValues = (job.newestArgValues() ?: "")
 				.toArgValues(Backend.instance.pypArgs)
-			for (arg in values.args.args) {
+			for ((arg, value) in jobValues.entries) {
 
-				// skip args whose value is the default value
-				if (arg.default != null && jobValues[arg] == arg.default.value) {
-					continue
+				val remove =
+					// remove args whose value is the default value
+					(arg.default != null && value == arg.default.value)
+					// remove uncopyable args in ancestor blocks
+					|| (job !== this && !arg.copyToNewBlock)
+
+				if (remove) {
+					jobValues[arg] = null
 				}
-
-				// otherwise, add the value, if any
-				jobValues[arg]?.let { values[arg] = it }
 			}
+
+			// merge the remaining args
+			values.setAll(jobValues)
 
 			if (Backend.log.isDebugEnabled) {
 				debugMsg?.append("""
@@ -326,12 +340,6 @@ abstract class Job(
 					|  ${job.baseConfig.id}=${job.id}
 					|    ${jobValues.toString().lines().joinToString("\n    ")}
 				""".trimMargin())
-			}
-
-			// recurse to parent jobs that we haven't seen yet
-			for (input in job.inputs.filter { it.jobId !in queuedJobs }) {
-				input.resolveJob<Job>()
-					.queue()
 			}
 		}
 

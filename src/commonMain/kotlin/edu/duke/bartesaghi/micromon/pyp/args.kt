@@ -111,13 +111,6 @@ class Args(
 		)
 	}
 
-	fun filterForDownstreamCopy(): Args =
-		Args(
-			blocks = emptyList(),
-			groups = groups.toList(),
-			args = args.filter { it.copyToNewBlock }
-		)
-
 	fun appendAll(args: List<Arg>): Args {
 		return Args(
 			blocks,
@@ -576,6 +569,10 @@ class ArgValues(val args: Args) {
 
 	private val values = HashMap<String,Any?>()
 
+	val entries get(): List<Pair<Arg,Any?>> =
+		values.entries
+			.map { (fullId, value) -> args.argOrThrow(fullId) to value }
+
 	operator fun contains(arg: Arg): Boolean =
 		arg.fullId in values
 
@@ -681,11 +678,6 @@ typealias ArgValuesToml = String
  * De-serialize the ArgValues instance.
  */
 expect fun ArgValuesToml.toArgValues(args: Args): ArgValues
-
-
-fun ArgValuesToml.filterForDownstreamCopy(args: Args): ArgValuesToml =
-	toArgValues(args.filterForDownstreamCopy())
-		.toToml()
 
 
 @Serializable
