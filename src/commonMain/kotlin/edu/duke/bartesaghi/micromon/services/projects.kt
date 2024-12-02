@@ -34,6 +34,9 @@ interface IProjectsService {
 	@KVBindingRoute("projects/get")
 	suspend fun get(userId: String, projectId: String): ProjectData
 
+	@KVBindingRoute("projects/newArgValues")
+	suspend fun newArgValues(userId: String, projectId: String, inData: CommonJobData.DataId, nodeId: String): ArgValuesToml
+
 	@KVBindingRoute("projects/run")
 	suspend fun run(userId: String, projectId: String, jobIds: List<String>)
 

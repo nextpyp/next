@@ -40,6 +40,7 @@ class TomographyDenoisingNode(
 
 		override suspend fun showUseDataForm(viewport: Viewport, diagram: Diagram, project: ProjectData, outNode: Node, input: CommonJobData.DataId, copyFrom: Node?, callback: (Node) -> Unit) {
 			val defaultArgs = (copyFrom as TomographyDenoisingNode?)?.job?.args
+				?: JobArgs.fromNext(TomographyDenoisingArgs(newArgValues(project, input), null))
 			form(config.name, outNode, defaultArgs, true) { args ->
 
 				// save the node to the server

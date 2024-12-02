@@ -7,9 +7,12 @@ import edu.duke.bartesaghi.micromon.auth.authOrThrow
 import edu.duke.bartesaghi.micromon.cluster.Cluster
 import edu.duke.bartesaghi.micromon.jobs.Job
 import edu.duke.bartesaghi.micromon.jobs.JobRunner
+import edu.duke.bartesaghi.micromon.jobs.jobInfo
 import edu.duke.bartesaghi.micromon.linux.DU
 import edu.duke.bartesaghi.micromon.mongo.*
+import edu.duke.bartesaghi.micromon.nodes.NodeConfigs
 import edu.duke.bartesaghi.micromon.nodes.Workflow
+import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
 import edu.duke.bartesaghi.micromon.pyp.Workflows
 import io.ktor.application.ApplicationCall
 import io.kvision.remote.ServiceException
@@ -134,6 +137,19 @@ actual class ProjectsService : IProjectsService {
 		val project = user.authProjectOrThrow(ProjectPermission.Read, userId, projectId)
 
 		return project.toData(user)
+	}
+
+	override suspend fun newArgValues(userId: String, projectId: String, inData: CommonJobData.DataId, nodeId: String): ArgValuesToml = sanitizeExceptions {
+
+		// authenticate the user for this project
+		val user = call.authOrThrow()
+		user.authProjectOrThrow(ProjectPermission.Read, userId, projectId)
+
+		// get the new job type
+		val nodeConfig = NodeConfigs[nodeId]
+			?: throw ServiceException("unrecognized nodeId: $nodeId")
+
+		return nodeConfig.jobInfo.newArgValues(inData).toToml()
 	}
 
 	override suspend fun run(userId: String, projectId: String, jobIds: List<String>) = sanitizeExceptions {

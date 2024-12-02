@@ -43,4 +43,7 @@ interface NodeClientInfo {
 	fun makeNode(viewport: Viewport, diagram: Diagram, project: ProjectData, job: JobData): Node
 
 	val pypArgs: ServerVal<Args>
+
+	suspend fun newArgValues(project: ProjectData, input: CommonJobData.DataId): ArgValuesToml =
+		Services.projects.newArgValues(project.owner.id, project.projectId, input, config.id)
 }

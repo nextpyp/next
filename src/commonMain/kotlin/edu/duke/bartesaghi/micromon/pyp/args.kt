@@ -66,6 +66,9 @@ class Args(
 		group(groupId)
 			?: throw NoSuchElementException("no argument group $groupId")
 
+	fun hasArg(arg: Arg): Boolean =
+		arg(arg.fullId) != null
+
 	fun arg(fullId: String) =
 		argLookup[fullId]
 

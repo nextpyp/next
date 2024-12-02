@@ -37,6 +37,7 @@ class SingleParticleDenoisingNode(
 
 		override suspend fun showUseDataForm(viewport: Viewport, diagram: Diagram, project: ProjectData, outNode: Node, input: CommonJobData.DataId, copyFrom: Node?, callback: (Node) -> Unit) {
 			val defaultArgs = (copyFrom as SingleParticleDenoisingNode?)?.job?.args
+				?: JobArgs.fromNext(SingleParticleDenoisingArgs(newArgValues(project, input)))
 			form(config.name, outNode, defaultArgs, true) { args ->
 
 				// save the node to the server

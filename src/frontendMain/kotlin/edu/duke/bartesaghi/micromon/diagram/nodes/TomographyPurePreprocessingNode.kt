@@ -39,6 +39,7 @@ class TomographyPurePreprocessingNode(
 
 		override suspend fun showUseDataForm(viewport: Viewport, diagram: Diagram, project: ProjectData, outNode: Node, input: CommonJobData.DataId, copyFrom: Node?, callback: (Node) -> Unit) {
 			val defaultArgs = (copyFrom as TomographyPurePreprocessingNode?)?.job?.args
+				?: JobArgs.fromNext(TomographyPurePreprocessingArgs(newArgValues(project, input)))
 			form(config.name, outNode, defaultArgs, true) { args ->
 
 				// save the node to the server

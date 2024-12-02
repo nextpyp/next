@@ -162,7 +162,7 @@ class TestForwardedGroups : FunSpec({
 		}
 	}
 
-	test("copies upstream shared args") {
+	test("doesn't copy upstream shared args") {
 		website.createProjectAndListen { project, ws ->
 
 			// make a raw data block, with some shared arg values
@@ -186,40 +186,45 @@ class TestForwardedGroups : FunSpec({
 			rawDataValues[argIntS] shouldBe 5
 			rawDataValues[argIntSNoCopy] shouldBe 7
 
-			// the preprocessing block should have only the copied shared args
+			// the preprocessing block shouldn't have any shared arguments merged
+			// (instead, the arg values should be copied into the new block's own arg values)
 			val preprocessingValues = runResult.clusterJobs[1].pypValues(econfig)
 			println("preprocessing args: $preprocessingValues")
-			preprocessingValues[argIntS] shouldBe 5
+			preprocessingValues[argIntS] shouldBe null
 			preprocessingValues[argIntSNoCopy] shouldBe null
 		}
 	}
 
-	test("overwrites upstream shared args") {
+	test("gets copyable args") {
 		website.createProjectAndListen { project, ws ->
 
-			// make a raw data block, with some arg shared values
+			// make a raw data block, with some shared arg values
 			val rawDataArgs = SingleParticleRawDataArgs(econfig.argsToml {
 				this[argIntS] = 5
 				this[argIntSNoCopy] = 7
 			})
 			val rawDataJob = website.importBlock(project, ISingleParticleRawDataService::import, rawDataArgs)
 
-			// make a downstream preprocessing block, with the same shared args
-			val preprocessingArgs = SingleParticlePurePreprocessingArgs(econfig.argsToml {
-				this[argIntS] = 7
-				this[argIntSNoCopy] = 42
-			})
+			// make a downstream preprocessing block, with only the copyable arg values
+			val newArgValues = website.services.rpc(IProjectsService::newArgValues, website.getUserId(), project.projectId, rawDataJob.link(), SingleParticlePurePreprocessingNodeConfig.ID)
+			val preprocessingArgs = SingleParticlePurePreprocessingArgs(newArgValues)
 			val preprocessingJob = website.addBlock(project, rawDataJob, ISingleParticlePurePreprocessingService::addNode, preprocessingArgs)
 
 			// run the project
 			val runResult = website.runProject(project, listOf(rawDataJob, preprocessingJob), ws)
 			runResult.clusterJobs.size shouldBe 2
 
-			// the preprocessing block should have args from both blocks
+			// the raw data block should have the arg values
+			val rawDataValues = runResult.clusterJobs[0].pypValues(econfig)
+			println("raw data args: $rawDataValues")
+			rawDataValues[argIntS] shouldBe 5
+			rawDataValues[argIntSNoCopy] shouldBe 7
+
+			// the preprocessing block should only have the copied args
 			val preprocessingValues = runResult.clusterJobs[1].pypValues(econfig)
 			println("preprocessing args: $preprocessingValues")
-			preprocessingValues[argIntS] shouldBe 7
-			preprocessingValues[argIntSNoCopy] shouldBe 42
+			preprocessingValues[argIntS] shouldBe 5
+			preprocessingValues[argIntSNoCopy] shouldBe null
 		}
 	}
 

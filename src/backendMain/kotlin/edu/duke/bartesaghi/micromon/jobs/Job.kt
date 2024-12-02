@@ -302,6 +302,7 @@ abstract class Job(
 	protected fun launchArgValues(): ArgValues {
 
 		val values = ArgValues(Backend.instance.pypArgs)
+		val launchingArgs = baseConfig.jobInfo.args()
 
 		val debugMsg =
 			if (Backend.log.isDebugEnabled) {
@@ -323,8 +324,8 @@ abstract class Job(
 				val remove =
 					// remove args whose value is the default value
 					(arg.default != null && value == arg.default.value)
-					// remove uncopyable args in ancestor blocks
-					|| (job !== this && !arg.copyToNewBlock)
+					// remove upstream args shared with the launching job
+					|| (job !== this && launchingArgs.hasArg(arg))
 
 				if (remove) {
 					jobValues[arg] = null

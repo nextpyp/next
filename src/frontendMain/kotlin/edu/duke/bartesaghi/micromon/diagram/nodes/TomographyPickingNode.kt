@@ -68,6 +68,10 @@ class TomographyPickingNode(
 				}
 			}
 
+			if (jobArgs == null) {
+				jobArgs = JobArgs.fromNext(TomographyPickingArgs(newArgValues(project, input), null, null))
+			}
+
 			form(config.name, outNode, jobArgs, true) { args ->
 
 				// save the node to the server
