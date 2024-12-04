@@ -50,21 +50,18 @@ interface JobInfo {
 			// combine values from the job
 			val jobValues = (job.newestArgValues() ?: "")
 				.toArgValues(values.args)
-			for ((arg, value) in jobValues.entries) {
+			for (arg in values.args.args) {
 
-				val remove =
-					// remove args whose value is the default value
-					(arg.default != null && value == arg.default.value)
-					// remove uncopyable args
-					|| !arg.copyToNewBlock
-
-				if (remove) {
-					jobValues[arg] = null
+				// skip uncopyable args
+				if (!arg.copyToNewBlock) {
+					continue
 				}
-			}
 
-			// merge the remaining args
-			values.setAll(jobValues)
+				// copy the value, but remove any explicit defaults
+				// NOTE: this allows default values to override upstream values by removing them
+				values[arg] = jobValues[arg]
+					?.takeIf { arg.default == null || it != arg.default.value }
+			}
 
 			if (Backend.log.isDebugEnabled) {
 				debugMsg?.append("""

@@ -2,6 +2,7 @@ package edu.duke.bartesaghi.micromon.blocks
 
 import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.nodes.NodeConfig
+import edu.duke.bartesaghi.micromon.nodes.SingleParticlePickingNodeConfig
 import edu.duke.bartesaghi.micromon.nodes.SingleParticlePurePreprocessingNodeConfig
 import edu.duke.bartesaghi.micromon.nodes.SingleParticleRawDataNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.*
@@ -82,8 +83,10 @@ class TestForwardedGroups : FunSpec({
 	val sharedGroup = argExtensions.group("shared")
 	val argIntS = sharedGroup.arg("argInt", ArgType.TInt())
 	val argIntSNoCopy = sharedGroup.arg("argIntNoCopy", ArgType.TInt(), copyToNewBlock=false)
+	val argIntSDefaulted = sharedGroup.arg("argIntDefaulted", ArgType.TInt(), default = ArgValue.VInt(42))
 	argExtensions.extendBlock(SingleParticleRawDataNodeConfig, upstreamGroup, sharedGroup)
 	argExtensions.extendBlock(SingleParticlePurePreprocessingNodeConfig, downstreamGroup, sharedGroup)
+	argExtensions.extendBlock(SingleParticlePickingNodeConfig, sharedGroup)
 
 	// start one website for all of these tests
 	val econfig = autoClose(EphemeralConfig {
@@ -225,6 +228,28 @@ class TestForwardedGroups : FunSpec({
 			println("preprocessing args: $preprocessingValues")
 			preprocessingValues[argIntS] shouldBe 5
 			preprocessingValues[argIntSNoCopy] shouldBe null
+		}
+	}
+
+	test("defaults can overwrite copied shared args") {
+		website.createProjectAndListen { project, ws ->
+
+			// make a raw data block, with a non-default shared arg value
+			val rawDataArgs = SingleParticleRawDataArgs(econfig.argsToml {
+				this[argIntSDefaulted] = 5
+			})
+			val rawDataJob = website.importBlock(project, ISingleParticleRawDataService::import, rawDataArgs)
+
+			// make a downstream preprocessing block, with only default values
+			val preprocessingArgs = SingleParticlePurePreprocessingArgs("")
+			val preprocessingJob = website.addBlock(project, rawDataJob, ISingleParticlePurePreprocessingService::addNode, preprocessingArgs)
+
+			// any new blocks downstream of that should only see default values
+			val newArgValues = website.services.rpc(IProjectsService::newArgValues, website.getUserId(), project.projectId, preprocessingJob.link(), SingleParticlePickingNodeConfig.ID)
+				.toArgValues(econfig.pypArgs)
+
+			println("new args values: $newArgValues")
+			newArgValues[argIntSDefaulted] shouldBe null
 		}
 	}
 
