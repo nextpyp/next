@@ -316,36 +316,45 @@ abstract class Job(
 		// iterate jobs in stream order, so downstream jobs overwrite upstream jobs
 		for (job in ancestry().reversed()) {
 
-			// combine values from the job
-			val jobValues = (job.newestArgValues() ?: "")
-				.toArgValues(Backend.instance.pypArgs)
-			for ((arg, value) in jobValues.entries) {
-
-				val remove =
-					// remove args whose value is the default value
-					(arg.default != null && value == arg.default.value)
-					// remove upstream args shared with the launching job
-					|| (job !== this && launchingArgs.hasArg(arg))
-
-				if (remove) {
-					jobValues[arg] = null
-				}
-			}
-
-			// merge the remaining args
-			values.setAll(jobValues)
-
 			if (Backend.log.isDebugEnabled) {
 				debugMsg?.append("""
 					|
 					|  ${job.baseConfig.id}=${job.id}
-					|    ${jobValues.toString().lines().joinToString("\n    ")}
 				""".trimMargin())
 			}
-		}
 
-		if (Backend.log.isDebugEnabled) {
-			Backend.log.debug(debugMsg?.toString())
+			// combine values from the job
+			val jobValues = (job.newestArgValues() ?: "")
+				.toArgValues(job.baseConfig.jobInfo.args())
+			for (arg in values.args.args) {
+
+				// skip args shared with the launching job,
+				// so we can't overwrite the launching job's values with anything from upstream
+				if (job !== this && launchingArgs.hasArg(arg)) {
+					continue
+				}
+
+				// skip args that aren't in the job
+				if (!jobValues.args.hasArg(arg)) {
+					continue
+				}
+
+				// copy the value, but remove any explicit defaults
+				// NOTE: this allows default values to override upstream values by removing them
+				val value = jobValues[arg]
+					?.takeIf { arg.default == null || it != arg.default.value }
+
+				if (Backend.log.isDebugEnabled) {
+					if (values[arg] != value) {
+						debugMsg?.append("""
+							|
+							|    ${arg.fullId} = $value
+						""".trimMargin())
+					}
+				}
+
+				values[arg] = value
+			}
 		}
 
 		// explicitly set the block id
@@ -355,6 +364,15 @@ abstract class Job(
 		inputs.firstOrNull()
 			?.resolveJob<Job>()
 			?.let { job -> values.dataParent = job.dir.toString() }
+
+		if (Backend.log.isDebugEnabled) {
+			debugMsg?.append("""
+				|
+				|  MERGED
+				|    ${values.toString().lines().joinToString("\n    ")}
+			""".trimMargin())
+			Backend.log.debug(debugMsg?.toString())
+		}
 
 		return values
 	}

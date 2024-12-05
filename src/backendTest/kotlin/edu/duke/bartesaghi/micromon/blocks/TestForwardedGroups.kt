@@ -199,6 +199,49 @@ class TestForwardedGroups : FunSpec({
 		}
 	}
 
+	test("defaults can overwrite copied non-shared args") {
+		website.createProjectAndListen { project, ws ->
+
+			// make a raw data block, with a non-default shared arg value
+			val rawDataArgs = SingleParticleRawDataArgs(econfig.argsToml {
+				this[argIntSDefaulted] = 5
+			})
+			val rawDataJob = website.importBlock(project, ISingleParticleRawDataService::import, rawDataArgs)
+
+			// make some downstream blocks, that have the shared args, but reset to default values
+			val preprocessingArgs = SingleParticlePurePreprocessingArgs("")
+			val preprocessingJob = website.addBlock(project, rawDataJob, ISingleParticlePurePreprocessingService::addNode, preprocessingArgs)
+			val pickingArgs = SingleParticlePickingArgs("")
+			val pickingJob = website.addBlock(project, preprocessingJob, ISingleParticlePickingService::addNode, pickingArgs)
+
+			// add a final downstream block that doesn't have the shared args
+			val refinementArgs = SingleParticleCoarseRefinementArgs("", null)
+			val refinementJob = website.addBlock(project, pickingJob, ISingleParticleCoarseRefinementService::addNode, refinementArgs)
+
+			// run the project
+			val runResult = website.runProject(project, listOf(rawDataJob, preprocessingJob, pickingJob, refinementJob), ws)
+			runResult.clusterJobs.size shouldBe 4
+
+			// the first block should have the non-default value
+			val rawDataValues = runResult.clusterJobs[0].pypValues(econfig)
+			println("raw data args: $rawDataValues")
+			rawDataValues[argIntSDefaulted] shouldBe 5
+
+			// the middle blocks should have only the default value (implicitly)
+			val preprocessingValues = runResult.clusterJobs[1].pypValues(econfig)
+			println("preprocessing args: $preprocessingValues")
+			preprocessingValues[argIntSDefaulted] shouldBe null
+			val pickingValues = runResult.clusterJobs[2].pypValues(econfig)
+			println("picking args: $pickingValues")
+			pickingValues[argIntSDefaulted] shouldBe null
+
+			// the last block should also only have the default value (implicitly)
+			val refinementValues = runResult.clusterJobs[3].pypValues(econfig)
+			println("refinement args: $refinementValues")
+			refinementValues[argIntSDefaulted] shouldBe null
+		}
+	}
+
 	test("doesn't forward implicit default values") {
 		website.createProjectAndListen { project, ws ->
 
