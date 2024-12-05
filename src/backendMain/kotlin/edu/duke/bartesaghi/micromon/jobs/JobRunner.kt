@@ -136,7 +136,10 @@ class JobRunner(val project: Project) {
 
 			// if the error is a ServiceException, show it to the user
 			val errorMessage = when (t) {
-				is ServiceException -> t.message
+				is ServiceException -> {
+					Backend.log.debug("Job failed to launch with user error", t.cleanupStackTrace())
+					t.message
+				}
 				else -> {
 					// otherwise, only show it to admins
 					Backend.log.error("Job failed to launch", t.cleanupStackTrace())

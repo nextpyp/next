@@ -6,7 +6,7 @@ use tracing::info;
 
 use crate::args::{Args, ArgsConfig};
 use crate::metadata::{Ctf, TiltSeries};
-use crate::particles::sample_particle_3d;
+use crate::particles::{sample_particle_3d, sample_virion};
 use crate::rand::sample_ctf;
 use crate::scale::ToValueF;
 use crate::tomography;
@@ -45,7 +45,8 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 		let tilt_series_id = format!("tilt_series_{}", tilt_series_i);
 
 		// generate particles, if needed
-		let particles = match tomo_pick_method {
+		let (virions, spikes) = match tomo_pick_method {
+
 			Some("auto") => {
 				let radius = args.get("tomo_pick_rad")
 					.into_f64()?
@@ -56,9 +57,27 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 				let spikes = (0 .. num_particles)
 					.map(|_| sample_particle_3d(pp_args.tomogram_dims, radius))
 					.collect();
-				Some(spikes)
-			},
-			_ => None
+				(None, Some(spikes))
+			}
+
+			Some("virions") => {
+				let radius = args.get("tomo_vir_rad")
+					.into_f64()?
+					.or(100.0)
+					.value()
+					.to_a()
+					.to_unbinned(pp_args.pixel_size);
+				let threshold = args.get_mock(BLOCK_ID, "threshold")
+					.into_u32()?
+					.or(1)
+					.value();
+				let virions = (0 .. num_particles)
+					.map(|_| sample_virion(pp_args.tomogram_dims, radius, threshold))
+					.collect();
+				(Some(virions), None)
+			}
+
+			_ => (None, None)
 		};
 
 		let tilt_series = TiltSeries {
@@ -67,8 +86,8 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 			xf: None,
 			avgrot: None,
 			drift: None,
-			virions: None,
-			spikes: particles
+			virions,
+			spikes
 		};
 
 		// generate images

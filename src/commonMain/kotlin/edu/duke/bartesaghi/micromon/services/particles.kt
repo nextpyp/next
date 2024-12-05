@@ -213,6 +213,14 @@ data class Particle3D(
 
 	companion object {
 		// define the companion object here so we can extend it elsewhere
+
+		fun fromUnbinned(x: Int, y: Int, z: Int, r: Double): Particle3D =
+			Particle3D(
+				ValueUnbinnedI(x),
+				ValueUnbinnedI(y),
+				ValueUnbinnedI(z),
+				ValueUnbinnedF(r),
+			)
 	}
 }
 

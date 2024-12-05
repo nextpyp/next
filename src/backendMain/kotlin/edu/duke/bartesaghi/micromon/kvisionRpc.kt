@@ -130,6 +130,17 @@ class KVisionServices(val hostname: String, val port: Int) {
 		)).let { Json.decodeFromString(it) }
 	}
 
+	suspend inline fun <reified S:Any, reified A1, reified A2, reified A3, reified A4, reified A5, reified A6, reified R> rpc(noinline func: suspend S.(A1, A2, A3, A4, A5, A6) -> R, a1: A1, a2: A2, a3: A3, a4: A4, a5: A5, a6: A6): R {
+		return rpc(route<S>(func), listOf(
+			Json.encodeToString(a1),
+			Json.encodeToString(a2),
+			Json.encodeToString(a3),
+			Json.encodeToString(a4),
+			Json.encodeToString(a5),
+			Json.encodeToString(a6)
+		)).let { Json.decodeFromString(it) }
+	}
+
 	suspend fun <R> websocket(path: String, block: suspend (DefaultClientWebSocketSession) -> R): R {
 		HttpClient(CIO) {
 			install(WebSockets) {

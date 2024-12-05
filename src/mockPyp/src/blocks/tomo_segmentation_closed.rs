@@ -39,7 +39,10 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 	web.write_parameters(args, args_config)?;
 
 	// try to read the submitted particles, or sample new ones
-	let default_threshold = 1;
+	let default_threshold = args.get_mock(BLOCK_ID, "threshold")
+		.into_u32()?
+		.or(1)
+		.value();
 	let tilt_series_virions = read_next_tomo_virions(default_threshold)?
 		.map(|tilt_series_virions| {
 			let num_particles = tilt_series_virions.iter()

@@ -5,6 +5,7 @@ import edu.duke.bartesaghi.micromon.linux.userprocessor.*
 import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.ParticlesList
+import org.slf4j.LoggerFactory
 import java.nio.file.Path
 import java.nio.file.Paths
 import kotlin.io.path.div
@@ -12,6 +13,8 @@ import kotlin.io.path.extension
 
 
 object ParticlesJobs {
+
+	private val log = LoggerFactory.getLogger("ParticlesJobs")
 
 	private fun trainDir(jobDir: Path): Path =
 		jobDir / "train"
@@ -111,6 +114,8 @@ object ParticlesJobs {
 		nextDir(jobDir) / "virion_thresholds.next"
 
 	suspend fun writeTomography(osUsername: String?, job: Job, dir: Path, particlesList: ParticlesList) {
+
+		log.debug("writeTomography: job={}, dir={}, list={}", job.id, dir, particlesList)
 
 		// write out the particles name
 		val listFile = listFile(dir)

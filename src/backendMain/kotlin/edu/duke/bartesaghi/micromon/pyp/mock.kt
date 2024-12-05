@@ -137,6 +137,7 @@ object TomographyPickingMockArgs : JobMockArgs(TomographyPickingJob) {
 	val tomogramWidth = mockArg("tomogram_width", ArgType.TInt(), ArgValue.VInt(8192))
 	val tomogramHeight = mockArg("tomogram_height", ArgType.TInt(), ArgValue.VInt(8192))
 	val numParticles = mockArg("num_particles", ArgType.TInt(), ArgValue.VInt(20))
+	val threshold = mockArg("threshold", ArgType.TInt(), ArgValue.VInt(1))
 }
 
 
@@ -146,6 +147,7 @@ object TomographySegmentationClosedMockArgs : JobMockArgs(TomographySegmentation
 	val tomogramHeight = mockArg("tomogram_height", ArgType.TInt(), ArgValue.VInt(8192))
 	val virionRadius = mockArg("virion_radius", ArgType.TFloat(), ArgValue.VFloat(1000.0))
 	val numParticles = mockArg("num_particles", ArgType.TInt(), ArgValue.VInt(20))
+	val threshold = mockArg("threshold", ArgType.TInt(), ArgValue.VInt(1))
 }
 
 

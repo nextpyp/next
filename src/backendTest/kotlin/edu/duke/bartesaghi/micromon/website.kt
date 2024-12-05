@@ -9,6 +9,9 @@ import edu.duke.bartesaghi.micromon.pyp.Args
 import edu.duke.bartesaghi.micromon.pyp.MockPyp
 import edu.duke.bartesaghi.micromon.services.*
 import io.ktor.client.features.websocket.*
+import io.ktor.client.statement.*
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.Json
 import org.slf4j.LoggerFactory
 import java.nio.file.Files
 import java.util.concurrent.ConcurrentHashMap
@@ -238,15 +241,15 @@ class EphemeralWebsite: AutoCloseable {
 				?: throw NoSuchElementException("no job with id=${job.jobId} in project run result")
 	}
 
-	suspend fun runProject(project: ProjectData, jobs: List<JobData>, ws: DefaultClientWebSocketSession, timeout: Duration = 30.seconds): ProjectRunResult {
+	suspend fun runProject(project: ProjectData, inJobs: List<JobData>, ws: DefaultClientWebSocketSession, timeout: Duration = 30.seconds): ProjectRunResult {
 
 		// start the project run
-		services.rpc(IProjectsService::run, getUserId(), project.projectId, jobs.map { it.jobId })
-		log.info("runProject(${project.projectName}, jobs=${jobs.map { it.name }}")
+		services.rpc(IProjectsService::run, getUserId(), project.projectId, inJobs.map { it.jobId })
+		log.info("runProject(${project.projectName}, jobs=${inJobs.map { it.name }}")
 
 		// wait for the run to finish, but collect the interesting bits from progress messages
 		val clusterJobIds = ArrayList<String>()
-		val jobs = ArrayList<JobData>()
+		val outJobs = ArrayList<JobData>()
 		val finish = ws.incoming.waitForMessage<RealTimeS2C.ProjectRunFinish>(timeout) { otherMsg ->
 			when (otherMsg) {
 
@@ -273,7 +276,7 @@ class EphemeralWebsite: AutoCloseable {
 				}
 
 				is RealTimeS2C.JobFinish -> {
-					jobs.add(otherMsg.job())
+					outJobs.add(otherMsg.job())
 					log.info("\tJob finish: id=${otherMsg.jobId}, status=${otherMsg.status}")
 				}
 
@@ -286,14 +289,30 @@ class EphemeralWebsite: AutoCloseable {
 
 		log.info("\trun finished: ${finish.status}")
 		if (finish.status != RunStatus.Succeeded) {
-			throw Error("Project run failed")
+
+			// gather the cluster job logs, if any
+			val logs = clusterJobIds
+				.associateWith { ClusterJob.get(it)?.getLog()?.result?.out }
+				.entries
+				.joinToString("\n") { (clusterJobId, out) -> "clusterJob=${clusterJobId}:\n$out" }
+			throw Error("Project run failed, ${clusterJobIds.size} cluster job(s):\n$logs")
 		}
 
 		// lookup the cluster jobs
 		return ProjectRunResult(
 			clusterJobs = clusterJobIds.map { ClusterJob.getOrThrow(it) },
-			jobs
+			outJobs
 		)
+	}
+
+	suspend fun getParticles3d(ownerType: OwnerType, list: ParticlesList, datumId: String): Particles3DData {
+
+		val httpResponse = services.post("/kv/particles/${ownerType.id}/${list.ownerId}/${datumId}/getParticles3D", list.name)
+		if (httpResponse.status.value != 200) {
+			throw Error("HTTP Error: ${httpResponse.status.value}")
+		}
+
+		return Json.decodeFromString<Particles3DData>(httpResponse.readText())
 	}
 }
 
