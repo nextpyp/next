@@ -67,6 +67,8 @@ object MockPyp {
 				+ TomographyRelionDataMockArgs.all
 				+ SingleParticleRawDataMockArgs.all
 				+ SingleParticlePreprocessingMockArgs.all
+				+ SingleParticlePurePreprocessingMockArgs.all
+				+ SingleParticlePickingMockArgs.all
 				// sessions
 				+ TomographySessionMockArgs.all
 				+ SingleParticleSessionMockArgs.all
@@ -220,6 +222,22 @@ object SingleParticleRawDataMockArgs : JobMockArgs(SingleParticleRawDataJob) {
 
 
 object SingleParticlePreprocessingMockArgs : JobMockArgs(SingleParticlePreprocessingJob) {
+	val numMicrographs = mockArg("num_micrographs", ArgType.TInt(), ArgValue.VInt(4))
+	val micrographWidth = mockArg("micrograph_width", ArgType.TInt(), ArgValue.VInt(8192))
+	val micrigraphHeight = mockArg("micrograph_height", ArgType.TInt(), ArgValue.VInt(8192))
+	val numParticles = mockArg("num_particles", ArgType.TInt(), ArgValue.VInt(20))
+	val particleRadius = mockArg("particle_radius", ArgType.TFloat(), ArgValue.VFloat(100.0))
+}
+
+
+object SingleParticlePurePreprocessingMockArgs : JobMockArgs(SingleParticlePurePreprocessingJob) {
+	val numMicrographs = mockArg("num_micrographs", ArgType.TInt(), ArgValue.VInt(4))
+	val micrographWidth = mockArg("micrograph_width", ArgType.TInt(), ArgValue.VInt(8192))
+	val micrigraphHeight = mockArg("micrograph_height", ArgType.TInt(), ArgValue.VInt(8192))
+}
+
+
+object SingleParticlePickingMockArgs : JobMockArgs(SingleParticlePickingJob) {
 	val numMicrographs = mockArg("num_micrographs", ArgType.TInt(), ArgValue.VInt(4))
 	val micrographWidth = mockArg("micrograph_width", ArgType.TInt(), ArgValue.VInt(8192))
 	val micrigraphHeight = mockArg("micrograph_height", ArgType.TInt(), ArgValue.VInt(8192))

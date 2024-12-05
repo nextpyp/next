@@ -21,6 +21,8 @@ mod tomo_session;
 mod spa_rawdata;
 mod spa_preprocessing;
 mod spa_pure_preprocessing;
+mod spa_picking;
+mod spa_coarse_refinement;
 mod spa_session;
 
 
@@ -75,6 +77,10 @@ pub fn run(block_id: &str, args: &mut Args, args_config: &ArgsConfig, array_elem
 		spa_preprocessing::run(args, args_config)
 	} else if block_id == spa_pure_preprocessing::BLOCK_ID {
 		spa_pure_preprocessing::run(args, args_config)
+	} else if block_id == spa_picking::BLOCK_ID {
+		spa_picking::run(args, args_config)
+	} else if block_id == spa_coarse_refinement::BLOCK_ID {
+		spa_coarse_refinement::run(args, args_config)
 	} else if block_id == spa_session::BLOCK_ID {
 		spa_session::run(args, args_config)
 	} else {
