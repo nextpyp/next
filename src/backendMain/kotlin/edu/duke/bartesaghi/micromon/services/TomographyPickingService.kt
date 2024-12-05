@@ -35,11 +35,23 @@ actual class TomographyPickingService : ITomographyPickingService, Service {
 			val project = job.projectOrThrow()
 			job.copyFilesFrom(project.osUsername, copyArgs.copyFromJobId)
 
-			// copy particles to manual, if requested
+			// copy particles (and virions) to manual, if requested
 			if (copyArgs.copyParticlesToManual) {
-				Database.instance.particleLists.deleteAll(job.idOrThrow)
-				Database.instance.particleLists.createIfNeeded(ParticlesList.manualParticles3D(job.idOrThrow))
-				Database.instance.particles.renameAll(job.idOrThrow, ParticlesList.AutoParticles, ParticlesList.ManualParticles)
+
+				// this block should only have (up to) one list
+				val lists = Database.instance.particleLists.getAll(job.idOrThrow)
+				when (lists.size) {
+					0 -> Unit // nothing to copy
+					1 -> {
+						val list = lists[0]
+						Database.instance.particleLists.delete(job.idOrThrow, list.name)
+						Database.instance.particleLists.createIfNeeded(ParticlesList.manualParticles3D(job.idOrThrow))
+						Database.instance.particles.renameAll(job.idOrThrow, list.name, ParticlesList.ManualParticles)
+					}
+					else -> {
+						Backend.log.warn("Skipping copyParticlesToManual for jobId=${job.idOrThrow} because it has more than one particles list: ${lists.map { it.name }}")
+					}
+				}
 			}
 		}
 
