@@ -355,6 +355,7 @@ kotlin {
 				implementation(npm("@projectstorm/react-diagrams", "6.2.0")) // MIT
 				implementation(npm("@ltd/j-toml", "1.12.2")) // LGPL 3
 				implementation(npm("ansicolor", "1.1.100")) // Unlicense
+				implementation(npm("stacktrace-js", "2.0.2")) // MIT
 
 				// dependencies for react-diagrams, see: https://projectstorm.gitbook.io/react-diagrams/getting-started
 				implementation(npm("closest", "0.0.1")) // MIT
