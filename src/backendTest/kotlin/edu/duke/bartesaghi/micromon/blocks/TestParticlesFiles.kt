@@ -183,7 +183,6 @@ class TestParticlesFiles : FunSpec({
 			val tiltSeries = tiltSerieses[0]
 			val virions = website.getParticles3d(OwnerType.Project, ParticlesList.autoVirions(virionPickingJob.jobId), tiltSeries.tiltSeriesId)
 				.toMap()
-				.toMutableMap()
 			virions.size shouldBe 2
 
 			// copy the picking block to get make the virions editable
@@ -211,15 +210,16 @@ class TestParticlesFiles : FunSpec({
 			// check the particles
 			val virionsCopy = website.getParticles3d(OwnerType.Project, pickingCopyLists[0], tiltSeriesCopy.tiltSeriesId)
 				.toMap()
+				.toMutableMap()
 			virionsCopy.size shouldBe 2
 
 			// edit the virions
-			for (virionId in virions.keys.toList()) {
+			for (virionId in virionsCopy.keys.toList()) {
 				website.services.rpc(IParticlesService::deleteParticle, OwnerType.Project, virionPickingCopyJob.jobId, ParticlesList.ManualParticles, tiltSeries.tiltSeriesId, virionId)
 			}
 			suspend fun addVirion(virion: Particle3D) {
 				val virionId = website.services.rpc(IParticlesService::addParticle3D, OwnerType.Project, virionPickingCopyJob.jobId, ParticlesList.ManualParticles, tiltSeries.tiltSeriesId, virion)
-				virions[virionId] = virion
+				virionsCopy[virionId] = virion
 			}
 			addVirion(Particle3D.fromUnbinned(5, 6, 7, 4.2))
 			addVirion(Particle3D.fromUnbinned(3, 2, 1, 3.14))
@@ -227,7 +227,6 @@ class TestParticlesFiles : FunSpec({
 			// run segmentation on the virions
 			val segmentationArgs = TomographySegmentationClosedArgs(econfig.argsToml {
 				this[TomographySegmentationClosedMockArgs.numTiltSeries] = 1
-				this[TomographySegmentationClosedMockArgs.numParticles] = 2
 				this[TomographySegmentationClosedMockArgs.threshold] = 3
 			}, null)
 			val segmentationJob = website.addBlock(project, virionPickingCopyJob, ITomographySegmentationClosedService::addNode, segmentationArgs)
