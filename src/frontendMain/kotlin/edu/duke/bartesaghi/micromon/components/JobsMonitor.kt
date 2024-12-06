@@ -334,10 +334,11 @@ class JobsMonitor(
 					icon = "far fa-file-alt"
 				).apply {
 					visible = false
+					val job = job
 					if (job != null) {
 						title = "Show the logs"
 						onClick {
-							ClusterJobLogViewer(clusterJobId, name, panelBottom)
+							ClusterJobLogViewer(job, clusterJobId, name, panelBottom)
 						}
 					} else {
 						title = DeletedLogsText

@@ -260,6 +260,7 @@ actual class ProjectsService : IProjectsService {
 
 		return ClusterJobLog(
 			clusterJob.commands.representativeCommand(),
+			clusterJob.commands.params(),
 			log?.submitFailure,
 			log?.launchResult?.toData(),
 			log?.result?.type,

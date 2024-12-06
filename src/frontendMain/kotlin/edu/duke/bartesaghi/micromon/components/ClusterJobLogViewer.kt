@@ -2,6 +2,8 @@ package edu.duke.bartesaghi.micromon.components
 
 import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.components.forms.enabled
+import edu.duke.bartesaghi.micromon.diagram.nodes.clientInfo
+import edu.duke.bartesaghi.micromon.pyp.toArgValues
 import edu.duke.bartesaghi.micromon.services.*
 import io.kvision.core.Container
 import io.kvision.core.onEvent
@@ -13,12 +15,13 @@ import io.kvision.modal.Modal
 
 
 class ClusterJobLogViewer(
+	val job: JobData,
 	val clusterJobId: String,
 	val name: String,
 	val panelBottom: Container
 ) {
 
-	private val title = "Logs for $name job"
+	private val title = "Logs for: $name"
 
 	// show the logs in a popup window
 	private val win = Modal(
@@ -28,10 +31,10 @@ class ClusterJobLogViewer(
 		classes = setOf("dashboard-popup", "cluster-job-logs", "max-height-dialog")
 	)
 
-	private val debugElem = Div(classes = setOf("debug-info"))
 	private val tabs = LazyTabPanel(classes = setOf("tabs"))
-	private val streamTab = Div(classes = setOf("stream"))
-	private val logsTab = Div(classes = setOf("logs"))
+	private val launchElem = Div(classes = setOf("launch"))
+	private val streamElem = Div(classes = setOf("stream"))
+	private val logsElem = Div(classes = setOf("logs"))
 
 	private val logStreamer = LogStreamer(RealTimeC2S.ListenToJobStreamLog(clusterJobId), true)
 		.apply {
@@ -40,7 +43,7 @@ class ClusterJobLogViewer(
 				clusterJobLog = null
 			}
 			onPin = ::pinStream
-			streamTab.add(this)
+			streamElem.add(this)
 		}
 
 	private var clusterJobLog: ClusterJobLog? = null
@@ -49,12 +52,14 @@ class ClusterJobLogViewer(
 	init {
 
 		// layout the UI
-		win.add(debugElem)
-		tabs.addTab("Stream") { tab ->
-			tab.elem.add(streamTab)
+		tabs.addTab("Launch") { tab ->
+			tab.elem.add(launchElem)
+		}
+		val streamTab = tabs.addTab("Stream") { tab ->
+			tab.elem.add(streamElem)
 		}
 		tabs.addTab("Logs") { tab ->
-			tab.elem.add(logsTab)
+			tab.elem.add(logsElem)
 
 			AppScope.launch {
 				// load new data, if needed
@@ -65,7 +70,9 @@ class ClusterJobLogViewer(
 			}
 		}
 		win.add(tabs)
-		tabs.activateDefaultTab()
+
+		// show the stream tab by default
+		tabs.initWithDefaultTab(streamTab)
 
 		// wire up events
 		win.onEvent {
@@ -82,7 +89,7 @@ class ClusterJobLogViewer(
 
 		AppScope.launch {
 			clusterJobLog = load()
-			clusterJobLog?.let { updateDebug(it) }
+			clusterJobLog?.let { updateLaunch(it) }
 		}
 	}
 
@@ -100,68 +107,88 @@ class ClusterJobLogViewer(
 		}
 	}
 
-	private fun updateDebug(clusterJobLog: ClusterJobLog) {
+	private fun updateLaunch(clusterJobLog: ClusterJobLog) {
 
-		debugElem.removeAll()
+		launchElem.removeAll()
 
-		// show the debug commands
-		debugElem.disclosure(
-			label = {
-				span("Launch Info")
-			},
-			disclosed = d@{
-				if (clusterJobLog.submitFailure != null) {
+		// show the launch info
+		launchElem.h1("Launch Info")
+		if (clusterJobLog.submitFailure != null) {
 
-					h2("Success:")
-					div(classes = setOf("section")) {
-						content = "No"
-					}
-					h2("Reason:")
-					div(classes = setOf("section")) {
-						content = clusterJobLog.submitFailure
-					}
+			launchElem.h2("Success:")
+			launchElem.div(classes = setOf("section")) {
+				content = "No"
+			}
+			launchElem.h2("Reason:")
+			launchElem.div(classes = setOf("section")) {
+				content = clusterJobLog.submitFailure
+			}
 
-				} else if (clusterJobLog.launchResult != null) {
+		} else if (clusterJobLog.launchResult != null) {
 
-					h2("Success:")
-					div(classes = setOf("section")) {
-						content = if (clusterJobLog.launchResult.success) {
-							"Yes"
-						} else {
-							"No"
-						}
-					}
-					h2("Command")
-					div(classes = setOf("commands", "section")) {
-						content = clusterJobLog.launchResult.command ?: "(no launch command)"
-					}
-					h2("Console Output")
-					div(classes = setOf("commands", "section")) {
-						content = clusterJobLog.launchResult.out
-					}
-
+			launchElem.h2("Success:")
+			launchElem.div(classes = setOf("section")) {
+				content = if (clusterJobLog.launchResult.success) {
+					"Yes"
 				} else {
-
-					span("(none)")
+					"No"
 				}
 			}
-		).apply {
-			// automatically show the launch info if there was a launch problem
-			open = clusterJobLog.submitFailure != null
-				|| clusterJobLog.launchResult?.success == false
+			launchElem.h2("Command")
+			launchElem.div(classes = setOf("commands", "section")) {
+				content = clusterJobLog.launchResult.command ?: "(no launch command)"
+			}
+			launchElem.h2("Console Output")
+			launchElem.div(classes = setOf("commands", "section")) {
+				content = clusterJobLog.launchResult.out
+					.takeIf { it.isNotBlank() }
+					?: "(none)"
+			}
+
+		} else {
+
+			launchElem.span("(none)")
 		}
 
-		debugElem.disclosure(
-			label = {
-				span("Commands")
-			},
-			disclosed = {
-				div(classes = setOf("commands")) {
-					content = clusterJobLog.representativeCommand
+		// show the commands
+		launchElem.h1("Commands")
+		launchElem.div(classes = setOf("commands")) {
+			content = clusterJobLog.representativeCommand
+		}
+
+		// show the params, if any
+		launchElem.h1("Parameters")
+		launchElem.div(classes = setOf("params")) {
+			val params = clusterJobLog.commandParams
+				?.takeIf { it.isNotBlank() }
+			if (params != null) {
+
+				// load the args for this job
+				val loading = loading()
+				AppScope.launch {
+					val args = try {
+						job.clientInfo.pypArgs.get()
+					} finally {
+						remove(loading)
+					}
+
+					// render the arg values
+					table {
+						for ((arg, value) in params.toArgValues(args).entries) {
+							if (value == null) {
+								continue
+							}
+							tr {
+								td(arg.fullId, classes = setOf("name"))
+								td(":")
+								td(value.toString(), classes = setOf("value"))
+							}
+						}
+					}
 				}
+			} else {
+				content = "(none)"
 			}
-		).apply {
-			open = false
 		}
 	}
 
@@ -292,11 +319,11 @@ class ClusterJobLogViewer(
 		}
 
 		// layout the UI
-		logsTab.removeAll()
+		logsElem.removeAll()
 		if (navElem != null) {
-			logsTab.add(navElem)
+			logsElem.add(navElem)
 		}
-		logsTab.add(logElem)
+		logsElem.add(logElem)
 	}
 
 	private fun close() {
@@ -341,7 +368,7 @@ class ClusterJobLogViewer(
 		}
 
 		// move the log streamer from the popup to the bottom panel
-		streamTab.remove(logStreamer)
+		streamElem.remove(logStreamer)
 		elem.add(logStreamer)
 
 		if (logStreamer.autoScroll.value) {
@@ -355,7 +382,7 @@ class ClusterJobLogViewer(
 
 		// move the log streamer from the bottom panel back to the popup
 		logStreamer.parent?.let { panelBottom.remove(it) }
-		streamTab.add(logStreamer)
+		streamElem.add(logStreamer)
 
 		if (logStreamer.autoScroll.value) {
 			logStreamer.scrollToBottom()

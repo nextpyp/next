@@ -437,7 +437,7 @@ class IntegratedRefinementView(
 
 			// show and activate the tabs
 			elem.add(tabsPanel)
-			tabsPanel.activateDefaultTab()
+			tabsPanel.initWithDefaultTab()
 
 			val lazyTabs = LazyTabs(
 				tabsPanel,

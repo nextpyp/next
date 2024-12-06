@@ -2096,41 +2096,43 @@ img.large-scale-down {
 	overflow-y: hidden;
 }
 
-.cluster-job-logs .debug-info {
+.cluster-job-logs .launch {
 	margin-bottom: 16px;
-}
 
-.cluster-job-logs .debug-info .disclosure {
-	align-items: first baseline;
-}
+	h1 {
+		font-size: 140%;
+		margin-top: 1em;
+		text-transform: uppercase;
+	}
 
-.cluster-job-logs .debug-info .disclosure .disclosure-icon {
-	width: 22px;
-	min-width: 22px; /* needed since long content will try to squish the icon */
-}
+	h2 {
+		font-size: 114%;
+		margin-top: 10px;
+	}
 
-.cluster-job-logs .debug-info .disclosure .disclosure-label {
-	font-size: 122%;
-}
+	.section {
+		margin-left: 20px;
+	}
 
-.cluster-job-logs .debug-info .disclosure .disclosure-disclosed {
-	margin-left: 16px;
-}
+	.commands {
+		flex-shrink: 0;
+		font-family: monospace;
+		font-size: 85%;
+		margin-bottom: 10px;
+	}
 
-.cluster-job-logs .debug-info h2 {
-	font-size: 114%;
-	margin-top: 10px;
-}
-
-.cluster-job-logs .debug-info .section {
-	margin-left: 20px;
-}
-
-.cluster-job-logs .debug-info .commands {
-	flex-shrink: 0;
-	font-family: monospace;
-	font-size: 85%;
-	margin-bottom: 10px;
+	.params {
+		table {
+			tr {
+				td.name {
+					padding-right: 1em;
+				}
+				td.value {
+					padding-left: 1em;
+				}
+			}
+		}
+	}
 }
 
 /* need to set strict y limits on these elements so log scrolling works properly */

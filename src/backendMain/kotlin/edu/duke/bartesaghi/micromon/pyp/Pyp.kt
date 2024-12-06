@@ -40,8 +40,10 @@ enum class Pyp(private val cmdName: String) {
 		ownerListener: ClusterJob.OwnerListener?,
 		/** path to the working directory */
 		dir: Path,
-		/** arguments for the PYP script. All paths must be in the internal (to the container) file system */
+		/** arguments for the executable passed via the command-line. All paths must be in the internal (to the container) file system */
 		args: List<String>,
+		/** parameters for the executable passed via the parameters file, if any. All paths must be in the internal (to the container) file system */
+		params: String? = null,
 		/** arguments for when submitting the initial job to cluster, eg sbatch */
 		launchArgs: List<String> = emptyList()
 	) : ClusterJob {
@@ -58,9 +60,12 @@ enum class Pyp(private val cmdName: String) {
 		val clusterJob = ClusterJob(
 			osUsername = osUsername,
 			containerId = containerId,
-			commands = CommandsScript(commands = listOf(
-				runCmd + " " + args.joinToString(" ", transform=Posix::quote)
-			)),
+			commands = CommandsScript(
+				commands = listOf(
+					runCmd + " " + args.joinToString(" ", transform=Posix::quote)
+				),
+				params = params
+			),
 			dir = dir,
 			args = launchArgs,
 			ownerId = owner,

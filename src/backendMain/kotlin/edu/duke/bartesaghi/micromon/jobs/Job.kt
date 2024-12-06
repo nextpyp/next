@@ -384,7 +384,8 @@ abstract class Job(
 
 		// write the parameters file
 		val paramsPath = pypParamsPath()
-		paramsPath.writeStringAs(osUsername, argValues.toToml())
+		val argValuesToml = argValues.toToml()
+		paramsPath.writeStringAs(osUsername, argValuesToml)
 
 		// launch the cluster job
 		launch(
@@ -395,6 +396,7 @@ abstract class Job(
 			ownerListener = JobRunner,
 			dir = dir,
 			args = listOf("-params_file=$paramsPath"),
+			params = argValuesToml,
 			launchArgs = argValues.toSbatchArgs()
 		)
 	}

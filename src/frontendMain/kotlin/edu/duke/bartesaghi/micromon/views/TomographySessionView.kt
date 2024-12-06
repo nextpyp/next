@@ -121,7 +121,7 @@ class TomographySessionView(
 		tabs.addTab("Settings", "fas fa-sliders-h") {
 			settingsTab?.show(it.elem)
 		}
-		tabs.activateDefaultTab()
+		tabs.initWithDefaultTab()
 
 		val session = session
 		if (session == null) {

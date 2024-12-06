@@ -261,6 +261,7 @@ object DebugService {
 								//Container.Pyp.run("pyp") + " --help"
 								"uptime"
 							),
+							params = null,
 							arraySize = size
 						),
 						dir = Paths.get("/tmp"),

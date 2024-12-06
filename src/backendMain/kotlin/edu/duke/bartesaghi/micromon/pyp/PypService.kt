@@ -119,6 +119,7 @@ object PypService {
 
 					"script" -> CommandsScript(
 						commands.getStringsOrThrow("commands"),
+						commands.getString("params"),
 						commands.getInt("array_size"),
 						commands.getInt("bundle_size")
 					)

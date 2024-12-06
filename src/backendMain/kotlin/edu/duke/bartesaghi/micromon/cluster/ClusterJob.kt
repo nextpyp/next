@@ -27,10 +27,8 @@ class ClusterJob(
 	val dir: Path,
 	val env: List<EnvVar> = emptyList(),
 	/**
-	 * Free sbatch arguments intended for direct inclusion in a shell command,
-	 * possibly using POSIX shell formatting.
-	 * WARNING: These arguments can't be sanitized here without the context of how they're intended to be used,
-	 *          so make sure any user-sourced values get sanitized before submitting these arguments.
+	 * Free sbatch arguments intended for direct inclusion in a shell command.
+	 * These arguments are sanitized before passing them to the shell.
 	 */
 	val args: List<String> = emptyList(),
 	val deps: List<String> = emptyList(),
