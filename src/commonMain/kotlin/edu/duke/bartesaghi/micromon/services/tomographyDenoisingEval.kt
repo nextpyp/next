@@ -26,7 +26,8 @@ interface ITomographyDenoisingEvalService {
 
 @Serializable
 data class TomographyDenoisingEvalArgs(
-	val values: ArgValuesToml
+	val values: ArgValuesToml,
+	val filter: String?
 )
 
 @Serializable

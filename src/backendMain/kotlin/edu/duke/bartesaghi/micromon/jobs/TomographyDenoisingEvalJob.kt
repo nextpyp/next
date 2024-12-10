@@ -19,6 +19,7 @@ class TomographyDenoisingEvalJob(
 	override var latestTiltSeriesId: String? = null
 	override val eventListeners get() = Companion.eventListeners
 
+	var inTomograms: CommonJobData.DataId? by InputProp(config.tomograms)
 	var inModel: CommonJobData.DataId? by InputProp(config.inModel)
 
 	companion object : JobInfo {
@@ -39,11 +40,13 @@ class TomographyDenoisingEvalJob(
 
 		private fun TomographyDenoisingEvalArgs.toDoc() = Document().also { doc ->
 			doc["values"] = values
+			doc["filter"] = filter
 		}
 
 		private fun TomographyDenoisingEvalArgs.Companion.fromDoc(doc: Document) =
 			TomographyDenoisingEvalArgs(
-				doc.getString("values")
+				doc.getString("values"),
+				doc.getString("filter")
 			)
 
 		val eventListeners = TiltSeriesEventListeners(this)
@@ -75,9 +78,19 @@ class TomographyDenoisingEvalJob(
 	override suspend fun launch(runId: Int) {
 
 		val project = projectOrThrow()
+		val newestArgs = args.newestOrThrow().args
 
 		// clear caches
 		wwwDir.recreateAs(project.osUsername)
+
+		// get the input jobs
+		val upstreamJob = inTomograms?.resolveJob<Job>()
+			?: throw IllegalStateException("no tomograms input configured")
+
+		// write out the filter from the upstream job, if needed
+		if (upstreamJob is FilteredJob && newestArgs.filter != null) {
+			upstreamJob.writeFilter(newestArgs.filter, dir, project.osUsername)
+		}
 
 		// build the args for PYP
 		val pypArgs = launchArgValues()
