@@ -15,7 +15,7 @@ class ArgInputCryocareTrainedModel(
 	target = FilesystemPicker.Target.Files,
 	name = arg.fullId,
 	initialFolder = initialFolder(outNodes),
-	filenameGlob = "*.tar.bz",
+	filenameGlob = "*.tar.gz",
 	globTypes = setOf(FileBrowserType.File,  FileBrowserType.Symlink)
 ) {
 
