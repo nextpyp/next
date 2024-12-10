@@ -84,8 +84,8 @@ class TomographyDenoisingEvalJob(
 		wwwDir.recreateAs(project.osUsername)
 
 		// get the input jobs
-		val upstreamJob = inTomograms?.resolveJob<Job>()
-			?: throw IllegalStateException("no tomograms input configured")
+		val upstreamJob = (inModel ?: inTomograms)?.resolveJob<Job>()
+			?: throw IllegalStateException("no input configured")
 
 		// write out the filter from the upstream job, if needed
 		if (upstreamJob is FilteredJob && newestArgs.filter != null) {
