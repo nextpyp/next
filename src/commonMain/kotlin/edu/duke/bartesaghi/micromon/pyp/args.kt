@@ -809,6 +809,19 @@ sealed class ArgInput {
 	 * Helps the user pick an initial model for 3D refinement from previous job outputs
 	 */
 	@Serializable
+	class CryocareTrainedModel : ArgInput() {
+
+		companion object {
+			const val id = "cryocareTrainedModel"
+		}
+
+		override val argInputId = id
+	}
+
+	/**
+	 * Helps the user pick an initial model for 3D refinement from previous job outputs
+	 */
+	@Serializable
 	class TrainedModel3D : ArgInput() {
 
 		companion object {

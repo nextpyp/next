@@ -208,6 +208,7 @@ fun TomlTable.getInput(key: String): ArgInput? {
 		ArgInput.HalfMap.id -> ArgInput.HalfMap()
 		ArgInput.TopazTrainedModel.id -> ArgInput.TopazTrainedModel()
 		ArgInput.IsonetTrainedModel.id -> ArgInput.IsonetTrainedModel()
+		ArgInput.CryocareTrainedModel.id -> ArgInput.CryocareTrainedModel()
 		ArgInput.TrainedModel2D.id -> ArgInput.TrainedModel2D()
 		ArgInput.TrainedModel3D.id -> ArgInput.TrainedModel3D()
 
