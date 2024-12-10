@@ -97,7 +97,7 @@ enum class MicrographProp(
 	Defocus1("Defocus 1"),
 	Defocus2("Defocus 2"),
 	AngleAstig("Angast"),
-	AverageMotion("Avgerage Motion"),
+	AverageMotion("Average Motion"),
 	NumParticles("Particles");
 
 	override val id = "micrograph/${name.lowercase()}"

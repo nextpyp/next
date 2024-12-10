@@ -584,7 +584,7 @@ class PreprocessingPlots<T:PreprocessingData>(
 					td { +datum.angleAstig.toFixed(1) }
 				}
 				tr {
-					td { +"Avgerage Motion (pixels)" }
+					td { +"Average Motion (pixels)" }
 					td { +datum.averageMotion.toFixed(2) }
 				}
 				tr {
