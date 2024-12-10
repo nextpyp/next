@@ -27,7 +27,6 @@ object NodeConfigs {
 		TomographyPurePreprocessingNodeConfig,
 		TomographyDenoisingTrainingNodeConfig,
 		TomographyDenoisingEvalNodeConfig,
-		TomographyDenoisingNodeConfig,
 		TomographyPickingNodeConfig,
 		TomographySegmentationOpenNodeConfig,
 		TomographySegmentationClosedNodeConfig,

@@ -88,7 +88,7 @@ class TomographyCoarseRefinementNode(
 					|| upstreamNode is TomographyImportDataNode
 					|| upstreamNode is TomographySessionDataNode
 					|| upstreamNode is TomographyPurePreprocessingNode
-					|| upstreamNode is TomographyDenoisingNode
+					|| upstreamNode is TomographyDenoisingEvalNode
 				add(TomographyCoarseRefinementArgs::filter,
 					// look for the preprocessing job in the upstream node to get the filter
 					if (upstreamIsPreprocessing) {

@@ -47,7 +47,6 @@ object Services {
 	val tomographySessionData = TomographySessionDataService()
 	val tomographyPreprocessing = TomographyPreprocessingService()
 	val tomographyPurePreprocessing = TomographyPurePreprocessingService()
-	val tomographyDenoising = TomographyDenoisingService()
 	val tomographyDenoisingTraining = TomographyDenoisingTrainingService()
 	val tomographyDenoisingEval = TomographyDenoisingEvalService()
 	val tomographyPicking = TomographyPickingService()

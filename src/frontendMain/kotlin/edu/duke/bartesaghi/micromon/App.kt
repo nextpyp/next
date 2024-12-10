@@ -40,7 +40,6 @@ class App : Application() {
 				SingleParticleSessionView.Companion,
 				TomographyDenoisingEvalView.Companion,
 				TomographyDenoisingTrainingView.Companion,
-				TomographyDenoisingView.Companion,
 				TomographyImportDataView.Companion,
 				TomographyImportDataPureView.Companion,
 				TomographyMiloEvalView.Companion,

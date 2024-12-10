@@ -161,7 +161,6 @@ fun Application.main(config: Config.Web) {
 		applyRoutes(TomographyPurePreprocessingServiceManager)
 		applyRoutes(TomographyDenoisingTrainingServiceManager)
 		applyRoutes(TomographyDenoisingEvalServiceManager)
-		applyRoutes(TomographyDenoisingServiceManager)
 		applyRoutes(TomographyPickingServiceManager)
 		applyRoutes(TomographySegmentationOpenServiceManager)
 		applyRoutes(TomographySegmentationClosedServiceManager)

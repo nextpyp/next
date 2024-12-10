@@ -55,7 +55,6 @@ object MockPyp {
 				+ TomographyRawDataMockArgs.all
 				+ TomographyPreprocessingMockArgs.all
 				+ TomographyPurePreprocessingMockArgs.all
-				+ TomographyDenoisingMockArgs.all
 				+ TomographyPickingMockArgs.all
 				+ TomographySegmentationClosedMockArgs.all
 				+ TomographyPickingOpenMockArgs.all
@@ -124,13 +123,6 @@ object TomographyPurePreprocessingMockArgs : JobMockArgs(TomographyPurePreproces
 	val tomogramHeight = mockArg("tomogram_height", ArgType.TInt(), ArgValue.VInt(8192))
 	val tiltAngleMagnitude = mockArg("tilt_angle_magnitude", ArgType.TInt(), ArgValue.VInt(45))
 	val splitMode = mockArg("split_mode", ArgType.TBool(), ArgValue.VBool(false))
-}
-
-
-object TomographyDenoisingMockArgs : JobMockArgs(TomographyDenoisingJob) {
-	val numTiltSeries = mockArg("num_tilt_series", ArgType.TInt(), ArgValue.VInt(4))
-	val tomogramWidth = mockArg("tomogram_width", ArgType.TInt(), ArgValue.VInt(8192))
-	val tomogramHeight = mockArg("tomogram_height", ArgType.TInt(), ArgValue.VInt(8192))
 }
 
 
