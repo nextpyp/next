@@ -256,7 +256,7 @@ class SingleParticleImportDataView(val project: ProjectData, val job: SinglePart
 
 		private val micrographElem = Div()
 
-		val listNav = BigListNav(micrographs) e@{ index ->
+		val listNav = BigListNav(micrographs, onSearch=micrographs::searchById) e@{ index ->
 
 			// clear the previous contents
 			micrographElem.removeAll()

@@ -7,6 +7,8 @@
 
 	--color-success-icon: #5ec518;
 	--color-success-text: #39710b;
+
+	--color-fg-highlight: #007bff;
 }
 
 
@@ -3293,6 +3295,54 @@ div.file-browser .file-browser-bottom .file-browser-controls .file-browser-glob 
 .big-list-nav .form-check {
 	display: inline-block;
 	margin-left: 20px;
+}
+
+.big-list-nav-search {
+
+	.modal-body {
+		display: flex;
+		flex-direction: column;
+
+		/* override some KVision styles for the form controls */
+		.form-group {
+			display: flex;
+			flex-direction: row;
+			gap: 1em;
+			align-items: baseline;
+		}
+	}
+
+	.results {
+		flex-grow: 1;
+		display: flex;
+		flex-direction: column;
+		gap: 0.4em;
+		overflow-y: auto;
+
+		.result {
+			display: flex;
+			flex-direction: row;
+			gap: 1em;
+			cursor: pointer;
+			border: solid 2px transparent;
+			border-radius: 6px;
+
+			&.selected {
+				border-color: var(--color-fg-highlight);
+			}
+
+			.index {
+				width: 75px;
+				color: #666666;
+				font-style: italic;
+				text-align: right;
+			}
+
+			.label {
+				flex-grow: 1;
+			}
+		}
+	}
 }
 
 

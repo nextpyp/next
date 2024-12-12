@@ -3,7 +3,6 @@ package edu.duke.bartesaghi.micromon.views
 import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.components.*
 import edu.duke.bartesaghi.micromon.diagram.nodes.TomographyParticlesEvalNode
-import edu.duke.bartesaghi.micromon.diagram.nodes.clientInfo
 import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.*
 import io.kvision.core.Widget
@@ -100,7 +99,7 @@ class TomographyParticlesEvalView(val project: ProjectData, val job: TomographyP
 				.also { elem.add(it) }
 
 			val tiltSeriesesElem = Div()
-			val listNav = BigListNav(data.tiltSerieses, has100 = false) e@{ index ->
+			val listNav = BigListNav(data.tiltSerieses, onSearch=data::searchById) e@{ index ->
 
 				// clear the previous contents
 				tiltSeriesesElem.removeAll()

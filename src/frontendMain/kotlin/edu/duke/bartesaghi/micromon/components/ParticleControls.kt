@@ -3,6 +3,8 @@ package edu.duke.bartesaghi.micromon.components
 import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.components.forms.enableClickIf
 import edu.duke.bartesaghi.micromon.components.forms.enabled
+import edu.duke.bartesaghi.micromon.components.forms.focusASAP
+import edu.duke.bartesaghi.micromon.components.forms.onEnter
 import edu.duke.bartesaghi.micromon.services.*
 import io.kvision.form.check.radioGroup
 import io.kvision.modal.Modal
@@ -259,14 +261,15 @@ class MultiListParticleControls(
 		val nameText = popup.text(label = "Name:")
 
 		val createButton = Button("Create")
-		popup.addButton(createButton)
-		createButton.onClick {
+			.also { popup.addButton(it) }
+
+		fun submit() {
 
 			// get the list name
 			val name = nameText.value ?: ""
 			if (name.isBlank()) {
 				Toast.error("Please choose a name for the new particle list.", options = ToastOptions())
-				return@onClick
+				return
 			}
 
 			AppScope.launch {
@@ -290,6 +293,11 @@ class MultiListParticleControls(
 			}
 		}
 
+		// wire up events
+		createButton.onClick { submit() }
+		nameText.onEnter { submit() }
+
+		popup.focusASAP(nameText)
 		popup.show()
 	}
 
@@ -345,14 +353,15 @@ class MultiListParticleControls(
 		val nameText = popup.text(label = "Name:")
 
 		val copyButton = Button("Copy")
-		popup.addButton(copyButton)
-		copyButton.onClick {
+			.also { popup.addButton(it) }
+
+		fun submit() {
 
 			// get the list name
 			val newName = nameText.value ?: ""
 			if (newName.isBlank()) {
 				Toast.error("Please choose a name for the new particle list.", options = ToastOptions())
-				return@onClick
+				return
 			}
 
 			AppScope.launch {
@@ -376,6 +385,11 @@ class MultiListParticleControls(
 			}
 		}
 
+		// wire up events
+		copyButton.onClick { submit() }
+		nameText.onEnter { submit() }
+
+		popup.focusASAP(nameText)
 		popup.show()
 	}
 }

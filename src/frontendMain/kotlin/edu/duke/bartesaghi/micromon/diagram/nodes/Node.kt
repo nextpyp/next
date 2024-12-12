@@ -3,6 +3,8 @@ package edu.duke.bartesaghi.micromon.diagram.nodes
 import edu.duke.bartesaghi.micromon.AppScope
 import edu.duke.bartesaghi.micromon.canWrite
 import edu.duke.bartesaghi.micromon.components.PathPopup
+import edu.duke.bartesaghi.micromon.components.forms.focusASAP
+import edu.duke.bartesaghi.micromon.components.forms.onEnter
 import edu.duke.bartesaghi.micromon.diagram.Diagram
 import edu.duke.bartesaghi.micromon.nodes.NodeConfig
 import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
@@ -25,6 +27,7 @@ import js.reactdiagrams.ReactDiagrams
 import js.values
 import kotlinx.browser.document
 import org.w3c.dom.HTMLElement
+import org.w3c.dom.HTMLInputElement
 
 
 abstract class Node(
@@ -475,12 +478,14 @@ abstract class Node(
 		)
 
 		val nameText = win.textInput(value = baseJob.name)
+		val renameButton = Button("Rename")
+			.also { win.addButton(it) }
 
-		win.addButton(Button("Rename").onClick {
+		fun submit() {
 
 			// get the name
 			val name = nameText.value
-				?: return@onClick
+				?: return
 
 			win.hide()
 
@@ -488,8 +493,13 @@ abstract class Node(
 			AppScope.launch {
 				baseJob = JobData.deserialize(Services.projects.renameJob(jobId, name))
 			}
-		})
+		}
 
+		// wire up events
+		renameButton.onClick { submit() }
+		nameText.onEnter { submit() }
+
+		win.focusASAP(nameText)
 		win.show()
 	}
 

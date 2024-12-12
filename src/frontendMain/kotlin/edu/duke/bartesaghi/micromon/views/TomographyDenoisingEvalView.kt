@@ -97,7 +97,7 @@ class TomographyDenoisingEvalView(val project: ProjectData, val job: TomographyD
 			statsLine = PypStatsLine(pypStats)
 				.also { live.add(it) }
 
-			val listNav = BigListNav(data.tiltSerieses, has100 = false) e@{ index ->
+			val listNav = BigListNav(data.tiltSerieses, has100 = false, onSearch=data::searchById) e@{ index ->
 
 				// clear the previous contents
 				tiltSeriesesElem.removeAll()

@@ -524,7 +524,7 @@ class TomographySessionView(
 
 		private val tiltSeriesElem = Div()
 
-		val listNav = BigListNav(tiltSeriesesData.tiltSerieses) e@{ index ->
+		val listNav = BigListNav(tiltSeriesesData.tiltSerieses, onSearch=tiltSeriesesData::searchById) e@{ index ->
 
 			// clear the previous contents
 			tiltSeriesElem.removeAll()

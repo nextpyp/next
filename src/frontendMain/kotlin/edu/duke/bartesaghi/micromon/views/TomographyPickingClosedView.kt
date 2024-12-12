@@ -99,7 +99,7 @@ class TomographyPickingClosedView(val project: ProjectData, val job: TomographyP
 				.also { elem.add(it) }
 
 			val tiltSeriesesElem = Div()
-			val listNav = BigListNav(data.tiltSerieses, has100 = false) e@{ index ->
+			val listNav = BigListNav(data.tiltSerieses, onSearch=data::searchById) e@{ index ->
 
 				// clear the previous contents
 				tiltSeriesesElem.removeAll()

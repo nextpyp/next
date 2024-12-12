@@ -1,5 +1,6 @@
 package edu.duke.bartesaghi.micromon.pyp
 
+import edu.duke.bartesaghi.micromon.components.indexSearch
 import edu.duke.bartesaghi.micromon.services.*
 
 
@@ -155,6 +156,9 @@ data class TiltSeriesesData(
 			tiltSerieses.add(tiltSeries)
 		}
 	}
+
+	fun searchById(q: String) =
+		tiltSerieses.indexSearch { tiltSeries -> tiltSeries.id.takeIf { q in tiltSeries.id } }
 }
 
 
