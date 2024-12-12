@@ -1,5 +1,6 @@
 package edu.duke.bartesaghi.micromon.pyp
 
+import edu.duke.bartesaghi.micromon.Backend
 import edu.duke.bartesaghi.micromon.Config
 import edu.duke.bartesaghi.micromon.cluster.Cluster
 import edu.duke.bartesaghi.micromon.cluster.ClusterJob
@@ -75,6 +76,7 @@ enum class Pyp(private val cmdName: String) {
 		)
 
 		clusterJob.submit()
+			?: Backend.log.debug("Cluster job canceled before launching: [\"$webName\", \"$clusterName\"]")
 
 		return clusterJob
 	}

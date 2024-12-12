@@ -133,6 +133,7 @@ class SBatch(val config: Config.Slurm) : Cluster {
 		out.writeln()
 
 		// write sbatch directives
+		out.writeln("# configure SLURM's sbatch")
 		for (arg in buildArguments(clusterJob)) {
 			out.writeln("#SBATCH ${Posix.quote(arg)}")
 		}

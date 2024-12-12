@@ -319,21 +319,10 @@ class JobsMonitor(
 				val statusElem = IconStyled("")
 				val countElem = Div(null, classes = setOf("count"))
 
-				val waitingButton = Button(
-					"",
-					icon = "fas fa-question"
-				).apply {
-					visible = false
-					onClick {
-						showWaitingReason()
-					}
-				}
-
 				val logsButton = Button(
 					"",
 					icon = "far fa-file-alt"
 				).apply {
-					visible = false
 					val job = job
 					if (job != null) {
 						title = "Show the logs"
@@ -352,7 +341,6 @@ class JobsMonitor(
 							add(statusElem)
 							span(name, classes = setOf("name"))
 						}
-						add(waitingButton)
 						add(logsButton)
 					}
 					add(countElem)
@@ -360,13 +348,6 @@ class JobsMonitor(
 
 				private fun updateStatus() {
 					statusElem.icon = status.toIcon()
-					waitingButton.visible =
-						status == RunStatus.Waiting
-					logsButton.visible =
-						status == RunStatus.Running
-						|| status == RunStatus.Canceled
-						|| status == RunStatus.Succeeded
-						|| status == RunStatus.Failed
 				}
 
 				private fun updateCount() {
@@ -417,33 +398,6 @@ class JobsMonitor(
 
 				init {
 					updateStatus()
-				}
-
-				fun showWaitingReason() {
-
-					val win = Modal(
-						caption = "Why is this job waiting?",
-						escape = true,
-						closeButton = true,
-						classes = setOf("dashboard-popup")
-					)
-					win.h2(name)
-					val loading = win.loading("Checking ...")
-					win.show()
-
-					AppScope.launch {
-
-						val reason = try {
-							Services.projects.waitingReason(clusterJobId)
-						} catch (t: Throwable) {
-							win.errorMessage(t)
-							return@launch
-						} finally {
-							win.remove(loading)
-						}
-
-						win.p(reason)
-					}
 				}
 
 			} // ClusterJobEntry

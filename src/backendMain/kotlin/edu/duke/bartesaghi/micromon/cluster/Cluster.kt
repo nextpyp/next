@@ -196,36 +196,68 @@ interface Cluster {
 					Container.Pyp.cmdWebrpc(*args)
 				}
 			val commands = clusterJob.commands.render(clusterJob, instance.commandsConfig)
-			val script = instance.buildScript(clusterJob, """
+			var script = instance.buildScript(clusterJob, """
+				|# send info to the command via envvars
 				|export NEXTPYP_WEBHOST="${Config.instance.web.webhost}"
 				|export NEXTPYP_TOKEN="${JsonRpc.token}"
 				|export NEXTPYP_WEBID="$clusterJobId"
 				|
-				|# cd into any non-home folder before running any singularity commands.
-				|# For some weird reason, singularity behaves differently when run from the home folder.
-				|# Sometimes it will ignore the --no-home flag and bind the home folder anyway.
-				|# Since pyp can be incredibly destructive to folders it runs in,
-				|# we never *ever* want pyp to have access to the home folder.
+				|# apptainer behaves differently when run from the home folder (like ignoring --no-home)
+				|# so start in an explicitly-defined non-home folder
 				|cd /tmp || exit 1
 				|
+				|# send cluster job events to the website
 				|${cmdWebrpc("slurm_started")}
 				|trap "${cmdWebrpc("slurm_ended", "--exit=\\$?").replace("\"", "\\\"")}" exit
 				|
+				|# run the commands
 				|${commands.joinToString("\n")}
 			""".trimMargin())
+			// NOTE: Commands.render() adds a `cd | exit` command to protect against pyp mayhem, so it's redundant to do it here too
+			//       however, we still need one to protect against apptainer mayhem with the home folder
 			val scriptPath = clusterJob.batchPath()
 			scriptPath.writeStringAs(clusterJob.osUsername, script)
 			scriptPath.editPermissionsAs(clusterJob.osUsername) {
 				add(PosixFilePermission.OWNER_EXECUTE)
 			}
 
+			// now that we've written the script to the filesystem, redact any sensitive information before archiving it
+			val secrets = listOf(
+				// like security tokens
+				Regex("NEXTPYP_TOKEN\\s*=\\s*\"?(\\S*)\"?") to "NEXTPYP_TOKEN=(redacted)"
+			)
+			script = script.lines()
+				.joinToString("\n") { line ->
+
+					@Suppress("NAME_SHADOWING")
+					var line = line
+
+					// scrub out any secrets
+					for ((secret, replacement) in secrets) {
+						line = secret.replace(line, replacement)
+					}
+
+					line
+				}
+
 			// try to launch the job on the cluster
 			val launchResult = instance.launch(clusterJob, scriptPath)
-				?: return null
+				?: run {
+					// job was canceled during the launch process:
+
+					// clean up files we just created, since the job finish handler will never run
+					scriptPath.deleteAs(clusterJob.osUsername)
+					for (file in clusterJob.commands.filesToDelete(clusterJob)) {
+						file.deleteAs(clusterJob.osUsername)
+					}
+
+					return null
+				}
 
 			// launch succeeded, update the database with the launch result
 			Database.instance.cluster.log.update(clusterJobId, null,
 				push("history", ClusterJob.HistoryEntry(ClusterJob.Status.Launched).toDBList()),
+				set("launchScript", script),
 				set("sbatch", launchResult.toDoc())
 			)
 

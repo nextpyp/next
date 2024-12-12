@@ -140,21 +140,13 @@ class ClusterJob(
 		val clusterJobId: String,
 		val arrayId: Int? = null,
 		var submitFailure: String? = null,
+		val launchScript: String? = null,
 		var launchResult: LaunchResult? = null,
 		var arrayProgress: ArrayProgress? = null,
 		val history: MutableList<HistoryEntry> = ArrayList(),
 		var result: Result? = null,
 		val failures: MutableList<FailureEntry> = ArrayList()
 	) {
-
-		fun toDoc() = Document().apply {
-			submitFailure?.let { set("submitFailure", it) }
-			launchResult?.let { set("sbatch", it.toDoc()) }
-			arrayProgress?.let { set("arrayProgress", it.toDoc()) }
-			set("history", history.toDBList())
-			result?.let { set("result", it.toDoc()) }
-			set("failures", failures.map { it.toDoc() })
-		}
 
 		companion object {
 
@@ -168,6 +160,7 @@ class ClusterJob(
 					sbatchId,
 					arrayId,
 					submitFailure = doc.getString("submitFailure"),
+					launchScript = doc.getString("launchScript"),
 					launchResult = doc.getDocument("sbatch")?.let { LaunchResult.fromDoc(it) },
 					arrayProgress = doc.getDocument("arrayProgress")?.let { ArrayProgress.fromDoc(it) },
 					history = ArrayList<HistoryEntry>().apply {

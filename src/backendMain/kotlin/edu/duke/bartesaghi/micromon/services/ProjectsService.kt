@@ -262,6 +262,7 @@ actual class ProjectsService : IProjectsService {
 			clusterJob.commands.representativeCommand(),
 			clusterJob.commands.params(),
 			log?.submitFailure,
+			log?.launchScript,
 			log?.launchResult?.toData(),
 			log?.result?.type,
 			log?.result?.exitCode,
