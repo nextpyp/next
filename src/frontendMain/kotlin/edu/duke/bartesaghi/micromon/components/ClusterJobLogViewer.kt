@@ -3,6 +3,7 @@ package edu.duke.bartesaghi.micromon.components
 import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.components.forms.enabled
 import edu.duke.bartesaghi.micromon.diagram.nodes.clientInfo
+import edu.duke.bartesaghi.micromon.pyp.Args
 import edu.duke.bartesaghi.micromon.pyp.toArgValues
 import edu.duke.bartesaghi.micromon.services.*
 import io.kvision.core.Container
@@ -140,9 +141,13 @@ class ClusterJobLogViewer(
 			}
 			launchElem.h2("Console Output")
 			launchElem.div(classes = setOf("commands", "section")) {
-				content = clusterJobLog.launchResult.out
+				val log = clusterJobLog.launchResult.out
 					.takeIf { it.isNotBlank() }
-					?: "(none)"
+				if (log != null) {
+					add(LogView.fromText(log))
+				} else {
+					span("(none)", classes = setOf("empty"))
+				}
 			}
 
 		} else {
@@ -167,7 +172,7 @@ class ClusterJobLogViewer(
 				val loading = loading()
 				AppScope.launch {
 					val args = try {
-						job.clientInfo.pypArgs.get()
+						Args.fromJson(Services.jobs.getAllArgs())
 					} finally {
 						remove(loading)
 					}
