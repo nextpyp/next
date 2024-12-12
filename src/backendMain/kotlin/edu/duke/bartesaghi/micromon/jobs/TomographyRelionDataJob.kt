@@ -1,7 +1,6 @@
 package edu.duke.bartesaghi.micromon.jobs
 
 import com.mongodb.client.model.Updates
-import edu.duke.bartesaghi.micromon.Backend
 import edu.duke.bartesaghi.micromon.globCountOrNull
 import edu.duke.bartesaghi.micromon.mongo.getDocument
 import edu.duke.bartesaghi.micromon.nodes.TomographyRelionDataNodeConfig
@@ -28,6 +27,7 @@ class TomographyRelionDataJob(
 
 		override val config = TomographyRelionDataNodeConfig
 		override val dataType = JobInfo.DataType.TiltSeries
+		override val dataClass = TomographyRelionDataData::class
 
 		override fun fromDoc(doc: Document) = TomographyRelionDataJob(
 			doc.getString("userId"),
@@ -40,13 +40,11 @@ class TomographyRelionDataJob(
 
 		private fun TomographyRelionDataArgs.toDoc() = Document().also { doc ->
 			doc["values"] = values
-			doc["list"] = particlesName
 		}
 
 		private fun TomographyRelionDataArgs.Companion.fromDoc(doc: Document) =
 			TomographyRelionDataArgs(
-				doc.getString("values"),
-				doc.getString("list")
+				doc.getString("values")
 			)
 	}
 
@@ -93,16 +91,8 @@ class TomographyRelionDataJob(
 		// clear caches
 		wwwDir.recreateAs(project.osUsername)
 
-		val newestArgs = args.newestOrThrow().args
-
-		// write out particles, if needed
-		val argValues = newestArgs.values.toArgValues(Backend.pypArgs)
-		ParticlesJobs.writeTomography(project.osUsername, idOrThrow, dir, argValues, newestArgs.particlesName)
-
 		// build the args for PYP
-		val pypArgs = launchArgValues(null, newestArgs.values, args.finished?.values)
-
-		// set the hidden args
+		val pypArgs = launchArgValues()
 		pypArgs.dataMode = "tomo"
 		pypArgs.importMode = "TOMO_STAR"
 		pypArgs.importReadStar = true
@@ -130,6 +120,15 @@ class TomographyRelionDataJob(
 
 		// update the representative image
 		Project.representativeImages[userId, projectId, RepresentativeImageType.GainCorrected, idOrThrow] = representativeImage()
+	}
+
+	override fun wipeData() {
+
+		// no data to wipe
+
+		// also reset the finished args
+		args.unrun()
+		update()
 	}
 
 	fun diagramImageURL(): String =

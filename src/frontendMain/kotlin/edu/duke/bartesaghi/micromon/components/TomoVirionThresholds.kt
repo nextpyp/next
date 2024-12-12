@@ -3,7 +3,7 @@ package edu.duke.bartesaghi.micromon.components
 import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.diagram.nodes.TomographyPreprocessingNode
 import edu.duke.bartesaghi.micromon.pyp.toArgValues
-import edu.duke.bartesaghi.micromon.pyp.tomoVirMethod
+import edu.duke.bartesaghi.micromon.pyp.tomoVirMethodOrDefault
 import edu.duke.bartesaghi.micromon.services.*
 import io.kvision.core.Container
 import io.kvision.core.onEvent
@@ -19,7 +19,7 @@ class TomoVirionThresholds(
 	val project: ProjectData,
 	val job: JobData,
 	val tiltSeries: TiltSeriesData
-) : Div(classes = setOf("tomo-virion-thresholds")) {
+) : Div(classes = setOf("tomo-virion-thresholds", "spaced")) {
 
 	companion object {
 
@@ -51,6 +51,59 @@ class TomoVirionThresholds(
 
 		// this needs a tab index for keyboard shortcuts to work properly
 		tabindex = 5
+
+		// wire up keyboard events
+		onEvent {
+			keyup = e@{ event ->
+				
+				// stupid Kotlin DSLs, always creating a damn mess ...
+				val self = this@TomoVirionThresholds
+				
+				val virions = self.virions
+					?: return@e
+				
+				// try to prevent the default browser behavior that scrolls the page up and down
+				// or radio selection changes when handling events from radio buttons
+				event.stopPropagation()
+				event.preventDefault()
+
+				fun select(threshold: Int?, all: Boolean = false) {
+					self.selectRadio(threshold)
+					if (all) {
+						for (virionId in virions.keys) {
+							self.setThreshold(virionId, threshold)
+						}
+					} else {
+						self.currentThreshold = threshold
+					}
+				}
+
+				when (event.key) {
+					Keys.up -> self.advance(-1)
+					Keys.down -> self.advance(1)
+					Keys.left -> select(when (val t = self.currentThreshold) {
+						null -> 8
+						in 2 .. 8 -> t - 1
+						else -> null
+					})
+					Keys.right -> select(when (val t = self.currentThreshold) {
+						null -> 1
+						in 1 .. 7 -> t + 1
+						else -> null
+					})
+					Keys.num1 -> select(1, all=event.altKey)
+					Keys.num2 -> select(2, all=event.altKey)
+					Keys.num3 -> select(3, all=event.altKey)
+					Keys.num4 -> select(4, all=event.altKey)
+					Keys.num5 -> select(5, all=event.altKey)
+					Keys.num6 -> select(6, all=event.altKey)
+					Keys.num7 -> select(7, all=event.altKey)
+					Keys.num8 -> select(8, all=event.altKey)
+					Keys.num9,
+					Keys.delete -> select(null, all=event.altKey)
+				}
+			}
+		}
 	}
 
 	private var particlesListName: String? = null
@@ -81,6 +134,8 @@ class TomoVirionThresholds(
 
 		// reset all current state
 		removeAll()
+		cols.removeAll()
+		virionElem.removeAll()
 		particlesListName = null
 		virions = null
 
@@ -88,20 +143,27 @@ class TomoVirionThresholds(
 		try {
 
 			// load the virions most recently used by pyp: either the auto list or a manually-picked list
-			val finishedArgs: TomographyPreprocessingArgs? = when (job) {
-				is TomographyPreprocessingData -> job.args.finished
+			particlesListName = when (job) {
+
+				// older combined preprocessing blocks had user-chosen list names
+				is TomographyPreprocessingData -> {
+					val args = job.args.finished
+					val values = args?.values?.toArgValues(TomographyPreprocessingNode.pypArgs.get())
+					values?.tomoVirMethodOrDefault
+						?.particlesList?.invoke(job.jobId)
+						?.let { list ->
+							when (list.source) {
+								ParticlesSource.User -> args.tomolist
+								ParticlesSource.Pyp -> list.name
+							}
+						}
+				}
+
+				// newer more specialized blocks use constant list names
+				is TomographySegmentationClosedData -> ParticlesList.AutoVirions
+
 				else -> null
 			}
-			val finishedValues = finishedArgs?.values?.toArgValues(TomographyPreprocessingNode.pypArgs.get())
-
-			particlesListName = finishedValues?.tomoVirMethod
-				?.let {
-					if (it.usesAutoList) {
-						ParticlesList.PypAutoVirions
-					} else {
-						finishedArgs.tomolist
-					}
-				}
 
 			// load the virions and thresholds, if possible
 			particlesListName?.let {
@@ -172,51 +234,23 @@ class TomoVirionThresholds(
 		cols.add(virionElem)
 
 		// select the first virion by default, if any
-		if (virions.isNotEmpty()) {
-			table?.jsTabulator?.getRowFromPosition(0, true)
-				.falseToNull()
-				?.let { rowClick(it) }
-		}
+		selectDefaultVirion()
+	}
 
-		// wire up keyboard events
-		cols.onEvent {
-			keyup = e@{ event ->
+	fun hasSelectedVirion(): Boolean {
+		return currentRow != null
+	}
 
-				// try to prevent the default browser behavior that scrolls the page up and down
-				// or radio selection changes when handling events from radio buttons
-				event.stopPropagation()
-				event.preventDefault()
+	fun selectDefaultVirion() {
 
-				fun select(threshold: Int?) {
-					selectRadio(threshold)
-					currentThreshold = threshold
-				}
+		val jsTab = table?.jsTabulator
+			?: return
+		// NOTE: KVision will only initialize the js tabulator if this control is in the real DOM
+		//       so we can't interact with it until then =(
 
-				when (event.key) {
-					Keys.up -> advance(-1)
-					Keys.down -> advance(1)
-					Keys.left -> select(when (val t = currentThreshold) {
-						null -> 8
-						in 2 .. 8 -> t - 1
-						else -> null
-					})
-					Keys.right -> select(when (val t = currentThreshold) {
-						null -> 1
-						in 1 .. 7 -> t + 1
-						else -> null
-					})
-					Keys.num1 -> select(1)
-					Keys.num2 -> select(2)
-					Keys.num3 -> select(3)
-					Keys.num4 -> select(4)
-					Keys.num5 -> select(5)
-					Keys.num6 -> select(6)
-					Keys.num7 -> select(7)
-					Keys.num8 -> select(8)
-					Keys.num9, Keys.delete -> select(null)
-				}
-			}
-		}
+		jsTab.getRowFromPosition(0, true)
+			.falseToNull()
+			?.let { rowClick(it) }
 	}
 
 	private fun rowClick(row: RowComponent) {
@@ -340,6 +374,7 @@ class TomoVirionThresholds(
 					li("Left and right arrows move to different thresholds")
 					li("1-8 also pick the thresholds")
 					li("Delete and 9 pick the no-threshold option")
+					li("alt + 1-9 (or delete) (or ctrl + opt + 1-9 for Mac) applies the threshold to all virons in this tilt series")
 				}
 			}
 		).apply {
@@ -364,31 +399,33 @@ class TomoVirionThresholds(
 			return thresholdsByVirionId?.get(virionId)
 		}
 		set(threshold) {
-
-			val particlesListName = particlesListName
-				?: return
-			val virionId = currentRow?.virionId
-				?: return
-
-			if (threshold != null) {
-				thresholdsByVirionId?.set(virionId, threshold)
-			} else {
-				thresholdsByVirionId?.remove(virionId)
-			}
-
-			// update the table too
-			rowIndicesByVirionId[virionId]
-				?.let { rowIndex ->
-					table?.jsTabulator?.getRowFromPosition(rowIndex, true)
-						.falseToNull()
-						?.let { it.reformat() }
-				}
-
-			// and update the server
-			AppScope.launch {
-				Services.particles.setVirionThreshold(OwnerType.Project, job.jobId, particlesListName, tiltSeries.id, virionId, threshold)
-			}
+			currentRow?.let { setThreshold(it.virionId, threshold) }
 		}
+
+	private fun setThreshold(virionId: Int, threshold: Int?) {
+
+		val particlesListName = particlesListName
+			?: return
+
+		if (threshold != null) {
+			thresholdsByVirionId?.set(virionId, threshold)
+		} else {
+			thresholdsByVirionId?.remove(virionId)
+		}
+
+		// update the table too
+		rowIndicesByVirionId[virionId]
+			?.let { rowIndex ->
+				table?.jsTabulator?.getRowFromPosition(rowIndex, true)
+					.falseToNull()
+					?.let { it.reformat() }
+			}
+
+		// and update the server
+		AppScope.launch {
+			Services.particles.setVirionThreshold(OwnerType.Project, job.jobId, particlesListName, tiltSeries.id, virionId, threshold)
+		}
+	}
 
 	private fun advance(deltaIndex: Int) {
 

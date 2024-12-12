@@ -27,6 +27,7 @@ class SingleParticleFlexibleRefinementJob(
 
 		override val config = SingleParticleFlexibleRefinementNodeConfig
 		override val dataType = JobInfo.DataType.Micrograph
+		override val dataClass = SingleParticleFlexibleRefinementData::class
 
 		override fun fromDoc(doc: Document) = SingleParticleFlexibleRefinementJob(
 			doc.getString("userId"),
@@ -81,12 +82,7 @@ class SingleParticleFlexibleRefinementJob(
 		wwwDir.recreateAs(project.osUsername)
 
 		// build the args for PYP
-		val upstreamJob = inRefinements?.resolveJob<Job>()
-			?: throw IllegalStateException("no refinements input configured")
-		val pypArgs = launchArgValues(upstreamJob, args.newestOrThrow().args.values, args.finished?.values)
-
-		// set the hidden args
-		pypArgs.dataParent = upstreamJob.dir.toString()
+		val pypArgs = launchArgValues()
 		pypArgs.extractFmt = "frealign_local"
 
 		Pyp.csp.launch(project.osUsername, runId, pypArgs, "Launch", "pyp_launch")
@@ -115,8 +111,13 @@ class SingleParticleFlexibleRefinementJob(
 	override fun wipeData() {
 
 		// remove any reconstructions and refinements
-		Database.reconstructions.deleteAll(idOrThrow)
-		Database.refinements.deleteAll(idOrThrow)
+		Database.instance.reconstructions.deleteAll(idOrThrow)
+		Database.instance.refinements.deleteAll(idOrThrow)
+
+		// also reset the finished args
+		args.unrun()
+		latestReconstructionId = null
+		update()
 	}
 
 	fun diagramImageURL(): String =

@@ -22,6 +22,7 @@ class TomographyDrgnJob(
 
 		override val config = TomographyDrgnNodeConfig
 		override val dataType = JobInfo.DataType.TiltSeries
+		override val dataClass = TomographyDrgnData::class
 
 		override fun fromDoc(doc: Document) = TomographyDrgnJob(
 			doc.getString("userId"),
@@ -73,13 +74,8 @@ class TomographyDrgnJob(
 		wwwDir.recreateAs(project.osUsername)
 
 		// build the args for PYP
-		val upstreamJob = inMovieRefinements?.resolveJob<Job>()
-			?: throw IllegalStateException("no movie refinements input configured")
-		val pypArgs = launchArgValues(upstreamJob, args.newestOrThrow().args.values, args.finished?.values)
-
-		// set the hidden args
+		val pypArgs = launchArgValues()
 		pypArgs.dataMode = "tomo"
-		pypArgs.dataParent = upstreamJob.dir.toString()
 
 		Pyp.pyp.launch(project.osUsername, runId, pypArgs, "Launch", "pyp_launch")
 
@@ -100,6 +96,10 @@ class TomographyDrgnJob(
 
 		// also delete any associated data
 		// TODO: what metadata should be deleted?
+
+		// also reset the finished args
+		args.unrun()
+		update()
 	}
 
 	override fun newestArgValues(): ArgValuesToml? =

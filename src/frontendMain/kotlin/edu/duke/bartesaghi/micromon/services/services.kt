@@ -43,13 +43,21 @@ object Services {
 	val tomographyRawData = TomographyRawDataService()
 	val tomographyRelionData = TomographyRelionDataService()
 	val tomographyImportData = TomographyImportDataService()
+	val tomographyImportDataPure = TomographyImportDataPureService()
 	val tomographySessionData = TomographySessionDataService()
 	val tomographyPreprocessing = TomographyPreprocessingService()
 	val tomographyPurePreprocessing = TomographyPurePreprocessingService()
-	val tomographyDenoising = TomographyDenoisingService()
+	val tomographyDenoisingTraining = TomographyDenoisingTrainingService()
+	val tomographyDenoisingEval = TomographyDenoisingEvalService()
 	val tomographyPicking = TomographyPickingService()
+	val tomographySegmentationOpen = TomographySegmentationOpenService()
+	val tomographySegmentationClosed = TomographySegmentationClosedService()
 	val tomographyPickingOpen = TomographyPickingOpenService()
 	val tomographyPickingClosed = TomographyPickingClosedService()
+	val tomographyMiloEval = TomographyMiloEvalService()
+	val tomographyMiloTrain = TomographyMiloTrainService()
+	val tomographyParticlesTrain = TomographyParticlesTrainService()
+	val tomographyParticlesEval = TomographyParticlesEvalService()
 	val tomographyDrgn = TomographyDrgnService()
 	val tomographyCoarseRefinement = TomographyCoarseRefinementService()
 	val tomographyFineRefinement = TomographyFineRefinementService()
@@ -95,6 +103,10 @@ object Services {
 
 		suspend inline fun <reified T> get(url: String): T =
 			Json.decodeFromString(getString(url))
+
+		suspend fun send(url: String) =
+			getString(url)
+			// the response string will be empty, we can just ignore it
 
 		suspend fun postString(url: String, body: String): String =
 			Promise<String> { resolve, reject ->

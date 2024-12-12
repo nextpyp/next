@@ -1,7 +1,6 @@
 package edu.duke.bartesaghi.micromon.jobs
 
 import com.mongodb.client.model.Updates
-import edu.duke.bartesaghi.micromon.Backend
 import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.mongo.getDocument
 import edu.duke.bartesaghi.micromon.nodes.TomographyImportDataNodeConfig
@@ -19,15 +18,18 @@ import kotlin.time.Duration.Companion.seconds
 class TomographyImportDataJob(
 	userId: String,
 	projectId: String
-) : Job(userId, projectId, config), FilteredJob {
+) : Job(userId, projectId, config), FilteredJob, TiltSeriesesJob {
 
 	val args = JobArgs<TomographyImportDataArgs>()
-	var latestTiltSeriesId: String? = null
+
+	override var latestTiltSeriesId: String? = null
+	override val eventListeners get() = Companion.eventListeners
 
 	companion object : JobInfo {
 
 		override val config = TomographyImportDataNodeConfig
 		override val dataType = JobInfo.DataType.TiltSeries
+		override val dataClass = TomographyImportDataData::class
 
 		override fun fromDoc(doc: Document) = TomographyImportDataJob(
 			doc.getString("userId"),
@@ -41,26 +43,28 @@ class TomographyImportDataJob(
 
 		private fun TomographyImportDataArgs.toDoc() = Document().also { doc ->
 			doc["values"] = values
-			doc["list"] = particlesName
 		}
 
 		private fun TomographyImportDataArgs.Companion.fromDoc(doc: Document) =
 			TomographyImportDataArgs(
-				doc.getString("values"),
-				doc.getString("list")
+				doc.getString("values")
 			)
+
+		val eventListeners = TiltSeriesEventListeners(this)
 	}
 
 	override fun createDoc(doc: Document) {
 		super.createDoc(doc)
 		doc["finishedArgs"] = args.finished?.toDoc()
 		doc["nextArgs"] = args.next?.toDoc()
+		doc["latestTiltSeriesId"] = null
 	}
 
 	override fun updateDoc(updates: MutableList<Bson>) {
 		super.updateDoc(updates)
 		updates.add(Updates.set("finishedArgs", args.finished?.toDoc()))
 		updates.add(Updates.set("nextArgs", args.next?.toDoc()))
+		updates.add(Updates.set("latestTiltSeriesId", latestTiltSeriesId))
 	}
 
 	override fun isChanged() = args.hasNext()
@@ -70,8 +74,8 @@ class TomographyImportDataJob(
 			commonData(),
 			args,
 			diagramImageURL(),
-			Database.tiltSeries.count(idOrThrow),
-			Database.particles.countAllParticles(idOrThrow, ParticlesList.PypAutoParticles)
+			Database.instance.tiltSeries.count(idOrThrow),
+			Database.instance.particles.countAllParticles(idOrThrow, ParticlesList.AutoParticles)
 		)
 
 	override suspend fun launch(runId: Int) {
@@ -81,16 +85,8 @@ class TomographyImportDataJob(
 		// clear caches
 		wwwDir.recreateAs(project.osUsername)
 
-		val newestArgs = args.newestOrThrow().args
-
-		// write out particles, if needed
-		val argValues = newestArgs.values.toArgValues(Backend.pypArgs)
-		ParticlesJobs.writeTomography(project.osUsername, idOrThrow, dir, argValues, newestArgs.particlesName)
-
 		// build the args for PYP
-		val pypArgs = launchArgValues(null, newestArgs.values, args.finished?.values)
-
-		// set the hidden args
+		val pypArgs = launchArgValues()
 		pypArgs.dataImport = true
 
 		Pyp.pyp.launch(project.osUsername, runId, pypArgs, "Import Tomography", "pyp_import")
@@ -127,6 +123,23 @@ class TomographyImportDataJob(
 
 		// update the representative image
 		Project.representativeImages[userId, projectId, RepresentativeImageType.GainCorrected, idOrThrow] = representativeImage()
+	}
+
+	override fun wipeData() {
+
+		// also delete any associated data
+		Database.instance.tiltSeries.deleteAll(idOrThrow)
+		Database.instance.tiltSeriesAvgRot.deleteAll(idOrThrow)
+		Database.instance.tiltSeriesDriftMetadata.deleteAll(idOrThrow)
+		Database.instance.jobPreprocessingFilters.deleteAll(idOrThrow)
+		Database.instance.particleLists.deleteAll(idOrThrow)
+		Database.instance.particles.deleteAllParticles(idOrThrow)
+		Database.instance.tiltExclusions.delete(idOrThrow)
+
+		// also reset the finished args
+		args.unrun()
+		latestTiltSeriesId = null
+		update()
 	}
 
 	fun diagramImageURL(): String =

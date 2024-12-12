@@ -27,6 +27,7 @@ class SingleParticleImportDataJob(
 
 		override val config = SingleParticleImportDataNodeConfig
 		override val dataType = JobInfo.DataType.Micrograph
+		override val dataClass = SingleParticleImportDataData::class
 
 		override fun fromDoc(doc: Document) = SingleParticleImportDataJob(
 			doc.getString("userId"),
@@ -40,13 +41,11 @@ class SingleParticleImportDataJob(
 
 		private fun SingleParticleImportDataArgs.toDoc() = Document().also { doc ->
 			doc["values"] = values
-			doc["list"] = particlesName
 		}
 
 		private fun SingleParticleImportDataArgs.Companion.fromDoc(doc: Document) =
 			SingleParticleImportDataArgs(
-				doc.getString("values"),
-				doc.getString("list")
+				doc.getString("values")
 			)
 	}
 
@@ -69,8 +68,8 @@ class SingleParticleImportDataJob(
 			commonData(),
 			args,
 			diagramImageURL(),
-			Database.micrographs.count(idOrThrow),
-			Database.particles.countAllParticles(idOrThrow, ParticlesList.PypAutoParticles)
+			Database.instance.micrographs.count(idOrThrow),
+			Database.instance.particles.countAllParticles(idOrThrow, ParticlesList.AutoParticles)
 		)
 
 	override suspend fun launch(runId: Int) {
@@ -80,17 +79,8 @@ class SingleParticleImportDataJob(
 		// clear caches
 		wwwDir.recreateAs(project.osUsername)
 
-		val newestArgs = args.newestOrThrow().args
-
-		// if we've picked some particles, write those out to pyp
-		newestArgs.particlesName
-			?.let { Database.particleLists.get(idOrThrow, it) }
-			?.let { ParticlesJobs.writeSingleParticle(project.osUsername, idOrThrow, dir, it) }
-
 		// build the args for PYP
-		val pypArgs = launchArgValues(null, newestArgs.values, args.finished?.values)
-
-		// set the hidden args
+		val pypArgs = launchArgValues()
 		pypArgs.dataImport = true
 
 		Pyp.pyp.launch(project.osUsername, runId, pypArgs, "Import Single Particle", "pyp_import")
@@ -127,6 +117,15 @@ class SingleParticleImportDataJob(
 
 		// update the representative image
 		Project.representativeImages[userId, projectId, RepresentativeImageType.GainCorrected, idOrThrow] = representativeImage()
+	}
+
+	override fun wipeData() {
+
+		// no data to wipe
+
+		// also reset the finished args
+		args.unrun()
+		update()
 	}
 
 	fun diagramImageURL(): String =

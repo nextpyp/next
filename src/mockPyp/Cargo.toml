@@ -1,0 +1,22 @@
+
+[package]
+name = "mock-pyp"
+version = "0.1.0"
+authors = ["Jeff Martin <jmartin@cs.duke.edu>"]
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.81" # MIT (or Apache-2)
+display-error-chain = "0.2.0" # MIT (or Apache-2)
+tracing = "0.1.40" # MIT
+tracing-subscriber = { version = "0.3.18", features = ["time", "env-filter"] } # MIT
+time = { version = "0.3.31", features = ["local-offset", "macros", "formatting"] } # MIT (or Apache-2)
+image = "0.25.2" # MIT (or Apache-2)
+imageproc = "0.25.0" # MIT
+ab_glyph = "0.2.28" # Apache 2.0
+toml = "0.8.19" # MIT (or Apache-2)
+reqwest = { version = "0.12.5", features = ["blocking", "json", "rustls-tls-webpki-roots"], default-features = false } # MIT (or Apache-2)
+serde_json = "1.0.122" # MIT (or Apache-2)
+fastrand = "2.1.0" # MIT (or Apache-2)
+svg = "0.17.0" # MIT (or Apache-2)
+flate2 = "1.0.33" # MIT (or Apache-2)

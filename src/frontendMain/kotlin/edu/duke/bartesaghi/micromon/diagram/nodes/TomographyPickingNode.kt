@@ -4,18 +4,24 @@ import edu.duke.bartesaghi.micromon.AppScope
 import edu.duke.bartesaghi.micromon.components.forms.*
 import edu.duke.bartesaghi.micromon.diagram.Diagram
 import edu.duke.bartesaghi.micromon.dynamicImageClassName
+import edu.duke.bartesaghi.micromon.formatWithDigitGroupsSeparator
 import edu.duke.bartesaghi.micromon.nodes.TomographyPickingNodeConfig
-import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
-import edu.duke.bartesaghi.micromon.pyp.Args
-import edu.duke.bartesaghi.micromon.pyp.filterForDownstreamCopy
+import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.refreshDynamicImages
 import edu.duke.bartesaghi.micromon.services.*
 import edu.duke.bartesaghi.micromon.views.TomographyPickingView
 import edu.duke.bartesaghi.micromon.views.Viewport
+import io.kvision.form.select.SelectRemote
+import io.kvision.core.onEvent
+import io.kvision.form.check.CheckBox
 import io.kvision.form.formPanel
+import io.kvision.html.Button
+import io.kvision.html.div
 import io.kvision.modal.Modal
 import js.micromondiagrams.MicromonDiagrams
 import js.micromondiagrams.nodeType
+import kotlin.coroutines.resume
+import kotlin.coroutines.suspendCoroutine
 
 
 class TomographyPickingNode(
@@ -37,13 +43,40 @@ class TomographyPickingNode(
 		override fun makeNode(viewport: Viewport, diagram: Diagram, project: ProjectData, job: JobData) =
 			TomographyPickingNode(viewport, diagram, project, job as TomographyPickingData)
 
-		override fun showUseDataForm(viewport: Viewport, diagram: Diagram, project: ProjectData, outNode: Node, input: CommonJobData.DataId, copyFrom: Node?, callback: (Node) -> Unit) {
-			val defaultArgs = (copyFrom as TomographyPickingNode?)?.job?.args
-			form(config.name, outNode, defaultArgs, true) { args ->
+		override suspend fun showUseDataForm(viewport: Viewport, diagram: Diagram, project: ProjectData, outNode: Node, input: CommonJobData.DataId, copyFrom: Node?, callback: (Node) -> Unit) {
+
+			// handle copying from the source node
+			val srcNode = copyFrom as TomographyPickingNode?
+			var jobArgs: JobArgs<TomographyPickingArgs>? = null
+			var copyArgs: TomographyPickingCopyArgs? = null
+
+			if (srcNode != null) {
+				var args = srcNode.job.args.newest()?.args
+				if (args != null) {
+
+					// ask the user to pick args
+					copyArgs = showCopyForm(srcNode)
+
+					// if we're copying the particles to manual, also change the detect method to manual
+					if (copyArgs.copyParticlesToManual) {
+						val values = args.values.toArgValues(pypArgs.get())
+						values.tomoPickMethod = TomoPickMethod.Manual
+						args = args.copy(values.toToml())
+					}
+
+					jobArgs = JobArgs.fromNext(args)
+				}
+			}
+
+			if (jobArgs == null) {
+				jobArgs = JobArgs.fromNext(TomographyPickingArgs(newArgValues(project, input), null, null))
+			}
+
+			form(config.name, outNode, jobArgs, true) { args ->
 
 				// save the node to the server
 				AppScope.launch {
-					val data = Services.tomographyPicking.addNode(project.owner.id, project.projectId, input, args)
+					val data = Services.tomographyPicking.addNode(project.owner.id, project.projectId, input, args, copyArgs)
 
 					// send the node back to the diagram
 					callback(TomographyPickingNode(viewport, diagram, project, data))
@@ -51,14 +84,71 @@ class TomographyPickingNode(
 			}
 		}
 
+		private suspend fun showCopyForm(src: Node): TomographyPickingCopyArgs = suspendCoroutine { continuation ->
+
+			val win = Modal(
+				caption = "Copy Block: ${config.name}",
+				escape = true,
+				closeButton = true,
+				classes = setOf("dashboard-popup")
+			)
+
+			val form = win.formPanel<TomographyPickingCopyArgs>().apply {
+
+				val dataCheck = CheckBox(
+					value = false,
+					label = "Copy files and data"
+				)
+				val particlesCheck = CheckBox(
+					value = false,
+					label = "Make automatically-picked particles editable"
+				)
+
+				// make the particles check only enabled iff copy data is checked
+				particlesCheck.enabled = false
+				dataCheck.onEvent {
+					change = {
+						if (dataCheck.value) {
+							particlesCheck.enabled = true
+						} else {
+							particlesCheck.enabled = false
+							particlesCheck.value = false
+						}
+					}
+				}
+
+				add(TomographyPickingCopyArgs::copyFromJobId, HiddenString(src.jobId))
+				add(TomographyPickingCopyArgs::copyData, dataCheck)
+				add(TomographyPickingCopyArgs::copyParticlesToManual, particlesCheck)
+			}
+
+			win.div(classes = setOf("spaced")) {
+				content = (
+					"NOTE: When copying files and data,"
+					+ " if this block has a lot of files to copy,"
+					+ " the copy process could take several minutes,"
+					+ " depending on the speed of your file system"
+				)
+			}
+
+			win.addButton(Button("Next").onClick {
+				win.hide()
+				continuation.resume(form.getData())
+			})
+
+			win.show()
+		}
+
 		override suspend fun makeJob(project: ProjectData, argValues: ArgValuesToml, input: CommonJobData.DataId?): JobData {
 			@Suppress("NAME_SHADOWING")
 			val input = input
 				?: throw IllegalArgumentException("input required to make job for ${config.id}")
 			val args = TomographyPickingArgs(
-				values = argValues
+				values = argValues,
+				filter = null,
+				particlesName = null
 			)
-			return Services.tomographyPicking.addNode(project.owner.id, project.projectId, input, args)
+			return Services.tomographyPicking.addNode(project.owner.id, project.projectId, input, args, null)
 		}
 
 		override suspend fun getJob(jobId: String): TomographyPickingData =
@@ -80,18 +170,80 @@ class TomographyPickingNode(
 			)
 
 			val form = win.formPanel<TomographyPickingArgs>().apply {
+
+				val upstreamIsPreprocessing =
+					upstreamNode is TomographyPreprocessingNode
+					|| upstreamNode is TomographyPurePreprocessingNode
+					|| upstreamNode is TomographyImportDataNode
+					|| upstreamNode is TomographyImportDataPureNode
+					|| upstreamNode is TomographySessionDataNode
+					|| upstreamNode is TomographyRelionDataNode
+
+				add(TomographyPickingArgs::filter,
+					// look for the preprocessing job in the upstream node to get the filter
+					if (upstreamIsPreprocessing) {
+						SelectRemote(
+							serviceManager = BlocksServiceManager,
+							function = IBlocksService::filterOptions,
+							stateFunction = { upstreamNode.jobId },
+							label = "Filter tomograms",
+							preload = true
+						)
+					} else {
+						HiddenString()
+					}
+				)
+
+				val upstreamIsCombinedPreprocessing =
+					upstreamNode is TomographyPreprocessingNode
+					|| upstreamNode is TomographyImportDataNode
+					|| upstreamNode is TomographySessionDataNode
+					|| upstreamNode is TomographyRelionDataNode
+				add(TomographyPickingArgs::particlesName,
+					if (upstreamIsCombinedPreprocessing) {
+						SelectRemote(
+							serviceManager = ParticlesServiceManager,
+							function = IParticlesService::getListOptions,
+							stateFunction = { "${OwnerType.Project.id}/${upstreamNode.jobId}" },
+							label = "Select list of particles",
+							preload = true
+						)
+					} else {
+						HiddenString()
+					}
+				)
+
 				add(TomographyPickingArgs::values, ArgsForm(pypArgs, listOf(upstreamNode), enabled, config.configId))
 			}
 
-			// by default, copy args values from the upstream node
-			val argsOrCopy: JobArgs<TomographyPickingArgs> = args
-				?: JobArgs.fromNext(TomographyPickingArgs(
-					values = upstreamNode.newestArgValues()?.filterForDownstreamCopy(pypArgs) ?: ""
-				))
-
-			form.init(argsOrCopy)
+			// use the none filter option for the particles name in the form,
+			// since the control can't handle nulls
+			val mapper = ArgsMapper<TomographyPickingArgs>(
+				toForm = { args ->
+					var a = args
+					if (a.filter == null) {
+						a = a.copy(filter = NoneFilterOption)
+					}
+					if (a.particlesName == null) {
+						a = a.copy(particlesName = NoneFilterOption)
+					}
+					a
+				},
+				fromForm = { args ->
+					var a = args
+					if (a.filter == NoneFilterOption) {
+						a = a.copy(filter = null)
+					}
+					if (a.particlesName == NoneFilterOption) {
+						a = a.copy(particlesName = null)
+					}
+					a
+				}
+			)
+			
+			form.init(args, mapper)
 			if (enabled) {
-				win.addSaveResetButtons(form, argsOrCopy, onDone)
+				win.addSaveResetButtons(form, args, mapper, onDone)
 			}
 			win.show()
 		}
@@ -108,6 +260,9 @@ class TomographyPickingNode(
 				TomographyPickingView.go(viewport, project, job)
 			}) {
 				img(job.imageUrl, className = dynamicImageClassName)
+			}
+			div(className = "count") {
+				text("${job.numParticles.formatWithDigitGroupsSeparator()} particles")
 			}
 		}
 
@@ -133,7 +288,4 @@ class TomographyPickingNode(
 			}
 		}
 	}
-
-	override fun newestArgValues() =
-		job.args.newest()?.args?.values
 }

@@ -116,7 +116,7 @@ actual class TomographySessionService : ITomographySessionService, Service {
 
 		val user = call.authOrThrow()
 
-		return Database.sessions.getGroupsByType(TomographySession.id) { cursor ->
+		return Database.instance.sessions.getGroupsByType(TomographySession.id) { cursor ->
 			cursor
 				.filter { user.isAdmin || (it.newestGroupId?.let { gid -> user.hasGroup(gid) } == true) }
 				.mapNotNull { TomographySession.fromId(it.sessionId) }

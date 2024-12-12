@@ -22,14 +22,8 @@ class ArgInputTrainedModel2D(
 	companion object {
 
 		fun initialFolder(outNodes: List<Node>): String? =
-			// TODO: how to handle multiple inputs?
-			when (val node = outNodes.firstOrNull()) {
-
-				is SingleParticleRawDataNode,
-				is SingleParticlePreprocessingNode -> PathType.Project.make("${node.projectFolder}")
-
-				else -> null
-			}
+			outNodes.firstOrNull()
+				?.let { PathType.Project.make(it.projectFolder) }
 	}
 
 	val default: String? get() = null

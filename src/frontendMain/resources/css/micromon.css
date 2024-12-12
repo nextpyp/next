@@ -7,6 +7,8 @@
 
 	--color-success-icon: #5ec518;
 	--color-success-text: #39710b;
+
+	--color-fg-highlight: #007bff;
 }
 
 
@@ -82,6 +84,23 @@ button.image-button.reconstruction-node img {
 
 .btn.with-left-margin {
     margin-left: 5px;
+}
+
+/**
+ * Work around bug where bootstrap dropdown menus can be clipped by parent overflow settings.
+ * But only inside of modal dialogs.
+ *
+ * In a better universe than this one, KVision would use built-in browser components (that have excellent usability!)
+ * instead of Boostrap re-creations of basic components, which have usability issues like this that we need to work around.
+ * Alas. =(
+ */
+.modal-dialog .modal-body {
+	.dropdown.bootstrap-select {
+		&> .dropdown-menu.show {
+			position: relative !important;
+			top: -2.2em !important;
+		}
+	}
 }
 
 
@@ -728,6 +747,20 @@ div.tomography-preprocessing div.tomography-preprocessing-table div.rows div.for
 		position: absolute;
 		top: 10px;
 		right: 10px;
+	}
+}
+
+
+/* TOMOGRAPHY MILOPYP EVAL VIEW */
+
+.tomography-milo-eval {
+
+	.files {
+		display: flex;
+		flex-direction: row;
+		gap: 1.6em;
+		margin-top: 1em;
+		margin-bottom: 1em;
 	}
 }
 
@@ -1553,7 +1586,6 @@ div.project-view div.panel-project-left {
 }
 
 div.project-view div.panel-project-right {
-	max-width: 400px;
 	height: 100%;
 	background-color: #f8f9fa;
 	border-top: solid 1px #cccfd7;
@@ -1664,6 +1696,10 @@ div.project-view div.diagram div.node div.title span.buttons button {
 
 div.project-view div.diagram div.node div.content {
 	padding: 8px;
+
+	img.thumbnail {
+		width: 256px;
+	}
 }
 
 .project-view .diagram .node .ports {
@@ -1984,7 +2020,9 @@ div.project-view .websocket-control {
 }
 
 .project-run-popup .nodes-list .node-line .node-entry {
-	display: inline-block;
+	display: flex;
+	flex-direction: row;
+	align-items: baseline;
 	padding-left: 6px;
     padding-right: 6px;
 }
@@ -2014,6 +2052,11 @@ div.project-view .websocket-control {
 	height: 1lh;
 	padding-top: 0;
 	paddint-bottom: 0;
+	visibility: hidden;
+
+	&.show {
+		visibility: visible;
+	}
 }
 
 .project-run-popup .validation-message {
@@ -2055,41 +2098,43 @@ img.large-scale-down {
 	overflow-y: hidden;
 }
 
-.cluster-job-logs .debug-info {
+.cluster-job-logs .launch {
 	margin-bottom: 16px;
-}
 
-.cluster-job-logs .debug-info .disclosure {
-	align-items: first baseline;
-}
+	h1 {
+		font-size: 140%;
+		margin-top: 1em;
+		text-transform: uppercase;
+	}
 
-.cluster-job-logs .debug-info .disclosure .disclosure-icon {
-	width: 22px;
-	min-width: 22px; /* needed since long content will try to squish the icon */
-}
+	h2 {
+		font-size: 114%;
+		margin-top: 10px;
+	}
 
-.cluster-job-logs .debug-info .disclosure .disclosure-label {
-	font-size: 122%;
-}
+	.section {
+		margin-left: 20px;
+	}
 
-.cluster-job-logs .debug-info .disclosure .disclosure-disclosed {
-	margin-left: 16px;
-}
+	.commands {
+		flex-shrink: 0;
+		font-family: monospace;
+		font-size: 85%;
+		margin-bottom: 10px;
+	}
 
-.cluster-job-logs .debug-info h2 {
-	font-size: 114%;
-	margin-top: 10px;
-}
-
-.cluster-job-logs .debug-info .section {
-	margin-left: 20px;
-}
-
-.cluster-job-logs .debug-info .commands {
-	flex-shrink: 0;
-	font-family: monospace;
-	font-size: 85%;
-	margin-bottom: 10px;
+	.params {
+		table {
+			tr {
+				td.name {
+					padding-right: 1em;
+				}
+				td.value {
+					padding-left: 1em;
+				}
+			}
+		}
+	}
 }
 
 /* need to set strict y limits on these elements so log scrolling works properly */
@@ -3108,6 +3153,10 @@ div.file-browser .file-browser-bottom .file-browser-controls .file-browser-glob 
 	width: 100%;
 	max-width: 1000px;
 	white-space: nowrap;
+
+	> thead {
+		font-weight: bold;
+	}
 }
 
 .session .ops .session-filesystem-monitor table .bar {
@@ -3246,6 +3295,54 @@ div.file-browser .file-browser-bottom .file-browser-controls .file-browser-glob 
 .big-list-nav .form-check {
 	display: inline-block;
 	margin-left: 20px;
+}
+
+.big-list-nav-search {
+
+	.modal-body {
+		display: flex;
+		flex-direction: column;
+
+		/* override some KVision styles for the form controls */
+		.form-group {
+			display: flex;
+			flex-direction: row;
+			gap: 1em;
+			align-items: baseline;
+		}
+	}
+
+	.results {
+		flex-grow: 1;
+		display: flex;
+		flex-direction: column;
+		gap: 0.4em;
+		overflow-y: auto;
+
+		.result {
+			display: flex;
+			flex-direction: row;
+			gap: 1em;
+			cursor: pointer;
+			border: solid 2px transparent;
+			border-radius: 6px;
+
+			&.selected {
+				border-color: var(--color-fg-highlight);
+			}
+
+			.index {
+				width: 75px;
+				color: #666666;
+				font-style: italic;
+				text-align: right;
+			}
+
+			.label {
+				flex-grow: 1;
+			}
+		}
+	}
 }
 
 
@@ -3756,4 +3853,65 @@ div.file-browser .file-browser-bottom .file-browser-controls .file-browser-glob 
 
 .link-badge .link-badge-container .right.red {
 	background: linear-gradient(to bottom, #e23c2b 0%, #c42424 100%);
+}
+
+
+/* FILE UPLOAD */
+
+.file-upload {
+	display: flex;
+	flex-direction: row;
+	gap: 8pm;
+
+	.buttons {
+		display: flex;
+		flex-direction: row;
+		gap: 8pm;
+
+		button {
+			width: 24px;
+			height: 24px;
+			font-size: 14px;
+			padding-left: 3px;
+			padding-right: 3px;
+			padding-top: 0px;
+			padding-bottom: 0px;
+			margin-left: 4px;
+		}
+	}
+}
+
+
+/* DEBUG PYP ARGS */
+
+.debug-pyp-args {
+
+	h2 {
+		font-size: 110%;
+	}
+
+	.group {
+		padding-left: 2em;
+
+		.arg {
+			display: flex;
+			flex-direction: row;
+			gap: 0.4em;
+			align-items: baseline;
+
+			.argId {
+				width: 200px;
+				font-weight: bold;
+			}
+
+			.type {
+				font-style: italic;
+				color: #666666;
+			}
+
+			.value {
+
+			}
+		}
+	}
 }

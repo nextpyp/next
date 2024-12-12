@@ -1,5 +1,6 @@
 package edu.duke.bartesaghi.micromon.components.forms
 
+import edu.duke.bartesaghi.micromon.Storage
 import edu.duke.bartesaghi.micromon.batch
 import edu.duke.bartesaghi.micromon.diagram.nodes.Node
 import edu.duke.bartesaghi.micromon.pyp.*
@@ -71,11 +72,16 @@ class ArgsForm(
 
 		private val controls = Controls()
 		private val advancedCheck = CheckBox(
-			false,
+			Storage.showAdvancedArgs ?: false,
 			label = "Show advanced options"
 		).apply {
 			style = CheckBoxStyle.PRIMARY
 			addCssClass("auto-scroll")
+			onEvent {
+				change = {
+					Storage.showAdvancedArgs = value
+				}
+			}
 		}
 
 		private val tabs = HashMap<String?,ArgsInputs>()
@@ -100,7 +106,12 @@ class ArgsForm(
 				// show the arg in a tab panel, one tab for each group
 				tabPanel {
 					for (group in form.args.groups) {
-						val tab = ArgsInputs(form.args.args(group), values, controls, form.outNodes, form.enabled, ::showAdvanced)
+						val groupArgs = form.args.args(group)
+						if (groupArgs.isEmpty()) {
+							// hide empty groups
+							continue
+						}
+						val tab = ArgsInputs(groupArgs, values, controls, form.outNodes, form.enabled, ::showAdvanced)
 						tabs[group.groupId] = tab
 						addTab(group.name, tab)
 					}
@@ -221,10 +232,14 @@ class ArgsInputs(
 			val control: ArgInputControl = if (arg.input != null) {
 				when (arg.input) {
 					is ArgInput.ParFile -> ArgInputParFile(arg, outNodes)
+					is ArgInput.StarFile -> ArgInputStarFile(arg, outNodes)
+					is ArgInput.ParquetFile -> ArgInputParquetFile(arg, outNodes)
 					is ArgInput.TxtFile -> ArgInputTxtFile(arg, outNodes)
 					is ArgInput.InitialModel -> ArgInputInitialModel(arg, outNodes)
 					is ArgInput.HalfMap -> ArgInputHalfMap(arg, outNodes)
 					is ArgInput.TopazTrainedModel -> ArgInputTopazTrainedModel(arg, outNodes)
+					is ArgInput.IsonetTrainedModel -> ArgInputIsonetTrainedModel(arg, outNodes)
+					is ArgInput.CryocareTrainedModel -> ArgInputCryocareTrainedModel(arg, outNodes)
 					is ArgInput.TrainedModel2D -> ArgInputTrainedModel2D(arg, outNodes)
 					is ArgInput.TrainedModel3D -> ArgInputTrainedModel3D(arg, outNodes)
 					is ArgInput.ClusterQueue -> ArgInputClusterQueue(arg)

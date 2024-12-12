@@ -2,7 +2,6 @@ package edu.duke.bartesaghi.micromon.jobs
 
 import com.mongodb.client.model.Updates
 import edu.duke.bartesaghi.micromon.globCountOrNull
-import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.mongo.getDocument
 import edu.duke.bartesaghi.micromon.nodes.SingleParticleRelionDataNodeConfig
 import edu.duke.bartesaghi.micromon.projects.Project
@@ -28,6 +27,7 @@ class SingleParticleRelionDataJob(
 
 		override val config = SingleParticleRelionDataNodeConfig
 		override val dataType = JobInfo.DataType.Micrograph
+		override val dataClass = SingleParticleRelionDataData::class
 
 		override fun fromDoc(doc: Document) = SingleParticleRelionDataJob(
 			doc.getString("userId"),
@@ -40,13 +40,11 @@ class SingleParticleRelionDataJob(
 
 		private fun SingleParticleRelionDataArgs.toDoc() = Document().also { doc ->
 			doc["values"] = values
-			doc["list"] = particlesName
 		}
 
 		private fun SingleParticleRelionDataArgs.Companion.fromDoc(doc: Document) =
 			SingleParticleRelionDataArgs(
-				doc.getString("values"),
-				doc.getString("list")
+				doc.getString("values")
 			)
 	}
 
@@ -93,17 +91,8 @@ class SingleParticleRelionDataJob(
 		// clear caches
 		wwwDir.recreateAs(project.osUsername)
 
-		val newestArgs = args.newestOrThrow().args
-
-		// if we've picked some particles, write those out to pyp
-		newestArgs.particlesName
-			?.let { Database.particleLists.get(idOrThrow, it) }
-			?.let { ParticlesJobs.writeSingleParticle(project.osUsername, idOrThrow, dir, it) }
-
 		// build the args for PYP
-		val pypArgs = launchArgValues(null, newestArgs.values, args.finished?.values)
-
-		// set the hidden args
+		val pypArgs = launchArgValues()
 		pypArgs.dataMode = "spr"
 		pypArgs.importMode = "SPA_STAR"
 		pypArgs.importReadStar = true
@@ -131,6 +120,15 @@ class SingleParticleRelionDataJob(
 
 		// update the representative image
 		Project.representativeImages[userId, projectId, RepresentativeImageType.GainCorrected, idOrThrow] = representativeImage()
+	}
+
+	override fun wipeData() {
+
+		// no data to wipe
+
+		// also reset the finished args
+		args.unrun()
+		update()
 	}
 
 	fun diagramImageURL(): String =

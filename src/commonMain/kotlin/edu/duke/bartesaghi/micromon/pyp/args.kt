@@ -18,6 +18,13 @@ class Args(
 
 		fun fromJson(json: String): Args =
 			Json.decodeFromString(json)
+
+		fun from(args: List<Arg>): Args =
+			Args(
+				blocks = emptyList(),
+				groups = emptyList(),
+				args
+			)
 	}
 
 	// build the index structures
@@ -58,6 +65,9 @@ class Args(
 	fun groupOrThrow(groupId: String) =
 		group(groupId)
 			?: throw NoSuchElementException("no argument group $groupId")
+
+	fun hasArg(arg: Arg): Boolean =
+		arg(arg.fullId) != null
 
 	fun arg(fullId: String) =
 		argLookup[fullId]
@@ -104,40 +114,6 @@ class Args(
 		)
 	}
 
-	fun filterForDownstreamCopy(): Args =
-		Args(
-			blocks = emptyList(),
-			groups = groups.toList(),
-			args = args.filter { it.copyToNewBlock }
-		)
-
-	/**
-	 * Returns all `values`,
-	 * plus default values for when an argument value is present in `prev` but not `values`
-	 *
-	 * ie, the argument value was removed, so explicitly set it to the default value
-	 */
-	fun diff(valuesToml: ArgValuesToml, prevToml: ArgValuesToml?): ArgValues {
-
-		val values = valuesToml.toArgValues(this)
-		if (prevToml == null || valuesToml === prevToml) {
-			return values
-		}
-		val prev = prevToml.toArgValues(this)
-
-		for (arg in args) {
-			if (arg in prev && arg !in values) {
-				if (arg.default != null) {
-					values[arg] = arg.default
-				} else {
-					values[arg] = ArgValueReset
-				}
-			}
-		}
-
-		return values
-	}
-
 	fun appendAll(args: List<Arg>): Args {
 		return Args(
 			blocks,
@@ -165,12 +141,11 @@ class Args(
 
 
 @Serializable
-class Block(
+data class Block(
 	val blockId: String,
 	val name: String,
 	val description: String,
-	val groupIds: List<String>,
-	val forwardedGroupIds: List<String>,
+	val groupIds: List<String>
 ) {
 
 	override fun toString() = name
@@ -597,6 +572,10 @@ class ArgValues(val args: Args) {
 
 	private val values = HashMap<String,Any?>()
 
+	val entries get(): List<Pair<Arg,Any?>> =
+		values.entries
+			.map { (fullId, value) -> args.argOrThrow(fullId) to value }
+
 	operator fun contains(arg: Arg): Boolean =
 		arg.fullId in values
 
@@ -619,13 +598,8 @@ class ArgValues(val args: Args) {
 
 	operator fun set(arg: Arg, value: Any?) {
 		if (value != null) {
-			if (value == ArgValueReset) {
-				// skip runtime type checking for sentinel values
-				values[arg.fullId] = value
-			} else {
-				// enforce type safety at runtime
-				values[arg.fullId] = arg.type.check(value)
-			}
+			// enforce type safety at runtime
+			values[arg.fullId] = arg.type.check(value)
 		} else {
 			values.remove(arg.fullId)
 		}
@@ -650,9 +624,13 @@ class ArgValues(val args: Args) {
 	}
 
 	override fun toString() = StringBuilder().apply {
+		append("ArgValues[numArgs=${args.args.size}] {\n")
 		for (arg in args.args) {
-			append("${arg.fullId} = ${get(arg)}\n")
+			val value = get(arg)
+				?: continue
+			append("\t${arg.fullId} = $value\n")
 		}
+		append("}")
 	}.toString()
 
 	/**
@@ -677,6 +655,18 @@ class ArgValues(val args: Args) {
 				append("\n")
 			}
 		}.toString()
+
+	fun project(args: Args): ArgValues {
+		val out = ArgValues(args)
+		for (arg in args.args) {
+			out[arg] = this[arg]
+		}
+		return out
+	}
+
+	companion object {
+		// make a companion so we can extend it
+	}
 }
 
 private fun String.quote() = "\"$this\""
@@ -693,15 +683,6 @@ typealias ArgValuesToml = String
 expect fun ArgValuesToml.toArgValues(args: Args): ArgValues
 
 
-fun ArgValuesToml.filterForDownstreamCopy(args: Args): ArgValuesToml =
-	toArgValues(args.filterForDownstreamCopy())
-		.toToml()
-
-
-/** a sentinel value that tells the pyp command-line formatter to ask pyp to reset this arg */
-object ArgValueReset
-
-
 @Serializable
 sealed class ArgInput {
 
@@ -715,6 +696,32 @@ sealed class ArgInput {
 
 		companion object {
 			const val id = "parfile"
+		}
+
+		override val argInputId = id
+	}
+
+	/**
+	 * Helps the user pick a parameter file for 3D refinement from previous job outputs
+	 */
+	@Serializable
+	class StarFile : ArgInput() {
+
+		companion object {
+			const val id = "starfile"
+		}
+
+		override val argInputId = id
+	}
+
+	/**
+	 * Helps the user pick a parameter file for 3D refinement from previous job outputs
+	 */
+	@Serializable
+	class ParquetFile : ArgInput() {
+
+		companion object {
+			const val id = "parquetfile"
 		}
 
 		override val argInputId = id
@@ -780,6 +787,32 @@ sealed class ArgInput {
 
 		companion object {
 			const val id = "topazTrainedModel"
+		}
+
+		override val argInputId = id
+	}
+
+	/**
+	 * Helps the user pick an initial model for 3D refinement from previous job outputs
+	 */
+	@Serializable
+	class IsonetTrainedModel : ArgInput() {
+
+		companion object {
+			const val id = "isonetTrainedModel"
+		}
+
+		override val argInputId = id
+	}
+
+	/**
+	 * Helps the user pick an initial model for 3D refinement from previous job outputs
+	 */
+	@Serializable
+	class CryocareTrainedModel : ArgInput() {
+
+		companion object {
+			const val id = "cryocareTrainedModel"
 		}
 
 		override val argInputId = id

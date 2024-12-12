@@ -21,13 +21,21 @@ object NodeConfigs {
 		TomographyRawDataNodeConfig,
 		TomographyRelionDataNodeConfig,
 		TomographyImportDataNodeConfig,
+		TomographyImportDataPureNodeConfig,
 		TomographySessionDataNodeConfig,
 		TomographyPreprocessingNodeConfig,
 		TomographyPurePreprocessingNodeConfig,
-		TomographyDenoisingNodeConfig,
+		TomographyDenoisingTrainingNodeConfig,
+		TomographyDenoisingEvalNodeConfig,
 		TomographyPickingNodeConfig,
+		TomographySegmentationOpenNodeConfig,
+		TomographySegmentationClosedNodeConfig,
 		TomographyPickingOpenNodeConfig,
 		TomographyPickingClosedNodeConfig,
+		TomographyMiloTrainNodeConfig,
+		TomographyMiloEvalNodeConfig,
+		TomographyParticlesTrainNodeConfig,
+		TomographyParticlesEvalNodeConfig,
 		TomographyDrgnNodeConfig,
 		TomographyCoarseRefinementNodeConfig,
 		TomographyFineRefinementNodeConfig,
@@ -59,4 +67,7 @@ object NodeConfigs {
 				null
 			}
 		}
+
+	fun findByConfigId(configId: String): NodeConfig? =
+		nodes.find { it.configId == configId }
 }

@@ -27,6 +27,7 @@ class TomographyMovieCleaningJob(
 
 		override val config = TomographyMovieCleaningNodeConfig
 		override val dataType = JobInfo.DataType.TiltSeries
+		override val dataClass = TomographyMovieCleaningData::class
 
 		override fun fromDoc(doc: Document) = TomographyMovieCleaningJob(
 			doc.getString("userId"),
@@ -81,12 +82,7 @@ class TomographyMovieCleaningJob(
 		wwwDir.recreateAs(project.osUsername)
 
 		// build the args for PYP
-		val upstreamJob = inMovieRefinements?.resolveJob<Job>()
-			?: throw IllegalStateException("no movie refinements input configured")
-		val pypArgs = launchArgValues(upstreamJob, args.newestOrThrow().args.values, args.finished?.values)
-
-		// set the hidden args
-		pypArgs.dataParent = upstreamJob.dir.toString()
+		val pypArgs = launchArgValues()
 
 		Pyp.pcl.launch(project.osUsername, runId, pypArgs, "Launch", "launch")
 
@@ -114,8 +110,13 @@ class TomographyMovieCleaningJob(
 	override fun wipeData() {
 
 		// remove any reconstructions and refinements
-		Database.reconstructions.deleteAll(idOrThrow)
-		Database.refinements.deleteAll(idOrThrow)
+		Database.instance.reconstructions.deleteAll(idOrThrow)
+		Database.instance.refinements.deleteAll(idOrThrow)
+
+		// also reset the finished args
+		args.unrun()
+		latestReconstructionId = null
+		update()
 	}
 
 	fun diagramImageURL(): String =

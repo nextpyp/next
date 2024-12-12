@@ -2,17 +2,18 @@ package edu.duke.bartesaghi.micromon.jobs
 
 import edu.duke.bartesaghi.micromon.Backend
 import edu.duke.bartesaghi.micromon.nodes.NodeConfig
-import edu.duke.bartesaghi.micromon.pyp.ArgValues
-import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
-import edu.duke.bartesaghi.micromon.pyp.MicromonArgs
-import edu.duke.bartesaghi.micromon.pyp.toArgValues
+import edu.duke.bartesaghi.micromon.pyp.*
+import edu.duke.bartesaghi.micromon.services.CommonJobData
+import edu.duke.bartesaghi.micromon.services.JobData
 import org.bson.Document
+import kotlin.reflect.KClass
 
 
 interface JobInfo {
 
 	val config: NodeConfig
 	val dataType: DataType?
+	val dataClass: KClass<out JobData>?
 
 	fun fromDoc(doc: Document): Job
 
@@ -22,28 +23,58 @@ interface JobInfo {
 	}
 
 	fun args() =
-		Backend.pypArgs
+		Backend.instance.pypArgs
 			.filter(config.configId)
 			.appendAll(MicromonArgs.slurmLaunch)
 
-	fun launchArgValues(upstreamJob: Job?, currentValues: ArgValuesToml, prevValues: ArgValuesToml?): ArgValues {
+	fun newArgValues(inData: CommonJobData.DataId): ArgValues {
 
-		val values = ArgValues(Backend.pypArgs)
+		val debugMsg =
+			if (Backend.log.isDebugEnabled) {
+				StringBuilder().apply {
+					append("newArgValues()  nodeId=${config.id}")
+				}
+			} else {
+				null
+			}
 
-		// forward upstream tabs, if needed
-		if (upstreamJob != null) {
-			val upstreamValues = upstreamJob.finishedArgValues()
-				?.toArgValues(Backend.pypArgs)
-				?: throw IllegalStateException("upstream job has no finished args")
-			Backend.pypArgs
-				.blockOrThrow(config.configId)
-				.forwardedGroupIds
-				.flatMap { Backend.pypArgs.args(it) }
-				.forEach { values[it] = upstreamValues[it] }
+		// get the args to copy for this block
+		val values = ArgValues(args())
+
+		// get the upstream job
+		val upstreamJob = Job.fromIdOrThrow(inData.jobId)
+
+		// iterate jobs in stream order, so downstream jobs overwrite upstream jobs
+		for (job in upstreamJob.ancestry().reversed()) {
+
+			// combine values from the job
+			val jobValues = (job.newestArgValues() ?: "")
+				.toArgValues(values.args)
+			for (arg in values.args.args) {
+
+				// skip uncopyable args
+				if (!arg.copyToNewBlock) {
+					continue
+				}
+
+				// copy the value, but remove any explicit defaults
+				// NOTE: this allows default values to override upstream values by removing them
+				values[arg] = jobValues[arg]
+					?.takeIf { arg.default == null || it != arg.default.value }
+			}
+
+			if (Backend.log.isDebugEnabled) {
+				debugMsg?.append("""
+					|
+					|  ${job.baseConfig.id}=${job.id}
+					|    ${jobValues.toString().lines().joinToString("\n    ")}
+				""".trimMargin())
+			}
 		}
 
-		// set the current job arg values
-		values.setAll(args().diff(currentValues, prevValues))
+		if (Backend.log.isDebugEnabled) {
+			Backend.log.debug(debugMsg?.toString())
+		}
 
 		return values
 	}

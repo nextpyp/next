@@ -23,6 +23,8 @@ import kotlin.math.min
  */
 class HyperGallery<T:HasID>(
 	val data: List<T>,
+	/** a fallback to use when the true image size isn't known */
+	val defaultImageSizes: ImageSizes = ImageSizes(128, 128)
 ) : Div(classes = setOf("hyper-gallery")) {
 
 	companion object {
@@ -141,7 +143,7 @@ class HyperGallery<T:HasID>(
 		emptyMessage.visible = data.isEmpty()
 
 		val imageSizes = imageSizes
-			?: ImageSizes(128, 128)
+			?: defaultImageSizes
 
 		// get the new client area, if any
 		val elem = getHTMLElement()

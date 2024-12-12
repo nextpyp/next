@@ -27,10 +27,8 @@ class ClusterJob(
 	val dir: Path,
 	val env: List<EnvVar> = emptyList(),
 	/**
-	 * Free sbatch arguments intended for direct inclusion in a shell command,
-	 * possibly using POSIX shell formatting.
-	 * WARNING: These arguments can't be sanitized here without the context of how they're intended to be used,
-	 *          so make sure any user-sourced values get sanitized before submitting these arguments.
+	 * Free sbatch arguments intended for direct inclusion in a shell command.
+	 * These arguments are sanitized before passing them to the shell.
 	 */
 	val args: List<String> = emptyList(),
 	val deps: List<String> = emptyList(),
@@ -57,7 +55,12 @@ class ClusterJob(
 		val reason: String,
 		val console: List<String>,
 		val command: String?
-	) : IllegalArgumentException("$reason:\n${console.joinToString("\n")}")
+	) : IllegalArgumentException("""
+		|reason: $reason
+		|console:
+		|    ${console.joinToString("\n    ")}
+		|command: $command
+	""".trimMargin())
 
 	class ValidationFailedException(
 		val reason: String
@@ -275,7 +278,7 @@ class ClusterJob(
 
 	fun create(): String {
 		// create a database record of the submission
-		val dbid = Database.cluster.launches.create {
+		val dbid = Database.instance.cluster.launches.create {
 			set("osUsername", osUsername)
 			set("container", containerId)
 			set("commands", commands.toDoc())
@@ -299,13 +302,13 @@ class ClusterJob(
 		getLog(arrayId) ?: throw NoSuchElementException("no log for SLURM job $id")
 
 	fun pushHistory(status: Status, arrayId: Int? = null) {
-		Database.cluster.log.update(idOrThrow, arrayId,
+		Database.instance.cluster.log.update(idOrThrow, arrayId,
 			push("history", HistoryEntry(status).toDBList())
 		)
 	}
 
 	fun pushFailure(entry: FailureEntry, arrayId: Int? = null) {
-		Database.cluster.log.update(idOrThrow, arrayId,
+		Database.instance.cluster.log.update(idOrThrow, arrayId,
 			push("failures", entry.toDoc())
 		)
 	}
@@ -408,13 +411,13 @@ class ClusterJob(
 	fun delete() {
 
 		// delete the database entries
-		Database.cluster.log.delete(idOrThrow)
+		Database.instance.cluster.log.delete(idOrThrow)
 		commands.arraySize?.let { arraySize ->
 			for (i in 0 until arraySize) {
-				Database.cluster.log.delete(idOrThrow, i)
+				Database.instance.cluster.log.delete(idOrThrow, i)
 			}
 		}
-		Database.cluster.launches.delete(idOrThrow)
+		Database.instance.cluster.launches.delete(idOrThrow)
 
 		// wipe the id
 		id = null
@@ -447,7 +450,7 @@ class ClusterJob(
 				.split('_')
 				.let { it[0] to it.getOrNull(1) }
 
-			var launchId = Database.cluster.log.get(depIdJob)
+			var launchId = Database.instance.cluster.log.get(depIdJob)
 				?.let { Log.fromDoc(it) }
 				?.launchResult
 				?.jobId
@@ -465,10 +468,14 @@ class ClusterJob(
 	companion object {
 
 		fun get(dbId: String): ClusterJob? =
-			fromDoc(Database.cluster.launches.get(dbId))
+			fromDoc(Database.instance.cluster.launches.get(dbId))
+
+		fun getOrThrow(dbId: String): ClusterJob =
+			get(dbId)
+				?: throw NoSuchElementException("No cluster job found with id=$dbId")
 
 		fun getByOwner(ownerId: String): List<ClusterJob> =
-			Database.cluster.launches.getByOwner(ownerId)
+			Database.instance.cluster.launches.getByOwner(ownerId)
 				.mapNotNull { fromDoc(it) }
 
 		fun find(
@@ -476,7 +483,7 @@ class ClusterJob(
 			clusterName: String? = null,
 			notClusterName: List<String>? = null
 		): List<ClusterJob> =
-			Database.cluster.launches.find(ownerId, clusterName, notClusterName)
+			Database.instance.cluster.launches.find(ownerId, clusterName, notClusterName)
 				.mapNotNull { fromDoc(it) }
 
 		fun fromDoc(doc: Document?): ClusterJob? {
@@ -509,7 +516,7 @@ class ClusterJob(
 		}
 
 		fun getLog(clusterJobId: String, arrayId: Int? = null): Log? =
-			Database.cluster.log.get(clusterJobId, arrayId)
+			Database.instance.cluster.log.get(clusterJobId, arrayId)
 				?.let { Log.fromDoc(it) }
 
 		private fun List<HistoryEntry>.toDBList() =
@@ -559,12 +566,12 @@ class ClusterJob(
 		 * This dir should be created by the install process.
 		 * We should never need to create it from the website process.
 		 */
-		val batchDir = Config.instance.web.sharedDir.resolve("batch")
+		val batchDir get() = Config.instance.web.sharedDir.resolve("batch")
 
 		/**
 		 * This dir should be created by the install process.
 		 * We should never need to create it from the website process.
 		 */
-		val logDir = Config.instance.web.sharedDir.resolve("log")
+		val logDir get() = Config.instance.web.sharedDir.resolve("log")
 	}
 }

@@ -1,6 +1,7 @@
 package edu.duke.bartesaghi.micromon.views
 
 import edu.duke.bartesaghi.micromon.*
+import edu.duke.bartesaghi.micromon.views.admin.Admin
 import kotlinext.js.jsObject
 import io.kvision.jquery.JQueryAjaxSettings
 import io.kvision.jquery.jQuery
@@ -33,6 +34,7 @@ class LoginView : View {
 		fun path() = "/login"
 	}
 
+	override val routed = Companion
 	override val elem = Div(classes = setOf("dock-page", "login"))
 	override val showsUserChrome = false
 
@@ -77,6 +79,9 @@ class LoginView : View {
 		val loginButton = button("Login")
 
 		fun login() {
+
+			// clear any caches containing any login info
+			Admin.info.clear()
 
 			// Upload the password as a "file" so the JVM backend can
 			// read the password into a byte/char buffer instead of a String object.
@@ -134,6 +139,9 @@ class LoginView : View {
 		h1("Hi, ${session.name}")
 
 		button("Logout").onClick {
+
+			// clear any caches containing any login info
+			Admin.info.clear()
 
 			jQuery.ajax(jsObject<JQueryAjaxSettings> {
 				url = "/auth/logout"

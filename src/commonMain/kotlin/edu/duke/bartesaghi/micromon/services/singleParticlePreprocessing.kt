@@ -27,8 +27,7 @@ interface ISingleParticlePreprocessingService {
 
 @Serializable
 data class SingleParticlePreprocessingArgs(
-	val values: ArgValuesToml,
-	val particlesName: String?
+	val values: ArgValuesToml
 )
 
 @Serializable
@@ -40,6 +39,8 @@ data class SingleParticlePreprocessingData(
 	val numParticles: Long
 ) : JobData {
 	override fun isChanged() = args.hasNext()
+	override fun finishedArgValues() = args.finished?.values
+	override fun nextArgValues() = args.next?.values
 }
 
 @Serializable
@@ -52,8 +53,8 @@ data class MicrographMetadata(
 	override val defocus2: Double,
 	override val angleAstig: Double,
 	override val averageMotion: Double,
-	override val numParticles: Int,
-	override val sourceDims: ImageDims?
+	override val numAutoParticles: Int,
+	override val imageDims: ImageDims
 ) : PreprocessingData {
 
 	fun imageUrl(job: JobData, size: ImageSize): String =
@@ -96,7 +97,7 @@ enum class MicrographProp(
 	Defocus1("Defocus 1"),
 	Defocus2("Defocus 2"),
 	AngleAstig("Angast"),
-	AverageMotion("Avgerage Motion"),
+	AverageMotion("Average Motion"),
 	NumParticles("Particles");
 
 	override val id = "micrograph/${name.lowercase()}"

@@ -17,6 +17,63 @@ import kotlinx.coroutines.launch
 
 class App : Application() {
 
+	companion object {
+
+		/**
+		 * A list of all the views for the JavaScript router.
+		 * NOTE: Every view should have its entry here, or refreshing a page showing that view will fail with weird errors
+		 */
+		val VIEWS: List<Routed> =
+			// NOTE: keeping this list in alphabetical order makes comaparing to the source files easier
+			listOf(
+				AdminView.Companion,
+				AppsView.Companion,
+				DashboardView.Companion,
+				IntegratedRefinementView.Companion,
+				LoginView.Companion,
+				ProjectView.Companion,
+				SessionsView.Companion,
+				SetPasswordView.Companion,
+				SingleParticleImportDataView.Companion,
+				SingleParticlePreprocessingView.Companion,
+				SingleParticleSessionDataView.Companion,
+				SingleParticleSessionView.Companion,
+				TomographyDenoisingEvalView.Companion,
+				TomographyDenoisingTrainingView.Companion,
+				TomographyImportDataView.Companion,
+				TomographyImportDataPureView.Companion,
+				TomographyMiloEvalView.Companion,
+				TomographyMiloTrainView.Companion,
+				TomographyParticlesEvalView.Companion,
+				TomographyParticlesTrainView.Companion,
+				TomographyPickingClosedView.Companion,
+				TomographyPickingOpenView.Companion,
+				TomographyPickingView.Companion,
+				TomographyPreprocessingView.Companion,
+				TomographyPurePreprocessingView.Companion,
+				TomographySegmentationClosedView.Companion,
+				TomographySegmentationOpenView.Companion,
+				TomographySessionDataView.Companion,
+				TomographySessionView.Companion,
+				YourAccountView.Companion
+			)
+
+		/**
+		 * Make sure the view is registered, by throwing an error if it's not.
+		 */
+		fun checkView(view: View) {
+
+			if (view.routed == null) {
+				// not a routed view, no need to register with the App
+				return
+			}
+
+			if (VIEWS.none { it === view.routed }) {
+				throw Error("View not registered with app: ${view::class.simpleName}")
+			}
+		}
+	}
+
 	override fun start(state: Map<String,Any>) {
 
 		// get the root element from the HTML
@@ -41,25 +98,7 @@ class App : Application() {
 		}
 
 		// register views with the js router
-		// ie, a list of registered companions =P
-		val views = listOf(
-			AdminView.Companion,
-			LoginView.Companion,
-			YourAccountView.Companion,
-			SetPasswordView.Companion,
-			DashboardView.Companion,
-			ProjectView.Companion,
-			SingleParticlePreprocessingView.Companion,
-			TomographyPreprocessingView.Companion,
-			TomographyPurePreprocessingView.Companion,
-			TomographyPickingView.Companion,
-			IntegratedRefinementView.Companion,
-			SessionsView.Companion,
-			SingleParticleSessionView.Companion,
-			TomographySessionView.Companion,
-			AppsView.Companion
-		)
-		routing.register(views, viewport)
+		routing.register(VIEWS, viewport)
     }
 }
 

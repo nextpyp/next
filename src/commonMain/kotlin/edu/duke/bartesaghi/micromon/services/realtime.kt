@@ -1,8 +1,6 @@
 package edu.duke.bartesaghi.micromon.services
 
-import edu.duke.bartesaghi.micromon.pyp.Block
-import edu.duke.bartesaghi.micromon.pyp.ImagesScale
-import edu.duke.bartesaghi.micromon.pyp.TomoVirMethod
+import edu.duke.bartesaghi.micromon.pyp.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
@@ -49,10 +47,14 @@ object RealTimeServices {
 	val singleParticlePicking by RealTimeService()
 	val tomographyPreprocessing by RealTimeService()
 	val tomographyPurePreprocessing by RealTimeService()
-	val tomographyDenoising by RealTimeService()
+	val tomographyDenoisingEval by RealTimeService()
 	val tomographyPicking by RealTimeService()
+	val tomographySegmentationOpen by RealTimeService()
+	val tomographySegmentationClosed by RealTimeService()
 	val tomographyPickingOpen by RealTimeService()
 	val tomographyPickingClosed by RealTimeService()
+	val tomographyParticlesEval by RealTimeService()
+	val tomographySessionData by RealTimeService()
 	val reconstruction by RealTimeService()
 	val streamLog by RealTimeService()
 
@@ -257,15 +259,16 @@ sealed class RealTimeS2C {
 		val runId: Int,
 		val jobId: String,
 		val jobString: String, /*JobData, but serialized outside of KVision*/
-		val status: RunStatus
+		val status: RunStatus,
+		val errorMessage: String?
 	) : RealTimeS2C() {
 
-		constructor(runId: Int, job: JobData, status: RunStatus): this(runId, job.jobId, job.serialize(), status)
+		constructor(runId: Int, job: JobData, status: RunStatus, errorMessage: String?): this(runId, job.jobId, job.serialize(), status, errorMessage)
 		fun job() = JobData.deserialize(jobString)
 	}
 
 	@Serializable
-	class ProjectRunFinish(
+	data class ProjectRunFinish(
 		val runId: Int,
 		val status: RunStatus
 	) : RealTimeS2C()
@@ -319,8 +322,7 @@ sealed class RealTimeS2C {
 
 	@Serializable
 	data class UpdatedParameters(
-		val pypStats: PypStats,
-		val imagesScale: ImagesScale
+		val pypStats: PypStats
 	) : RealTimeS2C()
 
 	@Serializable
@@ -333,9 +335,7 @@ sealed class RealTimeS2C {
 
 	@Serializable
 	data class UpdatedTiltSeries(
-		val tiltSeries: TiltSeriesData,
-		val numAutoParticles: Long?,
-		val numAutoVirions: Long?
+		val tiltSeries: TiltSeriesData
 	) : RealTimeS2C()
 
 
@@ -385,10 +385,12 @@ sealed class RealTimeS2C {
 		/** in order of SessionDaemon.values() */
 		val daemonsRunning: List<Boolean>,
 		val jobsRunning: List<SessionRunningJob>,
-		val imagesScale: ImagesScale?,
 		val tomoVirMethod: TomoVirMethod,
-		val tomoVirRad: Double,
-		val tomoVirBinn: Long
+		val tomoVirRad: ValueA,
+		val tomoVirBinn: Long,
+		val tomoVirDetectMethod: TomoVirDetectMethod,
+		val tomoSpkMethod: TomoSpkMethod,
+		val tomoSpkRad: ValueA,
 	) : RealTimeS2C() {
 
 		fun isRunning(daemon: SessionDaemon): Boolean
@@ -402,6 +404,8 @@ sealed class RealTimeS2C {
 
 	@Serializable
 	data class SessionLargeData(
+		val autoVirionsCount: Long = 0,
+		val autoParticlesCount: Long = 0,
 		val micrographs: List<MicrographMetadata> = emptyList(),
 		val tiltSerieses: List<TiltSeriesData> = emptyList(),
 		val twoDClasses: List<TwoDClassesData> = emptyList(),
@@ -515,9 +519,7 @@ sealed class RealTimeS2C {
 
 	@Serializable
 	data class SessionTiltSeries(
-		val tiltSeries: TiltSeriesData,
-		val numAutoParticles: Long?,
-		val numAutoVirions: Long?
+		val tiltSeries: TiltSeriesData
 	) : RealTimeS2C()
 
 	@Serializable

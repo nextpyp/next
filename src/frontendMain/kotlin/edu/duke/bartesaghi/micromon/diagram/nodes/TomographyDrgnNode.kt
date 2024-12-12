@@ -7,7 +7,6 @@ import edu.duke.bartesaghi.micromon.dynamicImageClassName
 import edu.duke.bartesaghi.micromon.nodes.TomographyDrgnNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
 import edu.duke.bartesaghi.micromon.pyp.Args
-import edu.duke.bartesaghi.micromon.pyp.filterForDownstreamCopy
 import edu.duke.bartesaghi.micromon.refreshDynamicImages
 import edu.duke.bartesaghi.micromon.services.*
 import edu.duke.bartesaghi.micromon.views.Viewport
@@ -29,15 +28,16 @@ class TomographyDrgnNode(
 	companion object : NodeClientInfo {
 
 		override val config = TomographyDrgnNodeConfig
-		override val type = MicromonDiagrams.nodeType(config, "fas fa-crosshairs") // TODO: pick an icon
+		override val type = MicromonDiagrams.nodeType(config, "fas fa-crosshairs")
 		override val jobClass = TomographyDrgnData::class
 		override val urlFragment = null
 
 		override fun makeNode(viewport: Viewport, diagram: Diagram, project: ProjectData, job: JobData) =
 			TomographyDrgnNode(viewport, diagram, project, job as TomographyDrgnData)
 
-		override fun showUseDataForm(viewport: Viewport, diagram: Diagram, project: ProjectData, outNode: Node, input: CommonJobData.DataId, copyFrom: Node?, callback: (Node) -> Unit) {
+		override suspend fun showUseDataForm(viewport: Viewport, diagram: Diagram, project: ProjectData, outNode: Node, input: CommonJobData.DataId, copyFrom: Node?, callback: (Node) -> Unit) {
 			val defaultArgs = (copyFrom as TomographyDrgnNode?)?.job?.args
+				?: JobArgs.fromNext(TomographyDrgnArgs(newArgValues(project, input)))
 			form(config.name, outNode, defaultArgs, true) { args ->
 
 				// save the node to the server
@@ -82,15 +82,9 @@ class TomographyDrgnNode(
 				add(TomographyDrgnArgs::values, ArgsForm(pypArgs, listOf(upstreamNode), enabled, config.configId))
 			}
 
-			// by default, copy args values from the upstream node
-			val argsOrCopy: JobArgs<TomographyDrgnArgs> = args
-				?: JobArgs.fromNext(TomographyDrgnArgs(
-					values = upstreamNode.newestArgValues()?.filterForDownstreamCopy(pypArgs) ?: ""
-				))
-
-			form.init(argsOrCopy)
+			form.init(args)
 			if (enabled) {
-				win.addSaveResetButtons(form, argsOrCopy, onDone)
+				win.addSaveResetButtons(form, args, onDone)
 			}
 			win.show()
 		}
@@ -133,7 +127,4 @@ class TomographyDrgnNode(
 			}
 		}
 	}
-
-	override fun newestArgValues() =
-		job.args.newest()?.args?.values
 }

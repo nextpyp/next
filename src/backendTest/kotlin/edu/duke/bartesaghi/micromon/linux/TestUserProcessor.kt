@@ -12,6 +12,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.nio.file.attribute.PosixFilePermission
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.io.path.div
 import kotlin.io.path.getPosixFilePermissions
 import kotlin.io.path.writeBytes
@@ -71,6 +72,8 @@ class TestUserProcessor : DescribeSpec({
 			roundtrip(Request.DeleteFile("path"))
 			roundtrip(Request.CreateFolder("path"))
 			roundtrip(Request.DeleteFolder("path"))
+			roundtrip(Request.ListFolder("path"))
+			roundtrip(Request.CopyFolder("src", "dst"))
 			roundtrip(Request.Stat("path"))
 			roundtrip(Request.Rename("foo", "bar"))
 			roundtrip(Request.Symlink("cow", "moo"))
@@ -101,6 +104,7 @@ class TestUserProcessor : DescribeSpec({
 			roundtrip(Response.DeleteFile)
 			roundtrip(Response.CreateFolder)
 			roundtrip(Response.DeleteFolder)
+			roundtrip(Response.CopyFolder)
 
 			roundtrip(Response.Stat.NotFound.into())
 			roundtrip(Response.Stat.File(5u).into())
@@ -154,6 +158,7 @@ class TestUserProcessor : DescribeSpec({
 
 					// read it
 					val buf = client.readFile(file.path)
+						.use { it.readAll() }
 					buf.toString(Charsets.UTF_8).shouldBe(msg)
 				}
 			}
@@ -176,6 +181,7 @@ class TestUserProcessor : DescribeSpec({
 
 					// read it
 					val buf = client.readFile(file.path)
+						.use { it.readAll() }
 					buf.shouldBe(content)
 				}
 			}
@@ -183,12 +189,7 @@ class TestUserProcessor : DescribeSpec({
 
 		it("write file, small").config(invocations = testCount) {
 			withUserProcessor(username) { _, client ->
-				TempFile().use { file ->
-
-					file.path.editPermissions {
-						add(PosixFilePermission.GROUP_WRITE)
-						add(PosixFilePermission.OTHERS_WRITE)
-					}
+				client.tempFile("write-file-small").use { file ->
 
 					// write a small file
 					val msg = "hello"
@@ -205,12 +206,7 @@ class TestUserProcessor : DescribeSpec({
 
 		it("write file, large").config(invocations = testCount) {
 			withUserProcessor(username) { _, client ->
-				TempFile().use { file ->
-
-					file.path.editPermissions {
-						add(PosixFilePermission.GROUP_WRITE)
-						add(PosixFilePermission.OTHERS_WRITE)
-					}
+				client.tempFile("write-file-large").use { file ->
 
 					// write a large file with structured, but non-trivial, content
 					val content = ByteArray(16*1024*1024 - 16)
@@ -349,6 +345,30 @@ class TestUserProcessor : DescribeSpec({
 			}
 		}
 
+		it("copy folder").config(invocations = testCount) {
+			withUserProcessor(username) { _, client ->
+
+				// create a folder to copy, with stuff in it
+				val src = Paths.get("/tmp/nextpyp-user-processor-folder-src-test")
+				client.createFolder(src)
+				client.writeFile(src.resolve("file"))
+					.use { writer ->
+						writer.writeAll(byteArrayOf(1, 2, 3))
+					}
+
+				val dst = Paths.get("/tmp/nextpyp-user-processor-folder-dst-test")
+
+				client.copyFolder(src, dst)
+
+				dst.exists().shouldBe(true)
+				val dstFile = dst / "file"
+				dstFile.exists().shouldBe(true)
+				client.readFile(dstFile)
+					.use { it.readAll() }
+					.shouldBe(byteArrayOf(1, 2, 3))
+			}
+		}
+
 		it("stat").config(invocations = testCount) {
 			withUserProcessor(username) { _, client ->
 				TempFile().use { file ->
@@ -449,3 +469,25 @@ class TempFile : AutoCloseable {
 		path.delete()
 	}
 }
+
+
+/**
+ * Sometimes we can't use a pre-created temporary file, because debian apparently
+ * won't let other users write to file in sticky folders, like /tmp,
+ * even if the file has o+w permissions!
+ * So the tester account needs to own the file, not the user running this process.
+ */
+class UserTempFile(val userProcessor: UserProcessor, name: String) : SuspendCloseable {
+
+	companion object {
+		val counter = AtomicInteger(0)
+	}
+
+	val path = Paths.get("/tmp") / "nextpyp-user-processor-${counter.incrementAndGet()}-$name"
+
+	override suspend fun closeAll() {
+		userProcessor.deleteFile(path)
+	}
+}
+
+fun UserProcessor.tempFile(name: String) = UserTempFile(this, name)

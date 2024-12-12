@@ -251,6 +251,23 @@ class JobsMonitor(
 
 			fun finish(msg: RealTimeS2C.JobFinish) {
 				statusElem.icon = msg.status.toIcon()
+
+				if (msg.errorMessage != null) {
+					// add a button to show the error
+					elem.labelElem.button("", icon = IconFailed).apply {
+						title = "View job launch error message"
+						onClick {
+							val win = Modal(
+								caption = "Job launch failed",
+								escape = true,
+								closeButton = true,
+								classes = setOf("dashboard-popup")
+							)
+							win.div(msg.errorMessage)
+							win.show()
+						}
+					}
+				}
 			}
 
 			fun highlight() {
@@ -317,10 +334,11 @@ class JobsMonitor(
 					icon = "far fa-file-alt"
 				).apply {
 					visible = false
+					val job = job
 					if (job != null) {
 						title = "Show the logs"
 						onClick {
-							ClusterJobLogViewer(clusterJobId, name, panelBottom)
+							ClusterJobLogViewer(job, clusterJobId, name, panelBottom)
 						}
 					} else {
 						title = DeletedLogsText

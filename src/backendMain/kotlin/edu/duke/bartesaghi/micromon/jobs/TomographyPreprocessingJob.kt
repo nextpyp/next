@@ -10,6 +10,7 @@ import edu.duke.bartesaghi.micromon.mongo.getDocument
 import edu.duke.bartesaghi.micromon.nodes.TomographyPreprocessingNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.*
+import io.kvision.remote.ServiceException
 import org.bson.Document
 import org.bson.conversions.Bson
 import kotlin.io.path.div
@@ -18,7 +19,7 @@ import kotlin.io.path.div
 class TomographyPreprocessingJob(
 	userId: String,
 	projectId: String
-) : Job(userId, projectId, config), FilteredJob, TiltSeriesesJob {
+) : Job(userId, projectId, config), FilteredJob, TiltSeriesesJob, CombinedManualParticlesJob {
 
 	val args = JobArgs<TomographyPreprocessingArgs>()
 
@@ -31,6 +32,7 @@ class TomographyPreprocessingJob(
 
 		override val config = TomographyPreprocessingNodeConfig
 		override val dataType = JobInfo.DataType.TiltSeries
+		override val dataClass = TomographyPreprocessingData::class
 
 		override fun fromDoc(doc: Document) = TomographyPreprocessingJob(
 			doc.getString("userId"),
@@ -77,8 +79,8 @@ class TomographyPreprocessingJob(
 			commonData(),
 			args,
 			diagramImageURL(),
-			Database.tiltSeries.count(idOrThrow),
-			Database.particles.countAllParticles(idOrThrow, ParticlesList.PypAutoParticles)
+			Database.instance.tiltSeries.count(idOrThrow),
+			Database.instance.particles.countAllParticles(idOrThrow, ParticlesList.AutoParticles)
 		)
 
 	override suspend fun launch(runId: Int) {
@@ -89,10 +91,6 @@ class TomographyPreprocessingJob(
 		wwwDir.recreateAs(project.osUsername)
 
 		val newestArgs = args.newestOrThrow().args
-
-		// write out particles, if needed
-		val argValues = newestArgs.values.toArgValues(Backend.pypArgs)
-		ParticlesJobs.writeTomography(project.osUsername, idOrThrow, dir, argValues, newestArgs.tomolist)
 
 		// write out the tilt exclusions, if needed
 		run {
@@ -105,7 +103,7 @@ class TomographyPreprocessingJob(
 			dir.createDirsIfNeededAs(project.osUsername)
 
 			// write any new files
-			val exclusionsByTiltSeries = Database.tiltExclusions.getForJob(idOrThrow)
+			val exclusionsByTiltSeries = Database.instance.tiltExclusions.getForJob(idOrThrow)
 			if (exclusionsByTiltSeries != null) {
 				for ((tiltSeriesId, exclusionsByTiltIndex) in exclusionsByTiltSeries) {
 					val file = dir / "$tiltSeriesId$suffix"
@@ -120,14 +118,26 @@ class TomographyPreprocessingJob(
 			}
 		}
 
-		// build the args for PYP
-		val upstreamJob = inTiltSeries?.resolveJob<Job>()
-			?: throw IllegalStateException("no tilt series input configured")
-		val pypArgs = launchArgValues(upstreamJob, newestArgs.values, args.finished?.values)
+		// check if we need to pick a manual particles list or not
+		if (newestArgs.tomolist == null) {
+			val newestValues = newestArgs.values.toArgValues(Backend.instance.pypArgs)
+			if (newestValues.tomoSpkMethodOrDefault.particlesList(idOrThrow)?.source == ParticlesSource.User) {
+				throw ServiceException("Manual particles list is required for particle picking method")
+			} else if (newestValues.tomoVirMethodOrDefault.particlesList(idOrThrow)?.source == ParticlesSource.User) {
+				throw ServiceException("Manual particles list is required for virion picking method")
+			} else if (newestValues.tomoVirDetectMethodOrDefault.particlesList(idOrThrow)?.source == ParticlesSource.User) {
+				throw ServiceException("Manual particles list is required for spike picking method")
+			}
+		}
 
-		// set the hidden args
+		// write out manually-picked particles, if needed
+		ParticlesJobs.clear(project.osUsername, dir)
+		manualParticlesList(newestArgs.tomolist)
+			?.let { ParticlesJobs.writeTomography(project.osUsername, this, dir, it) }
+
+		// build the args for PYP
+		val pypArgs = launchArgValues()
 		pypArgs.dataMode = "tomo"
-		// NOTE: even though this is not a source block, setting the data parent causes pyp to throw errors, so don't do it here
 
 		Pyp.pyp.launch(project.osUsername, runId, pypArgs, "Launch", "pyp_launch")
 
@@ -154,13 +164,18 @@ class TomographyPreprocessingJob(
 	override fun wipeData() {
 
 		// also delete any associated data
-		Database.tiltSeries.deleteAll(idOrThrow)
-		Database.tiltSeriesAvgRot.deleteAll(idOrThrow)
-		Database.tiltSeriesDriftMetadata.deleteAll(idOrThrow)
-		Database.jobPreprocessingFilters.deleteAll(idOrThrow)
-		Database.particleLists.deleteAll(idOrThrow)
-		Database.particles.deleteAllParticles(idOrThrow)
-		Database.tiltExclusions.delete(idOrThrow)
+		Database.instance.tiltSeries.deleteAll(idOrThrow)
+		Database.instance.tiltSeriesAvgRot.deleteAll(idOrThrow)
+		Database.instance.tiltSeriesDriftMetadata.deleteAll(idOrThrow)
+		Database.instance.jobPreprocessingFilters.deleteAll(idOrThrow)
+		Database.instance.particleLists.deleteAll(idOrThrow)
+		Database.instance.particles.deleteAllParticles(idOrThrow)
+		Database.instance.tiltExclusions.delete(idOrThrow)
+
+		// also reset the finished args
+		args.unrun()
+		latestTiltSeriesId = null
+		update()
 	}
 
 	override val filters get() = PreprocessingFilters.ofJob(idOrThrow)

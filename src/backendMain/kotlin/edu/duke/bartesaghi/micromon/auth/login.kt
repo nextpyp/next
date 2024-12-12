@@ -55,7 +55,7 @@ fun generateLoginToken(userId: String): ByteArray {
 	SecureRandom().nextBytes(token)
 
 	// save the hash
-	Database.users.addTokenHash(userId, hashToken(token))
+	Database.instance.users.addTokenHash(userId, hashToken(token))
 
 	return token
 }
@@ -64,7 +64,7 @@ fun verifyLoginToken(userId: String, token: ByteArray?): Boolean {
 
 	token ?: return false
 
-	val tkhashes = Database.users.getTokenHashes(userId)
+	val tkhashes = Database.instance.users.getTokenHashes(userId)
 		// randomize the order of the hashes to hopefully keep the
 		// JVM JIT from profiling and optimizing away any comparisions
 		.shuffled()
@@ -83,7 +83,7 @@ fun verifyLoginToken(userId: String, token: ByteArray?): Boolean {
 }
 
 fun revokeLoginToken(userId: String, token: ByteArray) {
-	Database.users.removeTokenHashes(userId) { tkhash ->
+	Database.instance.users.removeTokenHashes(userId) { tkhash ->
 		argonForTokens.verify(tkhash, token)
 	}
 }
@@ -157,7 +157,7 @@ fun ApplicationCall.authOrThrow() =
 fun ApplicationCall.authPerson(): User? {
 
 	// how to do auth?
-	when (Backend.config.web.auth) {
+	when (Config.instance.web.auth) {
 
 		AuthType.None -> {
 
@@ -172,8 +172,10 @@ fun ApplicationCall.authPerson(): User? {
 
 			// there's no explicit login process when auth is disabled,
 			// so "log in" the dummy user now, so the UI doesn't think the user is logged out
-			if (sessions.get<User.Session>() == null) {
-				sessions.set(User.Session.fromUser(user))
+			if (!isWebSocket()) {
+				if (sessions.get<User.Session>() == null) {
+					sessions.set(User.Session.fromUser(user))
+				}
 			}
 
 			return user
@@ -199,22 +201,24 @@ fun ApplicationCall.authPerson(): User? {
 				return if (verifyLoginToken(id, token)) {
 
 					// we got a live one 'ere!
-					Database.users.getUser(id)
+					Database.instance.users.getUser(id)
 
 				} else {
 
 					// remove any invalid sessions and tokens
 					token?.let { revokeLoginToken(id, it) }
-					sessions.clear<User.Session>()
+					if (!isWebSocket()) {
+						sessions.clear<User.Session>()
+					}
 
 					null
 				}
 			}
 
-			return if (Backend.config.web.demo) {
+			return if (Config.instance.web.demo) {
 
 				fun getDemoUser(): User? =
-					Database.users.getUser(User.DemoId)
+					Database.instance.users.getUser(User.DemoId)
 						?: run {
 							Backend.log.warn("""
 									|Demo mode active, but no demo user exists yet.
@@ -240,7 +244,9 @@ fun ApplicationCall.authPerson(): User? {
 					// no existing session, log in as the demo user
 					val demoUser = getDemoUser()
 						?: return null
-					sessions.set(User.Session.fromDemo(demoUser))
+					if (!isWebSocket()) {
+						sessions.set(User.Session.fromDemo(demoUser))
+					}
 					demoUser
 				}
 
@@ -260,13 +266,15 @@ fun ApplicationCall.authPerson(): User? {
 				?: return null
 
 			// get the user account, if any was configured
-			val user = Database.users.getUser(userId)
+			val user = Database.instance.users.getUser(userId)
 				?: return null
 
 			// there's no explicit login process for pre-authed users
 			// so just log them in now, if they're not logged in already
-			if (sessions.get<User.Session>() == null) {
-				sessions.set(User.Session.fromUser(user))
+			if (!isWebSocket()) {
+				if (sessions.get<User.Session>() == null) {
+					sessions.set(User.Session.fromUser(user))
+				}
 			}
 
 			return user
@@ -281,7 +289,7 @@ fun ApplicationCall.authPerson(): User? {
 fun ApplicationCall.authApp(userId: String, token: String): User? {
 
 	// validate the user and token
-	var user = Database.users.getUser(userId)
+	var user = Database.instance.users.getUser(userId)
 		?: return null
 	val tokenInfo = AppTokenInfo.find(userId, token)
 		?: return null
@@ -325,6 +333,18 @@ private fun pathMatchesEndpoint(path: String, endpoint: String): Boolean {
 
 	return path.toPath().startsWith(endpoint.toPath())
 }
+
+
+/**
+ * Check if a web request handler is running from a web socket connection,
+ * since HTTP response headers (like session cookies) can't be sent from a websocket handler
+ */
+private fun ApplicationCall.isWebSocket(): Boolean =
+	// NOTE: origin.scheme is "http" even for websocket connections! (not "ws" like it's supposed to)
+	//       so that's not a reliable signal =(
+	//request.origin.scheme in listOf("ws", "wss")
+	// let's use the uri path instead, since all the real-time service URL paths start with `/ws/`
+	request.uri.startsWith("/ws/")
 
 
 // unit tests for the path/endpoint matching logic

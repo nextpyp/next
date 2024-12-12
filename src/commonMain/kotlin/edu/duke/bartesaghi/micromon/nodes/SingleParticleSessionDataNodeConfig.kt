@@ -8,7 +8,7 @@ object SingleParticleSessionDataNodeConfig : NodeConfig {
 	const val ID = "sp-session"
 
 	override val id = ID
-	override val configId = "spr_pre_process"
+	override val configId = "spr_session"
 	override val name = "Single Particle (from Session)"
 	override val hasFiles = true
 	override val type = NodeType.SingleParticleRawData

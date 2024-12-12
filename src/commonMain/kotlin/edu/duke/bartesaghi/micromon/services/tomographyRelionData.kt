@@ -33,14 +33,15 @@ class TomographyRelionDataData(
 	val imageUrl: String
 ) : JobData {
 	override fun isChanged() = args.hasNext()
+	override fun finishedArgValues() = args.finished?.values
+	override fun nextArgValues() = args.next?.values
 
 	fun newestArgsAndDisplay() = (args to display).newest()
 }
 
 @Serializable
 data class TomographyRelionDataArgs(
-	val values: ArgValuesToml,
-	val particlesName: String? = null
+	val values: ArgValuesToml
 	// NOTE: kvision's forms require a default value here, otherwise the deserializer will throw an error
 )
 

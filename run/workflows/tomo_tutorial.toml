@@ -16,7 +16,7 @@ scope_voltage = 300
 scope_tilt_axis = 85.3
 
 [blocks.preprocessing]
-blockId = "tomo-preprocessing"
+blockId = "tomo-pure-preprocessing"
 name = "Pre-processing"
 parent = "rawdata"
 
@@ -25,12 +25,6 @@ movie_pattern = "TILTSERIES_SCANORD_ANGLE.tif"
 ctf_max_res = 5.0
 tomo_rec_binning = 8
 tomo_rec_thickness = 2048
-tomo_vir_method = "auto"
-tomo_vir_rad = 500
-tomo_srf_detect_band = 800
-tomo_srf_detect_method = "mesh"
-tomo_srf_detect_dist = 8
-tomo_spk_rad = 50
 slurm_tasks = { ask = true }            # e.g.: 42 (124 for refinement)
 slurm_memory = { ask = true }           # e.g.: 420 (720 for refinement)
 slurm_walltime = { ask = true }         # e.g.: 20:00:00
@@ -40,21 +34,46 @@ slurm_merge_memory = { ask = true }     # e.g.: 20
 slurm_merge_walltime = { ask = true }   # e.g.: 20:00:00
 slurm_merge_queue = { ask = true }
 
+[blocks.particlepicking]
+blockId = "tomo-picking"
+name = "Particle picking"
+parent = "preprocessing"
+
+[blocks.particlepicking.args]
+tomo_pick_method = "virions"
+tomo_pick_vir_rad = 500
+
+[blocks.segmentation]
+blockId = "tomo-segmentation-closed"
+name = "Segmentation"
+parent = "particlepicking"
+
+[blocks.segmentation.args]
+
+[blocks.particlepickingclosed]
+blockId = "tomo-picking-closed"
+name = "Constrained particle picking"
+parent = "segmentation"
+
+[blocks.particlepickingclosed.args]
+tomo_srf_detect_method = "mesh"
+tomo_srf_detect_band = 800
+tomo_srf_detect_rad = 50
+tomo_srf_detect_dist = 8
+
 [blocks.reference_refinement]
 blockId = "tomo-coarse-refinement"
 name = "Reference-based refinement"
-parent = "preprocessing"
+parent = "particlepickingclosed"
 
 [blocks.reference_refinement.args]
 refine_parfile_tomo = "auto"
-refine_model = { ask = true }
 particle_mw = 300
 particle_rad = 150
 particle_sym = "C6"
 extract_box = 192
 extract_gold = false
 extract_bin = 2
-refine_skip = true
 refine_rhref = "8.0"
 refine_fboost = true
 reconstruct_mintilt = -50
@@ -79,7 +98,6 @@ particle_rad = 150
 particle_sym = "C6"
 extract_box = 192
 extract_bin = 2
-refine_skip = true
 refine_maxiter = 4
 refine_rhref = "10:8:6"
 refine_fboost = true
@@ -101,11 +119,6 @@ name = "Particle filtering"
 parent = "constrained_refinement"
 
 [blocks.particle_filtering.args]
-particle_mw = 300
-particle_rad = 150
-particle_sym = "C6"
-extract_box = 192
-extract_bin = 2
 clean_threshold = 2.5
 clean_dist = 10.0
 clean_mintilt = -15.0
@@ -114,8 +127,6 @@ clean_min_num_projections = 1
 clean_check_reconstruction = true
 clean_parfile = 'auto'
 refine_model = 'auto'
-dose_weighting_enable = true
-dose_weighting_fraction = 4
 
 [blocks.particle_deep_clean]
 blockId = "tomo-fine-refinement"
@@ -126,11 +137,6 @@ parent = "particle_filtering"
 clean_parfile = 'auto'
 refine_model = 'auto'
 clean_discard = true
-particle_mw = 300
-particle_rad = 150
-particle_sym = "C6"
-extract_box = 192
-extract_bin = 2
 
 [blocks.region_refinement]
 blockId = "tomo-coarse-refinement"
@@ -145,7 +151,6 @@ particle_rad = 100
 particle_sym = "C6"
 extract_box = 384
 extract_bin = 1
-refine_skip = true
 refine_maxiter = 3
 refine_rhref = "6:5"
 refine_fboost = true
@@ -186,7 +191,6 @@ particle_rad = 100
 particle_sym = "C6"
 extract_box = 384
 extract_bin = 1
-refine_skip = true
 refine_maxiter = 4
 refine_rhref = "5:4:3.5"
 refine_fboost = true
@@ -216,7 +220,6 @@ particle_rad = 100
 particle_sym = "C6"
 extract_box = 384
 extract_bin = 1
-refine_skip = true
 refine_maxiter = 2
 refine_rhref = "3.1"
 refine_fboost = true
@@ -243,7 +246,6 @@ particle_rad = 80
 particle_sym = "C6"
 extract_box = 384
 extract_bin = 1
-refine_skip = true
 refine_maxiter = 2
 refine_rhref = "3.2"
 refine_fboost = true
@@ -268,7 +270,6 @@ particle_rad = 80
 particle_sym = "C6"
 extract_box = 384
 extract_bin = 1
-refine_skip = true
 refine_maxiter = 2
 refine_rhref = "3.3"
 refine_fboost = true

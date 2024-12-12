@@ -133,21 +133,27 @@ sealed interface Request {
 		}
 	}
 
-	data class Stat(val path: String) : Request {
+	data class CopyFolder(val src: String, val dst: String) : Request {
 		companion object {
 			const val ID: UInt = 10u
 		}
 	}
 
-	data class Rename(val src: String, val dst: String) : Request {
+	data class Stat(val path: String) : Request {
 		companion object {
 			const val ID: UInt = 11u
 		}
 	}
 
-	data class Symlink(val path: String, val link: String) : Request {
+	data class Rename(val src: String, val dst: String) : Request {
 		companion object {
 			const val ID: UInt = 12u
+		}
+	}
+
+	data class Symlink(val path: String, val link: String) : Request {
+		companion object {
+			const val ID: UInt = 13u
 		}
 	}
 }
@@ -237,6 +243,12 @@ class RequestEnvelope(
 				out.writeUtf8(request.path)
 			}
 
+			is Request.CopyFolder -> {
+				out.writeU32(Request.CopyFolder.ID)
+				out.writeUtf8(request.src)
+				out.writeUtf8(request.dst)
+			}
+
 			is Request.Stat -> {
 				out.writeU32(Request.Stat.ID)
 				out.writeUtf8(request.path)
@@ -323,6 +335,11 @@ class RequestEnvelope(
 
 				Request.ListFolder.ID -> Request.ListFolder(
 					path = input.readUtf8()
+				)
+
+				Request.CopyFolder.ID -> Request.CopyFolder(
+					src = input.readUtf8(),
+					dst = input.readUtf8()
 				)
 
 				Request.Stat.ID -> Request.Stat(

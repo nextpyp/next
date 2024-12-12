@@ -25,7 +25,9 @@ data class XF(
 	fun averageMotion() =
 		samples
 			.map { sqrt(it.x*it.x + it.y*it.y) }
-			.average()
+			.takeIf { it.isNotEmpty() }
+			?.average()
+			?: 0.0
 
 	companion object {
 

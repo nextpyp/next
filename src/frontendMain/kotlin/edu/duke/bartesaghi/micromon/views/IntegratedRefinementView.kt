@@ -57,48 +57,39 @@ class IntegratedRefinementView(
 
 		override fun register(routing: Routing, viewport: Viewport) {
 
-			val basePath = "/project/($urlToken)/($urlToken)/($urlToken)/($urlToken)"
-
 			fun register(pathFragment: String, paramsFactory: ((List<String>) -> Any?)?, tabSelector: LazyTabSelector?) {
-				routing.registerParamsList("^$basePath/$pathFragment\$") reg@{ params ->
+				for (node in refinementNodes) {
+					routing.registerParamsList("^/project/($urlToken)/($urlToken)/${node.urlFragmentOrThrow}/($urlToken)/$pathFragment$") reg@{ params ->
 
-					// get the params common to all tabs
-					val userId = params[0]
-					val projectId = params[1]
-					val nodeUrlFragment = params[2]
-					val jobId = params[3]
+						// get the params common to all tabs
+						val userId = params[0]
+						val projectId = params[1]
+						val jobId = params[2]
 
-					// lookup the node type from the URL fragment
-					val nodeInfo = refinementNodes
-						.find { it.urlFragment == nodeUrlFragment }
-						?: run {
-							viewport.setView(ErrorView("Unrecognized node type: $nodeUrlFragment"))
-							return@reg
-						}
+						AppScope.launch {
 
-					AppScope.launch {
-
-						// load the project data
-						val project = try {
-							Services.projects.get(userId, projectId)
-						} catch (t: Throwable) {
-							viewport.setView(ErrorView(t))
-							return@launch
-						}
-
-						// get the tab url params, if any
-						val urlParams = paramsFactory
-							?.invoke(params.slice(4 until params.size))
-
-						viewport.setView(IntegratedRefinementView(
-							project = project,
-							job = nodeInfo.getJob(jobId),
-							urlParams = urlParams,
-							initializer = { tabs ->
-								// show the tab referenced by this URL
-								tabSelector?.invoke(tabs)?.show()
+							// load the project data
+							val project = try {
+								Services.projects.get(userId, projectId)
+							} catch (t: Throwable) {
+								viewport.setView(ErrorView(t))
+								return@launch
 							}
-						))
+
+							// get the tab url params, if any
+							val urlParams = paramsFactory
+								?.invoke(params.slice(3 until params.size))
+
+							viewport.setView(IntegratedRefinementView(
+								project = project,
+								job = node.getJob(jobId),
+								urlParams = urlParams,
+								initializer = { tabs ->
+									// show the tab referenced by this URL
+									tabSelector?.invoke(tabs)?.show()
+								}
+							))
+						}
 					}
 				}
 			}
@@ -184,6 +175,7 @@ class IntegratedRefinementView(
 
 	private var state: State? = null
 
+	override val routed = Companion
 	override val elem = Div(classes = setOf("dock-page", "refinements-view"))
 
 	class LazyTabs(
@@ -445,7 +437,7 @@ class IntegratedRefinementView(
 
 			// show and activate the tabs
 			elem.add(tabsPanel)
-			tabsPanel.activateDefaultTab()
+			tabsPanel.initWithDefaultTab()
 
 			val lazyTabs = LazyTabs(
 				tabsPanel,

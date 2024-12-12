@@ -9,7 +9,6 @@ import edu.duke.bartesaghi.micromon.dynamicImageClassName
 import edu.duke.bartesaghi.micromon.nodes.TomographyFlexibleRefinementNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
 import edu.duke.bartesaghi.micromon.pyp.Args
-import edu.duke.bartesaghi.micromon.pyp.filterForDownstreamCopy
 import edu.duke.bartesaghi.micromon.refreshDynamicImages
 import edu.duke.bartesaghi.micromon.services.*
 import edu.duke.bartesaghi.micromon.views.IntegratedRefinementView
@@ -39,8 +38,9 @@ class TomographyFlexibleRefinementNode(
 		override fun makeNode(viewport: Viewport, diagram: Diagram, project: ProjectData, job: JobData) =
 			TomographyFlexibleRefinementNode(viewport, diagram, project, job as TomographyFlexibleRefinementData)
 
-		override fun showUseDataForm(viewport: Viewport, diagram: Diagram, project: ProjectData, outNode: Node, input: CommonJobData.DataId, copyFrom: Node?, callback: (Node) -> Unit) {
+		override suspend fun showUseDataForm(viewport: Viewport, diagram: Diagram, project: ProjectData, outNode: Node, input: CommonJobData.DataId, copyFrom: Node?, callback: (Node) -> Unit) {
 			val defaultArgs = (copyFrom as TomographyFlexibleRefinementNode?)?.job?.args
+				?: JobArgs.fromNext(TomographyFlexibleRefinementArgs(newArgValues(project, input)))
 			form(config.name, outNode, defaultArgs, true) { args ->
 
 				// save the node to the server
@@ -85,15 +85,9 @@ class TomographyFlexibleRefinementNode(
 				add(TomographyFlexibleRefinementArgs::values, ArgsForm(pypArgs, listOf(upstreamNode), enabled, config.configId))
 			}
 
-			// by default, copy args values from the upstream node
-			val argsOrCopy: JobArgs<TomographyFlexibleRefinementArgs> = args
-				?: JobArgs.fromNext(TomographyFlexibleRefinementArgs(
-					values = upstreamNode.newestArgValues()?.filterForDownstreamCopy(pypArgs) ?: ""
-				))
-
-			form.init(argsOrCopy)
+			form.init(args)
 			if (enabled) {
-				win.addSaveResetButtons(form, argsOrCopy, onDone)
+				win.addSaveResetButtons(form, args, onDone)
 			}
 			win.show()
 		}
@@ -143,7 +137,4 @@ class TomographyFlexibleRefinementNode(
 			}
 		}
 	}
-
-	override fun newestArgValues() =
-		job.args.newest()?.args?.values
 }

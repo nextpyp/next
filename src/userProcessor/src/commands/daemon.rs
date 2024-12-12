@@ -1,6 +1,5 @@
 
 use std::{fs, io};
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ffi::OsString;
 use std::fs::{File, OpenOptions, Permissions};
@@ -13,9 +12,11 @@ use std::os::unix::fs::{FileTypeExt, PermissionsExt};
 use anyhow::{bail, Context, Result};
 use async_trait::async_trait;
 use gumdrop::Options;
+use pathdiff::diff_paths;
 use tokio::net::{UnixListener, UnixStream};
 use tokio::net::unix::OwnedWriteHalf;
 use tokio::signal::unix::{signal, SignalKind};
+use tokio::sync::Mutex;
 use tokio::task::LocalSet;
 use tracing::{debug, error_span, info, Instrument, trace, warn};
 
@@ -172,10 +173,10 @@ async fn drive_connection(socket: UnixStream) {
 
 	// split the socket into read and write halves so we can operate them concurrently
 	let (mut socket_read, socket_write) = socket.into_split();
-	let socket_write = Rc::new(RefCell::new(socket_write));
+	let socket_write = Rc::new(Mutex::new(socket_write));
 
 	let mut next_request_id: u64 = 1;
-	let file_writers = Rc::new(RefCell::new(HashMap::<u32,Rc<RefCell<FileWriter>>>::new()));
+	let file_writers = Rc::new(Mutex::new(HashMap::<u32,Rc<Mutex<FileWriter>>>::new()));
 
 	loop {
 
@@ -276,6 +277,10 @@ async fn drive_connection(socket: UnixStream) {
 						dispatch_list_folder(socket_write, request.id, path)
 							.await,
 
+					Request::CopyFolder { src, dst } =>
+						dispatch_copy_folder(socket_write, request.id, src, dst)
+							.await,
+
 					Request::Stat { path } =>
 						dispatch_stat(socket_write, request.id, path)
 							.await,
@@ -296,7 +301,7 @@ async fn drive_connection(socket: UnixStream) {
 }
 
 
-async fn write_response(socket: &RefCell<OwnedWriteHalf>, request_id: u32, response: Response) -> Result<(),()> {
+async fn write_response(socket: &Mutex<OwnedWriteHalf>, request_id: u32, response: Response) -> Result<(),()> {
 
 	// encode the response
 	let msg = ResponseEnvelope {
@@ -308,7 +313,8 @@ async fn write_response(socket: &RefCell<OwnedWriteHalf>, request_id: u32, respo
 		.warn_err()?;
 
 	// send it over the socket
-	socket.borrow_mut()
+	socket.lock()
+		.await
 		.write_framed(msg)
 		.await
 		.context("Failed to write response")
@@ -320,7 +326,7 @@ async fn write_response(socket: &RefCell<OwnedWriteHalf>, request_id: u32, respo
 
 #[async_trait(?Send)]
 trait OrRespondError<T,E> {
-	async fn or_respond_error<F>(self, socket: &RefCell<OwnedWriteHalf>, request_id: u32, f: F) -> Option<T>
+	async fn or_respond_error<F>(self, socket: &Mutex<OwnedWriteHalf>, request_id: u32, f: F) -> Option<T>
 		where
 			F: FnOnce(E) -> String;
 }
@@ -328,7 +334,7 @@ trait OrRespondError<T,E> {
 #[async_trait(?Send)]
 impl<T,E> OrRespondError<T,E> for Result<T,E> {
 
-	async fn or_respond_error<F>(self, socket: &RefCell<OwnedWriteHalf>, request_id: u32, f: F) -> Option<T>
+	async fn or_respond_error<F>(self, socket: &Mutex<OwnedWriteHalf>, request_id: u32, f: F) -> Option<T>
 		where
 			F: FnOnce(E) -> String
 	{
@@ -354,7 +360,7 @@ impl<T,E> OrRespondError<T,E> for Result<T,E> {
 #[async_trait(?Send)]
 impl<T> OrRespondError<T,()> for Option<T> {
 
-	async fn or_respond_error<F>(self, socket: &RefCell<OwnedWriteHalf>, request_id: u32, f: F) -> Option<T>
+	async fn or_respond_error<F>(self, socket: &Mutex<OwnedWriteHalf>, request_id: u32, f: F) -> Option<T>
 		where
 			F: FnOnce(()) -> String
 	{
@@ -377,7 +383,7 @@ impl<T> OrRespondError<T,()> for Option<T> {
 
 
 #[tracing::instrument(skip_all, level = 5, name = "Ping")]
-async fn dispatch_ping(socket: Rc<RefCell<OwnedWriteHalf>>, request_id: u32) {
+async fn dispatch_ping(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32) {
 
 	trace!("Request");
 
@@ -389,7 +395,7 @@ async fn dispatch_ping(socket: Rc<RefCell<OwnedWriteHalf>>, request_id: u32) {
 
 
 #[tracing::instrument(skip_all, level = 5, name = "Uids")]
-async fn dispatch_uids(socket: Rc<RefCell<OwnedWriteHalf>>, request_id: u32) {
+async fn dispatch_uids(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32) {
 
 	debug!("Request");
 
@@ -422,7 +428,7 @@ async fn dispatch_uids(socket: Rc<RefCell<OwnedWriteHalf>>, request_id: u32) {
 
 
 #[tracing::instrument(skip_all, level = 5, name = "ReadFile")]
-async fn dispatch_read_file(socket: Rc<RefCell<OwnedWriteHalf>>, request_id: u32, path: String) {
+async fn dispatch_read_file(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32, path: String) {
 
 	debug!(path, "Request");
 
@@ -496,17 +502,18 @@ struct FileWriter {
 
 impl FileWriter {
 
-	async fn resequence(s: &Rc<RefCell<Self>>, sequence: u32) {
+	async fn resequence(s: &Rc<Mutex<Self>>, sequence: u32) {
 
 		// wait for the riqht sequence
-		while sequence < s.borrow().sequence {
+		while sequence < s.lock().await.sequence {
 			// NOTE: don't hold a borrow across the await, that could lead to a deadlock
 			tokio::task::yield_now()
 				.await;
 		}
 
 		// increment the sequence counter for next time
-		let mut s = s.borrow_mut();
+		let mut s = s.lock()
+			.await;
 		s.sequence += 1;
 	}
 }
@@ -514,9 +521,9 @@ impl FileWriter {
 
 #[tracing::instrument(skip_all, level = 5, name = "WriteFile")]
 async fn dispatch_write_file(
-	socket: Rc<RefCell<OwnedWriteHalf>>,
+	socket: Rc<Mutex<OwnedWriteHalf>>,
 	request_id: u32,
-	file_writers: Rc<RefCell<HashMap<u32,Rc<RefCell<FileWriter>>>>>,
+	file_writers: Rc<Mutex<HashMap<u32,Rc<Mutex<FileWriter>>>>>,
 	request: WriteFileRequest
 ) {
 
@@ -545,8 +552,9 @@ async fn dispatch_write_file(
 				error: None
 			};
 			file_writers
-				.borrow_mut()
-				.insert(request_id, Rc::new(RefCell::new(file_writer)));
+				.lock()
+				.await
+				.insert(request_id, Rc::new(Mutex::new(file_writer)));
 
 			// send the opened response
 			let response = Response::WriteFile(WriteFileResponse::Opened);
@@ -560,7 +568,8 @@ async fn dispatch_write_file(
 			trace!(sequence, "Chunk");
 
 			// get the file writer
-			let Some(file_writer) = file_writers.borrow()
+			let Some(file_writer) = file_writers.lock()
+				.await
 				.get(&request_id)
 				.map(|w| w.clone())
 				else { return };
@@ -569,15 +578,22 @@ async fn dispatch_write_file(
 			FileWriter::resequence(&file_writer, sequence)
 				.await;
 
-			if file_writer.borrow().error.is_some() {
+			let has_error = file_writer.lock()
+				.await
+				.error.is_some();
+			if has_error {
 				// already had an error, stop writing
 				return;
 			}
 
 			// write to the file, but save the first error (if any) for later
-			let result = file_writer.borrow_mut().file.write(data.as_ref());
+			let result = file_writer.lock()
+				.await
+				.file.write(data.as_ref());
 			if let Err(e) = result {
-				file_writer.borrow_mut().error = Some(e.to_string());
+				file_writer.lock()
+					.await
+					.error = Some(e.to_string());
 			}
 
 			// no need to respond to the clent ... what is this, TCP?
@@ -588,7 +604,8 @@ async fn dispatch_write_file(
 			trace!(sequence, "Close");
 
 			// get the file writer
-			let Some(file_writer) = file_writers.borrow_mut()
+			let Some(file_writer) = file_writers.lock()
+				.await
 				.remove(&request_id)
 				.or_respond_error(&socket, request_id, |()| "No file open for writing".to_string())
 				.await
@@ -631,7 +648,7 @@ async fn dispatch_write_file(
 
 
 #[tracing::instrument(skip_all, level = 5, name = "Chmod")]
-async fn dispatch_chmod(socket: Rc<RefCell<OwnedWriteHalf>>, request_id: u32, request: ChmodRequest) {
+async fn dispatch_chmod(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32, request: ChmodRequest) {
 
 	debug!(path = request.path, ops = request.ops_to_string(), "Request");
 
@@ -668,7 +685,7 @@ async fn dispatch_chmod(socket: Rc<RefCell<OwnedWriteHalf>>, request_id: u32, re
 
 
 #[tracing::instrument(skip_all, level = 5, name = "DeleteFile")]
-async fn dispatch_delete_file(socket: Rc<RefCell<OwnedWriteHalf>>, request_id: u32, path: String) {
+async fn dispatch_delete_file(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32, path: String) {
 
 	debug!(path, "Request");
 
@@ -691,7 +708,7 @@ async fn dispatch_delete_file(socket: Rc<RefCell<OwnedWriteHalf>>, request_id: u
 
 
 #[tracing::instrument(skip_all, level = 5, name = "CreateFolder")]
-async fn dispatch_create_folder(socket: Rc<RefCell<OwnedWriteHalf>>, request_id: u32, path: String) {
+async fn dispatch_create_folder(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32, path: String) {
 
 	debug!(path, "Request");
 
@@ -709,7 +726,7 @@ async fn dispatch_create_folder(socket: Rc<RefCell<OwnedWriteHalf>>, request_id:
 
 
 #[tracing::instrument(skip_all, level = 5, name = "DeleteFolder")]
-async fn dispatch_delete_folder(socket: Rc<RefCell<OwnedWriteHalf>>, request_id: u32, path: String) {
+async fn dispatch_delete_folder(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32, path: String) {
 
 	debug!(path, "Request");
 
@@ -729,8 +746,106 @@ async fn dispatch_delete_folder(socket: Rc<RefCell<OwnedWriteHalf>>, request_id:
 }
 
 
+#[tracing::instrument(skip_all, level = 5, name = "CopyFolder")]
+async fn dispatch_copy_folder(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32, src: String, dst: String) {
+
+	debug!(src, dst, "Request");
+
+	fn run_copy(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> Result<()> {
+
+		let src = src.as_ref();
+		let dst = dst.as_ref();
+
+		let root_canon = src.canonicalize()
+			.context(format!("Failed to canonicalize src dir: {}", src.to_string_lossy()))?;
+
+		copy_dir_all(root_canon.as_path(), src, dst)
+	}
+
+	fn copy_dir_all(root_canon: &Path, src: impl AsRef<Path>, dst: impl AsRef<Path>) -> Result<()> {
+
+		let src = src.as_ref();
+		let dst = dst.as_ref();
+
+		fs::create_dir_all(&dst)
+			.context(format!("Failed to create folder: {}", dst.to_string_lossy()))?;
+
+		let src_read = fs::read_dir(src)
+			.context(format!("Failed to read folder: {}", src.to_string_lossy()))?;
+		for entry in src_read {
+			let entry = entry
+				.context(format!("Failed to read folder entry from: {}", src.to_string_lossy()))?;
+			let ty = entry.file_type()
+				.context(format!("Failed to read file type: {}", entry.path().to_string_lossy()))?;
+			if ty.is_symlink() {
+
+				// for symlinks, we need to know if it's pointing to somewhere inside src or not
+				let src_link = entry.path();
+				let link_target = fs::read_link(&src_link)
+					.context(format!("Failed to read symlink target: {}", src_link.to_string_lossy()))?;
+				let link_target_canon = src.join(&link_target).canonicalize()
+					.context(format!("Failed to canonicalize link target: {}", link_target.to_string_lossy()))?;
+				let links_within_root = link_target_canon.starts_with(&root_canon);
+
+				// copying symlinks that are also within the src folder is ... complicated
+				// so let's just not for now =D
+				// pyp shouldn't make symlinks like that (as of today), but show us this error if it ever does
+				if links_within_root {
+					bail!("Symlink targets path in src folder, aborting copy:\n\tsymlink: {}\n\ttarget: {}",
+						src_link.to_string_lossy(),
+						link_target.to_string_lossy()
+					);
+				}
+
+				// otherwise, just copy the symlink itself
+				let dst_link = dst.join(entry.file_name());
+				let dst_link_target =
+					if link_target.is_absolute() {
+						// absolute paths are safe to copy verbatim
+						link_target.clone()
+					} else {
+						// but relative paths need to be recalculated against the new parent folder
+						diff_paths(&link_target_canon, dst)
+							.context(format!("Path can't be relativized\n\tpath: {}\n\tbase: {}",
+								link_target_canon.to_string_lossy(),
+								dst.to_string_lossy()
+							))?
+					};
+				std::os::unix::fs::symlink(&dst_link_target, &dst_link)
+					.context(format!("Failed to copy symlink\n\tsymlink: {}\n\ttarget: {}",
+						src_link.to_string_lossy(),
+						link_target.to_string_lossy()
+					))?;
+
+			} else if ty.is_dir() {
+				copy_dir_all(root_canon, entry.path(), dst.join(entry.file_name()))?;
+			} else if ty.is_file() {
+				let src_file = entry.path();
+				let dst_file = dst.join(entry.file_name());
+				fs::copy(&src_file, &dst_file)
+					.context(format!("Failed to copy file:\n\tfrom: {}\n\t  to: {}", src_file.to_string_lossy(), dst_file.to_string_lossy()))?;
+			} else {
+				// whatever else this is, don't copy it
+			}
+		}
+		Ok(())
+	}
+
+	let Some(()) = run_copy(&src, &dst)
+		.or_respond_error(&socket, request_id, |e|
+			format!("Failed to copy folder:\n\tfrom: {}\n\t  to: {}\n{}", &src, &dst, e)
+		)
+		.await
+		else { return };
+
+	write_response(&socket, request_id, Response::CopyFolder)
+		.await
+		.ok();
+}
+
+
 #[tracing::instrument(skip_all, level = 5, name = "ListFolder")]
-async fn dispatch_list_folder(socket: Rc<RefCell<OwnedWriteHalf>>, request_id: u32, path: String) {
+async fn dispatch_list_folder(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32, path: String) {
 
 	debug!(path, "Request");
 
@@ -831,7 +946,7 @@ async fn dispatch_list_folder(socket: Rc<RefCell<OwnedWriteHalf>>, request_id: u
 
 
 #[tracing::instrument(skip_all, level = 5, name = "Stat")]
-async fn dispatch_stat(socket: Rc<RefCell<OwnedWriteHalf>>, request_id: u32, path: String) {
+async fn dispatch_stat(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32, path: String) {
 
 	debug!(path, "Request");
 
@@ -898,7 +1013,7 @@ async fn dispatch_stat(socket: Rc<RefCell<OwnedWriteHalf>>, request_id: u32, pat
 
 
 #[tracing::instrument(skip_all, level = 5, name = "Rename")]
-async fn dispatch_rename(socket: Rc<RefCell<OwnedWriteHalf>>, request_id: u32, src: String, dst: String) {
+async fn dispatch_rename(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32, src: String, dst: String) {
 
 	debug!(src, dst, "Request");
 
@@ -916,7 +1031,7 @@ async fn dispatch_rename(socket: Rc<RefCell<OwnedWriteHalf>>, request_id: u32, s
 
 
 #[tracing::instrument(skip_all, level = 5, name = "Symlink")]
-async fn dispatch_symlink(socket: Rc<RefCell<OwnedWriteHalf>>, request_id: u32, path: String, link: String) {
+async fn dispatch_symlink(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32, path: String, link: String) {
 
 	debug!(path, link, "Request");
 

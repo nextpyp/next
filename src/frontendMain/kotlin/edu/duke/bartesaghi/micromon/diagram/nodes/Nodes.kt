@@ -1,6 +1,10 @@
 package edu.duke.bartesaghi.micromon.diagram.nodes
 
 import edu.duke.bartesaghi.micromon.nodes.*
+import edu.duke.bartesaghi.micromon.pyp.ArgGroup
+import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
+import edu.duke.bartesaghi.micromon.pyp.Args
+import edu.duke.bartesaghi.micromon.pyp.toArgValues
 import edu.duke.bartesaghi.micromon.services.JobData
 
 
@@ -24,13 +28,21 @@ object Nodes {
 		TomographyRawDataNodeConfig to TomographyRawDataNode.Companion,
 		TomographyRelionDataNodeConfig to TomographyRelionDataNode.Companion,
 		TomographyImportDataNodeConfig to TomographyImportDataNode.Companion,
+		TomographyImportDataPureNodeConfig to TomographyImportDataPureNode.Companion,
 		TomographySessionDataNodeConfig to TomographySessionDataNode.Companion,
 		TomographyPreprocessingNodeConfig to TomographyPreprocessingNode.Companion,
 		TomographyPurePreprocessingNodeConfig to TomographyPurePreprocessingNode.Companion,
-		TomographyDenoisingNodeConfig to TomographyDenoisingNode.Companion,
+		TomographyDenoisingTrainingNodeConfig to TomographyDenoisingTrainingNode.Companion,
+		TomographyDenoisingEvalNodeConfig to TomographyDenoisingEvalNode.Companion,
 		TomographyPickingNodeConfig to TomographyPickingNode.Companion,
+		TomographySegmentationOpenNodeConfig to TomographySegmentationOpenNode.Companion,
+		TomographySegmentationClosedNodeConfig to TomographySegmentationClosedNode.Companion,
 		TomographyPickingOpenNodeConfig to TomographyPickingOpenNode.Companion,
 		TomographyPickingClosedNodeConfig to TomographyPickingClosedNode.Companion,
+		TomographyMiloTrainNodeConfig to TomographyMiloTrainNode.Companion,
+		TomographyMiloEvalNodeConfig to TomographyMiloEvalNode.Companion,
+		TomographyParticlesTrainNodeConfig to TomographyParticlesTrainNode.Companion,
+		TomographyParticlesEvalNodeConfig to TomographyParticlesEvalNode.Companion,
 		TomographyDrgnNodeConfig to TomographyDrgnNode.Companion,
 		TomographyCoarseRefinementNodeConfig to TomographyCoarseRefinementNode.Companion,
 		TomographyFineRefinementNodeConfig to TomographyFineRefinementNode.Companion,

@@ -107,7 +107,7 @@ actual class SessionsService : ISessionsService, Service {
 			val sessionId = initial
 			listOf(RemoteOption(
 				value = sessionId,
-				text = Database.sessions.get(sessionId)
+				text = Database.instance.sessions.get(sessionId)
 					?.let { Session.fromDoc(it).data(user).numberedName }
 					?: "(unknown session)"
 			))
@@ -123,7 +123,7 @@ actual class SessionsService : ISessionsService, Service {
 
 			val normalizedSearch = search.lowercase()
 
-			val sessions = Database.sessions.getNamesAndGroupsByType(type) { items ->
+			val sessions = Database.instance.sessions.getNamesAndGroupsByType(type) { items ->
  				items
 					.filter { user.isAdmin || (it.newestGroupId?.let { gid -> user.hasGroup(gid) } == true) }
 					.filter { it.newestNumberedName?.lowercase()?.contains(normalizedSearch) == true }
@@ -152,7 +152,7 @@ actual class SessionsService : ISessionsService, Service {
 		if (user.isAdmin || user.hasPermission(User.Permission.EditSession)) {
 
 			// user can see all groups
-			Database.groups.getAll()
+			Database.instance.groups.getAll()
 
 		} else {
 
@@ -191,7 +191,7 @@ actual class SessionsService : ISessionsService, Service {
 		// convert them to session data
 		val sessions = jobs.mapNotNull { job ->
 			job.ownerId
-				?.let { Database.sessions.get(it) }
+				?.let { Database.instance.sessions.get(it) }
 				?.let { Session.fromDoc(it) }
 				?.data(user)
 		}

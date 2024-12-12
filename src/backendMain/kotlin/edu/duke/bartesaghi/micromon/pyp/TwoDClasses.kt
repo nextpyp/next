@@ -28,11 +28,11 @@ class TwoDClasses(
 			)
 
 		fun get(ownerId: String, classesId: String): TwoDClasses? =
-			Database.twoDClasses.get(ownerId, classesId)
+			Database.instance.twoDClasses.get(ownerId, classesId)
 				?.let { fromDoc(it) }
 
 		fun getAll(ownerId: String): List<TwoDClasses> =
-			Database.twoDClasses.getAll(ownerId) { cursor ->
+			Database.instance.twoDClasses.getAll(ownerId) { cursor ->
 				cursor
 					.map { fromDoc(it) }
 					.toList()
@@ -47,7 +47,7 @@ class TwoDClasses(
 	}
 
 	fun write() =
-		Database.twoDClasses.write(ownerId, twoDClassesId, toDoc())
+		Database.instance.twoDClasses.write(ownerId, twoDClassesId, toDoc())
 
 	fun toData() =
 		TwoDClassesData(

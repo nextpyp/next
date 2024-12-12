@@ -1,12 +1,13 @@
 package edu.duke.bartesaghi.micromon.mongo
 
+import com.mongodb.client.MongoDatabase
 import com.mongodb.client.model.Filters
 import org.bson.Document
 
 
-class PypLog {
+class PypLog(db: MongoDatabase) {
 
-	private val collection = Database.db.getCollection("pypLog")
+	private val collection = db.getCollection("pypLog")
 
 	init {
 		// create indices to speed up common but slow operations

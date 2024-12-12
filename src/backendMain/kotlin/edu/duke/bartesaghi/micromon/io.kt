@@ -31,10 +31,7 @@ import java.util.*
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.TimeUnit
 import kotlin.io.NoSuchFileException
-import kotlin.io.path.fileSize
-import kotlin.io.path.isRegularFile
-import kotlin.io.path.isSymbolicLink
-import kotlin.io.path.moveTo
+import kotlin.io.path.*
 import kotlin.math.abs
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.nanoseconds
@@ -59,8 +56,15 @@ class ProcessStreamer(processBuilder: ProcessBuilder, writer: ((OutputStream)->U
 	val console = ConcurrentLinkedQueue<String>()
 
 	private val thread = Thread {
-		process.inputStream.bufferedReader().forEachLine { line ->
-			console.add(line)
+		process.inputStream.bufferedReader().use { reader ->
+			try {
+				reader.forEachLine { line ->
+					console.add(line)
+				}
+			} catch (ex: IOException) {
+				// an IO error here probably means the stream closed
+				// probably these errors are safe to ignore
+			}
 		}
 	}.apply {
 		name = "ProcessStreamer"
@@ -93,6 +97,10 @@ class ProcessStreamer(processBuilder: ProcessBuilder, writer: ((OutputStream)->U
 			process.waitFor()
 			thread.join()
 		}
+	}
+
+	fun terminate() {
+		process.destroy()
 	}
 
 	val exitCode get() = process.exitValue()
@@ -175,7 +183,13 @@ suspend fun <R> slowIOs(block: suspend CoroutineScope.() -> R): R =
 	withContext(Dispatchers.IO, block)
 
 
-fun Path.exists() = Files.exists(this)
+fun Path.exists(followSymlinks: Boolean = true) =
+	if (followSymlinks) {
+		Files.exists(this)
+	} else {
+		Files.exists(this, LinkOption.NOFOLLOW_LINKS)
+	}
+
 fun Path.isDirectory() = Files.isDirectory(this)
 
 fun Path.createDirsIfNeeded() = apply {
@@ -184,8 +198,11 @@ fun Path.createDirsIfNeeded() = apply {
 	}
 }
 
-fun Path.delete() =
-	Files.delete(this)
+fun Path.delete(followSymlinks: Boolean = true) {
+	if (exists(followSymlinks)) {
+		Files.delete(this)
+	}
+}
 
 fun Path.deleteDirRecursively() = apply {
 	if (exists() && isDirectory()) {
@@ -197,22 +214,107 @@ fun Path.deleteDirRecursively() = apply {
 		Files.walkFileTree(this, options, Int.MAX_VALUE, object : SimpleFileVisitor<Path>() {
 
 			override fun visitFile(file: Path?, attrs: BasicFileAttributes?): FileVisitResult {
-				file?.delete()
-				return super.visitFile(file, attrs)
+				file?.delete(followSymlinks = false)
+				return FileVisitResult.CONTINUE
 			}
+
 			override fun postVisitDirectory(dir: Path?, exc: IOException?): FileVisitResult {
+				if (exc != null) {
+					throw IOException("Failed to list folder while performing recursive delete: $dir", exc)
+				}
 				dir?.delete()
-				return super.postVisitDirectory(dir, exc)
+				return FileVisitResult.CONTINUE
 			}
 		})
 	}
 }
 
 fun Path.deleteDirRecursivelyAsync() {
-	Backend.scope.launch(Dispatchers.IO) {
+	Backend.instance.scope.launch(Dispatchers.IO) {
 		deleteDirRecursively()
 	}
 }
+
+fun Path.copyDirRecursivelyTo(dst: Path) {
+
+	val src = this
+
+	// NOTE: the Kotlin stdlib function for this isn't smart enough to handle symlinks the way we want
+	//       so don't use it
+	//toFile().copyRecursively(dst.toFile(), overwrite=true)
+
+	if (exists() && isDirectory()) {
+
+		// explicitly don't specify the FOLLOW_LINKS option
+		// we *VERY MUCH* don't want to follow symlinks here
+		val options = setOf<FileVisitOption>()
+
+		val srcCanon = src.canonicalize()
+
+		Files.walkFileTree(src, options, Int.MAX_VALUE, object : SimpleFileVisitor<Path>() {
+
+			override fun visitFile(srcFile: Path?, attrs: BasicFileAttributes?): FileVisitResult {
+
+				// these should never be null, but Java's method signature can't express that
+				srcFile ?: throw IllegalArgumentException("missing file")
+				attrs ?: throw IllegalArgumentException("missing attrs")
+
+				val dstFile = dst / srcFile.relativeTo(src)
+
+				// create the destination older, if needed
+				val dstFileParent = dstFile.parent
+					?: throw IllegalArgumentException("dst file has no parent folder: $dstFile")
+				dstFileParent.createDirsIfNeeded()
+
+				if (attrs.isSymbolicLink) {
+
+					// for symlinks, we need to know if it's pointing to somewhere inside src or not
+					val srcFileParent = srcFile.parent
+						?: throw IllegalArgumentException("src file has no parent folder: $srcFile")
+					val linkTarget = Files.readSymbolicLink(srcFile)
+					val srcTarget = srcFileParent / linkTarget
+					val srcTargetCanon = srcTarget.canonicalize()
+					val linksWithinSrc = srcTargetCanon.startsWith(srcCanon)
+
+					// copying symlinks that are also within the src folder is ... complicated
+					// so let's just not for now =D
+					// pyp shouldn't make symlinks like that (as of today), but show us this error if it ever does
+					if (linksWithinSrc) {
+						throw IllegalArgumentException("""
+							|Symlink targets path in src folder, aborting copy:
+							|   symlink:  $srcFile
+							|    target:  $linkTarget
+							|       src:  $src
+						""".trimMargin())
+					}
+
+					// otherwise, just copy the symlink itself
+					Files.createSymbolicLink(dstFile, if (linkTarget.isAbsolute) {
+						// absolute paths are safe to copy verbatim
+						linkTarget
+					} else {
+						// but relative paths need to be recalculated against the new parent folder
+						srcTargetCanon.relativeTo(dstFileParent)
+					})
+
+				} else if (attrs.isRegularFile) {
+
+					// regular file, just copy it
+					srcFile.copyTo(dstFile, overwrite=true)
+				}
+
+				return FileVisitResult.CONTINUE
+			}
+		})
+	}
+}
+
+
+/**
+ * because either Path.normalize() is buggy, or it doesn't work the way I think it should
+ */
+fun Path.canonicalize(): Path =
+	toFile().canonicalFile.toPath()
 
 
 fun Path.readString() = toFile().readText()
@@ -311,13 +413,12 @@ fun Path.toFileDownloadData(): FileDownloadData? =
 fun Path.stat(): Stat.Response =
 	when {
 
-		!exists() -> Stat.NotFound
-
 		isSymbolicLink() -> Stat.Symlink(when {
 			isDirectory() -> Stat.Symlink.Dir
 			isRegularFile() -> Stat.Symlink.File(
 				size = fileSize().toULong()
 			)
+			!exists() -> Stat.Symlink.NotFound
 			else -> Stat.Symlink.Other
 		})
 
@@ -326,6 +427,8 @@ fun Path.stat(): Stat.Response =
 		)
 
 		isDirectory() -> Stat.Dir
+
+		!exists() -> Stat.NotFound
 
 		else -> Stat.Other
 	}

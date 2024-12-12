@@ -4,7 +4,7 @@ mod util;
 
 use std::net::Shutdown;
 use std::os::unix::net::UnixStream;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::{Child, Command, ExitStatus};
 use std::{fs, thread};
 use std::os::unix::fs::{PermissionsExt, symlink};
@@ -517,7 +517,6 @@ fn delete_folder() {
 }
 
 
-
 #[test]
 fn list_folder() {
 	let _logging = logging::init_test();
@@ -574,6 +573,140 @@ fn list_folder() {
 	user_processor.disconnect(socket);
 	user_processor.stop();
 	fs::remove_dir_all(path)
+		.unwrap();
+}
+
+
+#[test]
+fn copy_folder() {
+	let _logging = logging::init_test();
+
+	// create a folder we can delete, put stuff in it too
+	let src_path = PathBuf::from(SOCKET_DIR).join("copy_folder_src_test");
+	fs::create_dir_all(&src_path)
+		.ok();
+	fs::write(src_path.join("file"), "hello")
+		.unwrap();
+
+	let dst_path = PathBuf::from(SOCKET_DIR).join("copy_folder_dst_test");
+
+	let user_processor = UserProcessor::start();
+	let mut socket = user_processor.connect();
+
+	let response = request(&mut socket, 5, Request::CopyFolder {
+		src: src_path.to_string_lossy().to_string(),
+		dst: dst_path.to_string_lossy().to_string()
+	});
+	assert_that!(&response, eq(Response::CopyFolder));
+
+	// check dst folder contents
+	assert_that!(&dst_path.exists(), eq(true));
+	let dst_file = dst_path.join("file");
+	assert_that!(&dst_file.exists(), eq(true));
+	assert_that!(&fs::read_to_string(&dst_file).unwrap(), eq("hello".to_string()));
+
+	user_processor.disconnect(socket);
+	user_processor.stop();
+	fs::remove_dir_all(src_path)
+		.unwrap();
+	fs::remove_dir_all(dst_path)
+		.unwrap();
+}
+
+
+#[test]
+fn copy_folder_link_internal() {
+	let _logging = logging::init_test();
+
+	// create a folder we can delete, put stuff in it too
+	let src_path = PathBuf::from(SOCKET_DIR).join("copy_folder_src_li_test");
+	fs::remove_dir_all(&src_path)
+		.ok();
+	fs::create_dir_all(&src_path)
+		.unwrap();
+	let file_path = src_path.join("file");
+	fs::write(&file_path, "hello")
+		.unwrap();
+	let link_path = src_path.join("link");
+	symlink(&file_path, &link_path)
+		.unwrap();
+
+	let dst_path = PathBuf::from(SOCKET_DIR).join("copy_folder_dst_li_test");
+	fs::remove_dir_all(&dst_path)
+		.ok();
+
+	let user_processor = UserProcessor::start();
+	let mut socket = user_processor.connect();
+
+	let response = request(&mut socket, 5, Request::CopyFolder {
+		src: src_path.to_string_lossy().to_string(),
+		dst: dst_path.to_string_lossy().to_string()
+	});
+	assert_that!(&matches!(response, Response::Error { .. }), eq(true));
+
+	user_processor.disconnect(socket);
+	user_processor.stop();
+	fs::remove_dir_all(src_path)
+		.unwrap();
+	fs::remove_dir_all(dst_path)
+		.unwrap();
+}
+
+
+#[test]
+fn copy_folder_link_external() {
+	let _logging = logging::init_test();
+
+	// create a folder we can delete, put stuff in it too
+	let src_path = PathBuf::from(SOCKET_DIR).join("copy_folder_src_le_test");
+	fs::remove_dir_all(&src_path)
+		.ok();
+	fs::create_dir_all(&src_path)
+		.unwrap();
+	let src_link1 = src_path.join("link");
+	let src_link2 = src_path.join("parent");
+	symlink(Path::new("/tmp"), &src_link1)
+		.unwrap();
+	symlink(Path::new("../"), &src_link2)
+		.unwrap();
+
+	let dst_path = PathBuf::from(SOCKET_DIR).join("copy_folder_dst_le_test");
+	fs::remove_dir_all(&dst_path)
+		.ok();
+
+	let user_processor = UserProcessor::start();
+	let mut socket = user_processor.connect();
+
+	let response = request(&mut socket, 5, Request::CopyFolder {
+		src: src_path.to_string_lossy().to_string(),
+		dst: dst_path.to_string_lossy().to_string()
+	});
+	assert_that!(&response, eq(Response::CopyFolder));
+
+	// check dst folder contents
+	assert_that!(&dst_path.exists(), eq(true));
+
+	let dst_link1 = dst_path.join("link");
+	let dst_meta1 = fs::symlink_metadata(&dst_link1)
+		.unwrap();
+	assert_that!(&dst_meta1.is_symlink(), eq(true));
+	let link_target1 = fs::read_link(&dst_link1)
+		.unwrap();
+	assert_that!(&link_target1.as_path(), eq(Path::new("/tmp")));
+
+	let dst_link2 = dst_path.join("parent");
+	let dst_meta2 = fs::symlink_metadata(&dst_link2)
+		.unwrap();
+	assert_that!(&dst_meta2.is_symlink(), eq(true));
+	let link_target2 = fs::read_link(&dst_link2)
+		.unwrap();
+	assert_that!(&link_target2.as_path(), eq(Path::new("../")));
+
+	user_processor.disconnect(socket);
+	user_processor.stop();
+	fs::remove_dir_all(src_path)
+		.unwrap();
+	fs::remove_dir_all(dst_path)
 		.unwrap();
 }
 

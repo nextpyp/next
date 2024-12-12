@@ -1,6 +1,6 @@
 package edu.duke.bartesaghi.micromon.cluster
 
-import edu.duke.bartesaghi.micromon.Backend
+import edu.duke.bartesaghi.micromon.Config
 import edu.duke.bartesaghi.micromon.cluster.slurm.Gres
 import edu.duke.bartesaghi.micromon.linux.userprocessor.editPermissionsAs
 import edu.duke.bartesaghi.micromon.linux.userprocessor.writeStringAs
@@ -37,6 +37,11 @@ sealed interface Commands {
 	 */
 	fun representativeCommand(): String
 
+	/**
+	 * Any other parameters used by the command that don't appear in the command itself
+	 */
+	fun params(): String?
+
 
 	data class Config(
 		/**
@@ -66,7 +71,7 @@ sealed interface Commands {
 		 * Legacy, to support reading cluster jobs from the database in the old format.
 		 */
 		fun fromList(commands: List<*>, arraySize: Int?): Commands =
-			CommandsScript(commands.map { it as String }, arraySize)
+			CommandsScript(commands.map { it as String }, null, arraySize)
 	}
 }
 
@@ -94,6 +99,7 @@ private fun batchHeader(job: ClusterJob): String =
  */
 class CommandsScript(
 	val commands: List<String>,
+	val params: String?,
 	/** if true, runs the script as a SLURM array job */
 	override val arraySize: Int? = null,
 	override val bundleSize: Int? = null
@@ -105,6 +111,7 @@ class CommandsScript(
 
 		fun fromDoc(doc: Document) = CommandsScript(
 			commands = doc.getListOfStrings("commands") ?: emptyList(),
+			params = doc.getString("params"),
 			arraySize = doc.getInteger("arraySize")
 		)
 	}
@@ -114,6 +121,7 @@ class CommandsScript(
 	override fun toDoc() = Document().apply {
 		set("type", ID)
 		set("commands", commands)
+		set("params", params)
 		set("arraySize", arraySize)
 	}
 
@@ -122,6 +130,8 @@ class CommandsScript(
 
 	override fun representativeCommand(): String =
 		commands.firstOrNull() ?: ""
+
+	override fun params() = params
 
 	override suspend fun render(job: ClusterJob, config: Commands.Config): List<String> {
 
@@ -191,6 +201,8 @@ class CommandsGrid(
 	override fun representativeCommand(): String =
 		commands.firstOrNull()?.firstOrNull() ?: ""
 
+	override fun params() = null
+
 	override suspend fun render(job: ClusterJob, config: Commands.Config): List<String> {
 
 		val commands = ArrayList<String>()
@@ -249,7 +261,7 @@ fun singularityWrapper(job: ClusterJob, container: Container): (String) -> Strin
 	for (path in container.binds) {
 		singularityArgs.add("--bind=\"$path\"")
 	}
-	singularityArgs.add("--bind=\"${Backend.config.web.sharedDir}\"")
+	singularityArgs.add("--bind=\"${Config.instance.web.sharedDir}\"")
 
 	// set the working directory
 	singularityArgs += listOf("--pwd \"${job.dir}\"")
@@ -259,7 +271,7 @@ fun singularityWrapper(job: ClusterJob, container: Container): (String) -> Strin
 		.firstOrNull { it.startsWith("--partition=") }
 		?.let { arg ->
 			val queue = arg.split("=").getOrNull(1) ?: ""
-			val gpuQueues = Backend.config.slurm?.gpuQueues
+			val gpuQueues = Config.instance.slurm?.gpuQueues
 			gpuQueues != null && queue in gpuQueues
 		}
 		?: false

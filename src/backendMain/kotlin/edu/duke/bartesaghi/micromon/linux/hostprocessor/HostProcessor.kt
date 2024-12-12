@@ -181,6 +181,7 @@ class HostProcessor(
 
 	private suspend inline fun <reified T:Response> Connection.Responder.recv(): T {
 		return when (val response = recvResponse()) {
+			is Response.Error -> throw ErrorResponseException(response.reason)
 			is T -> response // ok
 			else -> throw UnexpectedResponseException(response)
 		}
@@ -206,6 +207,7 @@ class HostProcessor(
 					cmd.program,
 					cmd.args,
 					dir?.toString(),
+					cmd.envvars.map { it.name to it.value },
 					stdin = Request.Exec.Stdin.Ignore,
 					stdout = outPath
 						?.let { Request.Exec.Stdout.Write(it.toString()) }
@@ -264,6 +266,7 @@ class HostProcessor(
 					cmd.program,
 					cmd.args,
 					dir?.toString(),
+					cmd.envvars.map { it.name to it.value },
 					if (stdin) Request.Exec.Stdin.Stream else Request.Exec.Stdin.Ignore,
 					if (stdout) Request.Exec.Stdout.Stream else Request.Exec.Stdout.Ignore,
 					if (stderr) Request.Exec.Stderr.Stream else Request.Exec.Stderr.Ignore,
@@ -398,5 +401,7 @@ suspend inline fun <reified T:Response.ProcessEvent.Event> HostProcessor.Streami
 
 
 class UnexpectedResponseException(val response: Response) : RuntimeException("Unexpected response: $response")
+
+class ErrorResponseException(val reason: String) : RuntimeException("Host Processor error: $reason")
 
 class UnavailableError : IllegalStateException("The host processor is unavailable, try rebooting the website")

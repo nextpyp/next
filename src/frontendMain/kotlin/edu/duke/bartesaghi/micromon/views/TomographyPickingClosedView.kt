@@ -3,7 +3,6 @@ package edu.duke.bartesaghi.micromon.views
 import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.components.*
 import edu.duke.bartesaghi.micromon.diagram.nodes.TomographyPickingClosedNode
-import edu.duke.bartesaghi.micromon.diagram.nodes.clientInfo
 import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.*
 import io.kvision.core.Widget
@@ -46,6 +45,7 @@ class TomographyPickingClosedView(val project: ProjectData, val job: TomographyP
 		}
 	}
 
+	override val routed = Companion
 	override val elem = Div(classes = setOf("dock-page", "tomography-segmentation"))
 
 	// NOTE: the same instance of these controls should be used for all the tilt series
@@ -72,10 +72,15 @@ class TomographyPickingClosedView(val project: ProjectData, val job: TomographyP
 			// load all the tilt series
 			val loadingElem = elem.loading("Fetching tilt-series ...")
 			val data = TiltSeriesesData()
-			try {
+			val pypStats = try {
 				delayAtLeast(200) {
-					data.loadForProject(job.jobId, job.clientInfo, job.args.finished?.values)
-					pickingControls.load(default = ParticlesList.userPicking3D(job.jobId))
+					data.loadForProject(job, job.args.finished?.values)
+					when (val particles = data.particles) {
+						null -> Unit
+						is TiltSeriesesParticlesData.Data -> particles.list?.let { pickingControls.load(it) }
+						is TiltSeriesesParticlesData.VirusMode -> particles.virions.list?.let { pickingControls.load(it) }
+					}
+					Services.jobs.pypStats(job.jobId)
 				}
 			} catch (t: Throwable) {
 				elem.errorMessage(t)
@@ -86,11 +91,15 @@ class TomographyPickingClosedView(val project: ProjectData, val job: TomographyP
 
 			// show tilt series stats
 			val tiltSeriesStats = TiltSeriesStats()
+			tiltSeriesStats.loadCounts(data, OwnerType.Project, job.jobId, pickingControls.list)
 			elem.add(tiltSeriesStats)
-			tiltSeriesStats.updateSegmentation(data, pickingControls)
+
+			// show PYP stats
+			val statsLine = PypStatsLine(pypStats)
+				.also { elem.add(it) }
 
 			val tiltSeriesesElem = Div()
-			val listNav = BigListNav(data.tiltSerieses, has100 = false) e@{ index ->
+			val listNav = BigListNav(data.tiltSerieses, onSearch=data::searchById) e@{ index ->
 
 				// clear the previous contents
 				tiltSeriesesElem.removeAll()
@@ -114,15 +123,27 @@ class TomographyPickingClosedView(val project: ProjectData, val job: TomographyP
 					}
 				}
 
-				tiltSeriesesElem.add(pickingControls)
-				val particlesImage = TomoParticlesImage.forProject(project, job, data, tiltSeries, pickingControls)
-				particlesImage.onParticlesChange = {
-					tiltSeriesStats.updateSegmentation(data, pickingControls)
-				}
-				tiltSeriesesElem.add(particlesImage)
+				// show the tilt series content in tabs
+				tiltSeriesesElem.lazyTabPanel {
 
-				AppScope.launch {
-					particlesImage.load()
+					persistence = Storage::tomographyPickingOpenTabIndex
+
+					addTab("Reconstruction", "fas fa-desktop") { lazyTab ->
+
+						val particlesImage = TomoParticlesImage.forProject(project, job, data, tiltSeries, pickingControls)
+						particlesImage.onParticlesChange = {
+							tiltSeriesStats.picked(data, pickingControls)
+						}
+						lazyTab.elem.add(particlesImage)
+
+						lazyTab.elem.add(TomoSideViewImage(job.jobId, tiltSeries.id))
+
+						AppScope.launch {
+							particlesImage.load()
+						}
+					}
+
+					// TODO: segmentation tab
 				}
 			}
 
@@ -144,12 +165,12 @@ class TomographyPickingClosedView(val project: ProjectData, val job: TomographyP
 				for (msgstr in input) {
 					when (val msg = RealTimeS2C.fromJson(msgstr)) {
 						is RealTimeS2C.UpdatedParameters -> {
-							data.imagesScale = msg.imagesScale
 							listNav.reshow()
+							statsLine.stats = msg.pypStats
 						}
 						is RealTimeS2C.UpdatedTiltSeries -> {
-							data.update(msg)
-							tiltSeriesStats.updateSegmentation(data, pickingControls)
+							data.update(msg.tiltSeries)
+							tiltSeriesStats.increment(data, msg.tiltSeries)
 							listNav.newItem()
 						}
 						else -> Unit

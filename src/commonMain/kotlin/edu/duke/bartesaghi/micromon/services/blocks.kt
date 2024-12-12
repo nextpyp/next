@@ -43,8 +43,8 @@ interface PreprocessingData : HasID {
 	val defocus2: Double
 	val angleAstig: Double
 	val averageMotion: Double
-	val numParticles: Int
-	val sourceDims: ImageDims?
+	val numAutoParticles: Int
+	val imageDims: ImageDims
 }
 
 

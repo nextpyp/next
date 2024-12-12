@@ -1,5 +1,6 @@
 package edu.duke.bartesaghi.micromon.pyp
 
+import edu.duke.bartesaghi.micromon.services.ParticlesList
 import kotlinx.serialization.Serializable
 
 
@@ -63,17 +64,6 @@ var ArgValues.extractBox: Long?
 	get() = get(args.extractBox) as Long?
 	set(value) { set(args.extractBox, value) }
 
-val Args.extractBnd: Arg
-	get() = argOrThrow("extract", "bnd")
-fun Args.extractBndDefault(values: ArgValues): Long {
-		val src = (extractBnd.default as ArgValue.VRef).sourceArgOrThrow
-		return values[src] as Long?
-			?: (src.default as ArgValue.VInt).value
-	}
-var ArgValues.extractBnd: Long?
-	get() = get(args.extractBnd) as Long?
-	set(value) { set(args.extractBnd, value) }
-
 val Args.ctfMinRes: Arg
 	get() = argOrThrow("ctf", "min_res")
 val ArgValues.ctfMinResOrThrow: Double
@@ -81,10 +71,10 @@ val ArgValues.ctfMinResOrThrow: Double
 
 val Args.scopePixel: Arg
 	get() = argOrThrow("scope", "pixel")
-val ArgValues.scopePixel: Double?
-	get() = get(args.scopePixel) as Double?
-val ArgValues.scopePixelOrThrow: Double
-	get() = getOrThrow(args.scopePixel) as Double
+val ArgValues.scopePixel: ValueA?
+	get() = (get(args.scopePixel) as Double?)?.let { ValueA(it) }
+val ArgValues.scopePixelOrThrow: ValueA
+	get() = ValueA(getOrThrow(args.scopePixel) as Double)
 
 val Args.scopeVoltage: Arg
 	get() = argOrThrow("scope", "voltage")
@@ -97,6 +87,13 @@ val ArgValues.scopeDoseRate: Double?
 	get() = get(args.scopeDoseRate) as Double?
 val ArgValues.scopeDoseRateOrDefault: Double
 	get() = getOrDefault(args.scopeDoseRate) as Double
+
+val Args.tomoRecBinning: Arg
+	get() = argOrThrow("tomo_rec", "binning")
+val ArgValues.tomoRecBinning: Int?
+	get() = (get(args.tomoRecBinning) as Long?)?.toInt()
+val ArgValues.tomoRecBinningOrDefault: Int
+	get() = (getOrDefault(args.tomoRecBinning) as Long).toInt()
 
 val Args.refineMode: Arg
 	get() = argOrThrow("refine", "mode")
@@ -161,8 +158,6 @@ val ArgValues.sharpenCistemHighResBfactor: Double?
 	get() = get(args.sharpenCistemHighResBfactor) as Double?
 
 
-val Args.detectMethodExists: Boolean
-	get() = arg("detect", "method") != null
 val Args.detectMethod: Arg
 	get() = argOrThrow("detect", "method")
 val ArgValues.detectMethod: DetectMethod?
@@ -175,17 +170,17 @@ val ArgValues.detectMethodOrDefault: DetectMethod
 		)
 
 @Serializable
-enum class DetectMethod(val id: String, val isEnabled: Boolean) {
+enum class DetectMethod(val id: String, val particlesList: (ownerId: String) -> ParticlesList?) {
 
-	None("none", false),
-	Auto("auto", true),
-	All("all", true),
-	Manual("manual", true),
-	Import("import", true),
-	PYPTrain("pyp-train", true),
-	PYPEval("pyp-eval", true),
-	TopazTrain("topaz-train", true),
-	TopazEval("topaz-eval", true);
+	None("none", { null }),
+	Auto("auto", { ParticlesList.autoParticles2D(it) }),
+	All("all", { ParticlesList.autoParticles2D(it) }),
+	Manual("manual", { ParticlesList.manualParticles2D(it) }),
+	Import("import", { ParticlesList.autoParticles2D(it) }),
+	PYPTrain("pyp-train", { ParticlesList.manualParticles2D(it) }),
+	PYPEval("pyp-eval", { ParticlesList.autoParticles2D(it) }),
+	TopazTrain("topaz-train", { ParticlesList.manualParticles2D(it) }),
+	TopazEval("topaz-eval", { ParticlesList.autoParticles2D(it) });
 
 	companion object {
 		operator fun get(id: String?): DetectMethod? =
@@ -195,14 +190,12 @@ enum class DetectMethod(val id: String, val isEnabled: Boolean) {
 
 val Args.detectRad: Arg
 	get() = argOrThrow("detect", "rad")
-val ArgValues.detectRad: Double?
-	get() = get(args.detectRad) as Double?
-val ArgValues.detectRadOrThrow: Double
-	get() = getOrThrow(args.detectRad) as Double
+val ArgValues.detectRad: ValueA?
+	get() = (get(args.detectRad) as Double?)?.let { ValueA(it) }
+val ArgValues.detectRadOrThrow: ValueA
+	get() = ValueA(getOrThrow(args.detectRad) as Double)
 
 
-val Args.tomoVirMethodExists: Boolean
-	get() = arg("tomo_vir", "method") != null
 val Args.tomoVirMethod: Arg
 	get() = argOrThrow("tomo_vir", "method")
 val ArgValues.tomoVirMethod: TomoVirMethod?
@@ -215,15 +208,13 @@ val ArgValues.tomoVirMethodOrDefault: TomoVirMethod
 		)
 
 @Serializable
-enum class TomoVirMethod(val id: String, val isEnabled: Boolean, val usesAutoList: Boolean) {
+enum class TomoVirMethod(val id: String, val particlesList: (ownerId: String) -> ParticlesList?) {
 
-	None("none", false, false),
-	Auto("auto", true, true),
-	Manual("manual", true, false),
-	PYPTrain("pyp-train", true, false),
-	PYPEval("pyp-eval", true, true),
-	TopazTrain("topaz-train", true, false),
-	TopazEval("topaz-eval", true, true);
+	None("none", { null }),
+	Auto("auto", { ParticlesList.autoVirions(it) }),
+	Manual("manual", { ParticlesList.manualVirions(it) }),
+	PYPTrain("pyp-train", { ParticlesList.manualVirions(it) }),
+	PYPEval("pyp-eval", { ParticlesList.autoVirions(it) });
 
 	companion object {
 		operator fun get(id: String?): TomoVirMethod? =
@@ -233,10 +224,10 @@ enum class TomoVirMethod(val id: String, val isEnabled: Boolean, val usesAutoLis
 
 val Args.tomoVirRad: Arg
 	get() = argOrThrow("tomo_vir", "rad")
-val ArgValues.tomoVirRad: Double?
-	get() = get(args.tomoVirRad) as Double?
-val ArgValues.tomoVirRadOrDefault: Double
-	get() = getOrDefault(args.tomoVirRad) as Double
+val ArgValues.tomoVirRad: ValueA?
+	get() = (get(args.tomoVirRad) as Double?)?.let { ValueA(it) }
+val ArgValues.tomoVirRadOrDefault: ValueA
+	get() = ValueA(getOrDefault(args.tomoVirRad) as Double)
 
 
 val Args.tomoVirBinn: Arg
@@ -247,12 +238,64 @@ val ArgValues.tomoVirBinnOrDefault: Long
 	get() = getOrDefault(args.tomoVirBinn) as Long
 
 
-val Args.tomoSpkMethodExists: Boolean
-	get() = arg("tomo_spk", "method") != null
+val Args.tomoVirDetectMethod: Arg
+	get() = argOrThrow("tomo_vir", "detect_method")
+val ArgValues.tomoVirDetectMethod: TomoVirDetectMethod?
+	get() = TomoVirDetectMethod[get(args.tomoVirDetectMethod) as String?]
+val ArgValues.tomoVirDetectMethodOrDefault: TomoVirDetectMethod
+	get() = TomoVirDetectMethod[getOrDefault(args.tomoVirDetectMethod) as String]
+		?: throw NoSuchElementException(
+			"tomoVirDetectMethod default ${getOrDefault(args.tomoVirDetectMethod)} is invalid."
+				+ " Need one of ${TomoVirDetectMethod.values().map { it.id }}"
+		)
+
+@Serializable
+enum class TomoVirDetectMethod(val id: String, val particlesList: (ownerId: String) -> ParticlesList?) {
+
+	None("none", { null }),
+	Auto("template", { ParticlesList.autoParticles3D(it) }),
+	Manual("mesh", { ParticlesList.autoParticles3D(it) });
+
+	companion object {
+		operator fun get(id: String?): TomoVirDetectMethod? =
+			values().find { it.id == id }
+	}
+}
+
+
+val Args.tomoPickMethod: Arg
+	get() = argOrThrow("tomo_pick", "method")
+var ArgValues.tomoPickMethod: TomoPickMethod?
+	get() = TomoPickMethod[get(args.tomoPickMethod) as String?]
+	set(value) { set(args.tomoPickMethod, value?.id) }
+val ArgValues.tomoPickMethodOrDefault: TomoPickMethod
+	get() = TomoPickMethod[getOrDefault(args.tomoPickMethod) as String]
+		?: throw NoSuchElementException(
+			"tomoPickMethod default ${getOrDefault(args.tomoPickMethod)} is invalid."
+				+ " Need one of ${TomoPickMethod.values().map { it.id }}"
+		)
+
+
+@Serializable
+enum class TomoPickMethod(val id: String, val particlesList: (ownerId: String) -> ParticlesList?) {
+
+	None("none", { null }),
+	Auto("auto", { ParticlesList.autoParticles3D(it) }),
+	Import("import", { ParticlesList.autoParticles3D(it) }),
+	Manual("manual", { ParticlesList.manualParticles3D(it) }),
+	Virions("virions", { ParticlesList.autoParticles3D(it) });
+
+	companion object {
+		operator fun get(id: String?): TomoPickMethod? =
+			values().find { it.id == id }
+	}
+}
+
 val Args.tomoSpkMethod: Arg
 	get() = argOrThrow("tomo_spk", "method")
-val ArgValues.tomoSpkMethod: TomoSpkMethod?
+var ArgValues.tomoSpkMethod: TomoSpkMethod?
 	get() = TomoSpkMethod[get(args.tomoSpkMethod) as String?]
+	set(value) { set(args.tomoSpkMethod, value?.id) }
 val ArgValues.tomoSpkMethodOrDefault: TomoSpkMethod
 	get() = TomoSpkMethod[getOrDefault(args.tomoSpkMethod) as String]
 		?: throw NoSuchElementException(
@@ -260,17 +303,18 @@ val ArgValues.tomoSpkMethodOrDefault: TomoSpkMethod
 				+ " Need one of ${TomoSpkMethod.values().map { it.id }}"
 		)
 
-@Serializable
-enum class TomoSpkMethod(val id: String, val isEnabled: Boolean, val usesAutoList: Boolean) {
 
-	None("none", false, false),
-	Auto("auto", true, true),
-	Import("import", true, true),
-	Manual("manual", true, false),
-	MiloTrain("milo-train", true, false),
-	MiloEval("milo-eval", true, true),
-	PYPTrain("pyp-train", true, false),
-	PYPEval("pyp-eval", true, true);
+@Serializable
+enum class TomoSpkMethod(val id: String, val particlesList: (ownerId: String) -> ParticlesList?) {
+
+	None("none", { null }),
+	Auto("auto", { ParticlesList.autoParticles3D(it) }),
+	Import("import", { ParticlesList.autoParticles3D(it) }),
+	Manual("manual", { ParticlesList.manualParticles3D(it) }),
+	PYPTrain("pyp-train", { ParticlesList.autoParticles3D(it) }),
+	PYPEval("pyp-eval", { ParticlesList.autoParticles3D(it) }),
+	TopazTrain("topaz-train", { ParticlesList.autoParticles3D(it) }),
+	TopazEval("topaz-eval", { ParticlesList.autoParticles3D(it) });
 
 	companion object {
 		operator fun get(id: String?): TomoSpkMethod? =
@@ -281,10 +325,43 @@ enum class TomoSpkMethod(val id: String, val isEnabled: Boolean, val usesAutoLis
 
 val Args.tomoSpkRad: Arg
 	get() = argOrThrow("tomo_spk", "rad")
-val ArgValues.tomoSpkRad: Double?
-	get() = get(args.tomoSpkRad) as Double?
-val ArgValues.tomoSpkRadOrDefault: Double
-	get() = getOrDefault(args.tomoSpkRad) as Double
+val ArgValues.tomoSpkRad: ValueA?
+	get() = (get(args.tomoSpkRad) as Double?)?.let { ValueA(it) }
+val ArgValues.tomoSpkRadOrDefault: ValueA
+	get() = ValueA(getOrDefault(args.tomoSpkRad) as Double)
+
+
+val Args.tomoPickRad: Arg
+	get() = argOrThrow("tomo_pick", "rad")
+val ArgValues.tomoPickRad: ValueA?
+	get() = (get(args.tomoPickRad) as Double?)?.let { ValueA(it) }
+val ArgValues.tomoPickRadOrDefault: ValueA
+	get() = ValueA(getOrDefault(args.tomoPickRad) as Double)
+
+
+val Args.tomoSrfMethod: Arg
+	get() = argOrThrow("tomo_srf", "detect_method")
+val ArgValues.tomoSrfMethod: TomoSrfMethod?
+	get() = TomoSrfMethod[get(args.tomoSrfMethod) as String?]
+val ArgValues.tomoSrfMethodOrDefault: TomoSrfMethod
+	get() = TomoSrfMethod[getOrDefault(args.tomoSrfMethod) as String]
+		?: throw NoSuchElementException(
+			"tomoSrfMethod default ${getOrDefault(args.tomoSrfMethod)} is invalid."
+				+ " Need one of ${TomoSrfMethod.values().map { it.id }}"
+		)
+
+@Serializable
+enum class TomoSrfMethod(val id: String, val particlesList: (ownerId: String) -> ParticlesList?) {
+
+	None("none", { null }),
+	Template("template", { ParticlesList.autoParticles3D(it) }),
+	Mesh("mesh", { ParticlesList.autoParticles3D(it) });
+
+	companion object {
+		operator fun get(id: String?): TomoSrfMethod? =
+			values().find { it.id == id }
+	}
+}
 
 
 /**
@@ -393,3 +470,10 @@ val ArgValues.slurmLaunchQueue: String?
 
 val ArgValues.slurmLaunchGres: String?
 	get() = get(MicromonArgs.slurmLaunchGres) as String?
+
+
+val Args.micromonBlock: Arg
+	get() = argOrThrow("micromon", "block")
+var ArgValues.micromonBlock: String?
+	get() = get(args.micromonBlock) as String?
+	set(value) { set(args.micromonBlock, value) }

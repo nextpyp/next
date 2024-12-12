@@ -27,6 +27,7 @@ class SingleParticleRawDataJob(
 
 		override val config = SingleParticleRawDataNodeConfig
 		override val dataType = JobInfo.DataType.Micrograph
+		override val dataClass = SingleParticleRawDataData::class
 
 		override fun fromDoc(doc: Document) = SingleParticleRawDataJob(
 			doc.getString("userId"),
@@ -91,9 +92,7 @@ class SingleParticleRawDataJob(
 		wwwDir.recreateAs(project.osUsername)
 
 		// build the args for PYP
-		val pypArgs = launchArgValues(null, args.newestOrThrow().args.values, args.finished?.values)
-
-		// set the hidden args
+		val pypArgs = launchArgValues()
 		pypArgs.dataMode = "spr"
 
 		Pyp.gyp.launch(project.osUsername, runId, pypArgs, "Check gain reference", "pyp_gainref")
@@ -119,6 +118,15 @@ class SingleParticleRawDataJob(
 
 		// update the representative image
 		Project.representativeImages[userId, projectId, RepresentativeImageType.GainCorrected, idOrThrow] = representativeImage()
+	}
+
+	override fun wipeData() {
+
+		// no data to wipe
+
+		// also reset the finished args
+		args.unrun()
+		update()
 	}
 
 	fun diagramImageURL(): String =

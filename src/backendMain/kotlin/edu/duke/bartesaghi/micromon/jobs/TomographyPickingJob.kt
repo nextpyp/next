@@ -9,11 +9,10 @@ import edu.duke.bartesaghi.micromon.services.*
 import org.bson.Document
 import org.bson.conversions.Bson
 
-
 class TomographyPickingJob(
 	userId: String,
 	projectId: String
-) : Job(userId, projectId, config), TiltSeriesesJob {
+) : Job(userId, projectId, config), TiltSeriesesJob, ManualParticlesJob {
 
 	val args = JobArgs<TomographyPickingArgs>()
 	override var latestTiltSeriesId: String? = null
@@ -25,6 +24,7 @@ class TomographyPickingJob(
 
 		override val config = TomographyPickingNodeConfig
 		override val dataType = JobInfo.DataType.TiltSeries
+		override val dataClass = TomographyPickingData::class
 
 		override fun fromDoc(doc: Document) = TomographyPickingJob(
 			doc.getString("userId"),
@@ -38,11 +38,15 @@ class TomographyPickingJob(
 
 		private fun TomographyPickingArgs.toDoc() = Document().also { doc ->
 			doc["values"] = values
+			doc["filter"] = filter
+			doc["particlesName"] = particlesName
 		}
 
 		private fun TomographyPickingArgs.Companion.fromDoc(doc: Document) =
 			TomographyPickingArgs(
-				doc.getString("values")
+				doc.getString("values"),
+				doc.getString("filter"),
+				doc.getString("particlesName")
 			)
 
 		val eventListeners = TiltSeriesEventListeners(this)
@@ -67,24 +71,38 @@ class TomographyPickingJob(
 		TomographyPickingData(
 			commonData(),
 			args,
-			diagramImageURL()
+			diagramImageURL(),
+			args.finished
+				?.particlesList(args(), idOrThrow)
+				?.let { Database.instance.particles.countAllParticles(idOrThrow, it.name) }
+				?: 0
 		)
 
 	override suspend fun launch(runId: Int) {
 
 		val project = projectOrThrow()
+		val newestArgs = args.newestOrThrow().args
 
 		// clear caches
 		wwwDir.recreateAs(project.osUsername)
 
-		// build the args for PYP
+		// get the input jobs
 		val upstreamJob = inTomograms?.resolveJob<Job>()
 			?: throw IllegalStateException("no tomograms input configured")
-		val pypArgs = launchArgValues(upstreamJob, args.newestOrThrow().args.values, args.finished?.values)
 
-		// set the hidden args
+		// write out the filter from the upstream job, if needed
+		if (upstreamJob is FilteredJob && newestArgs.filter != null) {
+			upstreamJob.writeFilter(newestArgs.filter, dir, project.osUsername)
+		}
+
+		// write out manually-picked particles from the upstream job, if needed
+		ParticlesJobs.clear(project.osUsername, dir)
+		manualParticlesList(newestArgs.particlesName)
+			?.let { ParticlesJobs.writeTomography(project.osUsername, this, dir, it) }
+
+		// build the args for PYP
+		val pypArgs = launchArgValues()
 		pypArgs.dataMode = "tomo"
-		pypArgs.dataParent = upstreamJob.dir.toString()
 
 		Pyp.pyp.launch(project.osUsername, runId, pypArgs, "Launch", "pyp_launch")
 
@@ -111,9 +129,26 @@ class TomographyPickingJob(
 	override fun wipeData() {
 
 		// also delete any associated data
-		Database.tiltSeries.deleteAll(idOrThrow)
-		Database.particleLists.deleteAll(idOrThrow)
-		Database.particles.deleteAllParticles(idOrThrow)
+		Database.instance.tiltSeries.deleteAll(idOrThrow)
+		Database.instance.particleLists.deleteAll(idOrThrow)
+		Database.instance.particles.deleteAllParticles(idOrThrow)
+		Database.instance.parameters.delete(idOrThrow)
+
+		// also reset the finished args
+		args.unrun()
+		latestTiltSeriesId = null
+		update()
+	}
+
+	override fun copyDataFrom(otherJobId: String) {
+
+		Database.instance.tiltSeries.copyAll(otherJobId, idOrThrow)
+		Database.instance.particleLists.copyAll(otherJobId, idOrThrow)
+		Database.instance.particles.copyAllParticles(otherJobId, idOrThrow)
+		Database.instance.parameters.copy(otherJobId, idOrThrow)
+
+		latestTiltSeriesId = fromIdOrThrow(otherJobId).cast<TomographyPickingJob>().latestTiltSeriesId
+		update()
 	}
 
 	override fun newestArgValues(): ArgValuesToml? =
@@ -121,4 +156,7 @@ class TomographyPickingJob(
 
 	override fun finishedArgValues(): ArgValuesToml? =
 		args.finished?.values
+
+	override fun manualParticlesListName(): String =
+		ParticlesList.ManualParticles
 }

@@ -43,7 +43,7 @@ class UserProcessor(
 
 		private suspend fun find(hostProcessor: HostProcessor, username: String): Path {
 
-			val path = Config.instance.web.sharedDir / "user-processors" / "user-processor-$username"
+			val path = Config.instance.web.sharedExecDir / "user-processors" / "user-processor-$username"
 			val failures = ArrayList<String>()
 
 			// find the uid
@@ -304,7 +304,11 @@ class UserProcessor(
 
 				// dispatch to a responder
 				val responder = responders { it[response.requestId.toLong()] }
-				responder?.channel?.send(response.response)
+				if (responder == null) {
+					log.warn("received response but no responder is listening, ignoring")
+					continue
+				}
+				responder.channel.send(response.response)
 
 			} catch (ex: ClosedSendChannelException) {
 				// responder channel closed, safe to ignore
@@ -371,26 +375,44 @@ class UserProcessor(
 				it.recv().cast<Response.Uids>()
 			}
 
-	suspend fun readFile(path: Path): ByteArray =
-		request(Request.ReadFile(path.toString()))
-			.use { it.readFile() }
+	interface FileReader : SuspendCloseable {
 
-	private suspend fun Responder.readFile(): ByteArray {
+		val size: ULong
+
+		/** reads a single chunk, or null for end-of-file */
+		suspend fun read(): ByteArray?
+
+		suspend fun readAll(): ByteArray {
+
+			// allocate a buffer for the file
+			val buf = ByteArray(run {
+				val i = size.toInt()
+				if (i.toULong() != size) {
+					throw UnsupportedOperationException("file too large to read at once: $size bytes")
+				}
+				i
+			})
+
+			// read in all the chunks
+			var bytesRead = 0
+			while (true) {
+				val chunk = read()
+					?: break
+				chunk.copyInto(buf, bytesRead)
+				bytesRead += chunk.size
+			}
+
+			return buf
+		}
+	}
+
+	private suspend fun Responder.fileReader(): FileReader {
 
 		// wait for the open
 		val open = recv()
 			.cast<Response.ReadFile>()
 			.response
 			.cast<Response.ReadFile.Open>()
-
-		// allocate a buffer for the file
-		val buf = ByteArray(run {
-			val i = open.bytes.toInt()
-			if (i.toULong() != open.bytes) {
-				throw UnsupportedOperationException("file too large to read: ${open.bytes} bytes")
-			}
-			i
-		})
 
 		// make sure the chunks come in the correct sequence
 		// TODO: do we need to re-order?
@@ -402,27 +424,55 @@ class UserProcessor(
 			sequence += 1u
 		}
 
-		// read in all the chunks
-		var bytesRead = 0
-		while (bytesRead < buf.size) {
-			val chunk = recv()
-				.cast<Response.ReadFile>()
-				.response
-				.cast<Response.ReadFile.Chunk>()
-			checkSequence(chunk.sequence)
-			chunk.data.copyInto(buf, bytesRead)
-			bytesRead += chunk.data.size
+		var bytesRead = 0UL
+
+		return object : FileReader {
+
+			override val size = open.bytes
+
+			override suspend fun read(): ByteArray? {
+				if (bytesRead < size) {
+
+					// wait for the next chunk
+					val chunk = recv()
+						.cast<Response.ReadFile>()
+						.response
+						.cast<Response.ReadFile.Chunk>()
+					checkSequence(chunk.sequence)
+					bytesRead += chunk.data.size.toULong()
+					return chunk.data
+
+				} else {
+
+					// wait for close
+					val close = recv()
+						.cast<Response.ReadFile>()
+						.response
+						.cast<Response.ReadFile.Close>()
+					checkSequence(close.sequence)
+					return null
+				}
+			}
+
+			override suspend fun closeAll() {
+
+				// close the responder
+				this@fileReader.closeAll()
+
+				// we can't really do anything here to close the stream
+				// (since the user-processor will keep sending regardless)
+				// so at least complain if the stream is closed too early
+				// TODO: implement a feedback mechanism to tell the user-processor to stop sending?
+				if (bytesRead < size) {
+					throw IllegalStateException("file read stream closed before finish")
+				}
+			}
 		}
-
-		// wait for close
-		val close = recv()
-			.cast<Response.ReadFile>()
-			.response
-			.cast<Response.ReadFile.Close>()
-		checkSequence(close.sequence)
-
-		return buf
 	}
+
+	suspend fun readFile(path: Path): FileReader =
+		request(Request.ReadFile(path.toString()))
+			.fileReader()
 
 	interface FileWriter : SuspendCloseable {
 
@@ -513,9 +563,17 @@ class UserProcessor(
 	suspend fun listFolder(path: Path): Sequence<FileEntry> {
 
 		val list = request(Request.ListFolder(path.toString()))
-			.use { it.readFile() }
+			.fileReader()
+			.use { it.readAll() }
 
 		return FileEntry.reader(list)
+	}
+
+	suspend fun copyFolder(src: Path, dst: Path) {
+		request(Request.CopyFolder(src.toString(), dst.toString()))
+			.use { responder ->
+				responder.recv().cast<Response.CopyFolder>()
+			}
 	}
 
 	suspend fun stat(path: Path): Response.Stat.Response =

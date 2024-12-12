@@ -19,12 +19,13 @@ class TomographyPickingClosedJob(
 	override var latestTiltSeriesId: String? = null
 	override val eventListeners get() = Companion.eventListeners
 
-	var inMovieRefinement: CommonJobData.DataId? by InputProp(config.inMovieRefinement)
+	var inSegmentation: CommonJobData.DataId? by InputProp(config.segmentation)
 
 	companion object : JobInfo {
 
 		override val config = TomographyPickingClosedNodeConfig
 		override val dataType = JobInfo.DataType.TiltSeries
+		override val dataClass = TomographyPickingClosedData::class
 
 		override fun fromDoc(doc: Document) = TomographyPickingClosedJob(
 			doc.getString("userId"),
@@ -67,7 +68,11 @@ class TomographyPickingClosedJob(
 		TomographyPickingClosedData(
 			commonData(),
 			args,
-			diagramImageURL()
+			diagramImageURL(),
+			args.finished
+				?.particlesList(args(), idOrThrow)
+				?.let { Database.instance.particles.countAllParticles(idOrThrow, it.name) }
+				?: 0
 		)
 
 	override suspend fun launch(runId: Int) {
@@ -77,14 +82,16 @@ class TomographyPickingClosedJob(
 		// clear caches
 		wwwDir.recreateAs(project.osUsername)
 
-		// build the args for PYP
-		val upstreamJob = inMovieRefinement?.resolveJob<Job>()
-			?: throw IllegalStateException("no movie refinement input configured")
-		val pypArgs = launchArgValues(upstreamJob, args.newestOrThrow().args.values, args.finished?.values)
+		val upstreamJob = inSegmentation?.resolveJob<Job>()
+			?: throw IllegalStateException("no segmentation input configured")
 
-		// set the hidden args
+		// always write out particles from the upstream job, so we can get the segmentation thresholds
+		ParticlesJobs.clear(project.osUsername, dir)
+		ParticlesJobs.writeTomography(project.osUsername, upstreamJob, dir, ParticlesList.autoVirions(upstreamJob.idOrThrow))
+
+		// build the args for PYP
+		val pypArgs = launchArgValues()
 		pypArgs.dataMode = "tomo"
-		pypArgs.dataParent = upstreamJob.dir.toString()
 
 		Pyp.pyp.launch(project.osUsername, runId, pypArgs, "Launch", "pyp_launch")
 
@@ -111,9 +118,14 @@ class TomographyPickingClosedJob(
 	override fun wipeData() {
 
 		// also delete any associated data
-		Database.tiltSeries.deleteAll(idOrThrow)
-		Database.particleLists.deleteAll(idOrThrow)
-		Database.particles.deleteAllParticles(idOrThrow)
+		Database.instance.tiltSeries.deleteAll(idOrThrow)
+		Database.instance.particleLists.deleteAll(idOrThrow)
+		Database.instance.particles.deleteAllParticles(idOrThrow)
+
+		// also reset the finished args
+		args.unrun()
+		latestTiltSeriesId = null
+		update()
 	}
 
 	override fun newestArgValues(): ArgValuesToml? =

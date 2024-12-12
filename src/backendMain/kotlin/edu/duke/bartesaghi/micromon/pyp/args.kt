@@ -39,24 +39,11 @@ fun Args.Companion.fromToml(toml: String): Args {
 			}
 		}
 
-		val forwardedGroupIds = blockTable.getArray("forwarded_tabs")
-			?.let { array ->
-				(0 until array.size()).map { i ->
-					val id = array.getString(i)
-					if (id in groupIds) {
-						throw TomlParseException("forwarded tab shouldn't also be a regular tab: $id", array.inputPositionOf(i))
-					}
-					id
-				}
-			}
-			?: emptyList()
-
 		blocks.add(Block(
 			blockId,
 			name = blockTable.getStringOrThrow("name", blockPos),
 			description = blockTable.getStringOrThrow("description", blockPos),
-			groupIds = groupIds,
-			forwardedGroupIds = forwardedGroupIds
+			groupIds = groupIds
 		))
 	}
 
@@ -214,10 +201,14 @@ fun TomlTable.getInput(key: String): ArgInput? {
 	return when (val inputTypeId = inputTable.getStringOrThrow("type", pos)) {
 
 		ArgInput.ParFile.id -> ArgInput.ParFile()
+		ArgInput.StarFile.id -> ArgInput.StarFile()
+		ArgInput.ParquetFile.id -> ArgInput.ParquetFile()
 		ArgInput.TxtFile.id -> ArgInput.TxtFile()
 		ArgInput.InitialModel.id -> ArgInput.InitialModel()
 		ArgInput.HalfMap.id -> ArgInput.HalfMap()
 		ArgInput.TopazTrainedModel.id -> ArgInput.TopazTrainedModel()
+		ArgInput.IsonetTrainedModel.id -> ArgInput.IsonetTrainedModel()
+		ArgInput.CryocareTrainedModel.id -> ArgInput.CryocareTrainedModel()
 		ArgInput.TrainedModel2D.id -> ArgInput.TrainedModel2D()
 		ArgInput.TrainedModel3D.id -> ArgInput.TrainedModel3D()
 
@@ -290,60 +281,6 @@ fun TomlTable.getCondition(key: String): ArgCondition? {
 
 		else -> throw TomlParseException("unrecognized conditionl value: $value", pos)
 	}
-}
-
-
-/**
- * translates argument values into a command line suitable for PYP programs
- */
-fun ArgValues.toPypCLI(): List<String> {
-	val out = ArrayList<String>()
-	for (arg in args.args) {
-
-		// only output arguments intended for pyp
-		if (arg.target != ArgTarget.Pyp) {
-			continue
-		}
-
-		val id = arg.fullId
-
-		// handle reset sentinel values
-		if (this[arg] == ArgValueReset) {
-			when (arg.type) {
-
-				// for string-like values (including paths), send an empty string
-				is ArgType.TStr,
-				is ArgType.TPath -> out.add("-$id \"\"")
-
-				// no special reset values exist for other arg types
-				else -> {
-					Backend.log.warn("""
-						|ArgValueReset sentinel value encountered for pyp argument $id,
-						|but arg type ${arg.type.argTypeId} has no emtpy value.
-						|Omitting argument from pyp command-line.
-					""".trimMargin())
-				}
-			}
-			continue
-		}
-
-		val value = arg.type.valueOf(this[arg]) ?: continue
-		when (value) {
-			is ArgValue.VBool ->
-				when (value.value) {
-					true -> out.add("-$id")
-					false -> out.add("-no-$id")
-				}
-			is ArgValue.VInt -> out.add("-$id ${value.value}")
-			is ArgValue.VFloat -> out.add("-$id ${value.value}")
-			is ArgValue.VFloat2 -> out.add("-$id (${value.value.first},${value.value.second})")
-			is ArgValue.VStr -> out.add("-$id ${value.value.quote()}")
-			is ArgValue.VEnum -> out.add("-$id ${value.value}")
-			is ArgValue.VPath -> out.add("-$id ${value.value.quote()}")
-			is ArgValue.VRef -> throw IllegalArgumentException("references are not valid values for PYP command line")
-		}
-	}
-	return out
 }
 
 

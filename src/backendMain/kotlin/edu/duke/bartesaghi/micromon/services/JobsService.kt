@@ -15,6 +15,7 @@ import io.ktor.util.*
 import io.ktor.util.pipeline.*
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlin.io.path.div
 
 
 actual class JobsService : IJobsService, Service {
@@ -227,6 +228,19 @@ actual class JobsService : IJobsService, Service {
 						}
 					}
 				}
+
+				get("image/{size}") {
+					call.respondExceptions {
+
+						// parse args
+						val jobId = parseJobId()
+						val size = parseSize()
+
+						val bytes = service.getOutputImage(jobId, size)
+
+						call.respondBytes(bytes, ContentType.Image.WebP)
+					}
+				}
 			}
 		}
 
@@ -259,13 +273,6 @@ actual class JobsService : IJobsService, Service {
 	private fun getTiltSeriesOrThrow(jobId: String, tiltSeries: String): TiltSeries =
 		TiltSeries.get(jobId, tiltSeries)
 			?: throw NoSuchElementException("no tilt series with id $tiltSeries found in job $jobId")
-
-	override suspend fun getImagesScale(jobId: String): Option<ImagesScale> = sanitizeExceptions {
-		val job = jobId.authJob(ProjectPermission.Read).job
-		job.pypParameters()
-			?.let { job.imagesScale(it) }
-			.toOption()
-	}
 
 	fun getMicrographs(jobId: String): List<MicrographMetadata> {
 		jobId.authJob(ProjectPermission.Read).job.hasMicrographsOrThrow()
@@ -414,22 +421,18 @@ actual class JobsService : IJobsService, Service {
 
 	override suspend fun getTiltExclusions(jobId: String, tiltSeriesId: String): TiltExclusions = sanitizeExceptions {
 		jobId.authJob(ProjectPermission.Read).job
-		return TiltExclusions(Database.tiltExclusions.getForTiltSeries(jobId, tiltSeriesId) ?: emptyMap())
+		return TiltExclusions(Database.instance.tiltExclusions.getForTiltSeries(jobId, tiltSeriesId) ?: emptyMap())
 	}
 
 	override suspend fun setTiltExclusion(jobId: String, tiltSeriesId: String, tiltIndex: Int, value: Boolean) = sanitizeExceptions {
 		jobId.authJob(ProjectPermission.Write).job
-		Database.tiltExclusions.setForTilt(jobId, tiltSeriesId, tiltIndex, value)
+		Database.instance.tiltExclusions.setForTilt(jobId, tiltSeriesId, tiltIndex, value)
 	}
 
 	override suspend fun pypStats(jobId: String): PypStats = sanitizeExceptions {
-		val job = jobId.authJob(ProjectPermission.Read).job
-		val argsValues = Database.parameters.getParams(jobId)
-		return when (job.baseConfig.jobInfo.dataType) {
-			JobInfo.DataType.Micrograph -> PypStats.fromSingleParticle(argsValues)
-			JobInfo.DataType.TiltSeries -> PypStats.fromTomography(argsValues)
-			else -> throw NoSuchElementException("job ${job.baseConfig.id} has no data type")
-		}
+		jobId.authJob(ProjectPermission.Read).job
+		val argsValues = Database.instance.parameters.getParams(jobId)
+		PypStats.fromArgValues(argsValues)
 	}
 
 	override suspend fun recData(jobId: String, tiltSeriesId: String): Option<FileDownloadData> = sanitizeExceptions {
@@ -470,5 +473,21 @@ actual class JobsService : IJobsService, Service {
 		//       so don't try to look for it here. Just look for the metadata file among this job's files
 		return TiltSeries.metadataPath(job.dir, tiltSeriesId)
 			.readBytes()
+	}
+
+	suspend fun getOutputImage(jobId: String, size: ImageSize): ByteArray {
+
+		val job = jobId.authJob(ProjectPermission.Read).job
+
+		val imagePath = job.dir / "webp/out.webp"
+		val cacheInfo = ImageCacheInfo(job.wwwDir, "output")
+
+		return size.readResize(imagePath, ImageType.Webp, cacheInfo)
+			// no image, return a placeholder
+			?: Resources.placeholderJpg(size)
+	}
+
+	override suspend fun getAllArgs(): Serialized<Args> = sanitizeExceptions {
+		Backend.instance.pypArgs.toJson()
 	}
 }

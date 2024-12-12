@@ -1,19 +1,19 @@
 package edu.duke.bartesaghi.micromon.services
 
 import com.google.inject.Inject
-import edu.duke.bartesaghi.micromon.AuthException
-import edu.duke.bartesaghi.micromon.Backend
-import edu.duke.bartesaghi.micromon.LinkTree
+import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.projects.Project
 import edu.duke.bartesaghi.micromon.auth.authOrThrow
 import edu.duke.bartesaghi.micromon.cluster.Cluster
 import edu.duke.bartesaghi.micromon.jobs.Job
 import edu.duke.bartesaghi.micromon.jobs.JobRunner
+import edu.duke.bartesaghi.micromon.jobs.jobInfo
 import edu.duke.bartesaghi.micromon.linux.DU
 import edu.duke.bartesaghi.micromon.mongo.*
+import edu.duke.bartesaghi.micromon.nodes.NodeConfigs
 import edu.duke.bartesaghi.micromon.nodes.Workflow
+import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
 import edu.duke.bartesaghi.micromon.pyp.Workflows
-import edu.duke.bartesaghi.micromon.sanitizeExceptions
 import io.ktor.application.ApplicationCall
 import io.kvision.remote.ServiceException
 import kotlinx.coroutines.launch
@@ -41,7 +41,7 @@ actual class ProjectsService : IProjectsService {
 			if (user.isAdmin && userId == user.id) {
 
 				// admins listing their own projects always get all projects instead
-				Database.projects.getAll { docs ->
+				Database.instance.projects.getAll { docs ->
 					docs
 						.map { Project(it).toData(user) }
 						.toList()
@@ -49,14 +49,14 @@ actual class ProjectsService : IProjectsService {
 
 			} else {
 				// get the projects owned by the target user
-				val ownedProjects = Database.projects.getAllOwnedBy(userId) { docs ->
+				val ownedProjects = Database.instance.projects.getAllOwnedBy(userId) { docs ->
 					docs
 						.map { Project(it).toData(user) }
 						.toList()
 				}
 
 				// and any projects they can read too
-				val readableProjects = Database.projects.getAllReadableBy(userId) { docs ->
+				val readableProjects = Database.instance.projects.getAllReadableBy(userId) { docs ->
 					docs
 						.map { Project(it).toData(user) }
 						.toList()
@@ -77,23 +77,23 @@ actual class ProjectsService : IProjectsService {
 		user.notDemoOrThrow()
 
 		// check project limits, if any
-		Backend.config.web.maxProjectsPerUser
+		Config.instance.web.maxProjectsPerUser
 			?.let { limit ->
-				if (Database.projects.countOwnedBy(user.id) >= limit) {
+				if (Database.instance.projects.countOwnedBy(user.id) >= limit) {
 					throw ServiceException("Can't create new project, limit of $limit reached")
 				}
 			}
 
-		val project = Database.transaction {
+		val project = Database.instance.transaction {
 
 			// make sure a project with that name doesn't already exist
 			val projectId = Project.makeId(name)
-			if (Database.projects.exists(user.id, projectId)) {
+			if (Database.instance.projects.exists(user.id, projectId)) {
 				throw ServiceException("A project with that name already exists")
 			}
 
 			// choose a new project number to be one more than the highest known project number
-			val projectNumber = Database.projects.getAllOwnedBy(user.id) { docs ->
+			val projectNumber = Database.instance.projects.getAllOwnedBy(user.id) { docs ->
 				docs
 					.maxOfOrNull { doc -> doc.getInteger("projectNumber") ?: 0 }
 					?.let { highestProjectNumber -> highestProjectNumber + 1 }
@@ -139,6 +139,19 @@ actual class ProjectsService : IProjectsService {
 		return project.toData(user)
 	}
 
+	override suspend fun newArgValues(userId: String, projectId: String, inData: CommonJobData.DataId, nodeId: String): ArgValuesToml = sanitizeExceptions {
+
+		// authenticate the user for this project
+		val user = call.authOrThrow()
+		user.authProjectOrThrow(ProjectPermission.Read, userId, projectId)
+
+		// get the new job type
+		val nodeConfig = NodeConfigs[nodeId]
+			?: throw ServiceException("unrecognized nodeId: $nodeId")
+
+		return nodeConfig.jobInfo.newArgValues(inData).toToml()
+	}
+
 	override suspend fun run(userId: String, projectId: String, jobIds: List<String>) = sanitizeExceptions {
 
 		// authenticate the user for this project
@@ -150,7 +163,7 @@ actual class ProjectsService : IProjectsService {
 		runner.init(jobIds)
 
 		// then start the first job, but don't wait for the result so the UI stays responsive
-		Backend.scope.launch {
+		Backend.instance.scope.launch {
 			runner.startFistJobIfIdle()
 		}
 
@@ -172,7 +185,7 @@ actual class ProjectsService : IProjectsService {
 		val user = call.authOrThrow()
 
 		// get the projects with running jobs, that the user can read
-		return Database.projects.getAllRunningOrWaitingOwnedBy(userId) { docs ->
+		return Database.instance.projects.getAllRunningOrWaitingOwnedBy(userId) { docs ->
 			docs
 				.map { Project(it) }
 				.filter { ProjectPermission.Read in user.permissions(it) }
@@ -242,11 +255,12 @@ actual class ProjectsService : IProjectsService {
 		val log = clusterJob.getLog()
 
 		// load log failures
-		val failedArrayIds = Database.cluster.log.findArrayIdsByResultType(clusterJobId, ClusterJobResultType.Failure)
+		val failedArrayIds = Database.instance.cluster.log.findArrayIdsByResultType(clusterJobId, ClusterJobResultType.Failure)
 			.sorted()
 
 		return ClusterJobLog(
 			clusterJob.commands.representativeCommand(),
+			clusterJob.commands.params(),
 			log?.submitFailure,
 			log?.launchResult?.toData(),
 			log?.result?.type,
@@ -296,23 +310,29 @@ actual class ProjectsService : IProjectsService {
 			.serialize()
 	}
 
-	override suspend fun wipeJob(jobId: String, deleteFilesAndData: Boolean) = sanitizeExceptions {
+	override suspend fun wipeJob(jobId: String, deleteFilesAndData: Boolean): String = sanitizeExceptions {
 
 		// authenticate the user for this job
 		val user = call.authOrThrow()
 		val job = user.authJobOrThrow(ProjectPermission.Write, jobId)
 
-		// mark the job as stale
-		job.stale = true
-		job.update()
-
 		if (deleteFilesAndData) {
+
 			job.wipeData()
 			job.deleteFiles()
 			job.createFolder()
+
+			// NOTE: wipeData() creates new args, which will put the block into a changed state
+			//       so there's no longer a need to explicitly set the job as stale
+
+		} else {
+
+			// but if we don't wipe data, then we still need explicit staleness
+			job.stale = true
+			job.update()
 		}
 
-		Unit
+		job.data().serialize()
 	}
 
 	override suspend fun olderRuns(userId: String, projectId: String): List<ProjectRunData> = sanitizeExceptions {
@@ -345,7 +365,7 @@ actual class ProjectsService : IProjectsService {
 
 		project.readerUserIds
 			.map { userId ->
-				Database.users.getUser(userId)
+				Database.instance.users.getUser(userId)
 					?.toData()
 					?: UserData(userId, null)
 			}
@@ -387,7 +407,7 @@ actual class ProjectsService : IProjectsService {
 		val workflow = Workflows.workflows[workflowId]
 			?: throw ServiceException("Workflow not found with id=$workflowId")
 
-		Backend.pypArgs
+		Backend.instance.pypArgs
 			.filterArgs(workflow.blocks.flatMap { it.askArgs })
 			.toJson()
 	}

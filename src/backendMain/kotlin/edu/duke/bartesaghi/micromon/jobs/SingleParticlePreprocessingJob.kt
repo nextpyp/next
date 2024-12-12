@@ -13,7 +13,7 @@ import org.bson.conversions.Bson
 class SingleParticlePreprocessingJob(
 	userId: String,
 	projectId: String
-) : Job(userId, projectId, config), FilteredJob, MicrographsJob {
+) : Job(userId, projectId, config), FilteredJob, MicrographsJob, CombinedManualParticlesJob {
 
 	val args = JobArgs<SingleParticlePreprocessingArgs>()
 	override var latestMicrographId: String? = null
@@ -25,6 +25,7 @@ class SingleParticlePreprocessingJob(
 
 		override val config = SingleParticlePreprocessingNodeConfig
 		override val dataType = JobInfo.DataType.Micrograph
+		override val dataClass = SingleParticlePreprocessingData::class
 
 		override fun fromDoc(doc: Document) = SingleParticlePreprocessingJob(
 			doc.getString("userId"),
@@ -38,13 +39,11 @@ class SingleParticlePreprocessingJob(
 
 		private fun SingleParticlePreprocessingArgs.toDoc() = Document().also { doc ->
 			doc["values"] = values
-			doc["list"] = particlesName
 		}
 
 		private fun SingleParticlePreprocessingArgs.Companion.fromDoc(doc: Document) =
 			SingleParticlePreprocessingArgs(
-				doc.getString("values"),
-				doc.getString("list")
+				doc.getString("values")
 			)
 
 		val eventListeners = MicrographEventListeners(this)
@@ -71,8 +70,8 @@ class SingleParticlePreprocessingJob(
 			commonData(),
 			args,
 			diagramImageURL(),
-			Database.micrographs.count(idOrThrow),
-			Database.particles.countAllParticles(idOrThrow, ParticlesList.PypAutoParticles)
+			Database.instance.micrographs.count(idOrThrow),
+			Database.instance.particles.countAllParticles(idOrThrow, ParticlesList.AutoParticles)
 		)
 
 	override suspend fun launch(runId: Int) {
@@ -82,21 +81,9 @@ class SingleParticlePreprocessingJob(
 		// clear caches
 		wwwDir.recreateAs(project.osUsername)
 
-		val newestArgs = args.newestOrThrow().args
-
-		// if we've picked some particles, write those out to pyp
-		newestArgs.particlesName
-			?.let { Database.particleLists.get(idOrThrow, it) }
-			?.let { ParticlesJobs.writeSingleParticle(project.osUsername, idOrThrow, dir, it) }
-
 		// build the args for PYP
-		val upstreamJob = inMovies?.resolveJob<Job>()
-			?: throw IllegalStateException("no movies input configured")
-		val pypArgs = launchArgValues(upstreamJob, newestArgs.values, args.finished?.values)
-
-		// set the hidden args
+		val pypArgs = launchArgValues()
 		pypArgs.dataMode = "spr"
-		// NOTE: even though this is not a source block, setting the data parent causes pyp to throw errors, so don't do it here
 
 		Pyp.pyp.launch(project.osUsername, runId, pypArgs, "Launch", "pyp_launch")
 
@@ -123,11 +110,16 @@ class SingleParticlePreprocessingJob(
 	override fun wipeData() {
 
 		// also delete any associated data
-		Database.micrographs.deleteAll(idOrThrow)
-		Database.micrographsAvgRot.deleteAll(idOrThrow)
-		Database.jobPreprocessingFilters.deleteAll(idOrThrow)
-		Database.particleLists.deleteAll(idOrThrow)
-		Database.particles.deleteAllParticles(idOrThrow)
+		Database.instance.micrographs.deleteAll(idOrThrow)
+		Database.instance.micrographsAvgRot.deleteAll(idOrThrow)
+		Database.instance.jobPreprocessingFilters.deleteAll(idOrThrow)
+		Database.instance.particleLists.deleteAll(idOrThrow)
+		Database.instance.particles.deleteAllParticles(idOrThrow)
+
+		// also reset the finished args
+		args.unrun()
+		latestMicrographId = null
+		update()
 	}
 
 	override val filters get() = PreprocessingFilters.ofJob(idOrThrow)

@@ -1,5 +1,6 @@
 package edu.duke.bartesaghi.micromon.mongo
 
+import com.mongodb.client.MongoDatabase
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.Projections
 import com.mongodb.client.model.ReplaceOptions
@@ -18,9 +19,9 @@ import org.bson.conversions.Bson
 import java.util.NoSuchElementException
 
 
-class Projects {
+class Projects(db: MongoDatabase) {
 
-	private val collection = Database.db.getCollection("projects")
+	private val collection = db.getCollection("projects")
 
 	init {
 		// create indices to speed up common but slow operations
@@ -91,7 +92,7 @@ class Projects {
 		).useCursor(block)
 
 	fun <R> getAllReadableBy(userId: String, block: (Sequence<Document>) -> R): R =
-		Database.projectReaders.get(userId)
+		Database.instance.projectReaders.get(userId)
 			.asSequence()
 			.mapNotNull { collection.find(Filters.eq("_id", it)).firstOrNull() }
 			.let { block(it) }
@@ -124,9 +125,9 @@ class Projects {
 }
 
 
-class ProjectReaders {
+class ProjectReaders(db: MongoDatabase) {
 
-	private val collection = Database.db.getCollection("projectReaders")
+	private val collection = db.getCollection("projectReaders")
 
 	private fun filter(userId: String) =
 		Filters.eq("_id", userId)
@@ -161,7 +162,7 @@ class ProjectReaders {
 
 fun User.authProjectOrThrow(permission: ProjectPermission, userId: String, projectId: String): Project {
 
-	val project = Database.projects.getProject(userId, projectId)
+	val project = Database.instance.projects.getProject(userId, projectId)
 		?: throw ServiceException("project not found")
 
 	return if (permission in permissions(project)) {
@@ -192,9 +193,9 @@ fun User?.permissions(project: Project): Set<ProjectPermission> =
 
 object JobNumberLock
 
-class Jobs {
+class Jobs(db: MongoDatabase) {
 
-	private val collection = Database.db.getCollection("jobs")
+	private val collection = db.getCollection("jobs")
 
 	init {
 		// create indices to speed up common but slow operations

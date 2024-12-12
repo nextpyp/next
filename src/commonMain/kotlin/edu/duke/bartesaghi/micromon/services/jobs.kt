@@ -9,9 +9,6 @@ import kotlinx.serialization.Serializable
 @KVService
 interface IJobsService {
 
-	@KVBindingRoute("jobs/imagesScale")
-	suspend fun getImagesScale(jobId: String): Option<ImagesScale>
-
 	@KVBindingRoute("jobs/micrograph")
 	suspend fun getMicrograph(jobId: String, micrographId: String): MicrographMetadata
 
@@ -44,6 +41,15 @@ interface IJobsService {
 
 	@KVBindingRoute("jobs/tiltSeriesMetadata")
 	suspend fun findTiltSeriesMetadataData(jobId: String, tiltSeriesId: String): Option<FileDownloadData>
+
+	@KVBindingRoute("jobs/allArgs")
+	suspend fun getAllArgs(): Serialized<Args>
+
+	companion object {
+
+		fun outputImage(jobId: String, size: ImageSize): String =
+			"/kv/jobs/$jobId/image/${size.id}"
+	}
 }
 
 
@@ -55,27 +61,32 @@ data class TiltExclusions(
 @Serializable
 data class PypStats(
 	val scopeVoltage: Double?,
-	val scopePixel: Double?,
-	val scopeDoseRate: Double?,
-	val particleRadius: Double?
+	val scopePixel: ValueA?,
+	val scopeDoseRate: Double?
 ) {
 
 	companion object {
 
-		fun fromSingleParticle(values: ArgValues?) =
+		fun fromArgValues(values: ArgValues?) =
 			PypStats(
 				values?.scopeVoltage,
 				values?.scopePixel,
-				values?.scopeDoseRateOrDefault,
-				values?.detectRad
-			)
-
-		fun fromTomography(values: ArgValues?) =
-			PypStats(
-				values?.scopeVoltage,
-				values?.scopePixel,
-				values?.scopeDoseRateOrDefault,
-				values?.tomoSpkRad
+				values?.scopeDoseRateOrDefault
 			)
 	}
 }
+
+
+@Serializable
+enum class FileUploadOperation(val id: String) {
+	Set("set"),
+	Get("set"),
+	Delete("delete"),
+	Data("data")
+}
+
+
+@Serializable
+data class FileUploadData(
+	val bytes: Long
+)

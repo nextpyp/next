@@ -37,4 +37,6 @@ data class TomographyFineRefinementData(
 	val jobInfoString: String
 ) : JobData {
 	override fun isChanged() = args.hasNext()
+	override fun finishedArgValues() = args.finished?.values
+	override fun nextArgValues() = args.next?.values
 }

@@ -30,6 +30,7 @@ class TomographyPurePreprocessingJob(
 
 		override val config = TomographyPurePreprocessingNodeConfig
 		override val dataType = JobInfo.DataType.TiltSeries
+		override val dataClass = TomographyPurePreprocessingData::class
 
 		override fun fromDoc(doc: Document) = TomographyPurePreprocessingJob(
 			doc.getString("userId"),
@@ -74,7 +75,7 @@ class TomographyPurePreprocessingJob(
 			commonData(),
 			args,
 			diagramImageURL(),
-			Database.tiltSeries.count(idOrThrow)
+			Database.instance.tiltSeries.count(idOrThrow)
 		)
 
 	override suspend fun launch(runId: Int) {
@@ -83,8 +84,6 @@ class TomographyPurePreprocessingJob(
 
 		// clear caches
 		wwwDir.recreateAs(project.osUsername)
-
-		val newestArgs = args.newestOrThrow().args
 
 		// write out the tilt exclusions, if needed
 		run {
@@ -97,7 +96,7 @@ class TomographyPurePreprocessingJob(
 			dir.createDirsIfNeededAs(project.osUsername)
 
 			// write any new files
-			val exclusionsByTiltSeries = Database.tiltExclusions.getForJob(idOrThrow)
+			val exclusionsByTiltSeries = Database.instance.tiltExclusions.getForJob(idOrThrow)
 			if (exclusionsByTiltSeries != null) {
 				for ((tiltSeriesId, exclusionsByTiltIndex) in exclusionsByTiltSeries) {
 					val file = dir / "$tiltSeriesId$suffix"
@@ -113,13 +112,8 @@ class TomographyPurePreprocessingJob(
 		}
 
 		// build the args for PYP
-		val upstreamJob = inTiltSeries?.resolveJob<Job>()
-			?: throw IllegalStateException("no tilt series input configured")
-		val pypArgs = launchArgValues(upstreamJob, newestArgs.values, args.finished?.values)
-
-		// set the hidden args
+		val pypArgs = launchArgValues()
 		pypArgs.dataMode = "tomo"
-		// NOTE: even though this is not a source block, setting the data parent causes pyp to throw errors, so don't do it here
 
 		Pyp.pyp.launch(project.osUsername, runId, pypArgs, "Launch", "pyp_launch")
 
@@ -146,11 +140,16 @@ class TomographyPurePreprocessingJob(
 	override fun wipeData() {
 
 		// also delete any associated data
-		Database.tiltSeries.deleteAll(idOrThrow)
-		Database.tiltSeriesAvgRot.deleteAll(idOrThrow)
-		Database.tiltSeriesDriftMetadata.deleteAll(idOrThrow)
-		Database.jobPreprocessingFilters.deleteAll(idOrThrow)
-		Database.tiltExclusions.delete(idOrThrow)
+		Database.instance.tiltSeries.deleteAll(idOrThrow)
+		Database.instance.tiltSeriesAvgRot.deleteAll(idOrThrow)
+		Database.instance.tiltSeriesDriftMetadata.deleteAll(idOrThrow)
+		Database.instance.jobPreprocessingFilters.deleteAll(idOrThrow)
+		Database.instance.tiltExclusions.delete(idOrThrow)
+
+		// also reset the finished args
+		args.unrun()
+		latestTiltSeriesId = null
+		update()
 	}
 
 	override val filters get() = PreprocessingFilters.ofJob(idOrThrow)

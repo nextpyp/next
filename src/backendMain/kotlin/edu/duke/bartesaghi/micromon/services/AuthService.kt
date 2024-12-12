@@ -25,7 +25,7 @@ object AuthService {
 
 			post("bootstrap") handler@{
 
-				when (Backend.config.web.auth) {
+				when (Config.instance.web.auth) {
 
 					// if there's no user auth, return a 404
 					AuthType.None -> {
@@ -38,7 +38,7 @@ object AuthService {
 					AuthType.ReverseProxy -> {
 
 						// make sure we actually need to bootstrap
-						if (Database.users.countUsers() > 0) {
+						if (Database.instance.users.countUsers() > 0) {
 							throw BadRequestException("can't bootstrap")
 						}
 
@@ -53,7 +53,7 @@ object AuthService {
 							?: throw BadRequestException("malformed request")
 
 						// create the new user
-						Database.users.create(
+						Database.instance.users.create(
 							User(
 								id = userId,
 								name = userName,
@@ -71,7 +71,7 @@ object AuthService {
 					AuthType.Login -> {
 
 						// make sure we actually need to bootstrap
-						if (Database.users.countUsers() > 0) {
+						if (Database.instance.users.countUsers() > 0) {
 							throw BadRequestException("can't bootstrap")
 						}
 
@@ -91,13 +91,13 @@ object AuthService {
 							permissions = setOf(User.Permission.Admin),
 							groups = emptySet()
 						)
-						Database.users.create(user)
+						Database.instance.users.create(user)
 
 						// read the password, try to keep it in memory for as little as possible
 						val passwordPart = (multipart.readPart() as? PartData.FileItem)
 							?: throw BadRequestException("malformed request")
 						Password(passwordPart.provider).use { password ->
-							Database.users.setPasswordHash(userId, password.hash())
+							Database.instance.users.setPasswordHash(userId, password.hash())
 						}
 
 						// actually log in the new user
@@ -114,7 +114,7 @@ object AuthService {
 			post("login") handler@{
 
 				// if there's no password auth, return a 404
-				if (Backend.config.web.auth != AuthType.Login) {
+				if (Config.instance.web.auth != AuthType.Login) {
 					call.respondText("fail",
 						contentType = ContentType.Text.Plain,
 						status = HttpStatusCode.NotFound
@@ -131,7 +131,7 @@ object AuthService {
 						?: throw BadRequestException("malformed request")
 
 					// lookup the user's hash
-					val hash = Database.users.getPasswordHash(userId)
+					val hash = Database.instance.users.getPasswordHash(userId)
 						?: throw AuthException("authentication failed")
 
 					// read the password and authenticate it
@@ -146,7 +146,7 @@ object AuthService {
 					}
 
 					// all is well, log in the user
-					val user = Database.users.getUser(userId)
+					val user = Database.instance.users.getUser(userId)
 						?: throw RuntimeException("couldn't find authenticated user: $userId")
 					call.login(user)
 
@@ -168,7 +168,7 @@ object AuthService {
 			get("logout") handler@{
 
 				// if there's no password auth, return a 404
-				if (Backend.config.web.auth != AuthType.Login) {
+				if (Config.instance.web.auth != AuthType.Login) {
 					call.respondText("fail",
 						contentType = ContentType.Text.Plain,
 						status = HttpStatusCode.NotFound
@@ -188,7 +188,7 @@ object AuthService {
 			get("token/{userId}/{encodedToken}") handler@{
 
 				// if there's no password auth, return a 404
-				if (Backend.config.web.auth != AuthType.Login) {
+				if (Config.instance.web.auth != AuthType.Login) {
 					call.respondText("Link logins disabled",
 						contentType = ContentType.Text.Plain,
 						status = HttpStatusCode.NotFound
@@ -207,7 +207,7 @@ object AuthService {
 					revokeLoginToken(userId, token)
 
 					// login the user
-					val user = Database.users.getUser(userId)
+					val user = Database.instance.users.getUser(userId)
 						?: throw RuntimeException("couldn't find authenticated user: $userId")
 					call.login(user)
 
@@ -232,7 +232,7 @@ object AuthService {
 			post("setpw") handler@{
 
 				// if there's no password auth, return a 404
-				if (Backend.config.web.auth != AuthType.Login) {
+				if (Config.instance.web.auth != AuthType.Login) {
 					call.respondText("fail",
 						contentType = ContentType.Text.Plain,
 						status = HttpStatusCode.NotFound
@@ -252,7 +252,7 @@ object AuthService {
 					}
 
 					// lookup the user's hash, if any
-					val hash = Database.users.getPasswordHash(user.id)
+					val hash = Database.instance.users.getPasswordHash(user.id)
 
 					// read the passwords from the form
 					// try to keep the passwords in memory for as little as possible
@@ -276,15 +276,15 @@ object AuthService {
 					Password(newpwPart.provider).use { pw ->
 
 						// enforce password restrictions
-						if (pw.len() < Backend.config.web.minPasswordLength) {
-							throw AuthException("New password must be at least ${Backend.config.web.minPasswordLength} characters long")
+						if (pw.len() < Config.instance.web.minPasswordLength) {
+							throw AuthException("New password must be at least ${Config.instance.web.minPasswordLength} characters long")
 						}
 
-						Database.users.setPasswordHash(user.id, pw.hash())
+						Database.instance.users.setPasswordHash(user.id, pw.hash())
 					}
 
 					// update the session cookie
-					call.login(Database.users.getUser(user.id)!!)
+					call.login(Database.instance.users.getUser(user.id)!!)
 
 					// yatta!!
 					call.respondText("success",

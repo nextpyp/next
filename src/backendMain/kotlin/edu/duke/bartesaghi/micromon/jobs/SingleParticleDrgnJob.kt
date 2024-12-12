@@ -22,6 +22,7 @@ class SingleParticleDrgnJob(
 
 		override val config = SingleParticleDrgnNodeConfig
 		override val dataType = JobInfo.DataType.Micrograph
+		override val dataClass = SingleParticleDrgnData::class
 
 		override fun fromDoc(doc: Document) = SingleParticleDrgnJob(
 			doc.getString("userId"),
@@ -71,16 +72,9 @@ class SingleParticleDrgnJob(
 		// clear caches
 		wwwDir.recreateAs(project.osUsername)
 
-		val newestArgs = args.newestOrThrow().args
-
 		// build the args for PYP
-		val upstreamJob = inRefinements?.resolveJob<Job>()
-			?: throw IllegalStateException("no refinements input configured")
-		val pypArgs = launchArgValues(upstreamJob, newestArgs.values, args.finished?.values)
-
-		// set the hidden args
+		val pypArgs = launchArgValues()
 		pypArgs.dataMode = "spr"
-		pypArgs.dataParent = upstreamJob.dir.toString()
 
 		Pyp.pyp.launch(project.osUsername, runId, pypArgs, "Launch", "pyp_launch")
 
@@ -101,6 +95,10 @@ class SingleParticleDrgnJob(
 
 		// also delete any associated data
 		// TODO: what metadata is there for this job?
+
+		// also reset the finished args
+		args.unrun()
+		update()
 	}
 
 	override fun newestArgValues(): ArgValuesToml? =

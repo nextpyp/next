@@ -24,7 +24,7 @@ actual class SingleParticleSessionService : ISingleParticleSessionService, Servi
 
 		val user = call.authOrThrow()
 
-		return Database.sessions.getGroupsByType(SingleParticleSession.id) { cursor ->
+		return Database.instance.sessions.getGroupsByType(SingleParticleSession.id) { cursor ->
 			cursor
 				.filter { user.isAdmin || (it.newestGroupId?.let { gid -> user.hasGroup(gid) } == true) }
 				.mapNotNull { SingleParticleSession.fromId(it.sessionId) }

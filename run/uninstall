@@ -5,71 +5,82 @@
 whoami=$(whoami)
 if [ "$whoami" = "root" ]; then
 
-  echo "Uninstalling in root mode: Will remove OS integrations"
+  admin="$SUDO_USER"
+  echo "Uninstalling in root mode (admin=$admin): Will remove OS integrations"
   oscaps="root"
-
-  # get the username for the service account
-  username=$PYP_USER
-  if [ -z "$username" ]; then
-    echo "No PYP_USER set."
-    exit
-  fi
-
-  # make a way to do things as the service account, like sudo, but user-do
-  usdo="sudo -u $username"
-
-  # get the home folder for the serivce account
-  home=$(getent passwd "$username" | cut -d: -f6)
-
-else
-
-  echo "Uninstalling in user mode: Will not look for OS integrations"
-  oscaps="user"
-
-  username="$whoami"
-  usdo=
-  home="$HOME"
-
-fi
-
-
-# find the installation folder
-configlink="$home/.config/nextpyp/installdir"
-if [ -L "$configlink" ] ; then
-  installdir=$(readlink "$configlink")
-  echo "Found installation folder: $installdir"
-else
-  echo "Failed to find installation folder: missing configuration symlink: $configlink"
-  exit 1
-fi
-
-
-if [ "$oscaps" = "root" ]; then
-
-  # determine filesystem capabilities
-  testfile="$installdir/__fscaps_test__"
-  if touch "$testfile" ; then
-    # root user can write to the installation folder
-    rm "$testfile"
-    # remove files/folders as root
-    fsdo=
-  else
-    # root user can't write to the installation folder,
-    # so remove files and folders as the service account instead
-    fsdo=usdo
-    echo "Uninstalling in root shared mode: Will remove files/folders as service account"
-  fi
 
   # remove installed binaries from the OS bin dir
   bindir=/usr/bin
 
 else
 
-  fsdo=
+  echo "Uninstalling in user mode: Will not look for OS integrations"
+  oscaps="user"
 
   # remove "installed" binaries from here
   bindir="$installdir"
 
+fi
+
+
+# find the installation folder
+# NOTE: this logic is re-used in the nexpyp script, so changes here should be synchronized there too
+canondir="/opt/nextpyp"
+scriptdir="$(dirname "$(realpath "$0")")"
+if [ -L "$canondir" ]; then
+  # canonical location is a link: follow it
+  installdir="$(readlink "$canondir")"
+  echo "Found installation folder from canonical link: $installdir"
+elif [ -d "$canondir" ]; then
+  # canonical location is a real folder: just use that
+  installdir="$canondir"
+  echo "Found installation folder in canonical location: $installdir"
+elif [ -d "$scriptdir" ] && [ "$scriptdir" != "/usr/bin" ]; then
+  # canonical location not found: use the folder containing this script
+  installdir="$scriptdir"
+  echo "Found installation folder using script location: $installdir"
+else
+  echo "ERROR: Failed to find installation folder, checked:"
+  echo " * $canondir"
+  echo " * $scriptdir"
+  exit 1
+fi
+
+
+# get the local and shared directories from the install folder (which may be symlinks)
+resolve_dir() { #(path)
+  if [ -L "$1" ]; then
+    realpath "$1"
+  else
+    echo "$1"
+  fi
+}
+sharedexecdir="$(resolve_dir "$installdir/sharedExec")"
+
+
+# determine filesystem capabilities
+installOwner="$(stat -c '%U' "$installdir")"
+if [ "$installOwner" = "root" ]; then
+  echo "Install folder owned by root"
+  installdo=
+else
+  echo "Install folder owned by $installOwner"
+  installdo="sudo -u $admin"
+  if [ "$installOwner" != "$admin" ]; then
+    echo "WARNING: installation files owned by $installOwner may not be modifiable by administrator $admin"
+  fi
+fi
+
+sharedExecOwner="$(stat -c '%U' "$sharedexecdir")"
+if [ "$sharedExecOwner" = "root" ]; then
+  echo "Shared exec folder owned by root"
+  sharedexecdo=
+else
+  echo "Shared exec folder owned by $sharedExecOwner"
+  sharedexecdo="sudo -u $admin"
+  if [ "$sharedExecOwner" != "$admin" ]; then
+    echo "WARNING: shared exec files owned by $sharedExecOwner may not be modifiable by administrator $admin"
+  fi
 fi
 
 
@@ -87,6 +98,11 @@ if [ "$oscaps" = "root" ]; then
   # poke systemd to recognize the removal of the daemon
   systemctl daemon-reload
 
+  # delete the canonical link
+  canondir=/opt/nextpyp
+  if [ -L "$canondir" ]; then
+    rm "$canondir"
+  fi
 fi
 
 
@@ -96,21 +112,11 @@ rm "$bindir/nextpyp-host-processor" 2> /dev/null
 
 
 # delete the files the installer downloaded
-$fsdo rm "$installdir/nextPYP.sif" 2> /dev/null
-$fsdo rm "$installdir/pyp.sif" 2> /dev/null
-$fsdo rm "$installdir/user-processor" 2> /dev/null
-$fsdo rm "$installdir/uninstall" 2> /dev/null
-$fsdo rm "$installdir/install-rprox" 2> /dev/null
-
-
-if [ "$oscaps" = "root" ]; then
-
-  # delete the canonical link
-  canondir=/opt/nextpyp
-  if [ -L "$canondir" ]; then
-    rm "$canondir"
-  fi
-fi
+$installdo rm "$installdir/nextPYP.sif" 2> /dev/null
+$installdo rm "$installdir/uninstall" 2> /dev/null
+$installdo rm "$installdir/install-rprox" 2> /dev/null
+$sharedexecdo rm -rf "$sharedexecdir/containers" 2> /dev/null
+$sharedexecdo rm -rf "$sharedexecdir/user-processors" 2> /dev/null
 
 
 echo "Finished uninstalling nextPYP"

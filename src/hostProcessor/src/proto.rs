@@ -86,6 +86,7 @@ pub struct ExecRequest {
 	pub program: String,
 	pub args: Vec<String>,
 	pub dir: Option<String>,
+	pub envvars: Vec<(String,String)>,
 	pub stdin: ExecStdin,
 	pub stdout: ExecStdout,
 	pub stderr: ExecStderr,
@@ -159,6 +160,11 @@ impl RequestEnvelope {
 				})?;
 				out.write_option(&request.dir, |out, item| {
 					out.write_utf8(item)
+				})?;
+				out.write_vec(&request.envvars, |out, (k, v)| {
+					out.write_utf8(k)?;
+					out.write_utf8(v)?;
+					Ok(())
 				})?;
 				match &request.stdin {
 					ExecStdin::Stream => {
@@ -271,6 +277,11 @@ impl RequestEnvelope {
 					program: reader.read_utf8().map_err(|e| (e, Some(request_id)))?,
 					args: reader.read_vec(|r| r.read_utf8()).map_err(|e| (e, Some(request_id)))?,
 					dir: reader.read_option(|r| r.read_utf8()).map_err(|e| (e, Some(request_id)))?,
+					envvars: reader.read_vec(|r| {
+						let k = r.read_utf8()?;
+						let v = r.read_utf8()?;
+						Ok((k, v))
+					}).map_err(|e| (e, Some(request_id)))?,
 					stdin: {
 						let stdin_type_id = reader.read_u32::<BigEndian>()
 							.context("Failed to read exec stdin type id")
@@ -863,6 +874,7 @@ mod test {
 			program: "program".to_string(),
 			args: vec!["arg1".to_string(), "arg2".to_string()],
 			dir: None,
+			envvars: vec![],
 			stdin: ExecStdin::Stream,
 			stdout: ExecStdout::Stream,
 			stderr: ExecStderr::Stream,
@@ -872,6 +884,20 @@ mod test {
 			program: "program".to_string(),
 			args: vec![],
 			dir: Some("/path/to/dir".to_string()),
+			envvars: vec![
+				("a".to_string(), "b".to_string()),
+				("c".to_string(), "d".to_string())
+			],
+			stdin: ExecStdin::Ignore,
+			stdout: ExecStdout::Ignore,
+			stderr: ExecStderr::Ignore,
+			stream_fin: false
+		}));
+		assert_roundtrip(Request::Exec(ExecRequest {
+			program: "program".to_string(),
+			args: vec![],
+			dir: Some("/path/to/dir".to_string()),
+			envvars: vec![],
 			stdin: ExecStdin::Ignore,
 			stdout: ExecStdout::Write {
 				path: "file".to_string()
@@ -885,6 +911,7 @@ mod test {
 			program: "program".to_string(),
 			args: vec![],
 			dir: Some("/path/to/dir".to_string()),
+			envvars: vec![],
 			stdin: ExecStdin::Ignore,
 			stdout: ExecStdout::Stream,
 			stderr: ExecStderr::Merge,
@@ -894,6 +921,7 @@ mod test {
 			program: "program".to_string(),
 			args: vec![],
 			dir: Some("/path/to/dir".to_string()),
+			envvars: vec![],
 			stdin: ExecStdin::Ignore,
 			stdout: ExecStdout::Ignore,
 			stderr: ExecStderr::Ignore,

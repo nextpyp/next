@@ -3,7 +3,6 @@ package edu.duke.bartesaghi.micromon.sessions
 import com.mongodb.client.model.Updates
 import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.cluster.ClusterJob
-import edu.duke.bartesaghi.micromon.cluster.slurm.toSbatchArgs
 import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.mongo.getDocument
 import edu.duke.bartesaghi.micromon.pyp.*
@@ -20,6 +19,7 @@ class SingleParticleSession(
 	companion object : Type {
 
 		override val id = SingleParticleSessionData.ID
+		override val configId = "stream_spr"
 
 		override fun fromDoc(doc: Document) = SingleParticleSession(
 			doc.getString("userId")
@@ -49,8 +49,8 @@ class SingleParticleSession(
 			Session.fromIdOrThrow(sessionId) as SingleParticleSession
 
 		fun args() =
-			Backend.pypArgs
-				.filter("stream_spr")
+			Backend.instance.pypArgs
+				.filter(configId)
 				.appendAll(MicromonArgs.slurmLaunch)
 
 		object StreampypListener : ClusterJob.OwnerListener {
@@ -75,11 +75,14 @@ class SingleParticleSession(
 	override fun newestArgs(): SingleParticleSessionArgs =
 		args.newestOrThrow().args
 
+	override fun newestArgValues(): ArgValuesToml? =
+		args.newest()?.args?.values
+
 	override fun newestPypValues(): ArgValues =
-		args.newestOrThrow().args.values.toArgValues(Backend.pypArgs)
+		args.newestOrThrow().args.values.toArgValues(Backend.instance.pypArgs)
 
 	override fun data(user: User?): SingleParticleSessionData {
-		val (numMicrographs, numFrames) = Database.micrographs.counts(idOrThrow)
+		val (numMicrographs, numFrames) = Database.instance.micrographs.counts(idOrThrow)
 		return SingleParticleSessionData(
 			userId,
 			idOrThrow,
@@ -89,7 +92,7 @@ class SingleParticleSession(
 			dir.toString(),
 			args,
 			args.map { args ->
-				val group = Database.groups.get(args.groupId)
+				val group = Database.instance.groups.get(args.groupId)
 				SingleParticleSessionDisplay(
 					groupName = group?.name ?: "(unknown group)"
 				)
@@ -115,19 +118,6 @@ class SingleParticleSession(
 		Pyp.cancel(idOrThrow)
 	}
 
-	override fun argsDiff(): ArgValues {
-
-		// build the args for PYP
-		val sessionArgs = args.newestOrThrow().args
-		val pypArgs = ArgValues(Backend.pypArgs)
-		pypArgs.setAll(args().diff(
-			sessionArgs.values,
-			args.finished?.values
-		))
-
-		return pypArgs
-	}
-
 	override suspend fun start(daemon: SessionDaemon) {
 
 		// only the main daemon can be started
@@ -144,7 +134,7 @@ class SingleParticleSession(
 		(pypDir / "raw").createDirsIfNeeded()
 
 		// build the args for PYP
-		val pypArgs = argsDiff()
+		val pypArgs = launchArgValues()
 		pypArgs.dataMode = "spr"
 		pypArgs.streamTransferTarget = dir.toString()
 		pypArgs.streamSessionGroup = names.group
@@ -159,16 +149,7 @@ class SingleParticleSession(
 
 		events.sessionStarted(idOrThrow)
 
-		Pyp.streampyp.launch(
-			osUsername = null,
-			webName = "Single Particle Session",
-			clusterName = SessionDaemon.Streampyp.clusterJobClusterName,
-			owner = idOrThrow,
-			ownerListener = StreampypListener,
-			dir = dir,
-			args = pypArgs.toPypCLI(),
-			launchArgs = pypArgs.toSbatchArgs()
-		)
+		launch(pypArgs, "Single Particle Session")
 
 		// daemon was started, move the args over
 		args.run()
@@ -176,7 +157,7 @@ class SingleParticleSession(
 	}
 
 	override fun resolveFilter(filter: PreprocessingFilter): List<String> =
-		Database.micrographs.getAll(idOrThrow) { cursor ->
+		Database.instance.micrographs.getAll(idOrThrow) { cursor ->
 			cursor
 				.map { Micrograph(it) }
 				.filter { it.isInRanges(filter) && it.micrographId !in filter.excludedIds }

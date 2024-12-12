@@ -8,7 +8,7 @@ object TomographySessionDataNodeConfig : NodeConfig {
 	const val ID = "tomo-session"
 
 	override val id = ID
-	override val configId = "tomo_pre_process"
+	override val configId = "tomo_session"
 	override val name = "Tomography (from Session)"
 	override val hasFiles = true
 	override val type = NodeType.TomographyRawData

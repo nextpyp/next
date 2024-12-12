@@ -13,8 +13,7 @@ object TomographyDrgnNodeConfig : NodeConfig {
 	override val status = NodeConfig.NodeStatus.Preview
 
 	val inMovieRefinements = NodeConfig.Data("inMovieRefinements", NodeConfig.Data.Type.MovieRefinements)
-	val outMovieRefinements = NodeConfig.Data("outMovieRefinements", NodeConfig.Data.Type.MovieRefinements)
 
 	override val inputs = listOf(inMovieRefinements)
-	override val outputs = listOf(outMovieRefinements)
+	override val outputs = emptyList<NodeConfig.Data>()
 }

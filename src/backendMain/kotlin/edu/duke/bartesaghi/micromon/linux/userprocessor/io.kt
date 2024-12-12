@@ -10,15 +10,13 @@ import java.nio.file.Path
 import java.nio.file.StandardOpenOption
 import java.nio.file.attribute.PosixFilePermission
 import java.util.HashSet
-import kotlin.io.path.div
-import kotlin.io.path.outputStream
+import kotlin.io.path.*
 import kotlin.io.path.readBytes
-import kotlin.io.path.writeBytes
 
 
 suspend fun Path.writeBytesAs(username: String?, content: ByteArray) {
 	if (username != null) {
-		Backend.userProcessors.get(username)
+		Backend.instance.userProcessors.get(username)
 			.writeFile(this).use { writer ->
 				writer.writeAll(content)
 			}
@@ -35,8 +33,9 @@ suspend fun Path.writeStringAs(username: String?, content: String) =
 
 suspend fun Path.readBytesAs(username: String?): ByteArray =
 	if (username != null) {
-		Backend.userProcessors.get(username)
+		Backend.instance.userProcessors.get(username)
 			.readFile(this)
+			.use { it.readAll() }
 	} else {
 		slowIOs {
 			readBytes()
@@ -104,7 +103,7 @@ suspend fun Path.editPermissionsAs(username: String?, editor: PosixPermissionsEd
 		shipAdds()
 		shipDels()
 
-		Backend.userProcessors.get(username)
+		Backend.instance.userProcessors.get(username)
 			.chmod(this, ops)
 	} else {
 		slowIOs {
@@ -116,7 +115,7 @@ suspend fun Path.editPermissionsAs(username: String?, editor: PosixPermissionsEd
 
 suspend fun Path.deleteAs(username: String?) {
 	if (username != null) {
-		Backend.userProcessors.get(username)
+		Backend.instance.userProcessors.get(username)
 			.deleteFile(this)
 	} else {
 		slowIOs {
@@ -128,7 +127,7 @@ suspend fun Path.deleteAs(username: String?) {
 
 suspend fun Path.createDirsIfNeededAs(username: String?): Path {
 	if (username != null) {
-		Backend.userProcessors.get(username)
+		Backend.instance.userProcessors.get(username)
 			.createFolder(this)
 	} else {
 		slowIOs {
@@ -141,7 +140,7 @@ suspend fun Path.createDirsIfNeededAs(username: String?): Path {
 
 suspend fun Path.deleteDirRecursivelyAs(username: String?) {
 	if (username != null) {
-		Backend.userProcessors.get(username)
+		Backend.instance.userProcessors.get(username)
 			.deleteFolder(this)
 	} else {
 		slowIOs {
@@ -153,11 +152,21 @@ suspend fun Path.deleteDirRecursivelyAs(username: String?) {
 
 fun Path.deleteDirRecursivelyAsyncAs(username: String?) {
 	if (username != null) {
-		Backend.scope.launch(Dispatchers.IO) {
+		Backend.instance.scope.launch(Dispatchers.IO) {
 			deleteDirRecursivelyAs(username)
 		}
 	} else {
 		deleteDirRecursivelyAsync()
+	}
+}
+
+
+suspend fun Path.copyDirRecursivelyAs(username: String?, dst: Path) {
+	if (username != null) {
+		Backend.instance.userProcessors.get(username)
+			.copyFolder(this, dst)
+	} else {
+		copyDirRecursivelyTo(dst)
 	}
 }
 
@@ -179,7 +188,7 @@ fun FileEntry.toFile(): Filesystem.File =
 
 suspend fun Path.listFolderFastAs(username: String?): List<Filesystem.File>? =
 	if (username != null) {
-		Backend.userProcessors.get(username)
+		Backend.instance.userProcessors.get(username)
 			.listFolder(this)
 			.map { it.toFile() }
 			.toList()
@@ -192,7 +201,7 @@ suspend fun Path.listFolderFastAs(username: String?): List<Filesystem.File>? =
 
 suspend fun Path.statAs(username: String?): Stat.Response =
 	if (username != null) {
-		Backend.userProcessors.get(username)
+		Backend.instance.userProcessors.get(username)
 			.stat(this)
 	} else {
 		slowIOs {
@@ -203,7 +212,7 @@ suspend fun Path.statAs(username: String?): Stat.Response =
 
 suspend fun Path.renameAs(username: String?, name: String) {
 	if (username != null) {
-		Backend.userProcessors.get(username)
+		Backend.instance.userProcessors.get(username)
 			.rename(this, parent / name)
 	} else {
 		slowIOs {
@@ -215,7 +224,7 @@ suspend fun Path.renameAs(username: String?, name: String) {
 
 suspend fun Path.symlinkAs(username: String?, link: Path) {
 	if (username != null) {
-		Backend.userProcessors.get(username)
+		Backend.instance.userProcessors.get(username)
 			.symlink(this, link)
 	} else {
 		slowIOs {
@@ -227,7 +236,7 @@ suspend fun Path.symlinkAs(username: String?, link: Path) {
 
 suspend fun Path.globCountAs(username: String?): GlobCount =
 	if (username != null) {
-		Backend.userProcessors.get(username)
+		Backend.instance.userProcessors.get(username)
 			.listFolder(parent)
 			.map { it.toFile() }
 			.toList()
@@ -237,9 +246,42 @@ suspend fun Path.globCountAs(username: String?): GlobCount =
 	}.globCount(fileName.toString())
 
 
+suspend fun Path.readerAs(username: String?): UserProcessor.FileReader =
+	if (username != null) {
+		Backend.instance.userProcessors.get(username)
+			.readFile(this)
+	} else {
+		object : UserProcessor.FileReader {
+
+			private val reader = this@readerAs.inputStream()
+
+			override val size = fileSize().toULong()
+
+			override suspend fun read(): ByteArray? =
+				slowIOs {
+					val buf = ByteArray(32*1024)
+					val bytesRead = reader.read(buf)
+					if (bytesRead <= 0) {
+						null
+					} else if (bytesRead < buf.size) {
+						buf.copyOfRange(0, bytesRead)
+					} else {
+						buf
+					}
+				}
+
+			override suspend fun closeAll() {
+				slowIOs {
+					reader.close()
+				}
+			}
+		}
+	}
+
+
 suspend fun Path.writerAs(username: String?, append: Boolean = false): UserProcessor.FileWriter =
 	if (username != null) {
-		Backend.userProcessors.get(username)
+		Backend.instance.userProcessors.get(username)
 			.writeFile(this, append)
 	} else {
 		object : UserProcessor.FileWriter {

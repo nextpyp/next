@@ -1,9 +1,8 @@
 package edu.duke.bartesaghi.micromon.mongo.migrations
 
 import edu.duke.bartesaghi.micromon.jobs.Job
-import edu.duke.bartesaghi.micromon.mongo.Database
-import edu.duke.bartesaghi.micromon.mongo.getMap
-import edu.duke.bartesaghi.micromon.mongo.useCursor
+import edu.duke.bartesaghi.micromon.mongo.*
+import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.*
 import org.bson.Document
 import org.slf4j.Logger
@@ -12,12 +11,23 @@ import org.slf4j.Logger
 /**
  * Migrate the auto particles and the picked particles to the new unified particles system
  */
-fun migrationParticles(database: Database, log: Logger) {
+fun migrationParticles(database: DatabaseConnection, log: Logger) {
 
 	// phase 1: particlepickings
 	run {
 		var numParticles = 0L
-		migrate(database, log, "particlepickings", ParticlesType.Particles2D) { list, doc, radiusUnbinned ->
+		migrate(database, log, "particlepickings", ParticlesType.Particles2D) f@{ job, list, doc ->
+
+			// get the particle radius from the job,
+			// since the old particle system didn't save the radius with the particles
+			val argValues = job.pypParametersOrNewestArgs()
+			val radius = argValues
+				.detectRad
+				?.toUnbinned(argValues.scopePixel ?: ValueA(1.0))
+				?: run {
+					log.info("Failed to find particle radius for job=${job.idOrThrow}. Skipping this job")
+					return@f
+				}
 
 			// migrate the particles coords for each micrograph
 			for ((micrographId, coords) in doc.getMap<List<Document>>("pickings")) {
@@ -26,14 +36,18 @@ fun migrationParticles(database: Database, log: Logger) {
 				var nextId = 1
 				for (coordDoc in coords) {
 					particles[nextId] = Particle2D(
-						x = coordDoc.getDouble("x"),
-						y = coordDoc.getDouble("y"),
-						r = radiusUnbinned
+						x = ValueUnbinnedI(coordDoc.getDouble("x").toInt()),
+						y = ValueUnbinnedI(coordDoc.getDouble("y").toInt()),
+						r = radius
 					)
 					nextId += 1
 					numParticles += 1
 				}
-				database.particles.importParticles2D(list.ownerId, list.name, micrographId, particles)
+				val savedParticles = SavedParticles(
+					version = ParticlesVersion.Legacy,
+					saved = particles
+				)
+				database.particles.importParticles2D(list.ownerId, list.name, micrographId, savedParticles)
 			}
 		}
 		log.info("Migrated $numParticles single-particle picked particles successfully.")
@@ -42,7 +56,19 @@ fun migrationParticles(database: Database, log: Logger) {
 	// phase 2: tomoparticlepickings
 	run {
 		var numParticles = 0L
-		migrate(database, log, "tomoparticlepickings", ParticlesType.Particles3D) { list, doc, radiusUnbinned ->
+		migrate(database, log, "tomoparticlepickings", ParticlesType.Particles3D) f@{ job, list, doc ->
+
+			// get the particle radius from the job,
+			// since the old particle system didn't save the radius with the particles
+			val argValues = job.pypParametersOrNewestArgs()
+			val radius = argValues
+				.detectRad
+				?.toUnbinned(argValues.scopePixel ?: ValueA(1.0))
+				?.toBinned(argValues.tomoRecBinningOrDefault)
+				?: run {
+					log.info("Failed to find particle radius for job=${job.idOrThrow}. Skipping this job")
+					return@f
+				}
 
 			// migrate the particle coords for each tilt series
 			for ((tiltSeriesId, coords) in doc.getMap<List<Document>>("tomopickings")) {
@@ -51,15 +77,22 @@ fun migrationParticles(database: Database, log: Logger) {
 				var nextId = 1
 				for (coordDoc in coords) {
 					particles[nextId] = Particle3D(
-						x = coordDoc.getDouble("x"),
-						y = coordDoc.getDouble("y"),
-						z = coordDoc.getDouble("z"),
-						r = radiusUnbinned
+						// NOTE: these are actually binned coordinates, but the database only allows writing unbinned coordinates now
+						//       but this is a migration for super old stuff, so just lie and say the're unbinned coords for now
+						//       but put the legacy version in there, so we know to convert them to real unbinned coords later
+						x = ValueUnbinnedI(coordDoc.getDouble("x").toInt()),
+						y = ValueUnbinnedI(coordDoc.getDouble("y").toInt()),
+						z = ValueUnbinnedI(coordDoc.getDouble("z").toInt()),
+						r = ValueUnbinnedF(radius.v)
 					)
 					nextId += 1
 					numParticles += 1
 				}
-				database.particles.importParticles3D(list.ownerId, list.name, tiltSeriesId, particles)
+				val savedParticles = SavedParticles(
+					version = ParticlesVersion.Legacy,
+					saved = particles
+				)
+				database.particles.importParticles3D(list.ownerId, list.name, tiltSeriesId, savedParticles)
 			}
 		}
 		log.info("Migrated $numParticles tomography picked particles successfully.")
@@ -68,11 +101,11 @@ fun migrationParticles(database: Database, log: Logger) {
 
 
 private fun migrate(
-	database: Database,
+	database: DatabaseConnection,
 	log: Logger,
 	collectionName: String,
 	particlesType: ParticlesType,
-	block: (list: ParticlesList, doc: Document, radiusUnbinned: Double) -> Unit
+	block: (job: Job, list: ParticlesList, doc: Document) -> Unit
 ) {
 
 	val pickings = database.db.getCollection(collectionName)
@@ -94,11 +127,6 @@ private fun migrate(
 				continue
 			}
 
-			// get the particle radius from the job,
-			// since the old particle system didn't save the radius with the particles
-			val radiusUnbinned = job.imagesScale(job.pypParametersOrNewestArgs())
-				.particleRadiusUnbinned
-
 			// migrate the particles list
 			val list = ParticlesList(
 				ownerId = jobId,
@@ -108,7 +136,7 @@ private fun migrate(
 			)
 			database.particleLists.createIfNeeded(list)
 
-			block(list, doc, radiusUnbinned)
+			block(job, list, doc)
 		}
 	}
 }

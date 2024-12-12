@@ -8,7 +8,6 @@ import edu.duke.bartesaghi.micromon.dynamicImageClassName
 import edu.duke.bartesaghi.micromon.nodes.SingleParticlePreprocessingNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
 import edu.duke.bartesaghi.micromon.pyp.Args
-import edu.duke.bartesaghi.micromon.pyp.filterForDownstreamCopy
 import edu.duke.bartesaghi.micromon.refreshDynamicImages
 import edu.duke.bartesaghi.micromon.services.*
 import edu.duke.bartesaghi.micromon.views.SingleParticlePreprocessingView
@@ -16,7 +15,6 @@ import edu.duke.bartesaghi.micromon.views.Viewport
 import js.micromondiagrams.MicromonDiagrams
 import js.micromondiagrams.nodeType
 import io.kvision.form.formPanel
-import io.kvision.form.select.SelectRemote
 import io.kvision.modal.Modal
 
 
@@ -39,8 +37,9 @@ class SingleParticlePreprocessingNode(
 		override fun makeNode(viewport: Viewport, diagram: Diagram, project: ProjectData, job: JobData) =
 			SingleParticlePreprocessingNode(viewport, diagram, project, job as SingleParticlePreprocessingData)
 
-		override fun showUseDataForm(viewport: Viewport, diagram: Diagram, project: ProjectData, outNode: Node, input: CommonJobData.DataId, copyFrom: Node?, callback: (Node) -> Unit) {
+		override suspend fun showUseDataForm(viewport: Viewport, diagram: Diagram, project: ProjectData, outNode: Node, input: CommonJobData.DataId, copyFrom: Node?, callback: (Node) -> Unit) {
 			val defaultArgs = (copyFrom as SingleParticlePreprocessingNode?)?.job?.args
+				?: JobArgs.fromNext(SingleParticlePreprocessingArgs(newArgValues(project, input)))
 			form(config.name, outNode, defaultArgs, true) { args ->
 
 				// save the node to the server
@@ -58,8 +57,7 @@ class SingleParticlePreprocessingNode(
 			val input = input
 				?: throw IllegalArgumentException("input required to make job for ${config.id}")
 			val args = SingleParticlePreprocessingArgs(
-				values = argValues,
-				particlesName = null
+				values = argValues
 			)
 			return Services.singleParticlePreprocessing.addNode(project.owner.id, project.projectId, input, args)
 		}
@@ -83,53 +81,12 @@ class SingleParticlePreprocessingNode(
 			)
 
 			val form = win.formPanel<SingleParticlePreprocessingArgs>().apply {
-
-				add(SingleParticlePreprocessingArgs::particlesName,
-					if (jobId != null) {
-						SelectRemote(
-							serviceManager = ParticlesServiceManager,
-							function = IParticlesService::getListOptions,
-							stateFunction = { "${OwnerType.Project.id}/$jobId" },
-							label = "Select list of positions",
-							preload = true
-						)
-					} else {
-						HiddenString()
-					}
-				)
-
 				add(SingleParticlePreprocessingArgs::values, ArgsForm(pypArgs, listOf(upstreamNode), enabled, config.configId))
 			}
 
-			// use the none filter option for the particles name in the form,
-			// since the control can't handle nulls
-			val mapper = ArgsMapper<SingleParticlePreprocessingArgs>(
-				toForm = { args ->
-					 if (args.particlesName == null) {
-						 args.copy(particlesName = NoneFilterOption)
-					 } else {
-						 args
-					 }
-				},
-				fromForm = { args ->
-					if (args.particlesName == NoneFilterOption) {
-						args.copy(particlesName = null)
-					} else {
-						args
-					}
-				}
-			)
-
-			// by default, copy args values from the upstream node
-			val argsOrCopy: JobArgs<SingleParticlePreprocessingArgs> = args
-				?: JobArgs.fromNext(SingleParticlePreprocessingArgs(
-					particlesName = null,
-					values = upstreamNode.newestArgValues()?.filterForDownstreamCopy(pypArgs) ?: ""
-				))
-
-			form.init(argsOrCopy, mapper)
+			form.init(args)
 			if (enabled) {
-				win.addSaveResetButtons(form, argsOrCopy, mapper, onDone)
+				win.addSaveResetButtons(form, args, onDone)
 			}
 			win.show()
 		}
@@ -179,7 +136,4 @@ class SingleParticlePreprocessingNode(
 			}
 		}
 	}
-
-	override fun newestArgValues() =
-		job.args.newest()?.args?.values
 }

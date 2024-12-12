@@ -8,7 +8,6 @@ import edu.duke.bartesaghi.micromon.dynamicImageClassName
 import edu.duke.bartesaghi.micromon.nodes.TomographyPreprocessingNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
 import edu.duke.bartesaghi.micromon.pyp.Args
-import edu.duke.bartesaghi.micromon.pyp.filterForDownstreamCopy
 import edu.duke.bartesaghi.micromon.refreshDynamicImages
 import edu.duke.bartesaghi.micromon.services.*
 import edu.duke.bartesaghi.micromon.views.TomographyPreprocessingView
@@ -39,8 +38,9 @@ class TomographyPreprocessingNode(
 		override fun makeNode(viewport: Viewport, diagram: Diagram, project: ProjectData, job: JobData) =
 			TomographyPreprocessingNode(viewport, diagram, project, job as TomographyPreprocessingData)
 
-		override fun showUseDataForm(viewport: Viewport, diagram: Diagram, project: ProjectData, outNode: Node, input: CommonJobData.DataId, copyFrom: Node?, callback: (Node) -> Unit) {
+		override suspend fun showUseDataForm(viewport: Viewport, diagram: Diagram, project: ProjectData, outNode: Node, input: CommonJobData.DataId, copyFrom: Node?, callback: (Node) -> Unit) {
 			val defaultArgs = (copyFrom as TomographyPreprocessingNode?)?.job?.args
+				?: JobArgs.fromNext(TomographyPreprocessingArgs(newArgValues(project, input), null))
 			form(config.name, outNode, defaultArgs, true) { args ->
 
 				// save the node to the server
@@ -120,16 +120,9 @@ class TomographyPreprocessingNode(
 				}
 			)
 
-			// by default, copy args values from the upstream node
-			val argsOrCopy: JobArgs<TomographyPreprocessingArgs> = args
-				?: JobArgs.fromNext(TomographyPreprocessingArgs(
-					tomolist = null,
-					values = upstreamNode.newestArgValues()?.filterForDownstreamCopy(pypArgs) ?: ""
-				))
-
-			form.init(argsOrCopy, mapper)
+			form.init(args, mapper)
 			if (enabled) {
-				win.addSaveResetButtons(form, argsOrCopy, mapper, onDone)
+				win.addSaveResetButtons(form, args, mapper, onDone)
 			}
 			win.show()
 		}
@@ -179,7 +172,4 @@ class TomographyPreprocessingNode(
 			}
 		}
 	}
-
-	override fun newestArgValues() =
-		job.args.newest()?.args?.values
 }

@@ -48,7 +48,7 @@ object JsonRpc {
 			.also {
 				// in debug mode, print out the token so we can run test scripts against the RPC endpoints
 				// but never print out the token in production mode, that would be a security risk
-				if (Backend.config.web.debug) {
+				if (Config.instance.web.debug) {
 					println("JsonRpc token: $it")
 				}
 			}
@@ -57,7 +57,7 @@ object JsonRpc {
 	private fun getOrMakeToken(): String {
 
 		// check the database for an existing token
-		val token = Database.settings.get("JsonRpc")?.getString("token")
+		val token = Database.instance.settings.get("JsonRpc")?.getString("token")
 		if (token != null) {
 			return token
 		}
@@ -68,7 +68,7 @@ object JsonRpc {
 		val newToken = bytes.base62Encode()
 
 		// update the database
-		Database.settings.set("JsonRpc", Document().apply {
+		Database.instance.settings.set("JsonRpc", Document().apply {
 			set("token", newToken)
 		})
 
@@ -309,37 +309,43 @@ fun ArrayNode.getObjectOrThrow(index: Int, context: String? = null): ObjectNode 
 	getOrThrow(index)
 		.takeIf { it.isObject }
 		?.asObject()
-		?: throw BadJsonRpcRequestException("[$index] is not an object", context)
+		?: throw BadJsonRpcRequestException("[$index] is not an object, it's a(n) ${getOrThrow(index).nodeType}", context)
 
 fun ArrayNode.getArrayOrThrow(index: Int, context: String? = null): ArrayNode =
 	getOrThrow(index)
 		.takeIf { it.isArray }
 		?.asArray()
-		?: throw BadJsonRpcRequestException("[$index] is not an array", context)
+		?: throw BadJsonRpcRequestException("[$index] is not an array, it's a(n) ${getOrThrow(index).nodeType}", context)
 
 fun ArrayNode.getIntOrThrow(index: Int, context: String? = null): Int =
 	getOrThrow(index)
 		.takeIf { it.isIntegralNumber }
 		?.intValue()
-		?: throw BadJsonRpcRequestException("[$index] is not an int", context)
+		?: throw BadJsonRpcRequestException("[$index] is not an int, it's a(n) ${getOrThrow(index).nodeType}", context)
 
 fun ArrayNode.getDoubleOrThrow(index: Int, context: String? = null): Double =
 	getOrThrow(index)
 		.takeIf { it.isNumber }
 		?.doubleValue()
-		?: throw BadJsonRpcRequestException("[$index] is not a double", context)
+		?: throw BadJsonRpcRequestException("[$index] is not a double, it's a(n) ${getOrThrow(index).nodeType}", context)
+
+fun ArrayNode.getNumberAsIntOrThrow(index: Int, context: String? = null): Int =
+	getOrThrow(index)
+		.takeIf { it.isNumber }
+		?.intValue()
+		?: throw BadJsonRpcRequestException("[$index] is not an int, it's a(n) ${getOrThrow(index).nodeType}", context)
 
 fun ArrayNode.getStringOrThrow(index: Int, context: String? = null): String =
 	getOrThrow(index)
 		.takeIf { it.isTextual }
 		?.textValue()
-		?: throw BadJsonRpcRequestException("[$index] is not a string", context)
+		?: throw BadJsonRpcRequestException("[$index] is not a string, it's a(n) ${getOrThrow(index).nodeType}", context)
 
 fun ArrayNode.getStringsOrThrow(index: Int, context: String? = null): List<String> =
 	getArrayOrThrow(index, context)
 		.mapIndexed { i, entry ->
 			if (!entry.isTextual) {
-				throw BadJsonRpcRequestException("[$index][$i] is not a string", context)
+				throw BadJsonRpcRequestException("[$index][$i] is not a string, it's a(n) ${getOrThrow(index).nodeType}", context)
 			}
 			entry.textValue()
 		}

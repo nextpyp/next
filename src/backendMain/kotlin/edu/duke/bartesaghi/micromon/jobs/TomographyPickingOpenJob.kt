@@ -19,12 +19,13 @@ class TomographyPickingOpenJob(
 	override var latestTiltSeriesId: String? = null
 	override val eventListeners get() = Companion.eventListeners
 
-	var inTomograms: CommonJobData.DataId? by InputProp(config.tomograms)
+	var inSegmentation: CommonJobData.DataId? by InputProp(config.segmentation)
 
 	companion object : JobInfo {
 
 		override val config = TomographyPickingOpenNodeConfig
 		override val dataType = JobInfo.DataType.TiltSeries
+		override val dataClass = TomographyPickingOpenData::class
 
 		override fun fromDoc(doc: Document) = TomographyPickingOpenJob(
 			doc.getString("userId"),
@@ -67,7 +68,11 @@ class TomographyPickingOpenJob(
 		TomographyPickingOpenData(
 			commonData(),
 			args,
-			diagramImageURL()
+			diagramImageURL(),
+			args.finished
+				?.particlesList(args(), idOrThrow)
+				?.let { Database.instance.particles.countAllParticles(idOrThrow, it.name) }
+				?: 0
 		)
 
 	override suspend fun launch(runId: Int) {
@@ -78,13 +83,8 @@ class TomographyPickingOpenJob(
 		wwwDir.recreateAs(project.osUsername)
 
 		// build the args for PYP
-		val upstreamJob = inTomograms?.resolveJob<Job>()
-			?: throw IllegalStateException("no tomograms input configured")
-		val pypArgs = launchArgValues(upstreamJob, args.newestOrThrow().args.values, args.finished?.values)
-
-		// set the hidden args
+		val pypArgs = launchArgValues()
 		pypArgs.dataMode = "tomo"
-		pypArgs.dataParent = upstreamJob.dir.toString()
 
 		Pyp.pyp.launch(project.osUsername, runId, pypArgs, "Launch", "pyp_launch")
 
@@ -111,9 +111,14 @@ class TomographyPickingOpenJob(
 	override fun wipeData() {
 
 		// also delete any associated data
-		Database.tiltSeries.deleteAll(idOrThrow)
-		Database.particleLists.deleteAll(idOrThrow)
-		Database.particles.deleteAllParticles(idOrThrow)
+		Database.instance.tiltSeries.deleteAll(idOrThrow)
+		Database.instance.particleLists.deleteAll(idOrThrow)
+		Database.instance.particles.deleteAllParticles(idOrThrow)
+
+		// also reset the finished args
+		args.unrun()
+		latestTiltSeriesId = null
+		update()
 	}
 
 	override fun newestArgValues(): ArgValuesToml? =

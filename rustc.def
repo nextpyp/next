@@ -7,7 +7,22 @@
 
 
 Bootstrap: docker
-From: centos:7
+
+#From: centos:7
+# UPDATE: RedHat has taken the old Centos 7 repositories offline,
+#         so we can't install OS packages anymore. =(
+
+# So use a pre-built rust compiling container instead from cross-rs.
+# see here for supported targets:
+#   https://github.com/cross-rs/cross?tab=readme-ov-file#supported-targets
+# and here's where they store all the container images, on GitHub's container repository:
+#   https://github.com/orgs/cross-rs/packages
+# we'll use the `x86_64-unknown-linux-gnu` target
+# which has multiple versions:
+#   https://github.com/cross-rs/cross/pkgs/container/x86_64-unknown-linux-gnu/versions?filters%5Bversion_type%5D=tagged
+# container version 0.2.5-centos is Centos 7.9.2009 has glibc v2.17 (from 2012)
+From: ghcr.io/cross-rs/x86_64-unknown-linux-gnu:0.2.5-centos
+
 IncludeCmd: no
 
 %environment
@@ -22,11 +37,7 @@ IncludeCmd: no
 	export RUSTUP_HOME=/usr/local/rustup
 	export CARGO_HOME=/usr/local/cargo
 
-	# install OS packages
-	yum group install "Development Tools" -y
-	yum clean all
-
-	# install rust
+	# install latest version of rustc
 	mkdir -p "$CARGO_HOME"
 	mkdir -p "$RUSTUP_HOME"
 	curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain stable

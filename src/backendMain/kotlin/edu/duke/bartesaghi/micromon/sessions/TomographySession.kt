@@ -3,7 +3,6 @@ package edu.duke.bartesaghi.micromon.sessions
 import com.mongodb.client.model.Updates
 import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.cluster.ClusterJob
-import edu.duke.bartesaghi.micromon.cluster.slurm.toSbatchArgs
 import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.mongo.getDocument
 import edu.duke.bartesaghi.micromon.pyp.*
@@ -20,6 +19,7 @@ class TomographySession(
 	companion object : Type {
 
 		override val id = TomographySessionData.ID
+		override val configId = "stream_tomo"
 
 		override fun fromDoc(doc: Document) = TomographySession(
 			doc.getString("userId")
@@ -49,8 +49,8 @@ class TomographySession(
 			Session.fromIdOrThrow(sessionId) as TomographySession
 
 		fun args() =
-			Backend.pypArgs
-				.filter("stream_tomo")
+			Backend.instance.pypArgs
+				.filter(configId)
 				.appendAll(MicromonArgs.slurmLaunch)
 
 		object StreampypListener : ClusterJob.OwnerListener {
@@ -75,8 +75,11 @@ class TomographySession(
 	override fun newestArgs(): TomographySessionArgs =
 		args.newestOrThrow().args
 
+	override fun newestArgValues(): ArgValuesToml? =
+		args.newest()?.args?.values
+
 	override fun newestPypValues(): ArgValues =
-		args.newestOrThrow().args.values.toArgValues(Backend.pypArgs)
+		args.newestOrThrow().args.values.toArgValues(Backend.instance.pypArgs)
 
 	override fun data(user: User?) = TomographySessionData(
 		userId,
@@ -87,13 +90,13 @@ class TomographySession(
 		dir.toString(),
 		args,
 		args.map { args ->
-			val group = Database.groups.get(args.groupId)
+			val group = Database.instance.groups.get(args.groupId)
 			TomographySessionDisplay(
 				groupName = group?.name ?: "(unknown group)"
 			)
 		},
-		numTiltSeries = Database.tiltSeries.count(idOrThrow),
-		numTilts = Database.tiltSeriesDriftMetadata.countTilts(idOrThrow)
+		numTiltSeries = Database.instance.tiltSeries.count(idOrThrow),
+		numTilts = Database.instance.tiltSeriesDriftMetadata.countTilts(idOrThrow)
 	)
 
 	override fun createDoc(doc: Document) {
@@ -112,19 +115,6 @@ class TomographySession(
 		Pyp.cancel(idOrThrow)
 	}
 
-	override fun argsDiff(): ArgValues {
-
-		// build the args for PYP
-		val sessionArgs = args.newestOrThrow().args
-		val pypArgs = ArgValues(Backend.pypArgs)
-		pypArgs.setAll(args().diff(
-			sessionArgs.values,
-			args.finished?.values
-		))
-
-		return pypArgs
-	}
-
 	override suspend fun start(daemon: SessionDaemon) {
 
 		// only the main daemon can be started
@@ -141,7 +131,7 @@ class TomographySession(
 		(pypDir / "raw").createDirsIfNeeded()
 
 		// build the args for PYP
-		val pypArgs = argsDiff()
+		val pypArgs = launchArgValues()
 		pypArgs.dataMode = "tomo"
 		pypArgs.streamTransferTarget = dir.toString()
 		pypArgs.streamSessionGroup = names.group
@@ -156,16 +146,7 @@ class TomographySession(
 
 		events.sessionStarted(idOrThrow)
 
-		Pyp.streampyp.launch(
-			osUsername = null,
-			webName = "Tomography Session",
-			clusterName = SessionDaemon.Streampyp.clusterJobClusterName,
-			owner = idOrThrow,
-			ownerListener = StreampypListener,
-			dir = dir,
-			args = pypArgs.toPypCLI(),
-			launchArgs = pypArgs.toSbatchArgs()
-		)
+		launch(pypArgs, "Tomography Session")
 
 		// daemon was started, move the args over
 		args.run()
@@ -173,7 +154,7 @@ class TomographySession(
 	}
 
 	override fun resolveFilter(filter: PreprocessingFilter): List<String> =
-		Database.tiltSeries.getAll(idOrThrow) { cursor ->
+		Database.instance.tiltSeries.getAll(idOrThrow) { cursor ->
 			cursor
 				.map { TiltSeries(it) }
 				.filter { it.isInRanges(filter) && it.tiltSeriesId !in filter.excludedIds }

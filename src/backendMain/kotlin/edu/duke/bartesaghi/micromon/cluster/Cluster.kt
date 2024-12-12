@@ -57,7 +57,7 @@ interface Cluster {
 	companion object {
 
 		val instance: Cluster =
-			Backend.config.let { config ->
+			Config.instance.let { config ->
 				// prefer the slurm cluster if available
 				if (config.slurm != null) {
 					SBatch(config.slurm)
@@ -118,7 +118,7 @@ interface Cluster {
 				?: return
 
 			// we'll never get any future events about this job, so end it now
-			Database.cluster.log.update(clusterJobId, null,
+			Database.instance.cluster.log.update(clusterJobId, null,
 				push("history", ClusterJob.HistoryEntry(ClusterJob.Status.Ended).toDBList()),
 
 				// also record error information, wherever we can get it
@@ -174,7 +174,7 @@ interface Cluster {
 			}
 
 			// init the log
-			Database.cluster.log.create(clusterJobId) {
+			Database.instance.cluster.log.create(clusterJobId) {
 				ClusterJob.Log.initDoc(this, ClusterJob.HistoryEntry(ClusterJob.Status.Submitted))
 			}
 
@@ -189,9 +189,15 @@ interface Cluster {
 			instance.validate(clusterJob)
 
 			// write the script files
+			fun cmdWebrpc(vararg args: String): String =
+				if (Config.instance.pyp.mock != null) {
+					Container.MockPyp.cmdWebrpc(*args)
+				} else {
+					Container.Pyp.cmdWebrpc(*args)
+				}
 			val commands = clusterJob.commands.render(clusterJob, instance.commandsConfig)
 			val script = instance.buildScript(clusterJob, """
-				|export NEXTPYP_WEBHOST="${Backend.config.web.webhost}"
+				|export NEXTPYP_WEBHOST="${Config.instance.web.webhost}"
 				|export NEXTPYP_TOKEN="${JsonRpc.token}"
 				|export NEXTPYP_WEBID="$clusterJobId"
 				|
@@ -202,8 +208,8 @@ interface Cluster {
 				|# we never *ever* want pyp to have access to the home folder.
 				|cd /tmp || exit 1
 				|
-				|${Container.Pyp.cmdWebrpc("slurm_started")}
-				|trap "${Container.Pyp.cmdWebrpc("slurm_ended", "--exit=\\$?").replace("\"", "\\\"")}" exit
+				|${cmdWebrpc("slurm_started")}
+				|trap "${cmdWebrpc("slurm_ended", "--exit=\\$?").replace("\"", "\\\"")}" exit
 				|
 				|${commands.joinToString("\n")}
 			""".trimMargin())
@@ -218,7 +224,7 @@ interface Cluster {
 				?: return null
 
 			// launch succeeded, update the database with the launch result
-			Database.cluster.log.update(clusterJobId, null,
+			Database.instance.cluster.log.update(clusterJobId, null,
 				push("history", ClusterJob.HistoryEntry(ClusterJob.Status.Launched).toDBList()),
 				set("sbatch", launchResult.toDoc())
 			)
@@ -239,7 +245,7 @@ interface Cluster {
 
 			// update array progress, if needed
 			if (arrayId != null) {
-				Database.cluster.log.update(clusterJobId, null,
+				Database.instance.cluster.log.update(clusterJobId, null,
 					Updates.inc("arrayProgress.started", 1)
 				)
 			}
@@ -288,7 +294,7 @@ interface Cluster {
 			clusterJob.pushHistory(ClusterJob.Status.Ended, arrayId)
 
 			// save the result to the database
-			Database.cluster.log.update(clusterJobId, arrayId,
+			Database.instance.cluster.log.update(clusterJobId, arrayId,
 				set("result", result.toDoc())
 			)
 
@@ -307,7 +313,7 @@ interface Cluster {
 					ClusterJobResultType.Failure -> updates.add(Updates.inc("arrayProgress.failed", 1))
 					ClusterJobResultType.Canceled -> updates.add(Updates.inc("arrayProgress.canceled", 1))
 				}
-				Database.cluster.log.update(clusterJobId, null, updates)
+				Database.instance.cluster.log.update(clusterJobId, null, updates)
 			}
 
 			// is the job all ended?
@@ -388,7 +394,35 @@ interface Cluster {
 									?: Instant.EPOCH.toEpochMilli()
 							}
 						val resultType = lastJobAndLog
-							?.let { (_, log) -> log.result?.type }
+							?.let { (job, log) ->
+								val arraySize = job.commands.arraySize
+								if (arraySize != null) {
+									// array job: aggregate over the array elements to get result type,
+									//            since the log of the non-array entry won't have any results
+									(1 .. arraySize)
+										.map { i ->
+											// NOTE: for large arrays, doing this many database lookups could potentially be slow
+											//       do we need to do a more optimized query here?
+											job.getLog(i)
+												?.result
+												?.type
+												?: ClusterJobResultType.Failure
+										}
+										.reduceOrNull { acc, t ->
+											// reduction rules: promote cancels and failures over successes
+											when (acc) {
+												ClusterJobResultType.Success -> when (t) {
+													ClusterJobResultType.Success -> acc
+													else -> t
+												}
+												else -> acc
+											}
+										}
+								} else {
+									// not an array job: use the log result
+									log.result?.type
+								}
+							}
 							?: ClusterJobResultType.Failure
 
 						clusterJob.ownerListener.ended(clusterJob.ownerId, resultType)

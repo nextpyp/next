@@ -48,6 +48,7 @@ class SingleParticleImportDataView(val project: ProjectData, val job: SinglePart
 		}
 	}
 
+	override val routed = Companion
 	override val elem = Div(classes = setOf("dock-page", "single-particle-preprocessing"))
 
 	private var micrographStatsElem = null as Div?
@@ -82,15 +83,14 @@ class SingleParticleImportDataView(val project: ProjectData, val job: SinglePart
 
 			// load all the micrographs
 			val loadingElem = elem.loading("Fetching micrographs ...")
-			val (micrographs, imagesScale, pypStats) = try {
+			val (micrographs, pypStats, args) = try {
 				delayAtLeast(200) {
 					Triple(
 						Services.jobs.getMicrographs(job.jobId)
 							.sortedBy { it.timestamp }
 							.toMutableList(),
-						Services.jobs.getImagesScale(job.jobId)
-							.unwrap(),
-						Services.jobs.pypStats(job.jobId)
+						Services.jobs.pypStats(job.jobId),
+						SingleParticleImportDataNode.pypArgs.get()
 					)
 				}
 			} catch (t: Throwable) {
@@ -99,6 +99,8 @@ class SingleParticleImportDataView(val project: ProjectData, val job: SinglePart
 			} finally {
 				elem.remove(loadingElem)
 			}
+
+			val finishedValues = job.args.finished?.values?.toArgValues(args)
 
 			// show micrograph stats
 			micrographStatsElem = elem.div("", classes = setOf("micrograph-stats"))
@@ -139,7 +141,7 @@ class SingleParticleImportDataView(val project: ProjectData, val job: SinglePart
 								link(micrograph.id, classes = setOf("link"))
 									.onClick { showMicrograph(index, true) }
 							}
-							elem.add(MicrographImage(project, job, micrograph, imagesScale, particleControls).apply {
+							elem.add(MicrographImage(project, job, micrograph, particleControls, null).apply {
 								loadParticles()
 							})
 							elem.add(Micrograph1DPlot(job, micrograph).apply {
@@ -160,7 +162,7 @@ class SingleParticleImportDataView(val project: ProjectData, val job: SinglePart
 				}
 
 				addTab("Gallery", "fas fa-image") { lazyTab ->
-					gallery = HyperGallery(micrographs).apply {
+					gallery = HyperGallery(micrographs, ImageSizes.from(ImageSize.Small)).apply {
 						html = { micrograph ->
 							listenToImageSize(document.create.img(src = micrograph.imageUrl(job, ImageSize.Small)))
 						}
@@ -172,7 +174,7 @@ class SingleParticleImportDataView(val project: ProjectData, val job: SinglePart
 					}
 				}
 
-				liveTab = LiveTab(job, micrographs, imagesScale)
+				liveTab = LiveTab(job, micrographs, finishedValues?.detectRad)
 				liveTabId = addTab("Micrographs", "fas fa-desktop") {
 					liveTab?.show(it.elem)
 				}.id
@@ -191,7 +193,6 @@ class SingleParticleImportDataView(val project: ProjectData, val job: SinglePart
 					when (val msg = RealTimeS2C.fromJson(msgstr)) {
 						is RealTimeS2C.UpdatedParameters -> {
 							statsLine?.stats = msg.pypStats
-							liveTab?.imagesScale = msg.imagesScale
 						}
 						is RealTimeS2C.UpdatedMicrograph -> updateMicrograph(msg.micrograph, micrographs)
 						else -> Unit
@@ -250,19 +251,12 @@ class SingleParticleImportDataView(val project: ProjectData, val job: SinglePart
 	private inner class LiveTab(
 		val job: SingleParticleImportDataData,
 		val micrographs: MutableList<MicrographMetadata>,
-		imagesScale: ImagesScale?
+		val newParticleRadiusA: ValueA?
 	) {
-
-		var imagesScale: ImagesScale? = imagesScale
-			set(value) {
-				field = value
-				// reload the current micrograph
-				listNav.reshow()
-			}
 
 		private val micrographElem = Div()
 
-		val listNav = BigListNav(micrographs) e@{ index ->
+		val listNav = BigListNav(micrographs, onSearch=micrographs::searchById) e@{ index ->
 
 			// clear the previous contents
 			micrographElem.removeAll()
@@ -294,8 +288,8 @@ class SingleParticleImportDataView(val project: ProjectData, val job: SinglePart
 				project,
 				job,
 				micrograph,
-				this.imagesScale,
-				particleControls
+				particleControls,
+				newParticleRadiusA
 			).apply {
 				loadParticles()
 				onParticlesChange = {

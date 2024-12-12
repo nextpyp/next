@@ -5,8 +5,7 @@ import edu.duke.bartesaghi.micromon.components.JobsMonitor
 import edu.duke.bartesaghi.micromon.components.PathPopup
 import edu.duke.bartesaghi.micromon.components.WebsocketControl
 import edu.duke.bartesaghi.micromon.components.WorkflowImportDialog
-import edu.duke.bartesaghi.micromon.components.forms.enableClickIf
-import edu.duke.bartesaghi.micromon.components.forms.enabled
+import edu.duke.bartesaghi.micromon.components.forms.*
 import edu.duke.bartesaghi.micromon.diagram.Diagram
 import edu.duke.bartesaghi.micromon.diagram.nodes.Node
 import edu.duke.bartesaghi.micromon.diagram.nodes.clientInfo
@@ -14,13 +13,10 @@ import edu.duke.bartesaghi.micromon.diagram.nodes.deduplicate
 import edu.duke.bartesaghi.micromon.nodes.NodeConfig
 import edu.duke.bartesaghi.micromon.nodes.NodeConfigs
 import edu.duke.bartesaghi.micromon.nodes.Workflow
-import edu.duke.bartesaghi.micromon.pyp.ArgValues
-import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
-import edu.duke.bartesaghi.micromon.pyp.Block
-import edu.duke.bartesaghi.micromon.pyp.toArgValues
+import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.*
+import edu.duke.bartesaghi.micromon.views.admin.Admin
 import io.kvision.core.Container
-import io.kvision.core.Display
 import io.kvision.core.Widget
 import io.kvision.core.onEvent
 import io.kvision.dropdown.ddLink
@@ -66,12 +62,9 @@ class ProjectView(val project: ProjectData) : View {
 		}
 
 		fun path(project: ProjectData) = "/project/${project.owner.id}/${project.projectId}"
-
-		val adminInfo = ServerVal {
-			Services.admin.getInfo()
-		}
 	}
 
+	override val routed = Companion
 	override val elem = Div(classes = setOf("project-view"))
 
 	private var connector: WebsocketConnector? = null
@@ -392,19 +385,21 @@ class ProjectView(val project: ProjectData) : View {
 			if (project.canWrite()) {
 
 				// allow copying all nodes
-				node.onCopyClick = e@{
+				node.onCopyClick = f@{
 
-					if (node.config.inputs.isNotEmpty()) {
+					// first, find our upstream node, if we need one
+					val upstream: Node.Upstream? =
+						if (node.config.inputs.isNotEmpty()) {
+							node.getUpstreams()
+								.firstOrNull()
+								?: return@f
+						} else {
+							null
+						}
 
-						// find our upstream node
-						val upstream = node.getUpstreams()
-							.firstOrNull()
-							?: return@e
-
+					if (upstream != null) {
 						showUseDataForm(upstream.node, upstream.outData, upstream.inData, node.config, node)
-
 					} else {
-
 						node.config.clientInfo.showImportForm(viewport, diagram, project, node, ::addSourceNode)
 					}
 				}
@@ -440,16 +435,21 @@ class ProjectView(val project: ProjectData) : View {
 			AppScope.launch e@{
 
 				// update the server
-				try {
+				val newJob = try {
 					Services.projects.wipeJob(jobId, deleteFilesAndData)
+						.let { JobData.deserialize(it) }
 				} catch (t: Throwable) {
 					Toast.error("Failed to wipe job: ${t.message ?: "(unknown error)"}")
 					return@e
 				}
 
 				// update locally too
-				baseJob.common.stale = true
-				renderButtons()
+				baseJob = newJob
+				if (deleteFilesAndData) {
+					status = Node.Status.Changed
+				} else {
+					renderButtons()
+				}
 				diagram.update()
 				updateRunButton()
 			}
@@ -495,7 +495,7 @@ class ProjectView(val project: ProjectData) : View {
 				val nodes = NodeConfigs.nodes
 					.filter { it.inputs.isEmpty() }
 
-				// TODO: add toggle to show obsolete nodes?
+				// TODO: add toggle to show legacy nodes?
 
 				// show the changed nodes
 				win.h1 {
@@ -722,7 +722,9 @@ class ProjectView(val project: ProjectData) : View {
 								disabled = !usingNode.enabled
 								onClick {
 									win.close()
-									showUseDataForm(node, data, input, usingNode)
+									AppScope.launch {
+										showUseDataForm(node, data, input, usingNode)
+									}
 								}
 							}
 
@@ -736,11 +738,11 @@ class ProjectView(val project: ProjectData) : View {
 				}
 
 				// what nodes can use this port?
-				val (obsoleteNodes, regularNodes, previewNodes) = NodeConfigs.findNodesUsing(data)
+				val (legacyNodes, regularNodes, previewNodes) = NodeConfigs.findNodesUsing(data)
 					.groupBy { (config, _) -> config.status }
 					.let {
 						listOf(
-							it[NodeConfig.NodeStatus.Obsolete] ?: emptyList(),
+							it[NodeConfig.NodeStatus.Legacy] ?: emptyList(),
 							it[NodeConfig.NodeStatus.Regular] ?: emptyList(),
 							it[NodeConfig.NodeStatus.Preview] ?: emptyList()
 						)
@@ -750,34 +752,35 @@ class ProjectView(val project: ProjectData) : View {
 					showNodes(regularNodes)
 				}
 
-				// show the obsolete,preview nodes, if needed
-				val obsoleteCheck = CheckBox(value = false, label = "Show obsolete blocks")
-				val obsoleteSection = Div()
+				// show the legacy,preview nodes, if needed
+				val legacyCheck = CheckBox(value = false, label = "Show legacy blocks")
+				val legacySection = Div()
 				val previewCheck = CheckBox(value = false, label = "Show preview blocks")
 				val previewSection = Div()
 
 				fun updateVisibility() {
-					obsoleteSection.visible = obsoleteCheck.value
+					legacySection.visible = legacyCheck.value
 					previewSection.visible = previewCheck.value
 				}
 
-				if (obsoleteNodes.isNotEmpty()) {
+				// also show legacy blocks
+				if (legacyNodes.isNotEmpty()) {
 
 					div {
-						add(obsoleteCheck)
+						add(legacyCheck)
 					}
-					obsoleteCheck.onClick {
+					legacyCheck.onClick {
 						updateVisibility()
 					}
 
-					add(obsoleteSection)
-					obsoleteSection.showNodes(obsoleteNodes)
+					add(legacySection)
+					legacySection.showNodes(legacyNodes)
 				}
 
-				// show the preview nodes, if any, but only in dev mode
-				if (previewNodes.isNotEmpty()) {
-					AppScope.launch {
-						if (adminInfo.get().debug) {
+				// and if dev mode, show preview blocks too
+				AppScope.launch {
+					if (Admin.info.get().debug) {
+						if (previewNodes.isNotEmpty()) {
 							div {
 								add(previewCheck)
 							}
@@ -795,29 +798,39 @@ class ProjectView(val project: ProjectData) : View {
 			}
 		}
 
-		fun showUseDataForm(outNode: Node, outData: NodeConfig.Data, inData: NodeConfig.Data, inConfig: NodeConfig, copyFrom: Node? = null) {
+		fun showUseDataForm(
+			outNode: Node,
+			outData: NodeConfig.Data,
+			inData: NodeConfig.Data,
+			inConfig: NodeConfig,
+			copyFrom: Node? = null
+		) {
+			AppScope.launch {
+				val output = CommonJobData.DataId(outNode.jobId, outData.id)
+				inConfig.clientInfo.showUseDataForm(viewport, diagram, project, outNode, output, copyFrom) { inNode ->
 
-			val output = CommonJobData.DataId(outNode.jobId, outData.id)
-			inConfig.clientInfo.showUseDataForm(viewport, diagram, project, outNode, output, copyFrom) { inNode ->
+					// wire up events before doing anything to the node that would trigger a render,
+					// since the render logic depends on which events are connected
+					wireEvents(inNode)
 
-				// wire up events before doing anything to the node that would trigger a render,
-				// since the render logic depends on which events are connected
-				wireEvents(inNode)
+					// add the node to the diagram
+					inNode.status = when (inNode.baseJob.isChanged()) {
+						true -> Node.Status.Changed
+						false -> Node.Status.Ended
+					}
+					diagram.addNode(inNode)
 
-				// add the node to the diagram
-				inNode.status = Node.Status.Changed
-				diagram.addNode(inNode)
+					// add a linker to the source node
+					val outPort = outNode.getOutPortOrThrow(outData)
+					val inPort = inNode.getInPortOrThrow(inData)
+					diagram.addLink(outPort.link(inPort))
 
-				// add a linker to the source node
-				val outPort = outNode.getOutPortOrThrow(outData)
-				val inPort = inNode.getInPortOrThrow(inData)
-				diagram.addLink(outPort.link(inPort))
+					diagram.update()
+					updateRunButton()
 
-				diagram.update()
-				updateRunButton()
-
-				// automatically position the node somewhere useful (hopefully)
-				diagram.place(inNode)
+					// automatically position the node somewhere useful (hopefully)
+					diagram.place(inNode)
+				}
 			}
 		}
 
@@ -1140,7 +1153,6 @@ class ProjectView(val project: ProjectData) : View {
 
 								// when the line is hovered, show a button that selects only this node
 								val onlyButton = button("Only", classes = setOf("only")).apply {
-									display = Display.NONE
 									onClick {
 										for ((k, v) in nodeFlags) {
 											v.value = k == node.jobId
@@ -1150,10 +1162,10 @@ class ProjectView(val project: ProjectData) : View {
 								}
 								onEvent {
 									mouseover = {
-										onlyButton.display = Display.INLINEBLOCK
+										onlyButton.addCssClass("show")
 									}
 									mouseout = {
-										onlyButton.display = Display.NONE
+										onlyButton.removeCssClass("show")
 									}
 								}
 							}

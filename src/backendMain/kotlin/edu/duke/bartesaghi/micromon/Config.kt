@@ -25,8 +25,19 @@ class Config(toml: String) {
 			System.getenv("PYP_CONFIG_HOST")
 				?: throw NoSuchElementException("no host pyp config path")
 
-		val instance: Config =
-			Config(Paths.get("/var/micromon/config.toml").readString())
+		private var _instance: Config? = null
+
+		val instance: Config get() =
+			_instance ?: install(Config(Paths.get("/var/micromon/config.toml").readString()))
+
+		fun install(config: Config): Config {
+			_instance = config
+			return config
+		}
+
+		fun uninstall() {
+			_instance = null
+		}
 	}
 
 	data class Pyp(
@@ -34,7 +45,8 @@ class Config(toml: String) {
 		val sources: Path?,
 		val scratch: Path,
 		val binds: List<Path>,
-		val cudaLibs: List<Path>
+		val cudaLibs: List<Path>,
+		val mock: Mock?
 	) {
 		
 		companion object {
@@ -73,6 +85,11 @@ class Config(toml: String) {
 					}
 				}
 		}
+
+		data class Mock(
+			val container: Path,
+			val exec: Path
+		)
 
 		init {
 			// check the binds against the denylist
@@ -134,6 +151,7 @@ class Config(toml: String) {
 		val port: Int,
 		val localDir: Path,
 		val sharedDir: Path,
+		val sharedExecDir: Path,
 		val auth: AuthType,
 		val webhost: String,
 		val debug: Boolean,
@@ -185,7 +203,13 @@ class Config(toml: String) {
 					indices.map { i ->
 						getString(i).toPath()
 					}
-				} ?: emptyList()
+				} ?: emptyList(),
+				mock = getTable("mock")?.run {
+					Pyp.Mock(
+						getStringOrThrow("container").toPath(),
+						getStringOrThrow("exec").toPath()
+					)
+				}
 			)
 		}
 
@@ -221,11 +245,15 @@ class Config(toml: String) {
 			// NOTE: for security reasons, we should only bind to localhost by default, rather than all network iterfaces
 			val port = getInt("port") ?: 8080
 			val sharedDir = getStringOrThrow("sharedDir").toPath()
+			val sharedExecDir = getString("sharedExecDir")
+				?.toPath()
+				?: sharedDir
 			Web(
 				host = host,
 				port = port,
 				localDir = getStringOrThrow("localDir").toPath(),
 				sharedDir = sharedDir,
+				sharedExecDir = sharedExecDir,
 				auth = AuthType[getString("auth")] ?: AuthType.Login,
 				webhost = getString("webhost") ?: "http://$host:$port",
 				debug = getBoolean("debug") ?: false,
@@ -264,7 +292,7 @@ class Config(toml: String) {
 		val indent = "                    "
 		append("""
 			|[pyp]
-			|       conatainer:  ${pyp.container}
+			|        container:  ${pyp.container}
 			|          sources:  ${pyp.sources}
 			|          scratch:  ${pyp.scratch}
 			|            binds:  ${pyp.binds.joinToString("\n$indent")}
@@ -301,6 +329,7 @@ class Config(toml: String) {
 			|             port:  ${web.port}
 			|        local dir:  ${web.localDir}
 			|       shared dir:  ${web.sharedDir}
+			|  shared exec dir:  ${web.sharedExecDir}
 			|             auth:  ${web.auth}
 			|          webhost:  ${web.webhost}
 			|            debug:  ${web.debug}

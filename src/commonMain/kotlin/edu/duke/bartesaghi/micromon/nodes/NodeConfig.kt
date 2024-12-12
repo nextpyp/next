@@ -50,7 +50,28 @@ interface NodeConfig {
 			MovieFrameAfterRefinement("Frames"),
 
 			/** Mutiple movie frame refinements */
-			MovieFrameAfterRefinements("Frames")
+			MovieFrameAfterRefinements("Frames"),
+
+			/** Particle coordinates from Phoenix a parquet file */
+			ParticlesParquet("Particles (Parquet)"),
+
+			/** A trained model for picking particles */
+			ParticlesModel("Particles Model"),
+
+			/** A trained model for denoising */
+			DenoisingModel("Denoising Model"),
+
+			/** A trained model for MiLoPYP */
+			MiloModel("MiLoPYP Model"),
+
+			/** A trained model for MiLoPYP */
+			MiloCoordinates("MiLoPYP particles"),
+
+			/** Segmentation model for open surfaces */
+			SegmentationOpen("Segmentation (open)"),
+
+			/** Segmentation model for closed surfaces */
+			SegmentationClosed("Segmentation (closed)")
 		}
 	}
 
@@ -60,8 +81,8 @@ interface NodeConfig {
 	}
 
 	enum class NodeStatus {
-		/** an old, retired node */
-		Obsolete,
+		/** an old, retired node: only supported on existing projects, but not new ones */
+		Legacy,
 		/** normal everyday nodes, ready for production use */
 		Regular,
 		/** a new, in-development node, not ready for general use just yet */
@@ -99,6 +120,12 @@ interface NodeConfig {
 	fun getOutputOrThrow(id: String) =
 		outputs.find { id == it.id }
 			?: throw NoSuchElementException("no data output with id $id in node ${this.id}")
+
+	fun singleOutputOrThrow() =
+		outputs
+			.takeIf { it.size == 1 }
+			?.let { it[0] }
+			?: throw IllegalStateException("can't pick single output, node ${this.id} has ${outputs.size} outputs")
 
 	fun findInputs(dataType: Data.Type) =
 		inputs.filter { it.type == dataType }

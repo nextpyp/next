@@ -1,5 +1,6 @@
 package edu.duke.bartesaghi.micromon
 
+import edu.duke.bartesaghi.micromon.services.ImageSize
 import edu.duke.bartesaghi.micromon.services.RealTimeC2S
 import edu.duke.bartesaghi.micromon.services.RealTimeS2C
 import kotlinx.coroutines.channels.*
@@ -130,7 +131,15 @@ class UnexpectedMessageException(val msg: Any) : IllegalArgumentException("messa
 data class ImageSizes(
 	val width: Int,
 	val height: Int
-)
+) {
+
+	companion object {
+
+		fun from(size: ImageSize): ImageSizes =
+			ImageSizes(size.approxWidth, size.approxWidth)
+	}
+}
+
 
 suspend fun fetchImageSizes(url: String): ImageSizes =
 	suspendCoroutine { continuation ->

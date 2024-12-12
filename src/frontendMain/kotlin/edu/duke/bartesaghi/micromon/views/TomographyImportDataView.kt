@@ -3,7 +3,6 @@ package edu.duke.bartesaghi.micromon.views
 import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.components.*
 import edu.duke.bartesaghi.micromon.diagram.nodes.TomographyImportDataNode
-import edu.duke.bartesaghi.micromon.diagram.nodes.clientInfo
 import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.*
 import js.getHTMLElement
@@ -43,7 +42,7 @@ class TomographyImportDataView(val project: ProjectData, val job: TomographyImpo
 			}
 		}
 
-		fun path(project: ProjectData, job: TomographyImportDataData) = "/project/${project.owner.id}/${project.projectId}/tomo-import-${job.jobId}"
+		fun path(project: ProjectData, job: TomographyImportDataData) = "/project/${project.owner.id}/${project.projectId}/tomographyImportData/${job.jobId}"
 
 		fun go(viewport: Viewport, project: ProjectData, job: TomographyImportDataData) {
 			routing.show(path(project, job))
@@ -51,6 +50,7 @@ class TomographyImportDataView(val project: ProjectData, val job: TomographyImpo
 		}
 	}
 
+	override val routed = Companion
 	override val elem = Div(classes = setOf("dock-page", "tomography-preprocessing"))
 
 	private var tiltSeriesStats = TiltSeriesStats()
@@ -86,15 +86,26 @@ class TomographyImportDataView(val project: ProjectData, val job: TomographyImpo
 			// load all the tilt series
 			val loadingElem = elem.loading("Fetching tilt-series ...")
 			val data = TiltSeriesesData()
+			pickingControls.onListChange = {
+				tiltSeriesStats.loadCounts(data, OwnerType.Project, job.jobId, pickingControls.list)
+			}
 			val pypStats = try {
 				delayAtLeast(200) {
-					data.loadForProject(job.jobId, job.clientInfo, job.args.finished?.values)
-					if (data.virusMode != null) {
-						pickingControls.newParticlesType = ParticlesType.Virions3D
-						pickingControls.setList(ParticlesList.autoVirions(job.jobId))
-					} else {
-						pickingControls.newParticlesType = ParticlesType.Particles3D
-						pickingControls.setList(ParticlesList.autoParticles3D(job.jobId))
+					data.loadForProject(job, job.args.finished?.values)
+					// load the auto list by default
+					when (data.particles) {
+						null -> {
+							pickingControls.newParticlesType = null
+							pickingControls.setList(null)
+						}
+						is TiltSeriesesParticlesData.VirusMode -> {
+							pickingControls.newParticlesType = ParticlesType.Virions3D
+							pickingControls.setList(ParticlesList.autoVirions(job.jobId))
+						}
+						is TiltSeriesesParticlesData.Data -> {
+							pickingControls.newParticlesType = ParticlesType.Particles3D
+							pickingControls.setList(ParticlesList.autoParticles3D(job.jobId))
+						}
 					}
 					Services.jobs.pypStats(job.jobId)
 				}
@@ -107,7 +118,6 @@ class TomographyImportDataView(val project: ProjectData, val job: TomographyImpo
 
 			// show tilt series stats
 			elem.add(tiltSeriesStats)
-			tiltSeriesStats.updateCombined(data, pickingControls)
 
 			// show PYP stats
 			statsLine = PypStatsLine(pypStats)
@@ -144,7 +154,7 @@ class TomographyImportDataView(val project: ProjectData, val job: TomographyImpo
 								link(tiltSeries.id, classes = setOf("link"))
 									.onClick { showTiltSeries(index, true) }
 							}
-							elem.add(TiltSeriesImage(project, job, tiltSeries, data.imagesScale).apply {
+							elem.add(TiltSeriesImage(project, job, tiltSeries).apply {
 								loadParticles()
 							})
 							elem.add(TiltSeries1DPlot(job, tiltSeries).apply {
@@ -164,7 +174,7 @@ class TomographyImportDataView(val project: ProjectData, val job: TomographyImpo
 				}
 
 				addTab("Gallery", "fas fa-image") { lazyTab ->
-					gallery = HyperGallery(data.tiltSerieses).apply {
+					gallery = HyperGallery(data.tiltSerieses, ImageSizes.from(ImageSize.Small)).apply {
 						html = { tiltSeries ->
 							listenToImageSize(document.create.img(src = tiltSeries.imageUrl(job, ImageSize.Small)))
 						}
@@ -195,10 +205,18 @@ class TomographyImportDataView(val project: ProjectData, val job: TomographyImpo
 					when (val msg = RealTimeS2C.fromJson(msgstr)) {
 						is RealTimeS2C.UpdatedParameters -> {
 							statsLine?.stats = msg.pypStats
-							data.imagesScale = msg.imagesScale
 							liveTab?.listNav?.reshow()
 						}
-						is RealTimeS2C.UpdatedTiltSeries -> updateTiltSeries(msg, data)
+						is RealTimeS2C.UpdatedTiltSeries -> {
+							data.update(msg.tiltSeries)
+							tiltSeriesStats.increment(data, msg.tiltSeries)
+
+							// update tabs
+							plots?.update(msg.tiltSeries)
+							filterTable?.update()
+							gallery?.update()
+							liveTab?.listNav?.newItem()
+						}
 						else -> Unit
 					}
 				}
@@ -226,19 +244,6 @@ class TomographyImportDataView(val project: ProjectData, val job: TomographyImpo
 		liveTab?.listNav?.showItem(index, stopLive)
 	}
 
-	private fun updateTiltSeries(msg: RealTimeS2C.UpdatedTiltSeries, data: TiltSeriesesData) {
-
-		data.update(msg)
-
-		tiltSeriesStats.updateCombined(data, pickingControls)
-
-		// update tabs
-		plots?.update(msg.tiltSeries)
-		filterTable?.update()
-		gallery?.update()
-		liveTab?.listNav?.newItem()
-	}
-
 	private inner class LiveTab(
 		val job: TomographyImportDataData,
 		val data: TiltSeriesesData
@@ -246,7 +251,7 @@ class TomographyImportDataView(val project: ProjectData, val job: TomographyImpo
 
 		private val tiltSeriesesElem = Div()
 
-		val listNav = BigListNav(data.tiltSerieses, has100 = false) e@{ index ->
+		val listNav = BigListNav(data.tiltSerieses, onSearch=data::searchById) e@{ index ->
 
 			// clear the previous contents
 			tiltSeriesesElem.removeAll()
@@ -277,7 +282,7 @@ class TomographyImportDataView(val project: ProjectData, val job: TomographyImpo
 
 			val tomoPanel = TomoMultiPanel(project, job, data, tiltSeries, pickingControls)
 			tomoPanel.particlesImage.onParticlesChange = {
-				tiltSeriesStats.updateCombined(data, pickingControls)
+				tiltSeriesStats.picked(data, pickingControls)
 			}
 			tiltSeriesesElem.add(tomoPanel)
 			AppScope.launch {

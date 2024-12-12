@@ -18,6 +18,7 @@ sealed interface Request {
 		val program: String,
 		val args: List<String>,
 		val dir: String?,
+		val envvars: List<Pair<String,String>>,
 		val stdin: Stdin,
 		val stdout: Stdout,
 		val stderr: Stderr,
@@ -179,6 +180,10 @@ class RequestEnvelope(
 				out.writeOption(request.dir) {
 					out.writeUtf8(it)
 				}
+				out.writeArray(request.envvars) { (k, v) ->
+					out.writeUtf8(k)
+					out.writeUtf8(v)
+				}
 				when (request.stdin) {
 					Request.Exec.Stdin.Stream -> {
 						out.writeU32(Request.Exec.Stdin.Stream.ID)
@@ -286,6 +291,9 @@ class RequestEnvelope(
 					},
 					dir = input.readOption {
 						input.readUtf8()
+					},
+					envvars = input.readArray {
+						input.readUtf8() to input.readUtf8()
 					},
 					stdin = when (val stdinTypeId = input.readU32()) {
 						Request.Exec.Stdin.Stream.ID -> Request.Exec.Stdin.Stream

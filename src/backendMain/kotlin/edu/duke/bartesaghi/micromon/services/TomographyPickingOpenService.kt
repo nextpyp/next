@@ -21,7 +21,7 @@ actual class TomographyPickingOpenService : ITomographyPickingOpenService, Servi
 		// make the job
 		val job = TomographyPickingOpenJob(userId, projectId)
 		job.args.next = args
-		job.inTomograms = inData
+		job.inSegmentation = inData
 		job.create()
 
 		return job.data()

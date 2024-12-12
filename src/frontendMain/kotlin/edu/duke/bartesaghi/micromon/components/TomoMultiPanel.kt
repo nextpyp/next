@@ -3,6 +3,7 @@ package edu.duke.bartesaghi.micromon.components
 import edu.duke.bartesaghi.micromon.AppScope
 import edu.duke.bartesaghi.micromon.Storage
 import edu.duke.bartesaghi.micromon.pyp.TiltSeriesesData
+import edu.duke.bartesaghi.micromon.pyp.TiltSeriesesParticlesData
 import edu.duke.bartesaghi.micromon.services.*
 import edu.duke.bartesaghi.micromon.toFixed
 import io.kvision.html.Div
@@ -12,6 +13,17 @@ import io.kvision.toast.ToastOptions
 import io.kvision.toast.ToastPosition
 import kotlin.math.abs
 
+
+/*
+ * WARNING:
+ *
+ * SessionTomoMultiPanel is a copy of this code that does mostly the same thing,
+ * but has some subtle differences.
+ *
+ * If you're in here fixing things, also check to see if you need to fix the same thing in SessionTomoMultiPanel!!
+ *
+ * TODO: maybe someday we can merge TomoMultiPanel and SessionTomoMultiPanel together?
+ */
 
 class TomoMultiPanel(
 	val project: ProjectData,
@@ -98,13 +110,6 @@ class TomoMultiPanel(
 				loadData()
 			})
 			lazyTab.elem.add(self.alignedTiltSeriesImage)
-			self.alignedTiltSeriesImage.sprite?.let { sprite ->
-				sprite.add(0, Div(classes = setOf("tilt-reference-line")) {
-					div {
-						setStyle("transform", "rotate(${0.0}deg)")
-					}
-				})
-			}
 		}
 
 		addTab("CTF") { lazyTab ->
@@ -121,9 +126,12 @@ class TomoMultiPanel(
 			lazyTab.elem.add(TomoSideViewImage(self.job.jobId, self.tiltSeries.id))
 		}
 
-		if (self.tiltSerieses.virusMode != null) {
+		if (self.tiltSerieses.particles is TiltSeriesesParticlesData.VirusMode) {
 			addTab("Segmentation") { lazyTab ->
 				lazyTab.elem.add(self.virionThresholds)
+				if (!self.virionThresholds.hasSelectedVirion()) {
+					self.virionThresholds.selectDefaultVirion()
+				}
 			}
 		}
 	}
@@ -144,7 +152,12 @@ class TomoMultiPanel(
 			}
 
 			// Alignment tab
-			alignedTiltSeriesImage.load(metadata.tilts.size, metadata.tilts.size / 2 - 1)
+			alignedTiltSeriesImage.load(metadata.tilts.size, metadata.tilts.size / 2 - 1) { sprite ->
+				// after loading finishes, add a horizontal reference line to the alignment
+				sprite.div(classes = setOf("tilt-reference-line")) {
+					div() // NOTE: this div is the line itself, the outer div is a container
+				}
+			}
 
 			// CTF tab
 			ctfMultiTiltPlot.myOnClick = { index ->
@@ -225,7 +238,7 @@ class TomoMultiPanel(
 		// load the particles image
 		particlesImage.load()
 
-		// load thresholds for the threshold picker
+		// load thresholds for the threshold picker, if needed
 		virionThresholds.load()
     }
 }

@@ -25,7 +25,7 @@ binddevdir() #(host path, container path, allow missing)
     addbind "$1" "$2"
   else
     if [ -z "$3" ] ; then
-      echo "Error: development folder not found at \"$1\""
+      echo "ERROR: development folder not found at \"$1\""
       exit 1
     fi
   fi
@@ -37,7 +37,7 @@ binddevfile() #(host path, container path)
     echo "using development file at: \"$1\""
     addbind "$1" "$2"
   else
-    echo "Error: development file not found at \"$1\""
+    echo "ERROR: development file not found at \"$1\""
     exit 1
   fi
 }
@@ -86,6 +86,9 @@ setupdev()
   
     # set the "installation" folder to the project's run folder
     installdir="$devpath/run"
+
+    # use the config path from the dev folder
+    configpath="$devpath/run/config.toml"
   fi
 }
 
@@ -94,6 +97,7 @@ setup()
 {
   # find the installation folder, if needed
   if [ -z "$installdir" ]; then
+    # NOTE: this logic is re-used in the uninstall script, so changes here should be synchronized there too
     # first, look for it using the symlink in a canonical location
     canondir="/opt/nextpyp"
     scriptdir="$(dirname "$(realpath "$0")")"
@@ -110,30 +114,20 @@ setup()
       installdir="$scriptdir"
       echo "Found installation folder using script location: $installdir"
     else
-      echo "Failed to find installation folder, checked:"
+      echo "ERROR: Failed to find installation folder, checked:"
       echo " * $canondir"
       echo " * $scriptdir"
       exit 1
     fi
   fi
 
-  # look for the config file in the usual places
-  if [ -n "$PYP_CONFIG" ]; then
-    # environmental override: use that regardless of anything else
-    configpath=$(realpath "$PYP_CONFIG" || echo "")
-    if [ -f "$configpath" ]; then
-      echo "Using configuration from environment: $configpath"
-    else
-      echo "Config file not found at PYP_CONFIG=$PYP_CONFIG"
-      exit 1
-    fi
-  else
-    # otherwise, use the config in the install folder
+  if [ -z "$configpath" ]; then
+    # look for the config file in the install folder (may be a symlink)
     configpath="$installdir/config.toml"
     if [ -f "$configpath" ]; then
       echo "Using configuration from install folder: $configpath"
     else
-      echo "Config file not found at: $configpath"
+      echo "ERROR: Config file (or symlink) not found at: $configpath"
       exit 1
     fi
   fi
@@ -165,24 +159,28 @@ setup()
     edu.duke.bartesaghi.micromon.CliKt \
   )
 
-  echo "Reading config.toml using CLI tool ..."
-
-  # get the local and share directories from the config
+  # get the local,shared folders from the config
   localdir=$("${cli[@]}" localdir)
-  shareddir=$("${cli[@]}" shareddir)
+  shareddatadir=$("${cli[@]}" shareddatadir)
+  sharedexecdir=$("${cli[@]}" sharedexecdir)
 
   # make sure the base directories exist
   if [ ! -d "$localdir" ] ; then
-    echo "Local dir does not exist. It should have been created during installation"
+    echo "Local folder does not exist. It should have been created during installation"
     exit 1
   fi
-  if [ ! -d "$shareddir" ] ; then
-    echo "Shared dir does not exist. It should have been created during installation"
+  if [ ! -d "$shareddatadir" ] ; then
+    echo "Shared data folder does not exist. It should have been created during installation"
+    exit 1
+  fi
+  if [ ! -d "$sharedexecdir" ] ; then
+    echo "Shared exec folder does not exist. It should have been created during installation"
     exit 1
   fi
 
   addbind "$localdir"
-  addbind "$shareddir"
+  addbind "$shareddatadir"
+  addbind "$sharedexecdir"
 
   sockdir="$localdir/sock"
 
@@ -214,12 +212,66 @@ usersetup()
   # make a way to run commands as the target user
   usdo="sudo -u $username"
 
-  upexec="$shareddir/user-processors/user-processor-$username"
+  upexec="$sharedexecdir/user-processors/user-processor-$username"
+}
+
+
+create_upexec() # depends on usdo, installdir, and upexec
+{
+  # create the user-processor executable for this user
+  $usdo cp "$installdir/user-processor" "$upexec"
+
+  # only the user should be able to write
+  # only the user and the group should be able to execute
+  $usdo chmod u=rwx,g=rx,o= "$upexec"
+
+  # the executable should be setuid
+  # NOTE: set this last, so we're sure the executable has the correct permissions before turning on setuid
+  $usdo chmod u+s "$upexec"
+}
+
+
+# the shared folder needs to have other-exec permissions all the way up to /
+check_shared_perms() { #(path)
+  local otherperms groupperms
+  pushd "$1" > /dev/null
+  while true; do
+    otherperms=$(stat --format=%A . | cut -c 10)
+    groupperms=$(stat --format=%A . | cut -c 7)
+    #echo "Check shared perms: $(pwd) => $perms"
+    if [ "$otherperms" == '-' ] || [ "$groupperms" == '-' ]; then
+      echo "Folder $(pwd) (and all parents of the shared folder) must have group and other execute permissions"
+      popd > /dev/null
+      namei -l "$1"
+      exit 1
+    fi
+    cd ..
+    if [ "$(pwd)" == "/" ]; then
+      break
+    fi
+  done
+  popd > /dev/null
 }
 
 
 # process the command
 case "$1" in
+
+  check)
+
+    # just do some check to see if the installation is viable
+    setup
+    check_shared_perms "$shareddatadir"
+
+    echo "nextPYP seems to be fine"
+    echo "  Installation folder: $installdir"
+    echo "  Local folder: $localdir"
+    echo "  Shared data folder: $shareddatadir"
+    echo "  Shared exec folder: $sharedexecdir"
+    echo "  Config file: $configpath"
+
+    ;;
+
 
   start)
 
@@ -227,28 +279,10 @@ case "$1" in
     setupdev "$2" "$3" "$4"
 
     setup
-
-    # the shared folder needs to have other-exec permissions all the way up to /
-    pushd "$shareddir" > /dev/null
-    while true; do
-      otherperms=$(stat --format=%A . | cut -c 10)
-      groupperms=$(stat --format=%A . | cut -c 7)
-      #echo "Check shared perms: $(pwd) => $perms"
-      if [ "$otherperms" == '-' ] || [ "$groupperms" == '-' ]; then
-        echo "Folder $(pwd) (and all parents of the shared folder) must have group and other execute permissions"
-        popd > /dev/null
-        namei -l "$shareddir"
-        exit 1
-      fi
-      cd ..
-      if [ "$(pwd)" == "/" ]; then
-        break
-      fi
-    done
-    popd > /dev/null
-
+    check_shared_perms "$shareddatadir"
 
     # add all the binds from the config file
+    echo "Reading config.toml using CLI tool ..."
     configbinds=$("${cli[@]}" binds)
     declare -a configbinds="(${configbinds})"
     binds+=("${configbinds[@]}")
@@ -264,11 +298,11 @@ case "$1" in
         exit 1
       fi
 
-      pushd "$sockdir"
+      pushd "$sockdir" > /dev/null
       "$hpexec" "${hpoptions[@]}" > "$localdir/logs/hostprocessor" 2>&1 &
       hppid=$!
-      echo "Host Processor started pid=$hppid"
-      popd
+      echo "Host Processor started pid=$hppid ($hpexec)"
+      popd > /dev/null
 
     fi
 
@@ -408,17 +442,7 @@ case "$1" in
 
     setup
     usersetup "$2"
-
-    # create the user-processor executable for this user
-    $usdo cp "$installdir/user-processor" "$upexec"
-
-    # only the user should be able to write
-    # only the user and the group should be able to execute
-    $usdo chmod u=rwx,g=rx,o= "$upexec"
-
-    # the executable should be setuid
-    # NOTE: set this last, so we're sure the executable has the correct permissions before turning on setuid
-    $usdo chmod u+s "$upexec"
+    create_upexec
 
     echo "Added user: $2"
 
@@ -448,11 +472,47 @@ case "$1" in
     ;;
 
 
+  upgrade-users)
+
+    if [ "$(whoami)" != "root" ]; then
+      echo "This utility should be run as root!"
+      exit 1
+    fi
+
+    setup
+
+    updir="$sharedexecdir/user-processors"
+
+    upgraded=0
+    for f in "$updir"/user-processor-* ; do
+      # NOTE: if the glob matches nothing, the filename `user-processor-*` will be iterated
+      #       sigh ... shells are so annoying to program
+      if [ -f "$f" ] ; then
+        IFS='-' read -r -a parts <<< "$(basename "$f")"
+        username=${parts[2]}
+        echo "Found user processor $username, upgrading"
+
+        usersetup "$username"
+        create_upexec
+
+        upgraded=1
+      fi
+    done
+
+    if [ $upgraded -le 0 ]; then
+      echo "No users found to upgrade"
+    fi
+
+    ;;
+
+
   *)
     echo "Usage:"
     echo "   nextpyp <start | stop>"
     echo "   or"
     echo "   sudo nextpyp <user-add | user-remove> <username>"
+    echo "   or"
+    echo "   sudo nextpyp upgrade-users"
     exit 1
     ;;
 

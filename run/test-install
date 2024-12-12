@@ -1,0 +1,447 @@
+#!/bin/bash
+
+
+# NOTE: these installation tests need a VM to run in that has:
+#   apptainer installed
+#   a SLURM cluster installed
+#   an admin account (named by $admin_acct variable below)
+#   a service account (named by $service_account variable below)
+#   a folder to act as a shared folder root (named by $shareddir variable below)
+#   a shared subfolder for the service account and the admin account
+#   a folder to act as a local folder root (named by $localdir variable below)
+#   filesystem access to the next run folder (named by $rundir variable below)
+#   an operating-system folder to use for installations (named by $osdir variable below)
+
+# settings
+osdir=/opt
+localdir=/scratch
+shareddir=/nfs
+service_acct=nextpyp
+admin_acct=jeff
+rundir=/media/next/run
+
+
+# these tests need to be run as root inside the VM
+if [ "$(whoami)" != "root" ]; then
+  echo "Test must be run as root"
+  exit 1
+fi
+
+
+appDaemon="nextPYP"
+
+srvstop() {
+  systemctl stop $appDaemon 2> /dev/null
+}
+
+
+clean() {
+
+  echo "CLEAN"
+
+  # move to a neutral cwd
+  cd /
+
+  # remove any systemd services
+  srvstop
+  rm "/lib/systemd/system/$appDaemon.service" 2> /dev/null
+  systemctl daemon-reload
+
+  # remove systemd logs too
+  journalctl --rotate --vacuum-time=1s --unit=nextPYP > /dev/null 2> /dev/null
+
+  # delete files
+  # NOTE: use the :? parameter expansion to fail if the dir vars are empty, which would prevent deleting /* by mistake
+  # NOTE: use 2> /dev/null to suppress useless errors from the log
+  rm -rf "${osdir:?}"/* 2> /dev/null
+  rm -rf "${localdir:?}"/* 2> /dev/null
+  rm -rf "${shareddir:?}/${service_acct:?}"/* 2> /dev/null
+  rm -rf "${shareddir:?}/${admin_acct:?}"/* 2> /dev/null
+  rm "/usr/bin/"nextpyp* 2> /dev/null
+  rm -rf "/home/${service_acct:?}" 2> /dev/null
+}
+
+
+run_test() { #(test_fn)
+  clean
+  echo
+  echo "========="
+  echo "  TEST:    $1"
+  echo "========="
+  $1
+  clean
+}
+
+
+stacktrace() {
+   local i=1 line file func
+   while read -r line func file < <(caller $i); do
+      echo " at $file:$line $func()"
+      ((i++))
+   done
+}
+
+
+fail() { #(msg)
+  echo
+  echo "******************"
+  echo "** TEST FAILURE **  $1"
+  echo "******************"
+  stacktrace
+  clean
+  exit 1
+}
+
+
+assert_succeeded() { #(exit_code)
+  if [ "$1" != 0 ]; then
+    fail "command failed: code=$1"
+  fi
+}
+
+
+assert_failed() { #(exit_code)
+  if [ "$1" == 0 ]; then
+    fail "command was supposed to fail, but didn't"
+  fi
+}
+
+
+assert_install() {
+  echo "----- CHECK INSTALL -----"
+  "$rundir/nextpyp" check
+  local exit
+  exit=$?
+  echo "----- ------------- -----"
+  assert_succeeded $exit
+}
+
+
+assert_owner() { #(path, owner)
+  if [ ! -e "$1" ]; then
+    fail "path does not exist: $1"
+  fi
+  obs="$(stat -c '%U' "$1")"
+  if [ "$obs" != "$2" ]; then
+    fail "$1 was supposed to be owned by $2, but instead is owned by $obs"
+  fi
+}
+
+
+mkdir_install_service() { # sets installdir
+  installdir="$shareddir/$service_acct/test"
+  sudo -u "$service_acct" mkdir -p "$installdir"
+  cd "$installdir" || fail "failed to cd"
+}
+
+
+mkdir_install_root() { # sets installdir
+  installdir="$osdir/nextpyp"
+  mkdir -p "$installdir"
+  cd "$installdir" || fail "failed to cd"
+}
+
+
+mkdir_install_admin() { # sets installdir
+  installdir="$osdir/nextpyp"
+  mkdir -p "$installdir"
+  chown "$admin_acct:$admin_acct" "$installdir"
+  cd "$installdir" || fail "failed to cd"
+}
+
+
+install() { #(acct, ...), sets install_exit
+
+  local cmddo
+  if [ "$1" = 'root' ]; then
+    cmddo=
+  else
+    cmddo="sudo -u \"$1\""
+  fi
+  shift
+
+  echo "----- INSTALL SCRIPT -----"
+  eval "$cmddo PYP_DIST=\"$rundir\" $* \"$rundir/install\""
+  install_exit=$?
+  echo "----- -------------- -----"
+}
+
+
+uninstall() { #(acct, ...), sets uninstall_exit
+
+  local cmddo
+  if [ "$1" = 'root' ]; then
+    cmddo=
+  else
+    cmddo="sudo -u \"$1\""
+  fi
+  shift
+
+  echo "----- UNINSTALL SCRIPT -----"
+  eval "$cmddo $* \"$rundir/uninstall\""
+  uninstall_exit=$?
+  echo "----- ---------------- -----"
+}
+
+
+# install as the service account with root
+# should always fail with an error
+test_install_as_root_folder_owned_by_service() {
+  mkdir_install_service
+  install "root" PYP_USER="$service_acct"
+  assert_failed $install_exit
+}
+
+
+test_install_as_root_folder_owned_by_root() {
+  mkdir_install_root
+  install "root" PYP_USER="$service_acct"
+  assert_succeeded $install_exit
+  assert_install
+  assert_owner "$installdir/nextPYP.sif" "root"
+  assert_owner "$installdir/local/logs" "$service_acct"
+  assert_owner "$installdir/shared/log" "$service_acct"
+  assert_owner "$installdir/sharedExec/containers/pyp.sif" "root"
+  uninstall "root"
+  assert_succeeded $uninstall_exit
+}
+
+
+test_install_as_root_folder_owned_by_admin() {
+  mkdir_install_admin
+  install "root" PYP_USER="$service_acct"
+  assert_succeeded $install_exit
+  assert_install
+  assert_owner "$installdir/nextPYP.sif" "$admin_acct"
+  assert_owner "$installdir/local/logs" "$service_acct"
+  assert_owner "$installdir/shared/log" "$service_acct"
+  assert_owner "$installdir/sharedExec/containers/pyp.sif" "$admin_acct"
+  uninstall "root"
+  assert_succeeded $uninstall_exit
+}
+
+
+test_install_as_root_with_local_owned_by_root() {
+
+  # make a local folder owned by root
+  local ldir
+  ldir="$localdir/test"
+  mkdir -p "$ldir"
+
+  mkdir_install_root
+  install "root" PYP_USER="$service_acct" PYP_LOCAL="$ldir"
+  assert_failed $install_exit
+}
+
+
+test_install_as_root_with_local_owned_by_service() {
+
+  # make a local folder owned by the service account
+  local ldir
+  ldir="$localdir/test"
+  mkdir -p "$ldir"
+  chown "$service_acct:$service_acct" "$ldir"
+
+  mkdir_install_root
+  install "root" PYP_USER="$service_acct" PYP_LOCAL="$ldir"
+  assert_succeeded $install_exit
+  assert_install
+  assert_owner "$installdir/nextPYP.sif" "root"
+  assert_owner "$ldir/logs" "$service_acct"
+  assert_owner "$installdir/shared/log" "$service_acct"
+  assert_owner "$installdir/sharedExec/containers/pyp.sif" "root"
+  uninstall "root"
+  assert_succeeded $uninstall_exit
+}
+
+
+test_install_as_root_with_shared_data_owned_by_admin() {
+
+  # make a shared data folder owned by the admin account
+  local sddir
+  sddir="$shareddir/$admin_acct/data"
+  sudo -u "$admin_acct" mkdir -p "$sddir"
+
+  mkdir_install_root
+  install "root" PYP_USER="$service_acct" PYP_SHARED_DATA="$sddir"
+  assert_failed $install_exit
+}
+
+
+test_install_as_root_with_shared_data_owned_by_service() {
+
+  # make a shared data folder owned by the service account
+  local sddir
+  sddir="$shareddir/$service_acct/data"
+  sudo -u "$service_acct" mkdir -p "$sddir"
+
+  mkdir_install_root
+  install "root" PYP_USER="$service_acct" PYP_SHARED_DATA="$sddir"
+  assert_succeeded $install_exit
+  assert_install
+  assert_owner "$installdir/nextPYP.sif" "root"
+  assert_owner "$installdir/local/logs" "$service_acct"
+  assert_owner "$sddir/log" "$service_acct"
+  assert_owner "$installdir/sharedExec/containers/pyp.sif" "root"
+  uninstall "root"
+  assert_succeeded $uninstall_exit
+}
+
+
+test_install_as_root_with_shared_exec_owned_by_service() {
+
+  # make a shared exec folder owned by the service account
+  local sedir
+  sedir="$shareddir/$service_acct/exec"
+  sudo -u "$service_acct" mkdir -p "$sedir"
+
+  mkdir_install_root
+  install "root" PYP_USER="$service_acct" PYP_SHARED_EXEC="$sedir"
+  assert_failed $install_exit
+}
+
+
+test_install_as_root_with_shared_exec_owned_by_admin() {
+
+  # make a shared exec folder owned by the admin account
+  local sedir
+  sedir="$shareddir/$admin_acct/exec"
+  sudo -u "$admin_acct" mkdir -p "$sedir"
+
+  mkdir_install_root
+  install "root" PYP_USER="$service_acct" PYP_SHARED_EXEC="$sedir"
+  assert_succeeded $install_exit
+  assert_install
+  assert_owner "$installdir/nextPYP.sif" "root"
+  assert_owner "$installdir/local/logs" "$service_acct"
+  assert_owner "$installdir/shared/log" "$service_acct"
+  assert_owner "$sedir/containers/pyp.sif" "$admin_acct"
+  uninstall "root"
+  assert_succeeded $uninstall_exit
+}
+
+
+test_install_as_service() {
+  mkdir_install_service
+  install "$service_acct"
+  assert_succeeded $install_exit
+  assert_install
+  assert_owner "$installdir/nextPYP.sif" "$service_acct"
+  assert_owner "$installdir/local/logs" "$service_acct"
+  assert_owner "$installdir/shared/log" "$service_acct"
+  assert_owner "$installdir/sharedExec/containers/pyp.sif" "$service_acct"
+  uninstall "$service_acct"
+  assert_succeeded $uninstall_exit
+}
+
+
+test_upgrade_as_root_folder_owned_by_root() {
+  mkdir_install_root
+  install "root" PYP_USER="$service_acct"
+  assert_succeeded $install_exit
+  srvstop
+  install "root" PYP_USER="$service_acct"
+  assert_succeeded $install_exit
+  assert_install
+}
+
+
+test_upgrade_as_root_folder_owned_by_admin() {
+  mkdir_install_admin
+  install "root" PYP_USER="$service_acct"
+  assert_succeeded $install_exit
+  srvstop
+  install "root" PYP_USER="$service_acct"
+  assert_succeeded $install_exit
+  assert_install
+}
+
+
+test_upgrade_as_root_with_local() {
+
+  # make a local folder owned by the service account
+  local ldir
+  ldir="$localdir/test"
+  mkdir -p "$ldir"
+  chown "$service_acct:$service_acct" "$ldir"
+
+  mkdir_install_root
+  install "root" PYP_USER="$service_acct" PYP_LOCAL="$ldir"
+  assert_succeeded $install_exit
+  srvstop
+  install "root" PYP_USER="$service_acct" PYP_LOCAL="$ldir"
+  assert_succeeded $install_exit
+  assert_install
+}
+
+
+test_upgrade_as_root_with_shared_data() {
+
+  # make a shared data folder owned by the service account
+  local sddir
+  sddir="$shareddir/$service_acct/data"
+  sudo -u "$service_acct" mkdir -p "$sddir"
+
+  mkdir_install_root
+  install "root" PYP_USER="$service_acct" PYP_SHARED_DATA="$sddir"
+  assert_succeeded $install_exit
+  srvstop
+  install "root" PYP_USER="$service_acct" PYP_SHARED_DATA="$sddir"
+  assert_succeeded $install_exit
+  assert_install
+}
+
+
+test_upgrade_as_root_with_shared_exec() {
+
+  # make a shared exec folder owned by the admin account
+  local sedir
+  sedir="$shareddir/$admin_acct/exec"
+  sudo -u "$admin_acct" mkdir -p "$sedir"
+
+  mkdir_install_root
+  install "root" PYP_USER="$service_acct" PYP_SHARED_EXEC="$sedir"
+  assert_succeeded $install_exit
+  srvstop
+  install "root" PYP_USER="$service_acct" PYP_SHARED_EXEC="$sedir"
+  assert_succeeded $install_exit
+  assert_install
+}
+
+
+test_upgrade_as_service() {
+  mkdir_install_service
+  install "$service_acct"
+  assert_succeeded $install_exit
+  srvstop
+  install "$service_acct"
+  assert_succeeded $install_exit
+  assert_install
+}
+
+
+
+# run all the tests
+echo "Running tests..."
+
+# installation tests
+run_test "test_install_as_root_folder_owned_by_service"
+run_test "test_install_as_root_folder_owned_by_root"
+run_test "test_install_as_root_folder_owned_by_admin"
+run_test "test_install_as_root_with_local_owned_by_root"
+run_test "test_install_as_root_with_local_owned_by_service"
+run_test "test_install_as_root_with_shared_data_owned_by_admin"
+run_test "test_install_as_root_with_shared_data_owned_by_service"
+run_test "test_install_as_root_with_shared_exec_owned_by_service"
+run_test "test_install_as_root_with_shared_exec_owned_by_admin"
+run_test "test_install_as_service"
+
+# upgrade tests
+run_test "test_upgrade_as_root_folder_owned_by_root"
+run_test "test_upgrade_as_root_folder_owned_by_admin"
+run_test "test_upgrade_as_root_with_local"
+run_test "test_upgrade_as_root_with_shared_data"
+run_test "test_upgrade_as_root_with_shared_exec"
+run_test "test_upgrade_as_service"
+
+echo "Testing completed successfully! =D =D =D"

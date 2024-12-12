@@ -62,7 +62,7 @@ actual class FormService : IFormService, Service {
 		val out = ArrayList<Path>()
 
 		// allow all binds configured by the administrator
-		out.addAll(Backend.config.pyp.binds)
+		out.addAll(Config.instance.pyp.binds)
 
 		// allow the user's folder
 		out.add(dir())
@@ -133,10 +133,9 @@ actual class FormService : IFormService, Service {
 			is Stat.Symlink -> FileBrowserFile(
 				type = FileBrowserType.Symlink,
 				linkTarget = when (val t = stat.response) {
-					Stat.Symlink.NotFound -> FileBrowserFile(FileBrowserType.Other)
-					// TODO: make a way to represent broken links in the file browser?
+					Stat.Symlink.NotFound -> FileBrowserFile(FileBrowserType.BrokenSymlink)
 					is Stat.Symlink.File -> FileBrowserFile(
-						type = FileBrowserType.Other,
+						type = FileBrowserType.File,
 						size = t.size.toLong()
 					)
 					Stat.Symlink.Dir -> FileBrowserFile(FileBrowserType.Folder)
@@ -195,7 +194,7 @@ actual class FormService : IFormService, Service {
 		}
 
 		val query = search.lowercase()
-		return Database.users.getAllUsers()
+		return Database.instance.users.getAllUsers()
 			.filter { user -> query in user.id.lowercase() || query in user.name.lowercase() }
 			.map { user -> RemoteOption(user.id, user.name) }
 	}

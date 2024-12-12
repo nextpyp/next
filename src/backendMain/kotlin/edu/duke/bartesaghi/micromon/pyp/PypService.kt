@@ -12,6 +12,7 @@ import edu.duke.bartesaghi.micromon.files.*
 import edu.duke.bartesaghi.micromon.jobs.*
 import edu.duke.bartesaghi.micromon.linux.EnvVar
 import edu.duke.bartesaghi.micromon.mongo.Database
+import edu.duke.bartesaghi.micromon.mongo.SavedParticles
 import edu.duke.bartesaghi.micromon.services.*
 import edu.duke.bartesaghi.micromon.sessions.Session
 import edu.duke.bartesaghi.micromon.sessions.SingleParticleSession
@@ -118,6 +119,7 @@ object PypService {
 
 					"script" -> CommandsScript(
 						commands.getStringsOrThrow("commands"),
+						commands.getString("params"),
 						commands.getInt("array_size"),
 						commands.getInt("bundle_size")
 					)
@@ -178,7 +180,7 @@ object PypService {
 		 */
 		// NOTE: I don't think we need the parameter_id, it seems to be redundant if we already have the webid
 		val pypParams = params.getObjectOrThrow("parameters")
-		val values = ArgValues(Backend.pypArgs)
+		val values = ArgValues(Backend.instance.pypArgs)
 		for (key in pypParams.fieldNames()) {
 			val arg = values.args.arg(key)
 				?: throw BadRequestException("unrecognized parameter: $key. Is this defined in the PYP parameters configuration file?")
@@ -196,7 +198,7 @@ object PypService {
 		}
 
 		// update the database
-		Database.parameters.writeParams(owner.id, values)
+		Database.instance.parameters.writeParams(owner.id, values)
 
 		// notify any listening clients
 		when (owner) {
@@ -241,36 +243,41 @@ object PypService {
 		val xf = XF.from(params.getArrayOrThrow("xf"))
 		val avgrot = AVGROT.from(params.getArrayOrThrow("avgrot"))
 
-		fun ArrayNode.readParticles(): Map<Int,Particle2D> {
-
-			// pyp doesn't send size info with the particle coords, so lookup the radius from the pyp arguments
-			val imagesScale = when (owner) {
-				is Owner.Job -> owner.job.pypParameters()?.let { owner.job.imagesScale(it) }
-				is Owner.Session -> owner.session.pypParameters()?.let { owner.session.imagesScale(it) }
-			} ?: ImagesScale.default()
-			val r = imagesScale.particleRadiusUnbinned
-
-			return indices().associate { i ->
-
-				val jsonParticle = getArrayOrThrow(i, "Particles coordinates")
-
-				// read the x,y coords
-				// NOTE: w,h components have no information and are always zero
-				// NOTE: these particles come from pyp in unbinned coordinates
-				val x = jsonParticle.getDoubleOrThrow(0, "Particles coordinates [$i].x")
-				val y = jsonParticle.getDoubleOrThrow(1, "Particles coordinates [$i].y")
-
-				val particleId = i + 1
-
-				particleId to Particle2D(x, y, r)
-			}
-		}
 		val particles = params.getArray("boxx")
-			?.readParticles()
+			?.let { boxx ->
+
+				// pyp doesn't send size info with the particle coords, so lookup the radius (in unbinned coords) from the pyp arguments
+				val values = when (owner) {
+					is Owner.Job -> owner.job.pypParameters()
+					is Owner.Session -> owner.session.pypParameters()
+				} ?: return JsonRpcFailure("can't import boxx particles: no pyp parameters sent")
+				val dims = ctf.imageDims()
+				val r = values.detectRad
+					?.toUnbinned(dims)
+					?: return JsonRpcFailure("can't import boxx particles: pyp parameters have no detect_rad")
+
+				SavedParticles(
+					version = ParticlesVersion.Unbinned,
+					saved = boxx.indices().associate { i ->
+
+						val jsonParticle = boxx.getArrayOrThrow(i, "Particles coordinates")
+
+						// read the x,y coords
+						// NOTE: w,h components have no information and are always zero
+						// NOTE: these particles come from pyp in unbinned coordinates
+						val x = ValueUnbinnedI(jsonParticle.getNumberAsIntOrThrow(0, "Particles coordinates [$i].x"))
+						val y = ValueUnbinnedI(jsonParticle.getNumberAsIntOrThrow(1, "Particles coordinates [$i].y"))
+
+						val particleId = i + 1
+
+						particleId to Particle2D(x, y, r)
+					}
+				)
+			}
 
 		// update the database
 		val micrographId = params.getStringOrThrow("micrograph_id")
-		Database.micrographs.write(owner.id, micrographId) {
+		Database.instance.micrographs.write(owner.id, micrographId) {
 			set("jobId", owner.id)
 			set("micrographId", micrographId)
 			set("timestamp", Instant.now().toEpochMilli())
@@ -278,13 +285,12 @@ object PypService {
 			set("ctf", ctf.toDoc())
 			set("xf", xf.toDoc())
 		}
-		Database.micrographsAvgRot.write(owner.id, micrographId, avgrot)
+		Database.instance.micrographsAvgRot.write(owner.id, micrographId, avgrot)
 
-		// TODO: update this to be analogous to the tomography side when the new blocks are ready to process metadata
 		if (particles != null) {
 			val list = ParticlesList.autoParticles2D(owner.id)
-			Database.particleLists.createIfNeeded(list)
-			Database.particles.importParticles2D(list.ownerId, list.name, micrographId, particles)
+			Database.instance.particleLists.createIfNeeded(list)
+			Database.instance.particles.importParticles2D(list.ownerId, list.name, micrographId, particles)
 		}
 
 		log.debug("writeMicrograph: {}: id={}, particles={}", owner, micrographId, particles?.size?.toString() ?: "none")
@@ -298,14 +304,14 @@ object PypService {
 					is MicrographsJob -> {
 
 						val isFirstMicrograph = job.latestMicrographId == null
-						Database.jobs.update(owner.id,
+						Database.instance.jobs.update(owner.id,
 							set("latestMicrographId", micrographId)
 						)
 						job.latestMicrographId = micrographId
 
 						// send the update to the clients, if needed
 						if (isFirstMicrograph) {
-							Backend.projectEventListeners.getAll(job.userId, job.projectId)
+							Backend.instance.projectEventListeners.getAll(job.userId, job.projectId)
 								.forEach { it.onJobUpdate(job.data()) }
 						}
 
@@ -341,7 +347,7 @@ object PypService {
 		val metadata = ReconstructionMetaData.fromJson(params.getObjectOrThrow("metadata"))
 		val plots = ReconstructionPlots.fromJson(params.getObjectOrThrow("plots"))
 
-		Database.reconstructions.write(owner.id, reconstructionId) {
+		Database.instance.reconstructions.write(owner.id, reconstructionId) {
 			set("jobId", owner.id)
 			set("reconstructionId", reconstructionId)
 			set("timestamp", Instant.now().toEpochMilli())
@@ -362,7 +368,7 @@ object PypService {
 				val formatter = NumberFormat.getIntegerInstance(Locale.US)
 				val particlesUsed = formatter.format(metadata.particlesUsed.toInt())
 				val particlesTotal = formatter.format(metadata.particlesTotal.toInt())
-				Database.jobs.update(owner.id,
+				Database.instance.jobs.update(owner.id,
 					set("latestReconstructionId", reconstructionId),
 					// TODO: we should store structured data in the database, and do presentation formatting in the UI
 					set("jobInfoString", "Iteration $iteration: $particlesUsed from $particlesTotal projections")
@@ -372,7 +378,7 @@ object PypService {
 				// (reload the job so it gets the latest reconstruction we just wrote)
 				val job = Job.fromIdOrThrow(owner.job.idOrThrow)
 				val jobData = job.data()
-				Backend.projectEventListeners.getAll(job.userId, job.projectId)
+				Backend.instance.projectEventListeners.getAll(job.userId, job.projectId)
 					.forEach { it.onJobUpdate(jobData) }
 
 				// notify any listening clients
@@ -396,29 +402,32 @@ object PypService {
 			?: return JsonRpcFailure("invalid webid")
 		val owner = clusterJob.findOwner()
 
-		// parse the inputs
-		// NOTE: all these inputs are always sent by pyp
-		val ctf = CTF.from(params.getArrayOrThrow("ctf"))
-		val xf = XF.from(params.getArrayOrThrow("xf"))
-		val avgrot = AVGROT.from(params.getArrayOrThrow("avgrot"))
-		val metadata = params.getObjectOrThrow("metadata")
-		val dmd = DMD.from(metadata)
+		// parse the inputs, everything is basically optional now
+		val ctf = params.getArray("ctf")?.let { CTF.from(it) }
+		val xf = params.getArray("xf")?.let { XF.from(it) }
+		val avgrot = params.getArray("avgrot")?.let { AVGROT.from(it) }
+		val metadata = params.getObject("metadata")
+		val dmd = metadata
+			?.takeIf { it.has("drift") }
+			?.let { DMD.from(it) }
 
-		// these inputs are sometimes sent by pyp
-		fun ArrayNode.readParticles(): Map<Int,Particle3D> =
-			indices().associate { i ->
-				val jsonParticle = getArrayOrThrow(i, "Particles coordinates")
-				val particleId = i + 1
-				// NOTE: these particles come from pyp in binned coordinates
-				val particle = Particle3D(
-					x = jsonParticle.getDoubleOrThrow(0, "Particles coordinates [$i].x"),
-					y = jsonParticle.getDoubleOrThrow(1, "Particles coordinates [$i].y"),
-					z = jsonParticle.getDoubleOrThrow(2, "Particles coordinates [$i].z"),
-					r = jsonParticle.getDoubleOrThrow(3, "Particles coordinates [$i].radius"),
-				)
-				particleId to particle
-			}
-		fun ArrayNode.readVirionThresholds(): Map<Int,Int> =
+		fun ArrayNode.readParticles(): SavedParticles<Particle3D> =
+			SavedParticles(
+				version = ParticlesVersion.Unbinned,
+				saved = indices().associate { i ->
+					val jsonParticle = getArrayOrThrow(i, "Particles coordinates")
+					val particleId = i + 1
+					// NOTE: these particles come from pyp in unbinned coordinates
+					val particle = Particle3D(
+						x = ValueUnbinnedI(jsonParticle.getNumberAsIntOrThrow(0, "Particles coordinates [$i].x")),
+						y = ValueUnbinnedI(jsonParticle.getNumberAsIntOrThrow(1, "Particles coordinates [$i].y")),
+						z = ValueUnbinnedI(jsonParticle.getNumberAsIntOrThrow(2, "Particles coordinates [$i].z")),
+						r = ValueUnbinnedF(jsonParticle.getDoubleOrThrow(3, "Particles coordinates [$i].radius")),
+					)
+					particleId to particle
+				}
+			)
+		fun ArrayNode.readThresholds(): Map<Int,Int> =
 			indices().associate { i ->
 				val virionId = i + 1
 				val threshold = getArrayOrThrow(i, "Particles coordinates")
@@ -428,46 +437,52 @@ object PypService {
 					?: 1 // if pyp doesn't send a threshold, pick a default
 				virionId to threshold
 			}
-		val virionsAndThresholds = metadata.getArray("virion_coordinates")
-			?.let { it.readParticles() to it.readVirionThresholds() }
-		val particles = metadata.getArray("spike_coordinates")
+		val virionsAndThresholds = metadata
+			?.getArray("virion_coordinates")
+			?.let { it.readParticles() to it.readThresholds() }
+		val particles = metadata
+			?.getArray("spike_coordinates")
 			?.readParticles()
+		val particleThresholds = metadata
+			?.getArray("spike_coordinates")
+			?.readThresholds()
+		log.debug("tilt series metadata keys: {}", metadata?.fieldNames()?.asSequence()?.toList())
 
 		// update the database
 		val tiltSeriesId = params.getStringOrThrow("tiltseries_id")
-		Database.tiltSeries.write(owner.id, tiltSeriesId) {
+		Database.instance.tiltSeries.write(owner.id, tiltSeriesId) {
 			set("jobId", owner.id)
 			set("tiltSeriesId", tiltSeriesId)
 			set("timestamp", Instant.now().toEpochMilli())
-			set("particleCount", particles?.size)
-			set("ctf", ctf.toDoc())
-			set("xf", xf.toDoc())
+			particles?.let { set("particleCount", it.size) }
+			virionsAndThresholds?.let { (virions, _) -> set("virionCount", virions.size) }
+			ctf?.let { set("ctf", it.toDoc()) }
+			xf?.let { set("xf", it.toDoc()) }
 		}
-		Database.tiltSeriesAvgRot.write(owner.id, tiltSeriesId, avgrot)
-		Database.tiltSeriesDriftMetadata.write(owner.id, tiltSeriesId, dmd)
+		avgrot?.let { Database.instance.tiltSeriesAvgRot.write(owner.id, tiltSeriesId, it) }
+		dmd?.let { Database.instance.tiltSeriesDriftMetadata.write(owner.id, tiltSeriesId, it) }
 
 		virionsAndThresholds?.let { (virions, thresholds) ->
-			val list = when (val job = (owner as? Owner.Job)?.job) {
-				// TODO: what special per-job stuff do we need here, if any?
-				else -> ParticlesList.autoVirions(owner.id)
-			}
-			Database.particleLists.createIfNeeded(list)
-			Database.particles.importParticles3D(list.ownerId, list.name, tiltSeriesId, virions)
-			Database.particles.importVirionThresholds(list.ownerId, list.name, tiltSeriesId, thresholds)
+			val list = ParticlesList.autoVirions(owner.id)
+			Database.instance.particleLists.createIfNeeded(list)
+			Database.instance.particles.importParticles3D(list.ownerId, list.name, tiltSeriesId, virions)
+			Database.instance.particles.importThresholds(list.ownerId, list.name, tiltSeriesId, thresholds)
 		}
 		if (particles != null) {
-			val list = when (val job = (owner as? Owner.Job)?.job) {
-				// TODO: what special per-job stuff do we need here, if any?
-				else -> ParticlesList.autoParticles3D(owner.id)
+			val list = ParticlesList.autoParticles3D(owner.id)
+			Database.instance.particleLists.createIfNeeded(list)
+			Database.instance.particles.importParticles3D(list.ownerId, list.name, tiltSeriesId, particles)
+			if (particleThresholds != null) {
+				Database.instance.particles.importThresholds(list.ownerId, list.name, tiltSeriesId, particleThresholds)
 			}
-			Database.particleLists.createIfNeeded(list)
-			Database.particles.importParticles3D(list.ownerId, list.name, tiltSeriesId, particles)
 		}
 
-		log.debug("writeTiltSeries: {}: id={}, virions={}, thresholds={}, particles={}", owner, tiltSeriesId,
+		log.debug("writeTiltSeries: {}: id={}, virions={}, virionThresholds={}, particles={}, particleThresholds={}",
+			owner, tiltSeriesId,
 			virionsAndThresholds?.first?.size?.toString() ?: "none",
 			virionsAndThresholds?.second?.size?.toString() ?: "none",
-			particles?.size?.toString() ?: "none"
+			particles?.size?.toString() ?: "none",
+			particleThresholds?.size?.toString() ?: "none"
 		)
 
 		when (owner) {
@@ -480,14 +495,14 @@ object PypService {
 
 						// update the latest tilt series
 						val isFirstTiltSeries = job.latestTiltSeriesId == null
-						Database.jobs.update(owner.id,
+						Database.instance.jobs.update(owner.id,
 							set("latestTiltSeriesId", tiltSeriesId)
 						)
 						job.latestTiltSeriesId = tiltSeriesId
 
 						// send the update to the clients, if needed
 						if (isFirstTiltSeries) {
-							Backend.projectEventListeners.getAll(job.userId, job.projectId)
+							Backend.instance.projectEventListeners.getAll(job.userId, job.projectId)
 								.forEach { it.onJobUpdate(job.data()) }
 						}
 
@@ -537,7 +552,7 @@ object PypService {
 			is Owner.Job -> {
 
 				// clean up old iterations, if needed
-				val mostRecentIteration = Database.jobs.get(refinement.jobId)
+				val mostRecentIteration = Database.instance.jobs.get(refinement.jobId)
 					?.getInteger("latestRefinementIteration")
 				if (mostRecentIteration != null && refinement.iteration != mostRecentIteration) {
 					Refinement.deleteAllNotIteration(refinement.jobId, refinement.iteration)
@@ -545,7 +560,7 @@ object PypService {
 
 				// record the latest iteration, if it's newer
 				if (mostRecentIteration == null || refinement.iteration != mostRecentIteration) {
-					Database.jobs.update(refinement.jobId,
+					Database.instance.jobs.update(refinement.jobId,
 						set("latestRefinementIteration", refinement.iteration)
 					)
 				}
@@ -590,7 +605,7 @@ object PypService {
 			is Owner.Job -> {
 
 				// clean up old iterations, if needed
-				val mostRecentIteration = Database.jobs.get(refinementBundle.jobId)
+				val mostRecentIteration = Database.instance.jobs.get(refinementBundle.jobId)
 					?.getInteger("latestRefinementBundleIteration")
 				if (mostRecentIteration != null && refinementBundle.iteration != mostRecentIteration) {
 					RefinementBundle.deleteAllNotIteration(refinementBundle.jobId, refinementBundle.iteration)
@@ -598,7 +613,7 @@ object PypService {
 
 				// record the latest iteration, if it's newer
 				if (mostRecentIteration == null || refinementBundle.iteration != mostRecentIteration) {
-					Database.jobs.update(refinementBundle.jobId,
+					Database.instance.jobs.update(refinementBundle.jobId,
 						set("latestRefinementBundleIteration", refinementBundle.iteration)
 					)
 				}

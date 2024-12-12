@@ -1,6 +1,15 @@
 package edu.duke.bartesaghi.micromon
 
+import com.github.ajalt.mordant.TermColors
+import io.kotest.common.runBlocking
+import io.kotest.core.spec.Spec
+import io.kotest.engine.TestEngineLauncher
+import io.kotest.engine.launcher.*
+import io.kotest.engine.listener.*
+import io.kotest.framework.discovery.Discovery
+import io.kotest.framework.discovery.DiscoveryRequest
 import kotlin.reflect.KClass
+import kotlin.system.exitProcess
 
 
 /**
@@ -8,47 +17,55 @@ import kotlin.reflect.KClass
  */
 fun main() {
 
-	// by default, run all the tests
-	@Suppress("CanBeVal")
-	var test: Test? = null
+	// run just one test, or one group of tests
+	//return run(Test(TestTheThing::class, "group", "test"))
 
-	// or, focus on just one test
-	//test = Test(TestSubprocess::class, listOf("subprocess", "ping/pong"))
+	// or, run a suite of tests
+	//return run(Classes(TestOneThing::class, TestAnotherThing::class))
 
-	@Suppress("KotlinConstantConditions")
-	run(test)
+	// or, by default, run all the tests
+	return run()
 }
 
 
-private data class Test(
-	val c: KClass<*>,
-	val path: List<String>? = null
-) {
-	fun args(): Array<String> =
-		arrayOf(
-			"--spec", c.qualifiedName!!,
-			*if (path != null) {
-				arrayOf("--testpath", path.joinToString(" -- "))
-			} else {
-				emptyArray()
-			}
-		)
-}
+sealed interface TestsDescriptor
+
+class Test(val c: KClass<out Spec>, vararg val path: String) : TestsDescriptor
+class Classes(vararg val c: KClass<out Spec>) : TestsDescriptor
+object All : TestsDescriptor
 
 
-private fun run(test: Test? = null) {
+private fun run(desc: TestsDescriptor = All) {
 
-	/**
-	 * Run tests using kotest's console launcher
-	 *
-	 * for docs on the launcher args, see:
-	 * [io.kotest.engine.launcher.LauncherArgs]
-	 */
-	@Suppress("OPT_IN_USAGE") // ok, we opted in
-	io.kotest.engine.launcher.main(arrayOf(
-		//"--listener", "teamcity" // IntelliJ integration doesn't seem to work inside the dev VM and/or container ;_;
-		"--listener", "enhanced",
-		"--termcolor", "true",
-		*(test?.args() ?: emptyArray())
-	))
+	// build the kotest launcher
+	var launcher = TestEngineLauncher(CompositeTestEngineListener(listOf(
+		CollectingTestEngineListener(),
+		LoggingTestEngineListener,
+		ThreadSafeTestEngineListener(PinnedSpecTestEngineListener(EnhancedConsoleTestEngineListener(TermColors(TermColors.Level.TRUECOLOR)))),
+	)))
+
+	// apply the tests description to the launcher
+	launcher = when(desc) {
+
+		// run a single test
+		is Test -> launcher
+			.withExtensions(listOf(TestPathTestCaseFilter(desc.path.joinToString(" -- "), desc.c)))
+			.withClasses(listOf(desc.c))
+
+		is Classes -> launcher
+			.withClasses(desc.c.toList())
+
+		is All -> launcher.withClasses(run {
+			val result = Discovery().discover(DiscoveryRequest())
+			result.error?.let { throw it }
+			result.specs
+		})
+	}
+
+	// run the tests!
+	launcher.launch()
+
+	// looks like kotest leaves some threads running ... somewhere
+	// so we need to hard exit here
+	exitProcess(0)
 }

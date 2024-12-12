@@ -9,7 +9,7 @@ object StreamLog {
 	suspend fun add(clusterJobId: String, msg: StreamLogMsg) {
 
 		// update the database
-		Database.pypLog.add(clusterJobId) {
+		Database.instance.pypLog.add(clusterJobId) {
 			set("timestamp", msg.timestamp)
 			set("level", msg.level)
 			set("path", msg.path)
@@ -35,7 +35,7 @@ object StreamLog {
 
 		val out = ArrayList<StreamLogMsg>()
 
-		Database.pypLog.getAll(clusterJobId) { cursor ->
+		Database.instance.pypLog.getAll(clusterJobId) { cursor ->
 			for (doc in cursor) {
 				out.add(StreamLogMsg(
 					timestamp = doc.getLong("timestamp"),

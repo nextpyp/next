@@ -1,5 +1,6 @@
 package edu.duke.bartesaghi.micromon.mongo
 
+import com.mongodb.client.MongoDatabase
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.ReplaceOptions
 import com.mongodb.client.model.UpdateOptions
@@ -13,14 +14,14 @@ import org.bson.conversions.Bson
 import java.util.NoSuchElementException
 
 
-class Users {
+class Users(db: MongoDatabase) {
 
 	/**
 	 * The collection for users is called `permissions` for historical reasons.
 	 * Feel free to change it to `users` if you think you won't break anyone's installation,
 	 * or if you think you can convince them that creating all their users over again isn't annoying.
 	 */
-	private val collection = Database.db.getCollection("permissions")
+	private val collection = db.getCollection("permissions")
 
 	fun filter(userId: String) =
 		Filters.eq("_id", userId)
@@ -72,7 +73,7 @@ class Users {
 				.mapNotNull { User.Permission[it] }
 				.toSet(),
 			groups = (getListOfStrings("groups") ?: emptyList())
-				.mapNotNull { groupId -> Database.groups.get(groupId) }
+				.mapNotNull { groupId -> Database.instance.groups.get(groupId) }
 				.toSet(),
 			haspw = getString("pwhash") != null,
 			osUsername = getString("osUsername")
@@ -125,7 +126,7 @@ class Users {
 	 * We need to call the Argon2 verify function, so punt that to the caller.
 	 */
 	fun removeTokenHashes(userId: String, filter: (tkhash: String) -> Boolean) {
-		Database.transaction {
+		Database.instance.transaction {
 
 			// get all the hashes, filter out the ones we're removing, then write back the remaining ones
 			val tkhashes = getTokenHashes(userId)
@@ -138,9 +139,9 @@ class Users {
 }
 
 
-class Groups {
+class Groups(db: MongoDatabase) {
 
-	private val collection = Database.db.getCollection("groups")
+	private val collection = db.getCollection("groups")
 
 	private fun filter(groupId: String) =
 		Filters.eq("_id", groupId.toObjectId())

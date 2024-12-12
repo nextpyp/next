@@ -3,8 +3,13 @@ package edu.duke.bartesaghi.micromon.services
 import com.google.inject.Inject
 import edu.duke.bartesaghi.micromon.auth.authOrThrow
 import edu.duke.bartesaghi.micromon.mongo.Database
+import edu.duke.bartesaghi.micromon.mongo.SavedParticles
 import edu.duke.bartesaghi.micromon.mongo.authJobOrThrow
 import edu.duke.bartesaghi.micromon.parseOwnerType
+import edu.duke.bartesaghi.micromon.pyp.ParticlesVersion
+import edu.duke.bartesaghi.micromon.pyp.PypService
+import edu.duke.bartesaghi.micromon.pyp.toUnbinned2D
+import edu.duke.bartesaghi.micromon.pyp.toUnbinned3D
 import edu.duke.bartesaghi.micromon.respondExceptions
 import edu.duke.bartesaghi.micromon.sanitizeExceptions
 import edu.duke.bartesaghi.micromon.sessions.authSessionOrThrow
@@ -19,6 +24,7 @@ import io.kvision.remote.RemoteOption
 import io.kvision.remote.ServiceException
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import org.slf4j.LoggerFactory
 
 
 actual class ParticlesService : IParticlesService, Service {
@@ -80,26 +86,26 @@ actual class ParticlesService : IParticlesService, Service {
 	@Inject
 	override lateinit var call: ApplicationCall
 
-	private fun authRead(ownerType: OwnerType, ownerId: String) {
+	private fun authRead(ownerType: OwnerType, ownerId: String): PypService.Owner {
 		val user = call.authOrThrow()
-		when (ownerType) {
-			OwnerType.Project -> user.authJobOrThrow(ProjectPermission.Read, ownerId)
-			OwnerType.Session -> user.authSessionOrThrow(ownerId, SessionPermission.Read)
+		return when (ownerType) {
+			OwnerType.Project -> PypService.Owner.Job(user.authJobOrThrow(ProjectPermission.Read, ownerId))
+			OwnerType.Session -> PypService.Owner.Session(user.authSessionOrThrow(ownerId, SessionPermission.Read))
 		}
 	}
 
-	private fun authWrite(ownerType: OwnerType, ownerId: String) {
+	private fun authWrite(ownerType: OwnerType, ownerId: String): PypService.Owner {
 		val user = call.authOrThrow()
-		when (ownerType) {
-			OwnerType.Project -> user.authJobOrThrow(ProjectPermission.Write, ownerId)
-			OwnerType.Session -> user.authSessionOrThrow(ownerId, SessionPermission.Write)
+		return when (ownerType) {
+			OwnerType.Project -> PypService.Owner.Job(user.authJobOrThrow(ProjectPermission.Write, ownerId))
+			OwnerType.Session -> PypService.Owner.Session(user.authSessionOrThrow(ownerId, SessionPermission.Write))
 		}
 	}
 
 
 	override suspend fun getLists(ownerType: OwnerType, ownerId: String): List<ParticlesList> = sanitizeExceptions {
 		authRead(ownerType, ownerId)
-		Database.particleLists.getAll(ownerId)
+		Database.instance.particleLists.getAll(ownerId)
 	}
 
 	override suspend fun getListOptions(search: String?, initial: String?, state: String?): List<RemoteOption> = sanitizeExceptions {
@@ -126,7 +132,7 @@ actual class ParticlesService : IParticlesService, Service {
 			RemoteOption(divider = true)
 		)
 
-		val options = Database.particleLists.getAll(ownerId)
+		val options = Database.instance.particleLists.getAll(ownerId)
 			.map { RemoteOption(it.name) }
 
 		return header + options
@@ -134,7 +140,7 @@ actual class ParticlesService : IParticlesService, Service {
 
 	override suspend fun getList(ownerType: OwnerType, ownerId: String, name: String): Option<ParticlesList> = sanitizeExceptions {
 		authRead(ownerType, ownerId)
-		Database.particleLists.get(ownerId, name)
+		Database.instance.particleLists.get(ownerId, name)
 			.toOption()
 	}
 
@@ -146,7 +152,7 @@ actual class ParticlesService : IParticlesService, Service {
 			type = type,
 			source = ParticlesSource.User
 		)
-		if (Database.particleLists.createIfNeeded(list)) {
+		if (Database.instance.particleLists.createIfNeeded(list)) {
 			list
 		} else {
 			null
@@ -157,19 +163,19 @@ actual class ParticlesService : IParticlesService, Service {
 		authWrite(ownerType, ownerId)
 
 		// can only delete user-created lists here
-		Database.particleLists.get(ownerId, name)
+		Database.instance.particleLists.get(ownerId, name)
 			?.takeIf { it.source == ParticlesSource.User }
 			?: return false
 
-		Database.particleLists.delete(ownerId, name)
-		Database.particles.deleteAllParticles(ownerId, name)
+		Database.instance.particleLists.delete(ownerId, name)
+		Database.instance.particles.deleteAllParticles(ownerId, name)
 		true
 	}
 
 	override suspend fun copyList(ownerType: OwnerType, ownerId: String, name: String, newName: String): Option<ParticlesList> = sanitizeExceptions {
 		authWrite(ownerType, ownerId)
 
-		val list = Database.particleLists.get(ownerId, name)
+		val list = Database.instance.particleLists.get(ownerId, name)
 			?: throw ServiceException("list not found: $name")
 
 		// copy the list
@@ -177,56 +183,86 @@ actual class ParticlesService : IParticlesService, Service {
 			name = newName,
 			source = ParticlesSource.User
 		)
-		if (!Database.particleLists.createIfNeeded(newList)) {
+		if (!Database.instance.particleLists.createIfNeeded(newList)) {
 			return null.toOption()
 		}
 
 		// copy the particles
-		Database.particles.copyAllParticles(ownerId, name, newName)
+		Database.instance.particles.copyAllParticles(ownerId, name, newName)
 
 		newList.toOption()
 	}
 
 	fun getParticles2D(ownerType: OwnerType, ownerId: String, name: String, datumId: String): Particles2DData = sanitizeExceptions {
-		authRead(ownerType, ownerId)
-		Database.particles.getParticles2D(ownerId, name, datumId)
-			.toData()
+		val owner = authRead(ownerType, ownerId)
+		val particles = Database.instance.particles.getParticles2D(ownerId, name, datumId)
+			?.let {
+				val list = Database.instance.particleLists.getOrThrow(ownerId, name)
+				it.toUnbinned2D(owner, list)
+			}
+			?: SavedParticles()
+		particles.toData()
 	}
 
 	override suspend fun addParticle2D(ownerType: OwnerType, ownerId: String, name: String, datumId: String, particle: Particle2D): Int = sanitizeExceptions {
 		authWrite(ownerType, ownerId)
 
 		// only add particles to user-sourced lists
-		Database.particleLists.get(ownerId, name)
+		Database.instance.particleLists.get(ownerId, name)
 			?.takeIf { it.source == ParticlesSource.User }
 			?: throw ServiceException("list is not user-writable")
 
-		Database.particles.addParticle2D(ownerId, name, datumId, particle)
+		Database.instance.particles.addParticle2D(ownerId, name, datumId, particle)
 	}
 
 	fun getParticles3D(ownerType: OwnerType, ownerId: String, name: String, datumId: String): Particles3DData = sanitizeExceptions {
-		authRead(ownerType, ownerId)
-		Database.particles.getParticles3D(ownerId, name, datumId)
-			.toData()
+		val owner = authRead(ownerType, ownerId)
+		val particles = Database.instance.particles.getParticles3D(ownerId, name, datumId)
+			?.let {
+				val list = Database.instance.particleLists.getOrThrow(ownerId, name)
+				it.toUnbinned3D(owner, list)
+			}
+			?: SavedParticles()
+		particles.toData()
 	}
 
 	override suspend fun addParticle3D(ownerType: OwnerType, ownerId: String, name: String, datumId: String, particle: Particle3D): Int = sanitizeExceptions {
-		authWrite(ownerType, ownerId)
+
+		val owner = authWrite(ownerType, ownerId)
 
 		// only add particles to user-sourced lists
-		Database.particleLists.get(ownerId, name)
+		val list = Database.instance.particleLists.get(ownerId, name)
 			?.takeIf { it.source == ParticlesSource.User }
 			?: throw ServiceException("list is not user-writable")
 
-		Database.particles.addParticle3D(ownerId, name, datumId, particle)
+		// auto-migrate this particle list, if needed
+		when (Database.instance.particles.getParticlesVersion(ownerId, name, datumId)) {
+			null -> Unit // no particles there yet, no migration needed
+			ParticlesVersion.Legacy -> {
+				LoggerFactory.getLogger("ParticleMigration")
+					.debug("""
+						|addParticle3d(): Migrating manual particles from legacy to unbinned
+						|  $ownerType: $ownerId
+						|        list: $name
+						|       datum: $datumId
+					""".trimMargin(), ownerType, ownerId, name, datumId)
+				val particlesUntyped = Database.instance.particles.getParticles3D(ownerId, name, datumId)
+					?: throw IllegalStateException("particles have version, expected coords too")
+				val particles = particlesUntyped.toUnbinned3D(owner, list)
+				Database.instance.particles.importParticles3D(ownerId, name, datumId, particles)
+			}
+			ParticlesVersion.Unbinned -> Unit // no migration needed
+		}
+
+		Database.instance.particles.addParticle3D(ownerId, name, datumId, particle)
 	}
 
 	override suspend fun countParticles(ownerType: OwnerType, ownerId: String, name: String, datumId: String?): Option<Long> = sanitizeExceptions {
 		authRead(ownerType, ownerId)
 		if (datumId != null) {
-			Database.particles.countParticles(ownerId, name, datumId)
+			Database.instance.particles.countParticles(ownerId, name, datumId)
 		} else {
-			Database.particles.countAllParticles(ownerId, name)
+			Database.instance.particles.countAllParticles(ownerId, name)
 		}.toOption()
 	}
 
@@ -234,21 +270,22 @@ actual class ParticlesService : IParticlesService, Service {
 		authWrite(ownerType, ownerId)
 
 		// only add particles to user-sourced lists
-		Database.particleLists.get(ownerId, name)
+		Database.instance.particleLists.get(ownerId, name)
 			?.takeIf { it.source == ParticlesSource.User }
 			?: throw ServiceException("list is not user-writable")
 
-		Database.particles.deleteParticle(ownerId, name, datumId, particleId)
+		Database.instance.particles.deleteParticle(ownerId, name, datumId, particleId)
 	}
 
 	override suspend fun getVirionThresholds(ownerType: OwnerType, ownerId: String, name: String, datumId: String): VirionThresholdData = sanitizeExceptions {
 		authRead(ownerType, ownerId)
-		Database.particles.getVirionThresholds(ownerId, name, datumId)
-			.toVirionThresholdData()
+		val thresholds = Database.instance.particles.getThresholds(ownerId, name, datumId)
+			?: HashMap()
+		thresholds.toVirionThresholdData()
 	}
 
 	override suspend fun setVirionThreshold(ownerType: OwnerType, ownerId: String, name: String, datumId: String, virionId: Int, threshold: Int?) = sanitizeExceptions {
 		authWrite(ownerType, ownerId)
-		Database.particles.setVirionThreshold(ownerId, name, datumId, virionId, threshold)
+		Database.instance.particles.setThreshold(ownerId, name, datumId, virionId, threshold)
 	}
 }

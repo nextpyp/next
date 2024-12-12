@@ -75,6 +75,7 @@ class SingleParticleSessionView(
 		}
 	}
 
+	override val routed = Companion
 	override val elem = Div(classes = setOf("dock-page", "session"))
 
 	private var viewport: Viewport? = null
@@ -120,7 +121,7 @@ class SingleParticleSessionView(
 		tabs.addTab("Settings", "fas fa-sliders-h") {
 			settingsTab?.show(it.elem)
 		}
-		tabs.activateDefaultTab()
+		tabs.initWithDefaultTab()
 
 		val session = session
 		if (session == null) {
@@ -203,8 +204,6 @@ class SingleParticleSessionView(
 			val initMsg = input.receiveMessage<RealTimeS2C.SessionStatus>()
 			try {
 				opsTab?.init(initMsg)
-				tableTab?.init(initMsg)
-				micrographsTab?.init(initMsg)
 			} catch (t: Throwable) {
 				t.reportError()
 				Toast.error("An error occurred while loading the session status.")
@@ -258,7 +257,6 @@ class SingleParticleSessionView(
 							}
 							is RealTimeS2C.UpdatedParameters -> {
 								micrographsTab?.update(msg)
-								tableTab?.update(msg)
 							}
 							is RealTimeS2C.SessionMicrograph -> {
 
@@ -450,8 +448,6 @@ class SingleParticleSessionView(
 
 		val loader = TabDataLoader<RealTimeS2C.SessionLargeData>()
 
-		private var imagesScale: ImagesScale? = null
-
 		private val table = FilterTable(
 			"Micrograph",
 			micrographs,
@@ -464,7 +460,7 @@ class SingleParticleSessionView(
 					link(micrograph.id, classes = setOf("link"))
 						.onClick { showMicrograph(index, true) }
 				}
-				elem.add(SessionMicrographImage(session, micrograph, imagesScale).apply {
+				elem.add(SessionMicrographImage(session, micrograph).apply {
 					loadParticles()
 				})
 				elem.add(SessionMicrograph1DPlot(session, micrograph).apply {
@@ -498,14 +494,6 @@ class SingleParticleSessionView(
 			loader.init(lazyTab)
 		}
 
-		fun init(msg: RealTimeS2C.SessionStatus) {
-			imagesScale = msg.imagesScale
-		}
-
-		fun update(msg: RealTimeS2C.UpdatedParameters) {
-			imagesScale = msg.imagesScale
-		}
-
 		fun onMicrograph() {
 			table.update()
 		}
@@ -515,7 +503,7 @@ class SingleParticleSessionView(
 
 		val loader = TabDataLoader<RealTimeS2C.SessionLargeData>()
 
-		private val gallery = HyperGallery(micrographs).apply {
+		private val gallery = HyperGallery(micrographs, ImageSizes.from(ImageSize.Small)).apply {
 			html = { micrograph ->
 				listenToImageSize(document.create.img(src = micrograph.imageUrl(this@GalleryTab.session, ImageSize.Small)))
 			}
@@ -552,9 +540,7 @@ class SingleParticleSessionView(
 
 		private val micrographElem = Div()
 
-		private var imagesScale: ImagesScale? = null
-
-		val listNav = BigListNav(micrographs) e@{ index ->
+		val listNav = BigListNav(micrographs, onSearch=micrographs::searchById) e@{ index ->
 
 			// clear the previous contents
 			micrographElem.removeAll()
@@ -581,7 +567,7 @@ class SingleParticleSessionView(
 			}
 
 			// show the micrograph image
-			micrographElem.add(SessionMicrographImage(session, micrograph, imagesScale).apply {
+			micrographElem.add(SessionMicrographImage(session, micrograph).apply {
 				loadParticles()
 			})
 
@@ -619,12 +605,7 @@ class SingleParticleSessionView(
 			loader.init(lazyTab)
 		}
 
-		fun init(msg: RealTimeS2C.SessionStatus) {
-			imagesScale = msg.imagesScale
-		}
-
 		fun update(msg: RealTimeS2C.UpdatedParameters) {
-			imagesScale = msg.imagesScale
 			listNav.reshow()
 		}
 	}
@@ -732,7 +713,7 @@ class SingleParticleSessionView(
 	private fun updateStatistics() {
 
 		val numMicrographs = micrographs.size
-		val numParticles = micrographs.sumOf { it.numParticles }
+		val numParticles = micrographs.sumOf { it.numAutoParticles }
 
 		AppScope.launch {
 
@@ -740,8 +721,14 @@ class SingleParticleSessionView(
 			val argsValues = session?.newestArgs?.values?.toArgValues(args)
 
 			statsElem.removeAll()
-			statsElem.div("Total: ${numMicrographs.formatWithDigitGroupsSeparator()} micrograph(s), ${numParticles.formatWithDigitGroupsSeparator()} particle(s)")
-			statsElem.add(PypStatsLine(PypStats.fromSingleParticle(argsValues)))
+			statsElem.div {
+				content = listOf(
+					"Total: ${numMicrographs.formatWithDigitGroupsSeparator()} micrograph(s)",
+					"${numParticles.formatWithDigitGroupsSeparator()} particle(s)",
+					"Radius: ${argsValues?.detectRad ?: "(unknown)"} A"
+				).joinToString(", ")
+			}
+			statsElem.add(PypStatsLine(PypStats.fromArgValues(argsValues)))
 		}
 	}
 }

@@ -15,10 +15,7 @@ import edu.duke.bartesaghi.micromon.nodes.NodeConfigs
 import edu.duke.bartesaghi.micromon.projects.RepresentativeImage
 import edu.duke.bartesaghi.micromon.projects.RepresentativeImageType
 import edu.duke.bartesaghi.micromon.pyp.*
-import edu.duke.bartesaghi.micromon.services.CommonJobData
-import edu.duke.bartesaghi.micromon.services.JobData
-import edu.duke.bartesaghi.micromon.services.ProjectPermission
-import edu.duke.bartesaghi.micromon.services.Service
+import edu.duke.bartesaghi.micromon.services.*
 import io.ktor.application.*
 import io.kvision.remote.ServiceException
 import org.bson.Document
@@ -159,7 +156,7 @@ abstract class Job(
 		}
 
 		// create the job
-		val (id, number) = Database.jobs.create(userId, projectId) {
+		val (id, number) = Database.instance.jobs.create(userId, projectId) {
 			createDoc(this)
 		}
 		this.id = id
@@ -167,7 +164,7 @@ abstract class Job(
 
 		// set the name
 		name = baseConfig.name
-		Database.jobs.update(id, set("name", name))
+		Database.instance.jobs.update(id, set("name", name))
 
 		createFolder()
 		if (baseConfig.hasFiles) {
@@ -176,7 +173,7 @@ abstract class Job(
 	}
 
 	fun update() {
-		Database.jobs.update(idOrThrow, ArrayList<Bson>().apply {
+		Database.instance.jobs.update(idOrThrow, ArrayList<Bson>().apply {
 			updateDoc(this)
 		})
 	}
@@ -193,8 +190,8 @@ abstract class Job(
 			?.deleteJobRuns(idOrThrow)
 
 		// delete the job from the database
-		Database.jobs.delete(id)
-		Database.projects.update(userId, projectId,
+		Database.instance.jobs.delete(id)
+		Database.instance.projects.update(userId, projectId,
 			pull("jobIds", id)
 		)
 
@@ -241,6 +238,15 @@ abstract class Job(
 		// nothing to do by default
 	}
 
+	open fun copyDataFrom(otherJobId: String) {
+		throw UnsupportedOperationException("not implemented")
+	}
+
+	suspend fun copyFilesFrom(osUsername: String?, otherJobId: String) {
+		val otherJob = fromIdOrThrow(otherJobId)
+		otherJob.dir.copyDirRecursivelyAs(osUsername, dir)
+	}
+
 	/** return true iff this job has pending changes that need to be run */
 	open fun isChanged(): Boolean = false
 
@@ -270,10 +276,118 @@ abstract class Job(
 	val wwwDir: WebCacheDir get() =
 		WebCacheDir(dir / "www")
 
+	fun ancestry(includeThis: Boolean = true): List<Job> {
+
+		val jobs = ArrayList<Job>()
+
+		var job = this
+		while (true) {
+
+			if (job !== this || includeThis) {
+				jobs.add(job)
+			}
+
+			// recurse to the parent job
+			val inputs = job.inputs.toList()
+			when (inputs.size) {
+				0 -> break // source job: no parents
+				1 -> job = inputs[0].resolveJob<Job>()
+				else -> throw IllegalStateException("Can't get job ancestry: Job ${job.baseConfig.id}=${job.idOrThrow} has multiple parents")
+			}
+		}
+
+		return jobs
+	}
+
+	protected fun launchArgValues(): ArgValues {
+
+		val values = ArgValues(Backend.instance.pypArgs)
+		val launchingArgs = baseConfig.jobInfo.args()
+
+		val debugMsg =
+			if (Backend.log.isDebugEnabled) {
+				StringBuilder().apply {
+					append("launchArgValues()  job=${baseConfig.id}")
+				}
+			} else {
+				null
+			}
+
+		// iterate jobs in stream order, so downstream jobs overwrite upstream jobs
+		for (job in ancestry().reversed()) {
+
+			if (Backend.log.isDebugEnabled) {
+				debugMsg?.append("""
+					|
+					|  ${job.baseConfig.id}=${job.id}
+				""".trimMargin())
+			}
+
+			// combine values from the job
+			val jobValues = (job.newestArgValues() ?: "")
+				.toArgValues(job.baseConfig.jobInfo.args())
+			for (arg in values.args.args) {
+
+				// skip args shared with the launching job,
+				// so we can't overwrite the launching job's values with anything from upstream
+				if (job !== this && launchingArgs.hasArg(arg)) {
+					continue
+				}
+
+				// skip args that aren't in the job
+				if (!jobValues.args.hasArg(arg)) {
+					continue
+				}
+
+				// copy the value, but remove any explicit defaults
+				// NOTE: this allows default values to override upstream values by removing them
+				val value = jobValues[arg]
+					?.takeIf { arg.default == null || it != arg.default.value }
+
+				if (Backend.log.isDebugEnabled) {
+					if (values[arg] != value) {
+						debugMsg?.append("""
+							|
+							|    ${arg.fullId} = $value
+						""".trimMargin())
+					}
+				}
+
+				values[arg] = value
+			}
+		}
+
+		// explicitly set the block id
+		values.micromonBlock = baseConfig.id
+
+		// set the data parent, if needed
+		inputs.firstOrNull()
+			?.resolveJob<Job>()
+			?.let { job -> values.dataParent = job.dir.toString() }
+
+		if (Backend.log.isDebugEnabled) {
+			debugMsg?.append("""
+				|
+				|  MERGED
+				|    ${values.toString().lines().joinToString("\n    ")}
+			""".trimMargin())
+			Backend.log.debug(debugMsg?.toString())
+		}
+
+		return values
+	}
+
 	/** runs this job on the server */
 	abstract suspend fun launch(runId: Int)
 
-	protected fun Pyp.launch(osUsername: String?, runId: Int, argValues: ArgValues, webName: String, clusterName: String) {
+	protected suspend fun Pyp.launch(osUsername: String?, runId: Int, argValues: ArgValues, webName: String, clusterName: String) {
+
+		// write the parameters file
+		val paramsPath = pypParamsPath()
+		val argValuesToml = argValues.toToml()
+		paramsPath.writeStringAs(osUsername, argValuesToml)
+
+		// launch the cluster job
 		launch(
 			osUsername = osUsername,
 			webName = webName,
@@ -281,7 +395,8 @@ abstract class Job(
 			owner = JobOwner(idOrThrow, runId).toString(),
 			ownerListener = JobRunner,
 			dir = dir,
-			args = argValues.toPypCLI(),
+			args = listOf("-params_file=$paramsPath"),
+			params = argValuesToml,
 			launchArgs = argValues.toSbatchArgs()
 		)
 	}
@@ -301,7 +416,7 @@ abstract class Job(
 		null
 
 	fun pypParameters(): ArgValues? =
-		Database.parameters.getParams(idOrThrow)
+		Database.instance.parameters.getParams(idOrThrow)
 
 	fun pypParametersOrThrow(): ArgValues =
 		pypParameters()
@@ -309,8 +424,8 @@ abstract class Job(
 
 	fun pypParametersOrNewestArgs(): ArgValues =
 		pypParameters()
-			?: newestArgValues()?.toArgValues(Backend.pypArgs)
-			?: ArgValues(Backend.pypArgs)
+			?: newestArgValues()?.toArgValues(Backend.instance.pypArgs)
+			?: ArgValues(Backend.instance.pypArgs)
 
 	abstract fun newestArgValues(): ArgValuesToml?
 	abstract fun finishedArgValues(): ArgValuesToml?
@@ -319,21 +434,64 @@ abstract class Job(
 		finishedArgValues()
 			?: throw NoSuchElementException("no finished arg values available")
 
-	fun imagesScale(pypValues: ArgValues): ImagesScale =
-		ImagesScale(
-			pixelA = pypValues.scopePixel
-				?: ImagesScale.default().pixelA,
-			particleRadiusA = pypValues.detectRad
-				.takeIf { it != 0.0 }
-				?: ImagesScale.default().particleRadiusA
-		)
+	/**
+	 * Returns a manually-picked particles list for this job, if one exists.
+	 */
+	fun manualParticlesList(chosenListName: String? = null): ParticlesList? {
+
+		// get all the particle lists
+		val lists = Database.instance.particleLists.getAll(idOrThrow)
+
+		// if no manual lists exists, there's nothing to return
+		val manualLists = lists
+			.filter { it.source == ParticlesSource.User }
+			.takeIf { it.isNotEmpty() }
+			?: return null
+
+		val listName = when (this) {
+
+			// older jobs with combined preprocessing need a user-specified list name
+			is CombinedManualParticlesJob -> {
+
+				// if no list was chosen explicitly, use no manual particles
+				// NOTE: This function does not determine whether a list name is required,
+				//       since getting that right in all cases requires more context than is available here.
+				//       Callers of this function should perform requirements checks if they're needed.
+				chosenListName
+					?: return null
+
+				// if the name references an auto list, that's not a manual list, so return null
+				lists
+					.filter { it.source == ParticlesSource.Pyp }
+					.find { it.name == chosenListName }
+					?.let { return null }
+
+				// otherwise, look for the chosen list name
+				chosenListName
+			}
+
+			// newer jobs use constant list names. Easy peasy.
+			is ManualParticlesJob -> manualParticlesListName()
+
+			// job doesn't export any manual particles
+			else -> return null
+		}
+
+		return manualLists
+			.find { it.name == listName }
+			?: throw ServiceException("No manual particles list found with name: $listName")
+	}
+
+	fun pypParamsPath(): Path =
+		pypParamsPath(this)
+
 
 	companion object {
 
 		private val log = LoggerFactory.getLogger("Job")
 
 		fun fromId(jobId: String): Job? {
-			val doc = Database.jobs.get(jobId) ?: return null
+			val doc = Database.instance.jobs.get(jobId) ?: return null
 			return fromDoc(doc)
 		}
 
@@ -341,7 +499,7 @@ abstract class Job(
 			fromId(jobId) ?: throw NoSuchElementException("no job with id=$jobId")
 
 		fun allFromProject(userId: String, projectId: String): List<Job> =
-			Database.jobs.getAllInProject(userId, projectId) { docs ->
+			Database.instance.jobs.getAllInProject(userId, projectId) { docs ->
 				docs
 					// just ignore jobs we can't recognize (like jobs in the database whose code has been deleted)
 					.filter { configFromDoc(it) != null }
@@ -373,17 +531,20 @@ abstract class Job(
 		}
 
 		fun savePosition(jobId: String, x: Double, y: Double) {
-			Database.jobs.update(jobId,
+			Database.instance.jobs.update(jobId,
 				set("x", x),
 				set("y", y)
 			)
 		}
 
 		fun saveName(jobId: String, name: String) {
-			Database.jobs.update(jobId,
+			Database.instance.jobs.update(jobId,
 				set("name", name)
 			)
 		}
+
+		fun pypParamsPath(job: Job): Path =
+			job.dir / "pyp_params.toml"
 	}
 }
 

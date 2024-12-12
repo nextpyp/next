@@ -3,7 +3,6 @@ package edu.duke.bartesaghi.micromon.views
 import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.components.*
 import edu.duke.bartesaghi.micromon.diagram.nodes.TomographyPurePreprocessingNode
-import edu.duke.bartesaghi.micromon.diagram.nodes.clientInfo
 import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.*
 import js.getHTMLElement
@@ -51,6 +50,7 @@ class TomographyPurePreprocessingView(val project: ProjectData, val job: Tomogra
 		}
 	}
 
+	override val routed = Companion
 	override val elem = Div(classes = setOf("dock-page", "tomography-preprocessing"))
 
 	private var tiltSeriesStats = TiltSeriesStats()
@@ -86,7 +86,7 @@ class TomographyPurePreprocessingView(val project: ProjectData, val job: Tomogra
 			val data = TiltSeriesesData()
 			val pypStats = try {
 				delayAtLeast(200) {
-					data.loadForProject(job.jobId, job.clientInfo, job.args.finished?.values)
+					data.loadForProject(job, job.args.finished?.values)
 					Services.jobs.pypStats(job.jobId)
 				}
 			} catch (t: Throwable) {
@@ -97,8 +97,8 @@ class TomographyPurePreprocessingView(val project: ProjectData, val job: Tomogra
 			}
 
 			// show tilt series stats
+			tiltSeriesStats.loadCounts(data, OwnerType.Project, job.jobId, null)
 			elem.add(tiltSeriesStats)
-			tiltSeriesStats.updateCombined(data)
 
 			// show PYP stats
 			statsLine = PypStatsLine(pypStats)
@@ -126,7 +126,10 @@ class TomographyPurePreprocessingView(val project: ProjectData, val job: Tomogra
 					filterTable = FilterTable(
 						"Tilt Series",
 						data.tiltSerieses,
-						TiltSeriesProp.values().toList(),
+						TiltSeriesProp.values()
+							.toList()
+							// pure preprocessing doesn't have particles, so omit that column from the table
+							.filter { it != TiltSeriesProp.NumParticles },
 						writable = project.canWrite(),
 						showDetail = { elem, index, tiltSeries ->
 
@@ -135,7 +138,7 @@ class TomographyPurePreprocessingView(val project: ProjectData, val job: Tomogra
 								link(tiltSeries.id, classes = setOf("link"))
 									.onClick { showTiltSeries(index, true) }
 							}
-							elem.add(TiltSeriesImage(project, job, tiltSeries, data.imagesScale).apply {
+							elem.add(TiltSeriesImage(project, job, tiltSeries).apply {
 								loadParticles()
 							})
 							elem.add(TiltSeries1DPlot(job, tiltSeries).apply {
@@ -156,7 +159,7 @@ class TomographyPurePreprocessingView(val project: ProjectData, val job: Tomogra
 				}
 
 				addTab("Gallery", "fas fa-image") { lazyTab ->
-					gallery = HyperGallery(data.tiltSerieses).apply {
+					gallery = HyperGallery(data.tiltSerieses, ImageSizes.from(ImageSize.Small)).apply {
 						html = { tiltSeries ->
 							listenToImageSize(document.create.img(src = tiltSeries.imageUrl(job, ImageSize.Small)))
 						}
@@ -187,10 +190,18 @@ class TomographyPurePreprocessingView(val project: ProjectData, val job: Tomogra
 					when (val msg = RealTimeS2C.fromJson(msgstr)) {
 						is RealTimeS2C.UpdatedParameters -> {
 							statsLine?.stats = msg.pypStats
-							data.imagesScale = msg.imagesScale
 							liveTab?.listNav?.reshow()
 						}
-						is RealTimeS2C.UpdatedTiltSeries -> updateTiltSeries(msg, data)
+						is RealTimeS2C.UpdatedTiltSeries -> {
+							data.update(msg.tiltSeries)
+							tiltSeriesStats.increment(data, msg.tiltSeries)
+
+							// update tabs
+							plots?.update(msg.tiltSeries)
+							filterTable?.update()
+							gallery?.update()
+							liveTab?.listNav?.newItem()
+						}
 						else -> Unit
 					}
 				}
@@ -218,19 +229,6 @@ class TomographyPurePreprocessingView(val project: ProjectData, val job: Tomogra
 		liveTab?.listNav?.showItem(index, stopLive)
 	}
 
-	private fun updateTiltSeries(msg: RealTimeS2C.UpdatedTiltSeries, data: TiltSeriesesData) {
-
-		data.update(msg)
-
-		tiltSeriesStats.updateCombined(data)
-
-		// update tabs
-		plots?.update(msg.tiltSeries)
-		filterTable?.update()
-		gallery?.update()
-		liveTab?.listNav?.newItem()
-	}
-
 	private inner class LiveTab(
 		val job: TomographyPurePreprocessingData,
 		val data: TiltSeriesesData
@@ -238,7 +236,7 @@ class TomographyPurePreprocessingView(val project: ProjectData, val job: Tomogra
 
 		private val tiltSeriesesElem = Div()
 
-		val listNav = BigListNav(data.tiltSerieses, has100 = false) e@{ index ->
+		val listNav = BigListNav(data.tiltSerieses, onSearch=data::searchById) e@{ index ->
 
 			// clear the previous contents
 			tiltSeriesesElem.removeAll()
@@ -268,9 +266,6 @@ class TomographyPurePreprocessingView(val project: ProjectData, val job: Tomogra
 			}
 
 			val tomoPanel = TomoMultiPanel(project, job, data, tiltSeries)
-			tomoPanel.particlesImage.onParticlesChange = {
-				tiltSeriesStats.updateCombined(data)
-			}
 			tiltSeriesesElem.add(tomoPanel)
 			AppScope.launch {
 				tomoPanel.load()

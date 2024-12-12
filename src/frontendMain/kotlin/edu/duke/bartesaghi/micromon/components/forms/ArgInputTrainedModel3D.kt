@@ -22,14 +22,8 @@ class ArgInputTrainedModel3D(
 	companion object {
 
 		fun initialFolder(outNodes: List<Node>): String? =
-			// TODO: how to handle multiple inputs?
-			when (val node = outNodes.firstOrNull()) {
-
-				is TomographyRawDataNode,
-				is TomographyPreprocessingNode -> PathType.Project.make("${node.projectFolder}")
-
-				else -> null
-			}
+			outNodes.firstOrNull()
+				?.let { PathType.Project.make("${it.dir}/train") }
 	}
 
 	val default: String? get() = null

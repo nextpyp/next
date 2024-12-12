@@ -1,6 +1,7 @@
 package edu.duke.bartesaghi.micromon.components
 
 import edu.duke.bartesaghi.micromon.niceAndRound
+import edu.duke.bartesaghi.micromon.normalizedToPercent
 import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.toFixed
 import io.kvision.core.onEvent
@@ -9,23 +10,19 @@ import io.kvision.html.Div
 import io.kvision.html.div
 
 
-class ScaleBar(val scaler: Scaler?) : Div(classes = setOf("scale-bar", "right")) {
+class ScaleBar(val dims: ImageDims) : Div(classes = setOf("scale-bar", "right")) {
 
 	val bar = div(classes = setOf("bar"))
 	val label = div(classes = setOf("label"))
 
 	// convert 1/5 of the image size to a nice round number in Angstroms
-	val initialLenA: Double? =
-		scaler?.let {
-			(0.2)
-				.normalizedToUnbinnedX(it)
-				.unbinnedToA(it)
-				.niceAndRound()
-				.toDouble()
-		}
+	val initialLen: ValueA = 0.2
+		.normalizedToUnbinnedX(dims)
+		.toA(dims)
+		.let { ValueA(it.v.niceAndRound().toDouble()) }
 
 	// the currently showing length, in Angstroms
-	var lenA: Double? = initialLenA
+	var len: ValueA = initialLen
 		set(value) {
 			field = value
 			update()
@@ -51,26 +48,15 @@ class ScaleBar(val scaler: Scaler?) : Div(classes = setOf("scale-bar", "right"))
 
 	fun update() {
 
-		val scaler = scaler
-			?: run {
-				// no scale info, show a placeholder
-				bar.visible = false
-				label.content = "(no scale info)"
-				return
-			}
-
-		val lenA = lenA
-			?: 0.0
-
 		// set the width of the outer element since it's parented to
 		// theimage, whose width we're normalizing against
 		style {
-			width = lenA
-				.aToUnbinned(scaler)
-				.unbinnedToNormalizedX(scaler)
+			width = len
+				.toUnbinned(dims)
+				.toNormalizedX(dims)
 				.normalizedToPercent()
 		}
 
-		label.content = "${lenA.toFixed(0)} A"
+		label.content = "${len.v.toFixed(0)} A"
 	}
 }

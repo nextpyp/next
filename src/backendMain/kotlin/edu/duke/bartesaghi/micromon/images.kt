@@ -42,6 +42,7 @@ data class ImageCacheInfo(
 
 		suspend fun write(content: ByteArray) =
 			slowIOs {
+				dir.createIfNeeded()
 				path.writeBytes(content)
 			}
 	}

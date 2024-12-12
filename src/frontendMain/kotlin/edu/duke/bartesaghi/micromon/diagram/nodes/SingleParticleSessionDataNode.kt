@@ -193,7 +193,4 @@ class SingleParticleSessionDataNode(
 			}
 		}
 	}
-
-	override fun newestArgValues() =
-		job.args.newest()?.args?.values
 }

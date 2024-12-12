@@ -27,6 +27,7 @@ class SingleParticlePostprocessingJob(
 
 		override val config = SingleParticlePostprocessingNodeConfig
 		override val dataType = JobInfo.DataType.Micrograph
+		override val dataClass = SingleParticlePostprocessingData::class
 
 		override fun fromDoc(doc: Document) = SingleParticlePostprocessingJob(
 			doc.getString("userId"),
@@ -79,12 +80,7 @@ class SingleParticlePostprocessingJob(
 		wwwDir.recreateAs(project.osUsername)
 
 		// build the args for PYP
-		val upstreamJob = inRefinements?.resolveJob<Job>()
-			?: throw IllegalStateException("no refinements input configured")
-		val pypArgs = launchArgValues(upstreamJob, args.newestOrThrow().args.values, args.finished?.values)
-
-		// set the hidden args
-		pypArgs.dataParent = upstreamJob.dir.toString()
+		val pypArgs = launchArgValues()
 
 		Pyp.psp.launch(project.osUsername, runId, pypArgs, "Launch", "pyp_launch")
 
@@ -116,8 +112,13 @@ class SingleParticlePostprocessingJob(
 	override fun wipeData() {
 
 		// remove any reconstructions and refinements
-		Database.reconstructions.deleteAll(idOrThrow)
-		Database.refinements.deleteAll(idOrThrow)
+		Database.instance.reconstructions.deleteAll(idOrThrow)
+		Database.instance.refinements.deleteAll(idOrThrow)
+
+		// also reset the finished args
+		args.unrun()
+		latestReconstructionId = null
+		update()
 	}
 
 	fun getFinishedBfactor(): Double? {
@@ -126,9 +127,9 @@ class SingleParticlePostprocessingJob(
 		
 		return finished
 			.values
-			.toArgValues(Backend.pypArgs)
+			.toArgValues(Backend.instance.pypArgs)
 			.sharpenCistemHighResBfactor
-			?: Backend.pypArgs.defaultSharpenCistemHighResBfactor
+			?: Backend.instance.pypArgs.defaultSharpenCistemHighResBfactor
 	}
 
 	override fun newestArgValues(): ArgValuesToml? =

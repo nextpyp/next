@@ -15,15 +15,17 @@ import org.bson.conversions.Bson
 class SingleParticleSessionDataJob(
 	userId: String,
 	projectId: String
-) : Job(userId, projectId, config), FilteredJob {
+) : Job(userId, projectId, config), FilteredJob, MicrographsJob {
 
 	val args = JobArgs<SingleParticleSessionDataArgs>()
-	var latestMicrographId: String? = null
+	override var latestMicrographId: String? = null
+	override val eventListeners get() = Companion.eventListeners
 
 	companion object : JobInfo {
 
 		override val config = SingleParticleSessionDataNodeConfig
 		override val dataType = JobInfo.DataType.Micrograph
+		override val dataClass = SingleParticleSessionDataData::class
 
 		override fun fromDoc(doc: Document) = SingleParticleSessionDataJob(
 			doc.getString("userId"),
@@ -47,6 +49,8 @@ class SingleParticleSessionDataJob(
 				doc.getString("values"),
 				doc.getString("list")
 			)
+
+		val eventListeners = MicrographEventListeners(this)
 	}
 
 	override fun createDoc(doc: Document) {
@@ -68,8 +72,8 @@ class SingleParticleSessionDataJob(
 			commonData(),
 			args,
 			diagramImageURL(),
-			Database.micrographs.count(idOrThrow),
-			Database.particles.countAllParticles(idOrThrow, ParticlesList.PypAutoParticles)
+			Database.instance.micrographs.count(idOrThrow),
+			Database.instance.particles.countAllParticles(idOrThrow, ParticlesList.AutoParticles)
 		)
 
 	override suspend fun launch(runId: Int) {
@@ -82,19 +86,12 @@ class SingleParticleSessionDataJob(
 		val newestArgs = args.newestOrThrow().args
 
 		// authenticate the user for the session
-		val user = Database.users.getUser(userId)
+		val user = Database.instance.users.getUser(userId)
 			?: throw NoSuchElementException("no logged in user")
 		val session = user.authSessionForReadOrThrow(newestArgs.sessionId)
 
-		// if we've picked some particles, write those out to pyp
-		newestArgs.particlesName
-			?.let { Database.particleLists.get(idOrThrow, it) }
-			?.let { ParticlesJobs.writeSingleParticle(project.osUsername, idOrThrow, dir, it) }
-
 		// build the args for PYP
-		val pypArgs = launchArgValues(null, newestArgs.values, args.finished?.values)
-
-		// set the hidden args
+		val pypArgs = launchArgValues()
 		pypArgs.dataMode = "spr"
 		pypArgs.dataParent = session.pypDir(session.newestArgs().pypNamesOrThrow()).toString()
 		pypArgs.dataImport = true

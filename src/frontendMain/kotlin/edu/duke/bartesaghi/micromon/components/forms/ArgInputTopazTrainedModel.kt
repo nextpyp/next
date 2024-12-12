@@ -22,14 +22,8 @@ class ArgInputTopazTrainedModel(
 	companion object {
 
 		fun initialFolder(outNodes: List<Node>): String? =
-			// TODO: how to handle multiple inputs?
-			when (val node = outNodes.firstOrNull()) {
-
-				is SingleParticleRawDataNode,
-				is SingleParticlePreprocessingNode -> PathType.Project.make("${node.dir}")
-
-				else -> null
-			}
+			outNodes.firstOrNull()
+				?.let { PathType.Project.make(it.dir) }
 	}
 
 	val default: String? get() = null

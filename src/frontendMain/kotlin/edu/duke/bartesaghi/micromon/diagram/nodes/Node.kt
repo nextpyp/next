@@ -3,6 +3,8 @@ package edu.duke.bartesaghi.micromon.diagram.nodes
 import edu.duke.bartesaghi.micromon.AppScope
 import edu.duke.bartesaghi.micromon.canWrite
 import edu.duke.bartesaghi.micromon.components.PathPopup
+import edu.duke.bartesaghi.micromon.components.forms.focusASAP
+import edu.duke.bartesaghi.micromon.components.forms.onEnter
 import edu.duke.bartesaghi.micromon.diagram.Diagram
 import edu.duke.bartesaghi.micromon.nodes.NodeConfig
 import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
@@ -12,9 +14,11 @@ import edu.duke.bartesaghi.micromon.services.JobData
 import edu.duke.bartesaghi.micromon.services.ProjectData
 import edu.duke.bartesaghi.micromon.services.Services
 import edu.duke.bartesaghi.micromon.views.Viewport
+import edu.duke.bartesaghi.micromon.views.admin.Admin
 import io.kvision.form.text.textInput
-import io.kvision.html.Button
+import io.kvision.html.*
 import io.kvision.modal.Modal
+import io.kvision.panel.tabPanel
 import js.micromondiagrams.MicromonDiagrams
 import js.react.React
 import js.react.ReactBuilder
@@ -23,6 +27,7 @@ import js.reactdiagrams.ReactDiagrams
 import js.values
 import kotlinx.browser.document
 import org.w3c.dom.HTMLElement
+import org.w3c.dom.HTMLInputElement
 
 
 abstract class Node(
@@ -416,6 +421,23 @@ abstract class Node(
 						icon("fas fa-trash", className = "icon")
 						text("Delete")
 					}
+
+					// debug options
+					if (Admin.info.peek()?.debug == true) {
+
+						dropdownDivider()
+						dropdownHeader {
+							text("Debug Tools:")
+						}
+
+						// tool to show the all of the pyp args saved in this block
+						dropdownItem(title = "Show pyp args", onClick = {
+							showPypArgs(this@Node)
+						}) {
+							icon("fas fa-user-shield", className = "icon")
+							text("pyp args")
+						}
+					}
 				}
 			)
 		}
@@ -456,12 +478,14 @@ abstract class Node(
 		)
 
 		val nameText = win.textInput(value = baseJob.name)
+		val renameButton = Button("Rename")
+			.also { win.addButton(it) }
 
-		win.addButton(Button("Rename").onClick {
+		fun submit() {
 
 			// get the name
 			val name = nameText.value
-				?: return@onClick
+				?: return
 
 			win.hide()
 
@@ -469,8 +493,13 @@ abstract class Node(
 			AppScope.launch {
 				baseJob = JobData.deserialize(Services.projects.renameJob(jobId, name))
 			}
-		})
+		}
 
+		// wire up events
+		renameButton.onClick { submit() }
+		nameText.onEnter { submit() }
+
+		win.focusASAP(nameText)
 		win.show()
 	}
 
@@ -488,7 +517,8 @@ abstract class Node(
 	val dir: String get() =
 		"$projectFolder/$jobFolder"
 
-	abstract fun newestArgValues(): ArgValuesToml?
+	fun newestArgValues(): ArgValuesToml? =
+		baseJob.newestArgValues()
 
 	/**
 	 * Returns true iff the node argument values have satisfied all the requirements,
@@ -527,5 +557,69 @@ fun List<Node>.deduplicate(): List<Node> {
 			lookup.add(it.jobId)
 			true
 		}
+	}
+}
+
+
+private fun showPypArgs(node: Node) {
+	AppScope.launch {
+
+		val win = Modal(
+			caption = "pyp args",
+			escape = true,
+			closeButton = true,
+			classes = setOf("dashboard-popup")
+		)
+
+		suspend fun renderArgs(toml: ArgValuesToml?): Div {
+
+			val elem = Div(classes = setOf("debug-pyp-args", "max-height-dialog"))
+
+			if (toml == null) {
+				elem.div("(no pyp args in this position)", classes = setOf("empty", "spaced"))
+				return elem
+			}
+
+			// parse the args
+			val args = node.config.clientInfo.pypArgs.get()
+			val values = toml.toArgValues(args)
+
+			// render them in the groups
+			for (group in args.groups) {
+				elem.h2(group.groupId)
+				elem.div(classes = setOf("group")) {
+					for (arg in args.args(group)) {
+						div(classes = setOf("arg")) {
+							span(arg.argId, classes = setOf("argId"))
+							span(":")
+							val value = values[arg]
+							if (value == null) {
+								if (arg.default != null) {
+									span("(default)", classes = setOf("empty"))
+								} else {
+									span("(not present)", classes = setOf("empty"))
+								}
+							} else {
+								span("(${value::class.simpleName})", classes = setOf("type"))
+								span(":")
+								span(value.toString(), classes = setOf("value"))
+							}
+						}
+					}
+				}
+			}
+
+			return elem
+		}
+
+		val renderedFinished = renderArgs(node.baseJob.finishedArgValues())
+		val renderedNext = renderArgs(node.baseJob.nextArgValues())
+
+		win.tabPanel {
+			addTab("Finished", renderedFinished)
+			addTab("Next", renderedNext)
+		}
+
+		win.show()
 	}
 }

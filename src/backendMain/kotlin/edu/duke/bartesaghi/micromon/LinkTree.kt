@@ -30,7 +30,7 @@ import kotlin.io.path.moveTo
  */
 object LinkTree {
 
-	private val groupsDir = Backend.config.web.sharedDir / "groups"
+	private val groupsDir = Config.instance.web.sharedDir / "groups"
 
 
 	private fun projectFilename(number: Int, name: String): String =

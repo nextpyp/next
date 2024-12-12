@@ -7,7 +7,6 @@ import edu.duke.bartesaghi.micromon.dynamicImageClassName
 import edu.duke.bartesaghi.micromon.nodes.TomographyCoarseRefinementNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
 import edu.duke.bartesaghi.micromon.pyp.Args
-import edu.duke.bartesaghi.micromon.pyp.filterForDownstreamCopy
 import edu.duke.bartesaghi.micromon.refreshDynamicImages
 import edu.duke.bartesaghi.micromon.services.*
 import edu.duke.bartesaghi.micromon.views.IntegratedRefinementView
@@ -38,8 +37,9 @@ class TomographyCoarseRefinementNode(
 		override fun makeNode(viewport: Viewport, diagram: Diagram, project: ProjectData, job: JobData) =
 			TomographyCoarseRefinementNode(viewport, diagram, project, job as TomographyCoarseRefinementData)
 
-		override fun showUseDataForm(viewport: Viewport, diagram: Diagram, project: ProjectData, outNode: Node, input: CommonJobData.DataId, copyFrom: Node?, callback: (Node) -> Unit) {
+		override suspend fun showUseDataForm(viewport: Viewport, diagram: Diagram, project: ProjectData, outNode: Node, input: CommonJobData.DataId, copyFrom: Node?, callback: (Node) -> Unit) {
 			val defaultArgs = (copyFrom as TomographyCoarseRefinementNode?)?.job?.args
+				?: JobArgs.fromNext(TomographyCoarseRefinementArgs(newArgValues(project, input), null))
 			form(config.name, outNode, defaultArgs, true) { args ->
 
 				// save the node to the server
@@ -87,8 +87,8 @@ class TomographyCoarseRefinementNode(
 					upstreamNode is TomographyPreprocessingNode
 					|| upstreamNode is TomographyImportDataNode
 					|| upstreamNode is TomographySessionDataNode
-					|| upstreamNode is TomographyRelionDataNode
-
+					|| upstreamNode is TomographyPurePreprocessingNode
+					|| upstreamNode is TomographyDenoisingEvalNode
 				add(TomographyCoarseRefinementArgs::filter,
 					// look for the preprocessing job in the upstream node to get the filter
 					if (upstreamIsPreprocessing) {
@@ -111,31 +111,24 @@ class TomographyCoarseRefinementNode(
 			// since the control can't handle nulls
 			val mapper = ArgsMapper<TomographyCoarseRefinementArgs>(
 				toForm = { args ->
-					if (args.filter == null) {
-						args.copy(filter = NoneFilterOption)
-					} else {
-						args
+					var a = args
+					if (a.filter == null) {
+						a = a.copy(filter = NoneFilterOption)
 					}
+					a
 				},
 				fromForm = { args ->
-					if (args.filter == NoneFilterOption) {
-						args.copy(filter = null)
-					} else {
-						args
+					var a = args
+					if (a.filter == NoneFilterOption) {
+						a = a.copy(filter = null)
 					}
+					a
 				}
 			)
 
-			// by default, copy args values from the upstream node
-			val argsOrCopy: JobArgs<TomographyCoarseRefinementArgs> = args
-				?: JobArgs.fromNext(TomographyCoarseRefinementArgs(
-					filter = null,
-					values = upstreamNode.newestArgValues()?.filterForDownstreamCopy(pypArgs) ?: ""
-				))
-
-			form.init(argsOrCopy, mapper)
+			form.init(args, mapper)
 			if (enabled) {
-				win.addSaveResetButtons(form, argsOrCopy, mapper, onDone)
+				win.addSaveResetButtons(form, args, mapper, onDone)
 			}
 			win.show()
 		}
@@ -185,7 +178,4 @@ class TomographyCoarseRefinementNode(
 			}
 		}
 	}
-
-	override fun newestArgValues() =
-		job.args.newest()?.args?.values
 }

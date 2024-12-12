@@ -1,7 +1,6 @@
 package edu.duke.bartesaghi.micromon.jobs
 
 import com.mongodb.client.model.Updates
-import edu.duke.bartesaghi.micromon.Backend
 import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.mongo.getDocument
 import edu.duke.bartesaghi.micromon.nodes.TomographySessionDataNodeConfig
@@ -16,15 +15,18 @@ import org.bson.conversions.Bson
 class TomographySessionDataJob(
 	userId: String,
 	projectId: String
-) : Job(userId, projectId, config), FilteredJob {
+) : Job(userId, projectId, config), FilteredJob, TiltSeriesesJob {
 
 	val args = JobArgs<TomographySessionDataArgs>()
-	var latestTiltSeriesId: String? = null
+
+	override var latestTiltSeriesId: String? = null
+	override val eventListeners get() = Companion.eventListeners
 
 	companion object : JobInfo {
 
 		override val config = TomographySessionDataNodeConfig
 		override val dataType = JobInfo.DataType.TiltSeries
+		override val dataClass = TomographySessionDataData::class
 
 		override fun fromDoc(doc: Document) = TomographySessionDataJob(
 			doc.getString("userId"),
@@ -48,6 +50,8 @@ class TomographySessionDataJob(
 				doc.getString("values"),
 				doc.getString("list")
 			)
+
+		val eventListeners = TiltSeriesEventListeners(this)
 	}
 
 	override fun createDoc(doc: Document) {
@@ -69,8 +73,8 @@ class TomographySessionDataJob(
 			commonData(),
 			args,
 			diagramImageURL(),
-			Database.tiltSeries.count(idOrThrow),
-			Database.particles.countAllParticles(idOrThrow, ParticlesList.PypAutoParticles)
+			Database.instance.tiltSeries.count(idOrThrow),
+			Database.instance.particles.countAllParticles(idOrThrow, ParticlesList.AutoParticles)
 		)
 
 	override suspend fun launch(runId: Int) {
@@ -83,18 +87,12 @@ class TomographySessionDataJob(
 		val newestArgs = args.newestOrThrow().args
 
 		// authenticate the user for the session
-		val user = Database.users.getUser(userId)
+		val user = Database.instance.users.getUser(userId)
 			?: throw NoSuchElementException("no logged in user")
 		val session = user.authSessionForReadOrThrow(newestArgs.sessionId)
 
-		// write out particles, if needed
-		val argValues = newestArgs.values.toArgValues(Backend.pypArgs)
-		ParticlesJobs.writeTomography(project.osUsername, idOrThrow, dir, argValues, newestArgs.particlesName)
-
 		// build the args for PYP
-		val pypArgs = launchArgValues(null, newestArgs.values, args.finished?.values)
-
-		// set the hidden args
+		val pypArgs = launchArgValues()
 		pypArgs.dataMode = "tomo"
 		pypArgs.dataParent = session.pypDir(session.newestArgs().pypNamesOrThrow()).toString()
 		pypArgs.dataImport = true
@@ -119,6 +117,23 @@ class TomographySessionDataJob(
 
 			// or just use a placeholder
 			?: return "/img/placeholder/${size.id}"
+	}
+
+	override fun wipeData() {
+
+		// also delete any associated data
+		Database.instance.tiltSeries.deleteAll(idOrThrow)
+		Database.instance.tiltSeriesAvgRot.deleteAll(idOrThrow)
+		Database.instance.tiltSeriesDriftMetadata.deleteAll(idOrThrow)
+		Database.instance.jobPreprocessingFilters.deleteAll(idOrThrow)
+		Database.instance.particleLists.deleteAll(idOrThrow)
+		Database.instance.particles.deleteAllParticles(idOrThrow)
+		Database.instance.tiltExclusions.delete(idOrThrow)
+
+		// also reset the finished args
+		args.unrun()
+		latestTiltSeriesId = null
+		update()
 	}
 
 	override val filters get() = PreprocessingFilters.ofJob(idOrThrow)

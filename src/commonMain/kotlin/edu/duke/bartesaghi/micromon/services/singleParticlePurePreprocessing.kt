@@ -37,4 +37,6 @@ data class SingleParticlePurePreprocessingData(
 	val numMicrographs: Long
 ) : JobData {
 	override fun isChanged() = args.hasNext()
+	override fun finishedArgValues() = args.finished?.values
+	override fun nextArgValues() = args.next?.values
 }

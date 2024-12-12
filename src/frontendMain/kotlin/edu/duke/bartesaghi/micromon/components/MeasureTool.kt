@@ -9,46 +9,52 @@ import io.kvision.html.Div
 import js.ScreenPos
 import js.clickRelativeTo
 import org.w3c.dom.events.MouseEvent
-import kotlin.math.sqrt
 
 
 class MeasureTool private constructor(
 	val imageContainerElem: Div,
-	val scaler: Scaler,
+	val dims: ImageDims,
 	init: (MeasureTool) -> Unit = {}
 ) {
+
+	class ActivateButton(
+		imageContainerElem: Div,
+		dims: ImageDims,
+		init: (MeasureTool) -> Unit = {}
+	) : Button("", icon = ICON_RULER) {
+
+		private var tool: MeasureTool? = null
+
+		val isActive: Boolean get() = tool != null
+
+		init {
+			val titleStart = "Turn on Measurement Tool"
+			val titleEnd = "Turn off Measurement Tool"
+			title = titleStart
+
+			setAttribute("isMeasureButton", "yup")
+
+			onClick {
+				if (tool == null) {
+					// start measuring
+					icon = ICON_POINTER
+					title = titleEnd
+					tool = MeasureTool(imageContainerElem, dims, init)
+				} else {
+					// end measuring
+					tool?.end()
+					tool = null
+					icon = ICON_RULER
+					title = titleStart
+				}
+			}
+		}
+	}
 
 	companion object {
 
 		private const val ICON_RULER = "fas fa-ruler"
 		private const val ICON_POINTER = "fas fa-mouse-pointer"
-
-		fun button(imageContainerElem: Div, scaler: Scaler, init: (MeasureTool) -> Unit = {}): Button {
-			var tool: MeasureTool? = null
-			return Button("", icon = ICON_RULER).apply {
-
-				val titleStart = "Turn on Measurement Tool"
-				val titleEnd = "Turn off Measurement Tool"
-				title = titleStart
-
-				setAttribute("isMeasureButton", "yup")
-
-				onClick {
-					if (tool == null) {
-						// start measuring
-						icon = ICON_POINTER
-						title = titleEnd
-						tool = MeasureTool(imageContainerElem, scaler, init)
-					} else {
-						// end measuring
-						tool?.end()
-						tool = null
-						icon = ICON_RULER
-						title = titleStart
-					}
-				}
-			}
-		}
 
 		fun isButton(comp: Component): Boolean =
 			comp.getAttribute("isMeasureButton") == "yup"
@@ -57,42 +63,42 @@ class MeasureTool private constructor(
 		fun showIn(scaleBar: ScaleBar): ((MeasureTool) -> Unit) = { measure ->
 
 			// configure the measure tool to show the lengths using the scale bar
-			measure.onLen = { lenA ->
-				scaleBar.lenA = lenA
+			measure.onLen = { len ->
+				scaleBar.len = len ?: ValueA(0.0)
 			}
 
 			// restore the original scale bar when we're done
 			measure.onEnd = {
-				scaleBar.lenA = scaleBar.initialLenA
+				scaleBar.len = scaleBar.initialLen
 			}
 		}
 	}
 
 
-	var onLen: (Double?) -> Unit = {}
+	var onLen: (ValueA?) -> Unit = {}
 	var onEnd: () -> Unit = {}
 
 	/** a position, in Angstroms */
 	private class APos(
-		val x: Double,
-		val y: Double
+		val x: ValueA,
+		val y: ValueA
 	) {
 
-		fun distTo(other: APos): Double {
+		fun distTo(other: APos): ValueA {
 			val dx = this.x - other.x
 			val dy = this.y - other.y
 			return (dx*dx + dy*dy)
-				.takeIf { it >= 0 }
-				?.let { sqrt(it) }
-				?: 0.0
+				.takeIf { it >= ValueA(0.0) }
+				?.sqrt()
+				?: ValueA(0.0)
 				// no imaginary numbers allowed, even if roundoff error does weird things
 		}
 	}
 
 	private fun ScreenPos.toA() =
 		APos(
-			x = x.normalizedToAX(scaler),
-			y = y.flipNormalized().normalizedToAY(scaler)
+			x = x.normalizedToUnbinnedX(dims).toA(dims),
+			y = y.flipNormalized().normalizedToUnbinnedY(dims).toA(dims)
 		)
 
 	/** returns null if the mouse is outside the container */
@@ -190,9 +196,9 @@ class MeasureTool private constructor(
 		init {
 
 			// make a cross centered at the pos
-			val x = pos.x.aToNormalizedX(scaler)
-			val y = pos.y.aToNormalizedY(scaler).flipNormalized()
-			val aspect = scaler.sourceDims.width.toDouble()/scaler.sourceDims.height.toDouble()
+			val x = pos.x.toUnbinned(dims).toNormalizedX(dims)
+			val y = pos.y.toUnbinned(dims).toNormalizedY(dims).flipNormalized()
+			val aspect = dims.width.v.toDouble()/dims.height.v.toDouble()
 			val radiusx = 0.01 // 1% normalized
 			val radiusy = radiusx*aspect
 			add(Svg.Line().apply {
@@ -212,10 +218,10 @@ class MeasureTool private constructor(
 
 	private inner class LineMarker(val p1: APos, val p2: APos) : Svg.Line(classes = setOf("line-marker")) {
 		init {
-			x1 = p1.x.aToNormalizedX(scaler).toString()
-			y1 = p1.y.aToNormalizedY(scaler).flipNormalized().toString()
-			x2 = p2.x.aToNormalizedX(scaler).toString()
-			y2 = p2.y.aToNormalizedY(scaler).flipNormalized().toString()
+			x1 = p1.x.toUnbinned(dims).toNormalizedX(dims).toString()
+			y1 = p1.y.toUnbinned(dims).toNormalizedY(dims).flipNormalized().toString()
+			x2 = p2.x.toUnbinned(dims).toNormalizedX(dims).toString()
+			y2 = p2.y.toUnbinned(dims).toNormalizedY(dims).flipNormalized().toString()
 		}
 	}
 }

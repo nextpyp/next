@@ -9,7 +9,6 @@ import edu.duke.bartesaghi.micromon.dynamicImageClassName
 import edu.duke.bartesaghi.micromon.nodes.TomographyMovieCleaningNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
 import edu.duke.bartesaghi.micromon.pyp.Args
-import edu.duke.bartesaghi.micromon.pyp.filterForDownstreamCopy
 import edu.duke.bartesaghi.micromon.refreshDynamicImages
 import edu.duke.bartesaghi.micromon.services.*
 import edu.duke.bartesaghi.micromon.views.IntegratedRefinementView
@@ -39,8 +38,9 @@ class TomographyMovieCleaningNode(
 		override fun makeNode(viewport: Viewport, diagram: Diagram, project: ProjectData, job: JobData) =
 			TomographyMovieCleaningNode(viewport, diagram, project, job as TomographyMovieCleaningData)
 
-		override fun showUseDataForm(viewport: Viewport, diagram: Diagram, project: ProjectData, outNode: Node, input: CommonJobData.DataId, copyFrom: Node?, callback: (Node) -> Unit) {
+		override suspend fun showUseDataForm(viewport: Viewport, diagram: Diagram, project: ProjectData, outNode: Node, input: CommonJobData.DataId, copyFrom: Node?, callback: (Node) -> Unit) {
 			val defaultArgs = (copyFrom as TomographyMovieCleaningNode?)?.job?.args
+				?: JobArgs.fromNext(TomographyMovieCleaningArgs(newArgValues(project, input)))
 			form(config.name, outNode, defaultArgs, true) { args ->
 
 				// save the node to the server
@@ -85,15 +85,9 @@ class TomographyMovieCleaningNode(
 				add(TomographyMovieCleaningArgs::values, ArgsForm(pypArgs, listOf(upstreamNode), enabled, config.configId))
 			}
 
-			// by default, copy args values from the upstream node
-			val argsOrCopy: JobArgs<TomographyMovieCleaningArgs> = args
-				?: JobArgs.fromNext(TomographyMovieCleaningArgs(
-					values = upstreamNode.newestArgValues()?.filterForDownstreamCopy(pypArgs) ?: ""
-				))
-
-			form.init(argsOrCopy)
+			form.init(args)
 			if (enabled) {
-				win.addSaveResetButtons(form, argsOrCopy, onDone)
+				win.addSaveResetButtons(form, args, onDone)
 			}
 			win.show()
 		}
@@ -143,7 +137,4 @@ class TomographyMovieCleaningNode(
 			}
 		}
 	}
-
-	override fun newestArgValues() =
-		job.args.newest()?.args?.values
 }

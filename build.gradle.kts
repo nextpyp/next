@@ -13,6 +13,8 @@ import java.nio.file.StandardCopyOption
 import java.net.URL
 import java.util.Properties
 import org.tomlj.Toml
+import kotlin.io.path.name
+import kotlin.io.path.relativeTo
 
 
 plugins {
@@ -224,6 +226,7 @@ kotlin {
 				implementation("io.ktor:ktor-server-netty:$ktorVersion") // Apache 2
 				implementation("io.ktor:ktor-auth:$ktorVersion") // Apache 2
 				implementation("io.ktor:ktor-client-cio:$ktorVersion") // Apache 2
+				implementation("io.ktor:ktor-client-websockets:$ktorVersion") // Apache 2
 				implementation("ch.qos.logback:logback-classic:$logbackVersion") // LGPL
 
 				// TODO: we don't even use these things, they were included in KVision, should we get rid of them?
@@ -284,6 +287,7 @@ kotlin {
 				}
 				val junitVersion = "1.7.2" // the version of JUnit used by the version of kotest we're using
 				implementation("org.junit.platform:junit-platform-console:$junitVersion")
+				implementation("com.github.jnr:jnr-unixsocket:0.38.23") // needed for EphemeralMongo
 			}
 		}
 		val frontendMain by getting {
@@ -351,6 +355,7 @@ kotlin {
 				implementation(npm("@projectstorm/react-diagrams", "6.2.0")) // MIT
 				implementation(npm("@ltd/j-toml", "1.12.2")) // LGPL 3
 				implementation(npm("ansicolor", "1.1.100")) // Unlicense
+				implementation(npm("stacktrace-js", "2.0.2")) // MIT
 
 				// dependencies for react-diagrams, see: https://projectstorm.gitbook.io/react-diagrams/getting-started
 				implementation(npm("closest", "0.0.1")) // MIT
@@ -645,14 +650,13 @@ afterEvaluate {
 			doLast {
 
 				// make sure the needed files exist
-				val configPath = getConfigPath()
+				getConfigPath()
 				checkContainer("nextPYP.sif")
 
 				// run the start script with the development jar
 				exec {
 					workingDir = runDir
 					executable = "./nextpyp"
-					environment("PYP_CONFIG", configPath.toString())
 					environment("PYP_SRC", pypDir)
 					args("start", projectDir, gradleCachesDir, "run")
 				}
@@ -665,13 +669,12 @@ afterEvaluate {
 			doLast {
 
 				// make sure the needed files exist
-				val configPath = getConfigPath()
+				getConfigPath()
 				checkContainer("nextPYP.sif")
 
 				exec {
 					workingDir = runDir
 					executable = "./nextpyp"
-					environment("PYP_CONFIG", configPath.toString())
 					environment("PYP_SRC", pypDir)
 					args("stop", projectDir, gradleCachesDir, "run")
 
@@ -1136,12 +1139,11 @@ afterEvaluate {
 			doLast {
 
 				// make sure the needed files exist
-				val configPath = getConfigPath()
+				getConfigPath()
 				checkContainer("nextPYP.sif")
 
-				// run the start script in develoment mode with the `run` main
-				val vmConfigPath = vmRunDir.resolve(configPath.fileName)
-				vboxrun(vmid, "cd \"$vmRunDir\" && PYP_CONFIG=\"$vmConfigPath\" PYP_SRC=\"$vmPypDir\" ./nextpyp start \"$vmMicromonDir\" \"$vmGradleCachesDir\" run")
+				// run the start script in development mode with the `run` main
+				vboxrun(vmid, "cd \"$vmRunDir\" && PYP_SRC=\"$vmPypDir\" ./nextpyp start \"$vmMicromonDir\" \"$vmGradleCachesDir\" run")
 
 				println("""
 					|
@@ -1160,15 +1162,13 @@ afterEvaluate {
 			doLast {
 
 				// make sure the needed files exist
-				val configPath = getConfigPath()
-
-				val vmConfigPath = vmRunDir.resolve(configPath.fileName)
+				getConfigPath()
 
 				// if the container isn't running, Singularity will return an error exit code,
 				// which translates into a gradle exception by default
 				// except, if the container isn't running, we've already won! =D
 				// there's no need to stop it again, so just ignore errors from singularity entirely
-				vboxrun(vmid, "cd \"$vmRunDir\" && PYP_CONFIG=\"$vmConfigPath\" PYP_SRC=\"$vmPypDir\" ./nextpyp stop \"$vmMicromonDir\" \"$vmGradleCachesDir\" run", ignoreExit=true)
+				vboxrun(vmid, "cd \"$vmRunDir\" && PYP_SRC=\"$vmPypDir\" ./nextpyp stop \"$vmMicromonDir\" \"$vmGradleCachesDir\" run", ignoreExit=true)
 			}
 		}
 
@@ -1184,12 +1184,11 @@ afterEvaluate {
 			doLast {
 
 				// make sure the needed files exist
-				val configPath = getConfigPath()
+				getConfigPath()
 				checkContainer("nextPYP.sif")
 
 				// run the start script in production mode
-				val vmConfigPath = vmRunDir.resolve(configPath.fileName)
-				vboxrun(vmid, "cd \"$vmRunDir\" && PYP_CONFIG=\"$vmConfigPath\" ./nextpyp start")
+				vboxrun(vmid, "cd \"$vmRunDir\" && ./nextpyp start")
 
 				println("""
 					|
@@ -1207,15 +1206,13 @@ afterEvaluate {
 			doLast {
 
 				// make sure the needed files exist
-				val configPath = getConfigPath()
-
-				val vmConfigPath = vmRunDir.resolve(configPath.fileName)
+				getConfigPath()
 
 				// if the container isn't running, Singularity will return an error exit code,
 				// which translates into a gradle exception by default
 				// except, if the container isn't running, we've already won! =D
 				// there's no need to stop it again, so just ignore errors from singularity entirely
-				vboxrun(vmid, "cd \"$vmRunDir\" && PYP_CONFIG=\"$vmConfigPath\" ./nextpyp stop", ignoreExit=true)
+				vboxrun(vmid, "cd \"$vmRunDir\" && ./nextpyp stop", ignoreExit=true)
 			}
 		}
 
@@ -1226,16 +1223,15 @@ afterEvaluate {
 			doLast {
 
 				// make sure the needed files exist
-				val configPath = getConfigPath()
+				getConfigPath()
 				checkContainer("nextPYP.sif")
 
 				// run the start script in develoment mode with the `test` main
-				val vmConfigPath = vmRunDir.resolve(configPath.fileName)
-				vboxrun(vmid, "cd \"$vmRunDir\" && PYP_CONFIG=\"$vmConfigPath\" PYP_SRC=\"$vmPypDir\" ./nextpyp start \"$vmMicromonDir\" \"$vmGradleCachesDir\" test")
+				vboxrun(vmid, "cd \"$vmRunDir\" && PYP_SRC=\"$vmPypDir\" ./nextpyp start \"$vmMicromonDir\" \"$vmGradleCachesDir\" test")
 			}
 		}
 
-		fun vmRustc(projectDir: Path): Path {
+		fun vmRustc(projectDir: VmPath, targetDir: VmPath? = null, clean: Boolean = true): Path {
 
 			checkContainer("rustc.sif")
 
@@ -1247,16 +1243,45 @@ afterEvaluate {
 				.createFolderIfNeeded()
 
 			// run cargo inside the rustc container inside the vm
-			val vmDir = Paths.get("/media/micromon")
-			val vmProjectDir = vmDir.resolve(projectDir)
-			val vmCargoRegistryDir = vmDir.resolve(cargoRegistryDir)
-			val containerCargoHome = "/usr/local/cargo"
-			val binds = "--bind \"$vmCargoRegistryDir\":\"$containerCargoHome/registry\""
-			val vmSifPath = vmDir.resolve("run/rustc.sif")
-			vboxrun(vmid, "cd \"$vmProjectDir\" && apptainer exec $binds \"$vmSifPath\" sh -c \"cargo clean && cargo build --release\"")
+			val vmCargoRegistryDir = vmMicromonDir.resolve(cargoRegistryDir)
+			val vmSifPath = vmMicromonDir.resolve("run/rustc.sif")
+
+			// make the binds
+			val binds = ArrayList<Pair<Path,Path>>().apply {
+				add(vmCargoRegistryDir to Paths.get("/usr/local/cargo").resolve("registry"))
+				add(projectDir.vmPath to projectDir.vmPath)
+				if (targetDir != null) {
+					// NOTE: cargo wants to be able to delete the entire target folder,
+					//       so it needs write access to not only the target folder, but also its parent!
+					add(targetDir.vmPath.parent to Paths.get("/tmp/cargoTargets"))
+				}
+			}.joinToString(" ") { (src, dst) -> "--bind=\"$src:$dst\"" }
+
+			// make the cargo command(s)
+			val cargoOpts = ArrayList<String>().apply {
+				if (targetDir != null) {
+					add("--target-dir")
+					add("/tmp/cargoTargets/${targetDir.vmPath.name}")
+				}
+			}.joinToString(" ")
+			var buildScript = "cargo build $cargoOpts --release"
+			if (clean) {
+				buildScript = "cargo clean $cargoOpts && $buildScript"
+			}
+			buildScript = "cd \"${projectDir.vmPath}\" && $buildScript"
+
+			// NOTE: apptainer (annoyingly) automatically binds the cwd into the container,
+			//       which can block other --bind points we explicitly specify if the cwd happens to contain that bind path,
+			//       so don't `cd` into any folder before calling apptainer in the VM,
+			//       which will keep us at / and disable the apptainer annoying auto-cwd bind
+			vboxrun(vmid, "apptainer exec $binds \"$vmSifPath\" sh -c \"${buildScript.shellquote()}\"")
 
 			// return the out dir
-			return projectDir.resolve("target/release")
+			return if (targetDir != null) {
+				targetDir.hostPath.resolve("release")
+			} else {
+				projectDir.hostPath.resolve("target/release")
+			}
 		}
 
 		create("vmBuildHostProcessor") {
@@ -1264,7 +1289,10 @@ afterEvaluate {
 			description = "Build the host processor in the rustc container"
 			doLast {
 
-				val outDir = vmRustc(Paths.get("src/hostProcessor"))
+				val outDir = vmRustc(VmPath.fromRelative(
+					Paths.get("src/hostProcessor"),
+					vmMicromonDir
+				))
 
 				// copy the executable into the run folder
 				copy {
@@ -1279,13 +1307,59 @@ afterEvaluate {
 			description = "Build the user processor in the rustc container"
 			doLast {
 
-				val outDir = vmRustc(Paths.get("src/userProcessor"))
+				val outDir = vmRustc(VmPath.fromRelative(
+					Paths.get("src/userProcessor"),
+					vmMicromonDir
+				))
 
 				// copy the executable into the run folder
 				copy {
 					from(outDir.resolve("user-processor"))
 					into(runDir)
 				}
+			}
+		}
+
+		create("vmBuildMockPyp") {
+			group = "build"
+			description = "Build mock pyp in the rustc container"
+			doLast {
+
+				val outDir = vmRustc(
+					VmPath.fromRelative(
+						Paths.get("src/mockPyp"),
+						vmMicromonDir
+					),
+					// the pyp mock is only used for debugging, so keep the build cache to speed up builds
+					clean = false
+				)
+
+				// copy the executable into the run folder
+				copy {
+					from(outDir.resolve("mock-pyp"))
+					into(runDir)
+				}
+			}
+		}
+
+		create("vmBuildPypLauncher") {
+			group = "build"
+			description = "Build the pyp launcher in the rustc container"
+			doLast {
+				val outDir = vmRustc(
+					projectDir = VmPath(
+						pypDir.toPath().resolve("src/launcher"),
+						vmPypDir.resolve("src/launcher")
+					),
+					// the pyp shared folder is read-only in the dev VM, so we need to write to the micromon folder instead
+					targetDir = VmPath.fromRelative(
+						layout.buildDirectory.toPath().resolve("pypLauncher")
+							.createFolderIfNeeded()
+							.relativeTo(projectDir.toPath()),
+						vmMicromonDir
+					)
+				)
+				println("PYP launcher executable was built at: $outDir/launcher")
 			}
 		}
 
@@ -1408,6 +1482,24 @@ fun symlink(src: File, dst: File) {
 
 		// don't throw an error if the link already exists
 		setIgnoreExitValue(true)
+	}
+}
+
+
+data class VmPath(
+	val hostPath: Path,
+	val vmPath: Path
+) {
+
+	companion object {
+
+		fun fromRelative(path: Path, vmRoot: Path): VmPath =
+			VmPath(
+				path
+					.takeIf { !path.isAbsolute }
+					?: throw IllegalArgumentException("path not relative: $path"),
+				vmRoot.resolve(path)
+			)
 	}
 }
 
@@ -1547,12 +1639,18 @@ fun vboxrun(vmid: String, cmd: String, ignoreResult: Boolean = false, ignoreExit
 		add("--")
 		add("-c")
 		if (sudo) {
-			add("echo \"$vmDummyPassword\" | sudo -S /bin/sh -c \"${cmd.replace("\"", "\\\"")}\"")
+			add("echo \"$vmDummyPassword\" | sudo -S /bin/sh -c \"${cmd.shellquote()}\"")
 		} else {
 			add(cmd)
 		}
 	}
 }
+
+
+fun String.shellquote(): String =
+	this
+		.replace("\\", "\\\\")
+		.replace("\"", "\\\"")
 
 
 // some conveniences for files and paths

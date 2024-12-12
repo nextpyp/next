@@ -3,46 +3,49 @@ package edu.duke.bartesaghi.micromon.jobs
 import com.mongodb.client.model.Updates
 import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.mongo.getDocument
-import edu.duke.bartesaghi.micromon.nodes.TomographyDenoisingNodeConfig
+import edu.duke.bartesaghi.micromon.nodes.TomographySegmentationOpenNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.*
 import org.bson.Document
 import org.bson.conversions.Bson
 
 
-class TomographyDenoisingJob(
+class TomographySegmentationOpenJob(
 	userId: String,
 	projectId: String
 ) : Job(userId, projectId, config), TiltSeriesesJob {
 
-	val args = JobArgs<TomographyDenoisingArgs>()
+	val args = JobArgs<TomographySegmentationOpenArgs>()
 	override var latestTiltSeriesId: String? = null
 	override val eventListeners get() = Companion.eventListeners
 
-	var inTomograms: CommonJobData.DataId? by InputProp(config.inTomograms)
+	var inTomograms: CommonJobData.DataId? by InputProp(config.tomograms)
 
 	companion object : JobInfo {
 
-		override val config = TomographyDenoisingNodeConfig
+		override val config = TomographySegmentationOpenNodeConfig
 		override val dataType = JobInfo.DataType.TiltSeries
+		override val dataClass = TomographySegmentationOpenData::class
 
-		override fun fromDoc(doc: Document) = TomographyDenoisingJob(
+		override fun fromDoc(doc: Document) = TomographySegmentationOpenJob(
 			doc.getString("userId"),
 			doc.getString("projectId")
 		).apply {
-			args.finished = doc.getDocument("finishedArgs")?.let { TomographyDenoisingArgs.fromDoc(it) }
-			args.next = doc.getDocument("nextArgs")?.let { TomographyDenoisingArgs.fromDoc(it) }
+			args.finished = doc.getDocument("finishedArgs")?.let { TomographySegmentationOpenArgs.fromDoc(it) }
+			args.next = doc.getDocument("nextArgs")?.let { TomographySegmentationOpenArgs.fromDoc(it) }
 			latestTiltSeriesId = doc.getString("latestTiltSeriesId")
 			fromDoc(doc)
 		}
 
-		private fun TomographyDenoisingArgs.toDoc() = Document().also { doc ->
+		private fun TomographySegmentationOpenArgs.toDoc() = Document().also { doc ->
 			doc["values"] = values
+			doc["filter"] = filter
 		}
 
-		private fun TomographyDenoisingArgs.Companion.fromDoc(doc: Document) =
-			TomographyDenoisingArgs(
-				doc.getString("values")
+		private fun TomographySegmentationOpenArgs.Companion.fromDoc(doc: Document) =
+			TomographySegmentationOpenArgs(
+				doc.getString("values"),
+				doc.getString("filter")
 			)
 
 		val eventListeners = TiltSeriesEventListeners(this)
@@ -64,7 +67,7 @@ class TomographyDenoisingJob(
 	override fun isChanged() = args.hasNext()
 
 	override suspend fun data() =
-		TomographyDenoisingData(
+		TomographySegmentationOpenData(
 			commonData(),
 			args,
 			diagramImageURL()
@@ -73,18 +76,23 @@ class TomographyDenoisingJob(
 	override suspend fun launch(runId: Int) {
 
 		val project = projectOrThrow()
+		val newestArgs = args.newestOrThrow().args
 
 		// clear caches
 		wwwDir.recreateAs(project.osUsername)
 
-		// build the args for PYP
+		// get the input jobs
 		val upstreamJob = inTomograms?.resolveJob<Job>()
 			?: throw IllegalStateException("no tomograms input configured")
-		val pypArgs = launchArgValues(upstreamJob, args.newestOrThrow().args.values, args.finished?.values)
 
-		// set the hidden args
+		// write out the filter from the upstream job, if needed
+		if (upstreamJob is FilteredJob && newestArgs.filter != null) {
+			upstreamJob.writeFilter(newestArgs.filter, dir, project.osUsername)
+		}
+
+		// build the args for PYP
+		val pypArgs = launchArgValues()
 		pypArgs.dataMode = "tomo"
-		pypArgs.dataParent = upstreamJob.dir.toString()
 
 		Pyp.pyp.launch(project.osUsername, runId, pypArgs, "Launch", "pyp_launch")
 
@@ -111,7 +119,12 @@ class TomographyDenoisingJob(
 	override fun wipeData() {
 
 		// also delete any associated data
-		Database.tiltSeries.deleteAll(idOrThrow)
+		Database.instance.tiltSeries.deleteAll(idOrThrow)
+
+		// also reset the finished args
+		args.unrun()
+		latestTiltSeriesId = null
+		update()
 	}
 
 	override fun newestArgValues(): ArgValuesToml? =

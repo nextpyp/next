@@ -12,8 +12,6 @@ import io.kvision.form.check.CheckBoxStyle
 import io.kvision.html.Div
 import js.clickRelativeTo
 import org.w3c.dom.events.MouseEvent
-import kotlin.math.abs
-import kotlin.math.sqrt
 import kotlin.reflect.KMutableProperty0
 
 
@@ -58,7 +56,7 @@ class TomoParticlesImage(
 			TomoParticlesImage(
 				tiltSerieses,
 				tiltSeries,
-				if (tiltSerieses.virusMode != null) {
+				if (tiltSerieses.particles is TiltSeriesesParticlesData.VirusMode) {
 					ShowListParticleControls(ParticlesList.autoVirions(session.sessionId))
 				} else {
 					ShowListParticleControls(ParticlesList.autoParticles2D(session.sessionId))
@@ -70,8 +68,6 @@ class TomoParticlesImage(
 			)
 	}
 
-	private val scaler = Scaler.of(tiltSerieses.imagesScale, tiltSeries.sourceDims)
-
 	var onParticlesChange: (() -> Unit)? = null
 
 	private class ParticlesInfo(
@@ -79,10 +75,9 @@ class TomoParticlesImage(
 		val color: Color,
 		val checkbox: ParticlesCheckBox,
 		val editable: Boolean,
-		/** particles are in binned coordinates */
+		/** particles are in unbinned coordinates */
 		val particles: MutableMap<Int,Particle3D>,
-		val newParticleRadiusA: Double?,
-		val extraRadiusBinning: Int
+		val newParticleRadius: ValueA?
 	) {
 		val markersByParticleId = HashMap<Int,ParticleMarker>()
 	}
@@ -129,6 +124,9 @@ class TomoParticlesImage(
 	private val showSpikesCheck = ParticlesCheckBox("spikes", Storage::showSpikes)
     private val showParticlesCheck = ParticlesCheckBox("particles", Storage::showParticles)
 
+	private val scaleBar = ScaleBar(tiltSeries.imageDims)
+	private var measureTool: MeasureTool.ActivateButton? = null
+
     private val playableSprite = PlayableSpritePanel(
         spriteUrl,
         "Tomogram Slices",
@@ -160,9 +158,12 @@ class TomoParticlesImage(
 
 		// add the checkboxes, if needed
 		if (particleControls != null) {
-			if (tiltSerieses.virusMode != null) {
+			val particles = tiltSerieses.particles
+			if (particles is TiltSeriesesParticlesData.VirusMode) {
 				add(showVirionsCheck)
-				add(showSpikesCheck)
+				if (particles.spikes != null) {
+					add(showSpikesCheck)
+				}
 			} else {
 				add(showParticlesCheck)
 			}
@@ -194,26 +195,21 @@ class TomoParticlesImage(
     fun load() {
 
 		// load the tomogram slices, start in the middle
-		val numSlices = tiltSeries.sourceDims?.numSlices
-			?: return
-
+		val numSlices = tiltSeries.imageDims.numSlices
 		playableSprite.load(numSlices, numSlices/2 - 1) { sprite ->
 
 			// show the scale bar
-			val scaleBar = ScaleBar(scaler)
 			sprite.add(scaleBar)
 
 			// add the measure tool
-			scaler?.let {
-				playableSprite.rightDiv.apply {
-					// cleanup any previous measure buttons
-					getChildren()
-						.filter { MeasureTool.isButton(it) }
-						.forEach { remove(it) }
-					// add the new one
-					add(0, MeasureTool.button(sprite, it, MeasureTool.showIn(scaleBar)))
-				}
-			}
+			// cleanup any previous measure buttons
+			playableSprite.rightDiv.getChildren()
+				.filter { MeasureTool.isButton(it) }
+				.forEach { remove(it) }
+			// add the new one
+			val measureTool = MeasureTool.ActivateButton(sprite, tiltSeries.imageDims, MeasureTool.showIn(scaleBar))
+			playableSprite.rightDiv.add(0, measureTool)
+			this.measureTool = measureTool
 
 			// attach the click handler to the sprite image
 			sprite.onClick { event ->
@@ -244,81 +240,94 @@ class TomoParticlesImage(
 		particlesInfosToCleanup.addAll(particlesInfos)
 		particlesInfos.clear()
 
-		suspend fun getList(name: String): ParticlesList? =
-			Services.particles.getList(ownerType, ownerId, name)
-				.unwrap()
-
 		suspend fun getParticles(name: String) =
 			Services.particles.getParticles3D(ownerType, ownerId, name, tiltSeries.id)
 				.toMap()
 				.toMutableMap()
 
-		val virusMode = tiltSerieses.virusMode
-		if (virusMode != null) {
+		suspend fun TiltSeriesesParticlesData.Data.addInfo(
+			checkbox: ParticlesCheckBox,
+			editable: Boolean,
+			overrideList: ParticlesList? = null
+		) {
 
-			// in virus mode, the picked particles are virions
-			val virionsInfo = particleControls?.list
-				?.let { particlesList ->
-					ParticlesInfo(
-						list = particlesList,
-						color = Colors.green,
-						checkbox = showVirionsCheck,
-						editable = true,
-						particles = getParticles(particlesList.name),
-						newParticleRadiusA = virusMode.virionRadiusA,
-						extraRadiusBinning = virusMode.virionBinning
-					)
-				}
-			virionsInfo?.let { particlesInfos.add(it) }
+			val list = overrideList ?: this.list
+				?: return
 
-			// if there are any auto particles, show auto those too as spikes
-			val spikesInfo = getList(ParticlesList.PypAutoParticles)
-				?.let { particlesList ->
-					ParticlesInfo(
-						list = particlesList,
-						color = Colors.blue,
-						checkbox = showSpikesCheck,
-						editable = true,
-						particles = getParticles(particlesList.name),
-						newParticleRadiusA = scaler?.scale?.particleRadiusA,
-						extraRadiusBinning = 1
-					)
-				}
-			spikesInfo?.let { particlesInfos.add(it) }
+			particlesInfos.add(ParticlesInfo(
+				list = list,
+				color = when (list.type) {
+					ParticlesType.Virions3D -> Colors.blue
+					else -> Colors.green
+				},
+				checkbox = checkbox,
+				editable = editable,
+				particles = getParticles(list.name),
+				newParticleRadius = this.radius
+			))
+		}
 
-		} else {
+		when (val particles = tiltSerieses.particles) {
 
-			// use the picked particles, if any
-			val particlesInfo = particleControls?.list
-				?.let { particlesList ->
-					ParticlesInfo(
-						list = particlesList,
-						color = Colors.green,
-						checkbox = showParticlesCheck,
-						editable = true,
-						particles = getParticles(particlesList.name),
-						newParticleRadiusA = scaler?.scale?.particleRadiusA,
-						extraRadiusBinning = 1
-					)
-				}
-			particlesInfo?.let { particlesInfos.add(it) }
+			null -> {
+				// the block itself has no main particles list,
+				// but the user may have created a manual list,
+				// so show that here
+				TiltSeriesesParticlesData.Data(
+					list = ParticlesList.manualParticles3D(ownerId),
+					radius = tiltSerieses.finishedValues?.tomoSpkRadOrDefault
+						?: run {
+							console.warn("No particle radius defined in pyp arg values, using arbitrary value")
+							ValueA(100.0)
+						}
+				).addInfo(
+					checkbox = showParticlesCheck,
+					editable = true,
+					overrideList = particleControls?.list
+				)
+			}
+
+			is TiltSeriesesParticlesData.VirusMode -> {
+
+				// in virus mode, the picked particles are virions
+				particles.virions.addInfo(
+					checkbox = showVirionsCheck,
+					editable = true,
+					overrideList = particleControls?.list
+				)
+
+				// if there are any auto particles, show those too as spikes, but don't allow editing
+				particles.spikes?.addInfo(
+					checkbox = showSpikesCheck,
+					editable = false
+				)
+			}
+
+			// in regular mode, use the picked particles, if any
+			is TiltSeriesesParticlesData.Data -> {
+				particles.addInfo(
+					checkbox = showParticlesCheck,
+					editable = true,
+					overrideList = particleControls?.list
+				)
+			}
 		}
 	}
 
-	private fun ParticlesInfo.makeMarker(particleId: Int, particle: Particle3D, zSliceBinned: Double, scaler: Scaler) {
+	private fun ParticlesInfo.makeMarker(particleId: Int, particle: Particle3D, zSlice: ValueUnbinnedI) {
 
-		// apply extra radius binning
 		val r = particle.r
-			.binnedToUnbinned(scaler, extraRadiusBinning)
-			.unbinnedToBinned(scaler)
+		val x = particle.x
+		val y = particle.y
+		val z = particle.z
 
 		// slice the particle sphere at the z-coordinate of the tomogram slice to get the reduced radius
-		val dz = abs(particle.z - zSliceBinned)
+		val dz = (z - zSlice).abs().toF()
 		val square = r*r - dz*dz
-		if (square < 0) {
+		if (square < ValueUnbinnedF(0.0)) {
 			return
 		}
-		val sliceRadiusBinned = sqrt(square)
+		val sliceRadius = square.sqrt()
 
 		val marker = ParticleMarker(
 			onClick = {
@@ -336,38 +345,34 @@ class TomoParticlesImage(
 
 		playableSprite.sprite?.add(marker)
 		marker.place(
-			particle.x.binnedToNormalizedX(scaler),
-			particle.y.binnedToNormalizedY(scaler),
-			sliceRadiusBinned.binnedToNormalizedX(scaler),
-			sliceRadiusBinned.binnedToNormalizedY(scaler)
+			x.toF().toNormalizedX(tiltSeries.imageDims),
+			y.toF().toNormalizedY(tiltSeries.imageDims),
+			sliceRadius.toNormalizedX(tiltSeries.imageDims),
+			sliceRadius.toNormalizedY(tiltSeries.imageDims)
 		)
 	}
 
-	private fun ParticlesInfo.createMarkersInRange(zSliceBinned: Double, scaler: Scaler) {
+	private fun ParticlesInfo.createMarkersInRange(zSlice: ValueUnbinnedI) {
 
 		// make markers for all coords within the z-range of the slice
 		for ((particleId, particle) in particles) {
 
-			// apply extra radius binning
 			val r = particle.r
-				.binnedToUnbinned(scaler, extraRadiusBinning)
-				.unbinnedToBinned(scaler)
+			val z = particle.z
 
 			// skip coords that are out of range
-			val z = particle.z // in binned voxels
-			val dz = z - zSliceBinned
+			val dz = (z - zSlice).toF()
 			if (dz*dz > r*r) {
 				continue
 			}
 
-			makeMarker(particleId, particle, zSliceBinned, scaler)
+			makeMarker(particleId, particle, zSlice)
 		}
 	}
 
 	private fun updateParticlesCheckboxes() {
 
-		val virusMode = tiltSerieses.virusMode
-		if (virusMode != null) {
+		if (tiltSerieses.particles is TiltSeriesesParticlesData.VirusMode) {
 
 			val virionsInfo = particlesInfos
 				.find { it.list.type == ParticlesType.Virions3D }
@@ -381,7 +386,7 @@ class TomoParticlesImage(
 		} else {
 
 			val particlesInfo = particlesInfos
-				.find { it.list.type == ParticlesType.Particles3D }
+				.firstOrNull()
 
 			showVirionsCheck.update(null)
 			showSpikesCheck.update(null)
@@ -407,17 +412,14 @@ class TomoParticlesImage(
 			particlesInfosToCleanup.clear()
 		}
 
-		val scaler = scaler
-			?: return
-
-		// get the z-coordinate of the current slice, in binned voxels
-		val zSliceBinned = sprite.index.sliceToBinnedZ()
+		// get the z-coordinate of the current slice, in unbinned voxels
+		val zSlice = sprite.index.sliceToUnbinnedZ(tiltSeries.imageDims)
 
 		// create markers for all the particles in range of the z slice
 		batch {
 			for (info in particlesInfos) {
 				if (info.checkbox.value) {
-					info.createMarkersInRange(zSliceBinned, scaler)
+					info.createMarkersInRange(zSlice)
 				}
 			}
 		}
@@ -433,12 +435,15 @@ class TomoParticlesImage(
 			.firstOrNull { it.editable }
 			?: return
 
+		// ignore clicks in measure tool mode
+		if (measureTool?.isActive == true) {
+			return
+		}
+
 		if (particleControls?.list?.source != ParticlesSource.User) {
 			return
 		}
 
-		val scaler = scaler
-			?: return
 		val click = event.clickRelativeTo(sprite, true)
 			?: return
 
@@ -446,17 +451,21 @@ class TomoParticlesImage(
 		particlesInfo.checkbox.value = true
 
 		// choose a radius for the new particle
-		val radiusA = particlesInfo.newParticleRadiusA
+		val radius = particlesInfo.newParticleRadius
 			?: return
-		val radiusBinned = radiusA.aToUnbinned(scaler)
-			.unbinnedToBinned(scaler, particlesInfo.extraRadiusBinning)
 
-		// convert mouse coords from screen space to binned voxel space
 		val particle = Particle3D(
-			x = click.x.normalizedToBinnedX(scaler),
-			y = click.y.flipNormalized().normalizedToBinnedY(scaler),
-			z = sprite.index.sliceToBinnedZ(),
-			r = radiusBinned
+			x = click.x
+				.normalizedToUnbinnedX(tiltSeries.imageDims)
+				.toI(),
+			y = click.y
+				.flipNormalized()
+				.normalizedToUnbinnedY(tiltSeries.imageDims)
+				.toI(),
+			z = sprite.index
+				.sliceToUnbinnedZ(tiltSeries.imageDims),
+			r = radius
+				.toUnbinned(tiltSeries.imageDims)
 		)
 
 		// make a new particle and save the changes on the server
@@ -465,8 +474,8 @@ class TomoParticlesImage(
 		particlesInfo.particles[particleId] = particle
 
 		// make a new marker too
-		val zSliceBinned = sprite.index.sliceToBinnedZ()
-		particlesInfo.makeMarker(particleId, particle, zSliceBinned, scaler)
+		val zSlice = sprite.index.sliceToUnbinnedZ(tiltSeries.imageDims)
+		particlesInfo.makeMarker(particleId, particle, zSlice)
 
 		particlesInfo.checkbox.update(particlesInfo)
 

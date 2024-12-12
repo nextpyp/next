@@ -1,6 +1,7 @@
 package edu.duke.bartesaghi.micromon.jobs
 
 import edu.duke.bartesaghi.micromon.nodes.*
+import edu.duke.bartesaghi.micromon.services.JobData
 
 
 object Jobs {
@@ -24,13 +25,21 @@ object Jobs {
 		TomographyRawDataNodeConfig to TomographyRawDataJob.Companion,
 		TomographyRelionDataNodeConfig to TomographyRelionDataJob.Companion,
 		TomographyImportDataNodeConfig to TomographyImportDataJob.Companion,
+		TomographyImportDataPureNodeConfig to TomographyImportDataPureJob.Companion,
 		TomographySessionDataNodeConfig to TomographySessionDataJob.Companion,
 		TomographyPreprocessingNodeConfig to TomographyPreprocessingJob.Companion,
 		TomographyPurePreprocessingNodeConfig to TomographyPurePreprocessingJob.Companion,
-		TomographyDenoisingNodeConfig to TomographyDenoisingJob.Companion,
+		TomographyDenoisingTrainingNodeConfig to TomographyDenoisingTrainingJob.Companion,
+		TomographyDenoisingEvalNodeConfig to TomographyDenoisingEvalJob.Companion,
 		TomographyPickingNodeConfig to TomographyPickingJob.Companion,
+		TomographySegmentationOpenNodeConfig to TomographySegmentationOpenJob.Companion,
+		TomographySegmentationClosedNodeConfig to TomographySegmentationClosedJob.Companion,
 		TomographyPickingOpenNodeConfig to TomographyPickingOpenJob.Companion,
 		TomographyPickingClosedNodeConfig to TomographyPickingClosedJob.Companion,
+		TomographyMiloTrainNodeConfig to TomographyMiloTrainJob.Companion,
+		TomographyMiloEvalNodeConfig to TomographyMiloEvalJob.Companion,
+		TomographyParticlesTrainNodeConfig to TomographyParticlesTrainJob.Companion,
+		TomographyParticlesEvalNodeConfig to TomographyParticlesEvalJob.Companion,
 		TomographyDrgnNodeConfig to TomographyDrgnJob.Companion,
 		TomographyCoarseRefinementNodeConfig to TomographyCoarseRefinementJob.Companion,
 		TomographyFineRefinementNodeConfig to TomographyFineRefinementJob.Companion,
@@ -40,6 +49,15 @@ object Jobs {
 
 	fun info(config: NodeConfig): JobInfo =
 		infos[config] ?: throw NoSuchElementException("job info not set for node configuration: ${config.id}")
+
+	private val infosByData = infos.values
+		.filter { it.dataClass != null }
+		.associateBy { it.dataClass }
+
+	fun info(data: JobData): JobInfo =
+		infosByData[data::class] ?: throw NoSuchElementException("job info not set for job data class: ${data::class}")
 }
 
-val NodeConfig.jobInfo get() = Jobs.info(this)
+val NodeConfig.jobInfo get(): JobInfo = Jobs.info(this)
+
+val JobData.jobInfo get(): JobInfo = Jobs.info(this)

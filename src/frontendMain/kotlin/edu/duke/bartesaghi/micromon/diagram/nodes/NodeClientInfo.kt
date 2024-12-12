@@ -4,10 +4,7 @@ import edu.duke.bartesaghi.micromon.diagram.Diagram
 import edu.duke.bartesaghi.micromon.nodes.NodeConfig
 import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
 import edu.duke.bartesaghi.micromon.pyp.Args
-import edu.duke.bartesaghi.micromon.services.CommonJobData
-import edu.duke.bartesaghi.micromon.services.JobData
-import edu.duke.bartesaghi.micromon.services.ProjectData
-import edu.duke.bartesaghi.micromon.services.ServerVal
+import edu.duke.bartesaghi.micromon.services.*
 import edu.duke.bartesaghi.micromon.views.Viewport
 import js.micromondiagrams.MicromonDiagrams
 import kotlin.reflect.KClass
@@ -33,7 +30,7 @@ interface NodeClientInfo {
 	}
 
 	/** create a node from new user input, and the output of another node */
-	fun showUseDataForm(viewport: Viewport, diagram: Diagram, project: ProjectData, outNode: Node, input: CommonJobData.DataId, copyFrom: Node?, callback: (Node) -> Unit) {
+	suspend fun showUseDataForm(viewport: Viewport, diagram: Diagram, project: ProjectData, outNode: Node, input: CommonJobData.DataId, copyFrom: Node?, callback: (Node) -> Unit) {
 		// no implementation by default
 	}
 
@@ -46,4 +43,7 @@ interface NodeClientInfo {
 	fun makeNode(viewport: Viewport, diagram: Diagram, project: ProjectData, job: JobData): Node
 
 	val pypArgs: ServerVal<Args>
+
+	suspend fun newArgValues(project: ProjectData, input: CommonJobData.DataId): ArgValuesToml =
+		Services.projects.newArgValues(project.owner.id, project.projectId, input, config.id)
 }

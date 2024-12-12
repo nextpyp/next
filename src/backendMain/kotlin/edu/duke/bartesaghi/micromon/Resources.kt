@@ -40,4 +40,7 @@ object Resources {
 
 	fun placeholderJpg(size: ImageSize) =
 		placeholderJpg(size.id)
+
+	fun placeholderSvgz() =
+		readBytes("/images/placeholder.svgz")
 }

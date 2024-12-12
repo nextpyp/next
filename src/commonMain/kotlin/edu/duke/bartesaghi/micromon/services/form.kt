@@ -90,6 +90,7 @@ enum class FileBrowserType {
 	Folder,
 	File,
 	Symlink,
+	BrokenSymlink,
 	Other
 }
 

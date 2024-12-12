@@ -1,5 +1,9 @@
 package edu.duke.bartesaghi.micromon.services
 
+import edu.duke.bartesaghi.micromon.pyp.ValueBinnedF
+import edu.duke.bartesaghi.micromon.pyp.ValueBinnedI
+import edu.duke.bartesaghi.micromon.pyp.ValueUnbinnedF
+import edu.duke.bartesaghi.micromon.pyp.ValueUnbinnedI
 import io.kvision.annotations.KVBindingRoute
 import io.kvision.annotations.KVService
 import io.kvision.remote.RemoteOption
@@ -112,49 +116,62 @@ data class ParticlesList(
 
 	companion object {
 
-		const val PypAutoParticles = "Auto Particles"
-		const val PypAutoVirions = "Auto Virions"
-		/** name of the particle list for one-list-per-block blocks */
-		const val PypPicking = "Picking"
+		const val AutoVirions = "Auto Virions"
+		const val AutoParticles = "Auto Particles"
+		const val ManualParticles = "Manual"
+
+		/** for when the list name is user-generated */
+		const val UserGenerated = "__USER_GENERATED_LIST_NAME__"
+
 
 		fun autoParticles2D(ownerId: String): ParticlesList =
 			ParticlesList(
 				ownerId = ownerId,
-				name = PypAutoParticles,
+				name = AutoParticles,
 				type = ParticlesType.Particles2D,
 				source = ParticlesSource.Pyp
+			)
+
+		fun manualParticles2D(ownerId: String): ParticlesList =
+			ParticlesList(
+				ownerId = ownerId,
+				name = ManualParticles,
+				type = ParticlesType.Particles2D,
+				source = ParticlesSource.User
 			)
 
 		fun autoParticles3D(ownerId: String): ParticlesList =
 			ParticlesList(
 				ownerId = ownerId,
-				name = PypAutoParticles,
+				name = AutoParticles,
 				type = ParticlesType.Particles3D,
 				source = ParticlesSource.Pyp
 			)
 
-		fun autoVirions(ownerId: String): ParticlesList =
+		fun manualParticles3D(ownerId: String): ParticlesList =
 			ParticlesList(
 				ownerId = ownerId,
-				name = PypAutoVirions,
-				type = ParticlesType.Virions3D,
-				source = ParticlesSource.Pyp
-			)
-
-		fun userPicking3D(ownerId: String): ParticlesList =
-			ParticlesList(
-				ownerId = ownerId,
-				name = PypPicking,
+				name = ManualParticles, // NOTE: older preprocessing blocks may override this name with a user-chosen value
 				type = ParticlesType.Particles3D,
 				source = ParticlesSource.User
 			)
 
-		fun pypPicking3D(ownerId: String): ParticlesList =
+		/** only used by older preprocessing blocks */
+		fun autoVirions(ownerId: String): ParticlesList =
 			ParticlesList(
 				ownerId = ownerId,
-				name = PypPicking,
-				type = ParticlesType.Particles3D,
+				name = AutoVirions,
+				type = ParticlesType.Virions3D,
 				source = ParticlesSource.Pyp
+			)
+
+		/** only used by older preprocessing blocks */
+		fun manualVirions(ownerId: String): ParticlesList =
+			ParticlesList(
+				ownerId = ownerId,
+				name = UserGenerated,
+				type = ParticlesType.Virions3D,
+				source = ParticlesSource.User
 			)
 	}
 }
@@ -162,8 +179,21 @@ data class ParticlesList(
 
 @Serializable
 data class Particle2D(
-	val x: Double,
-	val y: Double,
+	val x: ValueUnbinnedI,
+	val y: ValueUnbinnedI,
+	val r: ValueUnbinnedF
+) {
+
+	companion object {
+		// define the companion object here so we can extend it elsewhere
+	}
+}
+
+
+@Serializable
+data class Particle2DUntyped(
+	val x: Int,
+	val y: Int,
 	val r: Double
 ) {
 
@@ -172,11 +202,32 @@ data class Particle2D(
 	}
 }
 
+
 @Serializable
 data class Particle3D(
-	val x: Double,
-	val y: Double,
-	val z: Double,
+	val x: ValueUnbinnedI,
+	val y: ValueUnbinnedI,
+	val z: ValueUnbinnedI,
+	val r: ValueUnbinnedF
+) {
+
+	companion object {
+		// define the companion object here so we can extend it elsewhere
+
+		fun fromUnbinned(x: Int, y: Int, z: Int, r: Double): Particle3D =
+			Particle3D(
+				ValueUnbinnedI(x),
+				ValueUnbinnedI(y),
+				ValueUnbinnedI(z),
+				ValueUnbinnedF(r),
+			)
+	}
+}
+
+data class Particle3DUntyped(
+	val x: Int,
+	val y: Int,
+	val z: Int,
 	val r: Double
 ) {
 
@@ -212,19 +263,20 @@ class IndicesById(val ids: List<Int>) {
 @Serializable
 data class Particles2DData(
 	val ids: List<Int>,
-	/** packed x, y, radius */
-	val coords: List<Double>
+	/** packed x, y */
+	val coords: List<Int>,
+	val radii: List<Double>
 ) : Iterable<Pair<Int,Particle2D>> {
 
 	@Transient
 	private var indicesById = IndicesById(ids)
 
 	private fun particle(i: Int): Particle2D {
-		val i3 = i*3
+		val i2 = i*2
 		return Particle2D(
-			x = coords[i3],
-			y = coords[i3 + 1],
-			r = coords[i3 + 2]
+			x = ValueUnbinnedI(coords[i2]),
+			y = ValueUnbinnedI(coords[i2 + 1]),
+			r = ValueUnbinnedF(radii[i])
 		)
 	}
 
@@ -245,18 +297,20 @@ data class Particles2DData(
 fun Map<Int,Particle2D>.toData(): Particles2DData {
 
 	val ids = ArrayList<Int>()
-	val coords = ArrayList<Double>()
+	val coords = ArrayList<Int>()
+	val radii = ArrayList<Double>()
 
 	for ((id, particle) in this) {
 		ids.add(id)
-		coords.add(particle.x)
-		coords.add(particle.y)
-		coords.add(particle.r)
+		coords.add(particle.x.v)
+		coords.add(particle.y.v)
+		radii.add(particle.r.v)
 	}
 
 	return Particles2DData(
 		ids = ids,
-		coords = coords
+		coords = coords,
+		radii = radii
 	)
 }
 
@@ -267,20 +321,21 @@ fun Map<Int,Particle2D>.toData(): Particles2DData {
 @Serializable
 data class Particles3DData(
 	val ids: List<Int>,
-	/** packed x, y, z, radius */
-	val coords: List<Double>
+	/** packed x, y, z */
+	val coords: List<Int>,
+	val radii: List<Double>
 ) : Iterable<Pair<Int,Particle3D>> {
 
 	@Transient
 	private var indicesById = IndicesById(ids)
 
 	private fun particle(i: Int): Particle3D {
-		val i4 = i*4
+		val i3 = i*3
 		return Particle3D(
-			x = coords[i4],
-			y = coords[i4 + 1],
-			z = coords[i4 + 2],
-			r = coords[i4 + 3]
+			x = ValueUnbinnedI(coords[i3]),
+			y = ValueUnbinnedI(coords[i3 + 1]),
+			z = ValueUnbinnedI(coords[i3 + 2]),
+			r = ValueUnbinnedF(radii[i])
 		)
 	}
 
@@ -300,19 +355,21 @@ data class Particles3DData(
 fun Map<Int,Particle3D>.toData(): Particles3DData {
 
 	val ids = ArrayList<Int>()
-	val coords = ArrayList<Double>()
+	val coords = ArrayList<Int>()
+	val radii = ArrayList<Double>()
 
 	for ((id, particle) in this) {
 		ids.add(id)
-		coords.add(particle.x)
-		coords.add(particle.y)
-		coords.add(particle.z)
-		coords.add(particle.r)
+		coords.add(particle.x.v)
+		coords.add(particle.y.v)
+		coords.add(particle.z.v)
+		radii.add(particle.r.v)
 	}
 
 	return Particles3DData(
 		ids = ids,
-		coords = coords
+		coords = coords,
+		radii = radii
 	)
 }
 

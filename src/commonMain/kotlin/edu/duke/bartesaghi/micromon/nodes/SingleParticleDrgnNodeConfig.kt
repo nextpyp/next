@@ -16,5 +16,5 @@ object SingleParticleDrgnNodeConfig : NodeConfig {
 	val outRefinements = NodeConfig.Data("outRefinements", NodeConfig.Data.Type.Refinements)
 
 	override val inputs = listOf(inRefinements)
-	override val outputs = listOf(outRefinements)
+	override val outputs = emptyList<NodeConfig.Data>()
 }

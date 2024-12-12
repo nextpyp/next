@@ -4,12 +4,13 @@ import edu.duke.bartesaghi.micromon.AppScope
 import edu.duke.bartesaghi.micromon.components.forms.*
 import edu.duke.bartesaghi.micromon.diagram.Diagram
 import edu.duke.bartesaghi.micromon.dynamicImageClassName
+import edu.duke.bartesaghi.micromon.formatWithDigitGroupsSeparator
 import edu.duke.bartesaghi.micromon.nodes.TomographyPickingClosedNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
 import edu.duke.bartesaghi.micromon.pyp.Args
-import edu.duke.bartesaghi.micromon.pyp.filterForDownstreamCopy
 import edu.duke.bartesaghi.micromon.refreshDynamicImages
 import edu.duke.bartesaghi.micromon.services.*
+import edu.duke.bartesaghi.micromon.views.TomographyPickingClosedView
 import edu.duke.bartesaghi.micromon.views.Viewport
 import io.kvision.form.formPanel
 import io.kvision.modal.Modal
@@ -36,8 +37,9 @@ class TomographyPickingClosedNode(
 		override fun makeNode(viewport: Viewport, diagram: Diagram, project: ProjectData, job: JobData) =
 			TomographyPickingClosedNode(viewport, diagram, project, job as TomographyPickingClosedData)
 
-		override fun showUseDataForm(viewport: Viewport, diagram: Diagram, project: ProjectData, outNode: Node, input: CommonJobData.DataId, copyFrom: Node?, callback: (Node) -> Unit) {
+		override suspend fun showUseDataForm(viewport: Viewport, diagram: Diagram, project: ProjectData, outNode: Node, input: CommonJobData.DataId, copyFrom: Node?, callback: (Node) -> Unit) {
 			val defaultArgs = (copyFrom as TomographyPickingClosedNode?)?.job?.args
+				?: JobArgs.fromNext(TomographyPickingClosedArgs(newArgValues(project, input)))
 			form(config.name, outNode, defaultArgs, true) { args ->
 
 				// save the node to the server
@@ -82,15 +84,9 @@ class TomographyPickingClosedNode(
 				add(TomographyPickingClosedArgs::values, ArgsForm(pypArgs, listOf(upstreamNode), enabled, config.configId))
 			}
 
-			// by default, copy args values from the upstream node
-			val argsOrCopy: JobArgs<TomographyPickingClosedArgs> = args
-				?: JobArgs.fromNext(TomographyPickingClosedArgs(
-					values = upstreamNode.newestArgValues()?.filterForDownstreamCopy(pypArgs) ?: ""
-				))
-
-			form.init(argsOrCopy)
+			form.init(args)
 			if (enabled) {
-				win.addSaveResetButtons(form, argsOrCopy, onDone)
+				win.addSaveResetButtons(form, args, onDone)
 			}
 			win.show()
 		}
@@ -104,10 +100,12 @@ class TomographyPickingClosedNode(
 
 		content {
 			button(className = "image-button", onClick = {
-				// TODO: make a view
-				//TomographyPickingClosedView.go(viewport, project, job)
+				TomographyPickingClosedView.go(viewport, project, job)
 			}) {
 				img(job.imageUrl, className = dynamicImageClassName)
+			}
+			div(className = "count") {
+				text("${job.numParticles.formatWithDigitGroupsSeparator()} particles")
 			}
 		}
 
@@ -133,7 +131,4 @@ class TomographyPickingClosedNode(
 			}
 		}
 	}
-
-	override fun newestArgValues() =
-		job.args.newest()?.args?.values
 }

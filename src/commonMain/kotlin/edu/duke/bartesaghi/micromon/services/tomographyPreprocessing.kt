@@ -40,6 +40,8 @@ data class TomographyPreprocessingData(
 	val numParticles: Long
 ) : JobData {
 	override fun isChanged() = args.hasNext()
+	override fun finishedArgValues() = args.finished?.values
+	override fun nextArgValues() = args.next?.values
 }
 
 
@@ -53,8 +55,10 @@ data class TiltSeriesData(
 	override val defocus2: Double,
 	override val angleAstig: Double,
 	override val averageMotion: Double,
-	override val numParticles: Int,
-	override val sourceDims: ImageDims?
+	override val numAutoParticles: Int,
+	/** used only by older combined preprocessing blocks */
+	val numAutoVirions: Int,
+	override val imageDims: ImageDims
 ) : PreprocessingData {
 
 	fun imageUrl(job: JobData, imageSize: ImageSize): String =

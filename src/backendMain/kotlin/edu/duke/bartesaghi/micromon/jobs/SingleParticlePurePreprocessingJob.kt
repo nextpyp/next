@@ -25,6 +25,7 @@ class SingleParticlePurePreprocessingJob(
 
 		override val config = SingleParticlePurePreprocessingNodeConfig
 		override val dataType = JobInfo.DataType.Micrograph
+		override val dataClass = SingleParticlePurePreprocessingData::class
 
 		override fun fromDoc(doc: Document) = SingleParticlePurePreprocessingJob(
 			doc.getString("userId"),
@@ -69,7 +70,7 @@ class SingleParticlePurePreprocessingJob(
 			commonData(),
 			args,
 			diagramImageURL(),
-			Database.micrographs.count(idOrThrow)
+			Database.instance.micrographs.count(idOrThrow)
 		)
 
 	override suspend fun launch(runId: Int) {
@@ -79,16 +80,9 @@ class SingleParticlePurePreprocessingJob(
 		// clear caches
 		wwwDir.recreateAs(project.osUsername)
 
-		val newestArgs = args.newestOrThrow().args
-
 		// build the args for PYP
-		val upstreamJob = inMovies?.resolveJob<Job>()
-			?: throw IllegalStateException("no movies input configured")
-		val pypArgs = launchArgValues(upstreamJob, newestArgs.values, args.finished?.values)
-
-		// set the hidden args
+		val pypArgs = launchArgValues()
 		pypArgs.dataMode = "spr"
-		// NOTE: even though this is not a source block, setting the data parent causes pyp to throw errors, so don't do it here
 
 		Pyp.pyp.launch(project.osUsername, runId, pypArgs, "Launch", "pyp_launch")
 
@@ -115,9 +109,14 @@ class SingleParticlePurePreprocessingJob(
 	override fun wipeData() {
 
 		// also delete any associated data
-		Database.micrographs.deleteAll(idOrThrow)
-		Database.micrographsAvgRot.deleteAll(idOrThrow)
-		Database.jobPreprocessingFilters.deleteAll(idOrThrow)
+		Database.instance.micrographs.deleteAll(idOrThrow)
+		Database.instance.micrographsAvgRot.deleteAll(idOrThrow)
+		Database.instance.jobPreprocessingFilters.deleteAll(idOrThrow)
+
+		// also reset the finished args
+		args.unrun()
+		latestMicrographId = null
+		update()
 	}
 
 	override val filters get() = PreprocessingFilters.ofJob(idOrThrow)

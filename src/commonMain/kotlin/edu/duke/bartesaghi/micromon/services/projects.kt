@@ -2,6 +2,7 @@ package edu.duke.bartesaghi.micromon.services
 
 import edu.duke.bartesaghi.micromon.nodes.NodeConfig
 import edu.duke.bartesaghi.micromon.nodes.Workflow
+import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
 import io.kvision.annotations.KVBindingRoute
 import io.kvision.annotations.KVService
 import kotlinx.serialization.Serializable
@@ -32,6 +33,9 @@ interface IProjectsService {
 
 	@KVBindingRoute("projects/get")
 	suspend fun get(userId: String, projectId: String): ProjectData
+
+	@KVBindingRoute("projects/newArgValues")
+	suspend fun newArgValues(userId: String, projectId: String, inData: CommonJobData.DataId, nodeId: String): ArgValuesToml
 
 	@KVBindingRoute("projects/run")
 	suspend fun run(userId: String, projectId: String, jobIds: List<String>)
@@ -64,10 +68,10 @@ interface IProjectsService {
 	suspend fun waitingReason(clusterJobId: String): String
 
 	@KVBindingRoute("projects/renameJob")
-	suspend fun renameJob(jobId: String, name: String): String
+	suspend fun renameJob(jobId: String, name: String): String /* JobData but serialized */
 
 	@KVBindingRoute("projects/wipeJob")
-	suspend fun wipeJob(jobId: String, deleteFilesAndData: Boolean)
+	suspend fun wipeJob(jobId: String, deleteFilesAndData: Boolean): String /* JobData but serialized */
 
 	@KVBindingRoute("projects/olderRuns")
 	suspend fun olderRuns(userId: String, projectId: String): List<ProjectRunData>
@@ -260,6 +264,16 @@ class JobArgs<T> {
 		}
 	}
 
+	/**
+	 * move the finished args to next
+	 */
+	fun unrun() {
+		if (finished != null && next == null) {
+			next = finished
+			finished = null
+		}
+	}
+
 	companion object {
 
 		fun <T> fromNext(args: T): JobArgs<T> =
@@ -335,6 +349,12 @@ interface JobData {
 	/** does this node have changes that haven't been run on the server yet? */
 	fun isChanged(): Boolean
 
+	fun finishedArgValues(): ArgValuesToml?
+	fun nextArgValues(): ArgValuesToml?
+
+	fun newestArgValues(): ArgValuesToml? =
+		nextArgValues() ?: finishedArgValues()
+
 	// sadly, KVision doesn't expose serialization library config
 	// so we have to add another seriaization layer to support polymorphism
 	fun serialize(): String =
@@ -364,13 +384,21 @@ interface JobData {
 					subclass(TomographyRawDataData::class)
 					subclass(TomographyRelionDataData::class)
 					subclass(TomographyImportDataData::class)
+					subclass(TomographyImportDataPureData::class)
 					subclass(TomographySessionDataData::class)
 					subclass(TomographyPreprocessingData::class)
 					subclass(TomographyPurePreprocessingData::class)
-					subclass(TomographyDenoisingData::class)
+					subclass(TomographyDenoisingTrainingData::class)
+					subclass(TomographyDenoisingEvalData::class)
 					subclass(TomographyPickingData::class)
 					subclass(TomographyPickingOpenData::class)
 					subclass(TomographyPickingClosedData::class)
+					subclass(TomographySegmentationOpenData::class)
+					subclass(TomographySegmentationClosedData::class)
+					subclass(TomographyMiloTrainData::class)
+					subclass(TomographyMiloEvalData::class)
+					subclass(TomographyParticlesTrainData::class)
+					subclass(TomographyParticlesEvalData::class)
 					subclass(TomographyDrgnData::class)
 					subclass(TomographyCoarseRefinementData::class)
 					subclass(TomographyFineRefinementData::class)
@@ -395,6 +423,7 @@ data class JobPosition(
 @Serializable
 class ClusterJobLog(
 	val representativeCommand: String,
+	val commandParams: String?,
 	val submitFailure: String?,
 	val launchResult: ClusterJobLaunchResultData?,
 	val resultType: ClusterJobResultType?,
@@ -425,3 +454,8 @@ data class UserData(
 	val id: String,
 	val name: String?
 )
+
+
+interface JobCopyArgs {
+	val copyFromJobId: String
+}

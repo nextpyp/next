@@ -7,6 +7,7 @@ import com.mongodb.MongoWriteException
 import com.mongodb.client.MongoClient
 import com.mongodb.client.MongoClients
 import com.mongodb.client.MongoCollection
+import com.mongodb.client.MongoDatabase
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.ReplaceOptions
 import edu.duke.bartesaghi.micromon.base62Decode
@@ -18,14 +19,21 @@ import org.bson.Document
 import java.util.concurrent.TimeUnit
 
 
-object Database : AutoCloseable {
+object Database {
 
 	private const val HOST = "localhost"
 	private const val PORT = 27017
-	private const val NAME = "micromon"
 
-	val client: MongoClient =
-		MongoClients.create(
+	private var _instance: DatabaseConnection? = null
+
+	val instance: DatabaseConnection get() =
+		_instance ?: connect("mongodb://$HOST:$PORT")
+
+	fun connect(connectionString: String): DatabaseConnection {
+
+		disconnect()
+
+		val instance = DatabaseConnection(MongoClients.create(
 			MongoClientSettings.builder()
 				// set a shorter timeout, so we can retry the connection faster
 				.applyToClusterSettings { settings ->
@@ -35,9 +43,30 @@ object Database : AutoCloseable {
 					settings.readTimeout(5, TimeUnit.SECONDS)
 					settings.connectTimeout(5, TimeUnit.SECONDS)
 				}
-				.applyConnectionString(ConnectionString("mongodb://$HOST:$PORT"))
+				.applyConnectionString(ConnectionString(connectionString))
 				.build()
-		)
+		))
+		_instance = instance
+		return instance
+	}
+
+	fun disconnect() {
+		_instance?.close()
+		_instance = null
+	}
+
+	fun init() {
+		// init the default database connection
+		instance
+	}
+}
+
+
+class DatabaseConnection(val client: MongoClient) : AutoCloseable {
+
+	companion object {
+		private const val NAME = "micromon"
+	}
 
 	fun <R> transaction(block: () -> R): R =
 		client.startSession().use { session ->
@@ -56,16 +85,12 @@ object Database : AutoCloseable {
 	val isNew = NAME !in client.listDatabaseNames()
 	val db = client.getDatabase(NAME)
 
-	fun init() {
-		// dummy function just to make sure initializers get called
-	}
-
 	override fun close() {
 		client.close()
 	}
 
 
-	class Settings {
+	class Settings(db: MongoDatabase) {
 
 		private val collection = db.getCollection("settings")
 
@@ -85,7 +110,7 @@ object Database : AutoCloseable {
 			)
 		}
 	}
-	val settings = Settings()
+	val settings = Settings(db)
 
 	data class Alert(
 		val typeId: String,
@@ -93,7 +118,7 @@ object Database : AutoCloseable {
 		var lastNotificationNs: Long?
 	)
 
-	class Alerts {
+	class Alerts(db: MongoDatabase) {
 
 		private val collection = db.getCollection("alerts")
 
@@ -120,34 +145,34 @@ object Database : AutoCloseable {
 			)
 		}
 	}
-	val alerts = Alerts()
+	val alerts = Alerts(db)
 
-	val users = Users()
-	val groups = Groups()
-	val projects = Projects()
-	val projectReaders = ProjectReaders()
-	val jobs = Jobs()
-	val parameters = Parameters()
-	val micrographs = Micrographs()
-	val micrographsAvgRot = AvgRot("micrographs-avgrot")
-	val jobPreprocessingFilters = PreprocessingFilters("preprocessing-filters")
-	val sessionPreprocessingFilters = PreprocessingFilters("preprocessing-filters-session")
-	val reconstructions = Reconstructions()
-	val twoDClasses = TwoDClasses()
-	val tiltSeries = TiltSerieses()
-	val tiltSeriesAvgRot = AvgRot("tiltSeries-avgrot")
-	val tiltSeriesDriftMetadata = DriftMetadata("tiltSeries-driftmetadata")
-	val refinements = Refinements()
-	val refinementBundles = RefinementBundles()
-	val cluster = ClusterJobs()
-	val pypLog = PypLog()
-	val sessions = Sessions()
-	val particles = Particles()
-	val particleLists = ParticleLists()
-	val tiltExclusions = TiltExclusions()
-	val sessionExports = SessionExports()
-	val appTokens = AppTokens()
-	val appTokenRequests = AppTokenRequests()
+	val users = Users(db)
+	val groups = Groups(db)
+	val projects = Projects(db)
+	val projectReaders = ProjectReaders(db)
+	val jobs = Jobs(db)
+	val parameters = Parameters(db)
+	val micrographs = Micrographs(db)
+	val micrographsAvgRot = AvgRot(db, "micrographs-avgrot")
+	val jobPreprocessingFilters = PreprocessingFilters(db, "preprocessing-filters")
+	val sessionPreprocessingFilters = PreprocessingFilters(db, "preprocessing-filters-session")
+	val reconstructions = Reconstructions(db)
+	val twoDClasses = TwoDClasses(db)
+	val tiltSeries = TiltSerieses(db)
+	val tiltSeriesAvgRot = AvgRot(db, "tiltSeries-avgrot")
+	val tiltSeriesDriftMetadata = DriftMetadata(db, "tiltSeries-driftmetadata")
+	val refinements = Refinements(db)
+	val refinementBundles = RefinementBundles(db)
+	val cluster = ClusterJobs(db)
+	val pypLog = PypLog(db)
+	val sessions = Sessions(db)
+	val particles = Particles(db)
+	val particleLists = ParticleLists(db)
+	val tiltExclusions = TiltExclusions(db)
+	val sessionExports = SessionExports(db)
+	val appTokens = AppTokens(db)
+	val appTokenRequests = AppTokenRequests(db)
 
 	init {
 		// after all database collections are up and running,
@@ -161,6 +186,23 @@ fun Document.getStringId(key: String): String =
 
 fun Document.getDocument(key: String) =
 	get(key, Document::class.java)
+
+/**
+ * Gets any number type, but converts to an integer first if needed
+ */
+fun Document.getNumberAsInt(key: String): Int? =
+	when (val v = get(key)) {
+		null -> null
+		is Int -> v
+		is Long -> v.toInt()
+		is Float -> v.toInt()
+		is Double -> v.toInt()
+		else -> throw IllegalArgumentException("value could not be converted to an int: ${v::class.simpleName}")
+	}
+
+fun Document.getNumberAsIntOrThrow(key: String): Int =
+	getNumberAsInt(key)
+		?: throw NoSuchElementException("Document had no value for key: $key")
 
 fun Document.getListOfDocuments(key: String): List<Document>? =
 	getList(key, Document::class.java)
@@ -339,7 +381,7 @@ fun MongoCollection<Document>.createId(): String =
 		?: throw NoSuchElementException("inserted document has no id")
 
 fun <T> MongoCollection<Document>.create(creator: (String) -> Pair<T,Document>): T =
-	Database.transaction {
+	Database.instance.transaction {
 		val id = createId()
 		val (thing, doc) = creator(id)
 		replaceOne(

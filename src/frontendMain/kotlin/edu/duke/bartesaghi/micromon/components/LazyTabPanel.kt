@@ -75,14 +75,16 @@ class LazyTabPanel(
 		return tab
 	}
 
-	fun activateDefaultTab() {
-
-		// restore the last saved tab, if any
-		val tab = persistence
+	private fun defaultTab(): LazyTab? =
+		// get the last saved tab, if any, or the first tab
+		persistence
 			?.get()
 			?.let { tabs.getOrNull(it) }
 			?: tabs.firstOrNull()
-			?: return
+
+	fun initWithDefaultTab(tab: LazyTab? = defaultTab()) {
+
+		tab ?: return
 
 		initialized = true
 
@@ -119,7 +121,7 @@ fun Container.lazyTabPanel(block: LazyTabPanel.() -> Unit): LazyTabPanel {
 	val panel = LazyTabPanel()
 	add(panel)
 	block(panel)
-	panel.activateDefaultTab()
+	panel.initWithDefaultTab()
 	return panel
 }
 
@@ -127,7 +129,7 @@ fun Container.flatLazyTabPanel(block: LazyTabPanel.() -> Unit): LazyTabPanel {
 	val panel = LazyTabPanel(classes = setOf("flat-selector"))
 	add(panel)
 	block(panel)
-	panel.activateDefaultTab()
+	panel.initWithDefaultTab()
 	return panel
 }
 

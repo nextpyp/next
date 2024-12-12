@@ -39,6 +39,10 @@ pub enum Request {
 	ListFolder {
 		path: String
 	},
+	CopyFolder {
+		src: String,
+		dst: String
+	},
 
 	Stat {
 		path: String
@@ -65,9 +69,10 @@ impl Request {
 	const ID_CREATE_FOLDER: u32 = 7;
 	const ID_DELETE_FOLDER: u32 = 8;
 	const ID_LIST_FOLDER: u32 = 9;
-	const ID_STAT: u32 = 10;
-	const ID_RENAME: u32 = 11;
-	const ID_SYMLINK: u32 = 12;
+	const ID_COPY_FOLDER: u32 = 10;
+	const ID_STAT: u32 = 11;
+	const ID_RENAME: u32 = 12;
+	const ID_SYMLINK: u32 = 13;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -275,6 +280,12 @@ impl RequestEnvelope {
 				out.write_utf8(path)?;
 			}
 
+			Request::CopyFolder { src, dst } => {
+				out.write_u32::<BigEndian>(Request::ID_COPY_FOLDER)?;
+				out.write_utf8(src)?;
+				out.write_utf8(dst)?;
+			}
+
 			Request::Stat { path } => {
 				out.write_u32::<BigEndian>(Request::ID_STAT)?;
 				out.write_utf8(path)?;
@@ -370,6 +381,11 @@ impl RequestEnvelope {
 				Request::ListFolder {
 					path: reader.read_utf8().map_err(|e| (e.into(), Some(request_id)))?
 				}
+			} else if type_id == Request::ID_COPY_FOLDER {
+				Request::CopyFolder {
+					src: reader.read_utf8().map_err(|e| (e.into(), Some(request_id)))?,
+					dst: reader.read_utf8().map_err(|e| (e.into(), Some(request_id)))?
+				}
 			} else if type_id == Request::ID_STAT {
 				Request::Stat {
 					path: reader.read_utf8().map_err(|e| (e.into(), Some(request_id)))?
@@ -420,6 +436,7 @@ pub enum Response {
 	DeleteFile,
 	CreateFolder,
 	DeleteFolder,
+	CopyFolder,
 
 	Stat(StatResponse),
 	Rename,
@@ -436,9 +453,10 @@ impl Response {
 	const ID_DELETE_FILE: u32 = 7;
 	const ID_CREATE_FOLDER: u32 = 8;
 	const ID_DELETE_FOLDER: u32 = 9;
-	const ID_STAT: u32 = 10;
-	const ID_RENAME: u32 = 11;
-	const ID_SYMLINK: u32 = 12;
+	const ID_COPY_FOLDER: u32 = 10;
+	const ID_STAT: u32 = 11;
+	const ID_RENAME: u32 = 12;
+	const ID_SYMLINK: u32 = 13;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -585,6 +603,10 @@ impl ResponseEnvelope {
 				out.write_u32::<BigEndian>(Response::ID_DELETE_FOLDER)?;
 			}
 
+			Response::CopyFolder => {
+				out.write_u32::<BigEndian>(Response::ID_COPY_FOLDER)?;
+			}
+
 			Response::Stat(response) => {
 				out.write_u32::<BigEndian>(Response::ID_STAT)?;
 				match response {
@@ -700,6 +722,8 @@ impl ResponseEnvelope {
 				Response::CreateFolder
 			} else if type_id == Response::ID_DELETE_FOLDER {
 				Response::DeleteFolder
+			} else if type_id == Response::ID_COPY_FOLDER {
+				Response::CopyFolder
 			} else if type_id == Response::ID_STAT {
 				Response::Stat({
 					let lstat_type_id = reader.read_u32::<BigEndian>()?;

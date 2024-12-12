@@ -33,11 +33,12 @@ class TomographyImportDataData(
 	val numParticles: Long
 ) : JobData {
 	override fun isChanged() = args.hasNext()
+	override fun finishedArgValues() = args.finished?.values
+	override fun nextArgValues() = args.next?.values
 }
 
 @Serializable
 data class TomographyImportDataArgs(
-	val values: ArgValuesToml,
-	val particlesName: String? = null
+	val values: ArgValuesToml
 	// NOTE: kvision's forms require a default value here, otherwise the deserializer will throw an error
 )

@@ -3,6 +3,8 @@ package edu.duke.bartesaghi.micromon.components
 import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.components.forms.enableClickIf
 import edu.duke.bartesaghi.micromon.components.forms.enabled
+import edu.duke.bartesaghi.micromon.components.forms.focusASAP
+import edu.duke.bartesaghi.micromon.components.forms.onEnter
 import edu.duke.bartesaghi.micromon.services.*
 import io.kvision.form.check.radioGroup
 import io.kvision.modal.Modal
@@ -19,7 +21,7 @@ import io.kvision.toast.Toast
 interface ParticleControls {
 
 	val list: ParticlesList?
-	var onListChange: (() -> Unit)?
+	var onListChange: (suspend () -> Unit)?
 	val canWrite: Boolean
 	val numParticles: Long
 
@@ -51,7 +53,7 @@ class MultiListParticleControls(
 		}
 	}
 
-	override var onListChange: (() -> Unit)? = null
+	override var onListChange: (suspend () -> Unit)? = null
 
 	override val canWrite get() =
 		project.canWrite()
@@ -259,14 +261,15 @@ class MultiListParticleControls(
 		val nameText = popup.text(label = "Name:")
 
 		val createButton = Button("Create")
-		popup.addButton(createButton)
-		createButton.onClick {
+			.also { popup.addButton(it) }
+
+		fun submit() {
 
 			// get the list name
 			val name = nameText.value ?: ""
 			if (name.isBlank()) {
 				Toast.error("Please choose a name for the new particle list.", options = ToastOptions())
-				return@onClick
+				return
 			}
 
 			AppScope.launch {
@@ -290,6 +293,11 @@ class MultiListParticleControls(
 			}
 		}
 
+		// wire up events
+		createButton.onClick { submit() }
+		nameText.onEnter { submit() }
+
+		popup.focusASAP(nameText)
 		popup.show()
 	}
 
@@ -345,14 +353,15 @@ class MultiListParticleControls(
 		val nameText = popup.text(label = "Name:")
 
 		val copyButton = Button("Copy")
-		popup.addButton(copyButton)
-		copyButton.onClick {
+			.also { popup.addButton(it) }
+
+		fun submit() {
 
 			// get the list name
 			val newName = nameText.value ?: ""
 			if (newName.isBlank()) {
 				Toast.error("Please choose a name for the new particle list.", options = ToastOptions())
-				return@onClick
+				return
 			}
 
 			AppScope.launch {
@@ -376,6 +385,11 @@ class MultiListParticleControls(
 			}
 		}
 
+		// wire up events
+		copyButton.onClick { submit() }
+		nameText.onEnter { submit() }
+
+		popup.focusASAP(nameText)
 		popup.show()
 	}
 }
@@ -384,7 +398,7 @@ class MultiListParticleControls(
 class SingleListParticleControls(
 	val project: ProjectData,
 	val job: JobData,
-): Div(), ParticleControls {
+): ParticleControls {
 
 	override var list: ParticlesList? = null
 
@@ -398,19 +412,27 @@ class SingleListParticleControls(
 		}
 	}
 
-	override var onListChange: (() -> Unit)? = null
+	override var onListChange: (suspend () -> Unit)? = null
 
 	override val canWrite get() =
 		project.canWrite()
 
-	suspend fun load(default: ParticlesList) {
+	suspend fun load(list: ParticlesList) {
 
-		this.list = Services.particles.getLists(OwnerType.Project, job.jobId)
-			.find { it.name == default.name }
-			?: run {
-				Services.particles.addList(OwnerType.Project, default.ownerId, default.name, default.type)
-				default
-			}
+		// does the list exist yet?
+		val exists = Services.particles.getLists(OwnerType.Project, job.jobId)
+			.any { it.name == list.name }
+		if (exists) {
+			// yup: we can load it now
+			this.list = list
+		} else if (list.source == ParticlesSource.User) {
+			// nope: but a user list won't exist yet, so create it now
+			Services.particles.addList(OwnerType.Project, list.ownerId, list.name, list.type)
+			this.list = list
+		} else {
+			// nope: but it's an auto list, so that means we just don't have a particles list yet
+			this.list = null
+		}
 
 		updateCount()
 		onListChange?.invoke()
@@ -489,7 +511,7 @@ class SingleListParticleControls(
  * Only shows one particle list, but doesn't show any controls or allow particle picking
  */
 class ShowListParticleControls(override val list: ParticlesList) : ParticleControls {
-	override var onListChange: (() -> Unit)? = null
+	override var onListChange: (suspend () -> Unit)? = null
 	override val canWrite get() = false
 	override val numParticles get() = 0L
 }
@@ -497,7 +519,7 @@ class ShowListParticleControls(override val list: ParticlesList) : ParticleContr
 
 class NoneParticleControls : ParticleControls {
 	override val list: ParticlesList? = null
-	override var onListChange: (() -> Unit)? = null
+	override var onListChange: (suspend () -> Unit)? = null
 	override val canWrite: Boolean = false
 	override val numParticles get() = 0L
 }

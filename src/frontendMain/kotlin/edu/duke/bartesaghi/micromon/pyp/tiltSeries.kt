@@ -1,98 +1,152 @@
 package edu.duke.bartesaghi.micromon.pyp
 
-import edu.duke.bartesaghi.micromon.diagram.nodes.NodeClientInfo
+import edu.duke.bartesaghi.micromon.components.indexSearch
 import edu.duke.bartesaghi.micromon.services.*
 
 
 data class TiltSeriesesData(
 	val tiltSerieses: MutableList<TiltSeriesData> = ArrayList(),
-	var imagesScale: ImagesScale? = null,
-	var detectMode: DetectModeData? = null,
-	var virusMode: VirusModeData? = null,
-	var spikeMode: SpikeModeData? = null
+	var particles: TiltSeriesesParticlesData? = null,
+	var finishedValues: ArgValues? = null
 ) {
 
-	suspend fun loadForProject(jobId: String, nodeClientInfo: NodeClientInfo, finishedValues: ArgValuesToml?) {
+	suspend fun loadForProject(job: JobData, finishedValues: ArgValuesToml?) {
 
+		// load the tilt series
 		tiltSerieses.clear()
-		Services.jobs.getTiltSerieses(jobId)
+		Services.jobs.getTiltSerieses(job.jobId)
+			// sort tilt series by id, then timestamp
+			// that way, the overall sort is by timestamp, but ids can break ties if for some reason tilt series have the same timestamp
+			// (since sortedBy() claims to be a stable sort, this should work)
+			.sortedBy { it.id }
 			.sortedBy { it.timestamp }
 			.forEach { tiltSerieses.add(it) }
 
-		imagesScale = Services.jobs.getImagesScale(jobId)
-			.unwrap()
-
 		// get the job's finished pyp arg values, if any
-		val args = nodeClientInfo.pypArgs.get()
+		// NOTE: we need all the pyp args for this (not just the args for this job)
+		//       since we may need to reference some args not in the job to display the particles correctly
+		val args = ALL_PYP_ARGS.get()
 		val values = finishedValues?.toArgValues(args)
+			?: return
+		this.finishedValues = values
 
-		// get the detect mode data, if any
-		detectMode = values
-			?.takeIf { values.args.detectMethodExists && it.detectMethodOrDefault.isEnabled }
-			?. let {
-				DetectModeData(
-					particleRadiusA = it.detectRad,
-					numAutoParticles = Services.particles.countParticles(OwnerType.Project, jobId, ParticlesList.PypAutoParticles, null)
-						.unwrap()
-				)
-			}
+		// determine the mode for particles
+		when (job) {
 
-		// get the virion mode data, if any
-		virusMode = values
-			?.takeIf { values.args.tomoVirMethodExists && it.tomoVirMethodOrDefault.isEnabled }
-			?.let {
-				VirusModeData(
-					virionRadiusA = it.tomoVirRadOrDefault,
-					virionBinning = it.tomoVirBinnOrDefault.toInt(),
-					numAutoVirions = Services.particles.countParticles(OwnerType.Project, jobId, ParticlesList.PypAutoVirions, null)
-						.unwrap()
-				)
-			}
+			// newer blocks have simple rules
+			is TomographyPickingData ->
+				particles = values.tomoPickMethodOrDefault.particlesList(job.jobId)?.let { list ->
+					TiltSeriesesParticlesData.Data(
+						list,
+						radius = values.tomoPickRadOrDefault
+					)
+				}
 
-		// get the spike mode data, if any
-		spikeMode = values
-			?.takeIf { values.args.tomoSpkMethodExists && it.tomoSpkMethodOrDefault.isEnabled }
-			?.let {
-				SpikeModeData(
-					spikeRadiusA = it.tomoSpkRadOrDefault
+			is TomographyParticlesEvalData ->
+				particles = TiltSeriesesParticlesData.Data(ParticlesList.autoParticles3D(job.jobId))
+
+			is TomographySegmentationClosedData ->
+				particles = TiltSeriesesParticlesData.VirusMode(
+					virions = TiltSeriesesParticlesData.Data(
+						list = ParticlesList.autoVirions(job.jobId)
+					)
 				)
-			}
+
+			is TomographyPickingClosedData ->
+				particles = TiltSeriesesParticlesData.VirusMode(
+					virions = TiltSeriesesParticlesData.Data(
+						list = ParticlesList.autoVirions(job.jobId)
+					),
+					spikes = TiltSeriesesParticlesData.Data(
+						list = ParticlesList.autoParticles3D(job.jobId)
+					)
+				)
+
+			is TomographyPickingOpenData ->
+				particles = values.tomoSrfMethodOrDefault.particlesList(job.jobId)?.let { list ->
+					TiltSeriesesParticlesData.Data(list)
+				}
+
+			// older blocks had complicated rules
+			is TomographyPreprocessingData,
+			is TomographyImportDataData,
+			is TomographySessionDataData -> combinedRules(
+				job.jobId,
+				values.tomoVirMethodOrDefault,
+				values.tomoVirRadOrDefault,
+				values.tomoVirBinnOrDefault.toInt(),
+				values.tomoVirDetectMethodOrDefault,
+				values.tomoSpkMethodOrDefault,
+				values.tomoSpkRadOrDefault
+			)
+
+			// other blocks don't have particles
+			else -> Unit
+		}
+
+		// since loading particles list is a complicated and error-prone process,
+		// let's just always print debug info here about what got loaded
+		console.log("Loaded tilt series data: particles=", particles)
 	}
 
-	suspend fun loadForSession(session: SessionData, initMsg: RealTimeS2C.SessionStatus, dataMsg: RealTimeS2C.SessionLargeData) {
+	private fun combinedRules(
+		ownerId: String,
+		tomoVirMethod: TomoVirMethod,
+		tomoVirRad: ValueA,
+		tomoVirBinn: Int,
+		tomoVirDetectMethod: TomoVirDetectMethod,
+		tomoSpkMethod: TomoSpkMethod,
+		tomoSpkRad: ValueA
+	) {
 
+		// check for virus mode
+		val virionsList = tomoVirMethod.particlesList(ownerId)
+		if (virionsList != null) {
+
+			particles = TiltSeriesesParticlesData.VirusMode(
+				virions = TiltSeriesesParticlesData.Data(
+					list = virionsList,
+					radius = tomoVirRad
+				),
+				spikes = tomoVirDetectMethod.particlesList(ownerId)?.let { list ->
+					TiltSeriesesParticlesData.Data(list)
+				}
+			)
+
+		} else {
+
+			particles = tomoSpkMethod.particlesList(ownerId)?.let { list ->
+				TiltSeriesesParticlesData.Data(
+					list,
+					radius = tomoSpkRad
+				)
+			}
+		}
+	}
+
+	fun loadForSession(session: SessionData, initMsg: RealTimeS2C.SessionStatus, dataMsg: RealTimeS2C.SessionLargeData) {
+
+		// collect all the tilt series
 		tiltSerieses.clear()
 		tiltSerieses.addAll(dataMsg.tiltSerieses)
 
-		imagesScale = initMsg.imagesScale
-
-		// get the detect mode data, if any
-		detectMode = DetectModeData(
-			particleRadiusA = null, // TODO: do we need to get this from somewhere?
-			numAutoParticles = Services.particles.countParticles(OwnerType.Session, session.sessionId, ParticlesList.PypAutoParticles, null)
-				.unwrap()
+		// sessions work like combined mode project blocks
+		combinedRules(
+			session.sessionId,
+			initMsg.tomoVirMethod,
+			initMsg.tomoVirRad,
+			initMsg.tomoVirBinn.toInt(),
+			initMsg.tomoVirDetectMethod,
+			initMsg.tomoSpkMethod,
+			initMsg.tomoSpkRad
 		)
 
-		// get the virion mode data, if any
-		virusMode = initMsg
-			.takeIf { initMsg.tomoVirMethod.isEnabled }
-			?.let {
-				VirusModeData(
-					virionRadiusA = it.tomoVirRad,
-					virionBinning = it.tomoVirBinn.toInt(),
-					numAutoVirions = Services.particles.countParticles(OwnerType.Session, session.sessionId, ParticlesList.PypAutoVirions, null)
-						.unwrap()
-				)
-			}
+		// since loading particles list is a complicated and error-prone process,
+		// let's just always print debug info here about what got loaded
+		console.log("Loaded tilt series data: particles=", particles)
 	}
 
-	fun update(msg: RealTimeS2C.UpdatedTiltSeries) =
-		update(msg.tiltSeries, msg.numAutoParticles, msg.numAutoVirions)
-
-	fun update(msg: RealTimeS2C.SessionTiltSeries) =
-		update(msg.tiltSeries, msg.numAutoParticles, msg.numAutoVirions)
-
-	private fun update(tiltSeries: TiltSeriesData, numAutoParticles: Long?, numAutoVirions: Long?) {
+	fun update(tiltSeries: TiltSeriesData) {
 
 		// update the main tilt series list, if needed
 		val index = tiltSerieses.indexOfFirst { it.id == tiltSeries.id }
@@ -101,41 +155,38 @@ data class TiltSeriesesData(
 		} else {
 			tiltSerieses.add(tiltSeries)
 		}
-
-		// update the auto counts
-
-		// basically this: numAutoParticles += msg.numAutoParticles
-		detectMode?.numAutoParticles = detectMode?.numAutoParticles?.let { dst ->
-			numAutoParticles?.let { src ->
-				dst + src
-			}
-		}
-
-		// basically this: virusMode.numAutoVirions += msg.numAutoVirions
-		virusMode?.numAutoVirions = virusMode?.numAutoVirions?.let { dst ->
-			numAutoVirions?.let { src ->
-				dst + src
-			}
-		}
 	}
+
+	fun searchById(q: String) =
+		tiltSerieses.indexSearch { tiltSeries -> tiltSeries.id.takeIf { q in tiltSeries.id } }
 }
 
 
-data class DetectModeData(
-	var particleRadiusA: Double?,
-	/** for older combined preprocessing blocks */
-	var numAutoParticles: Long?
-)
+sealed interface TiltSeriesesParticlesData {
 
+	/** shows virions and spikes as separate kinds of particles */
+	data class VirusMode(
+		val virions: Data,
+		val spikes: Data? = null
+	) : TiltSeriesesParticlesData
 
-data class VirusModeData(
-	val virionRadiusA: Double,
-	var virionBinning: Int,
-	/** for older combined preprocessing blocks */
-	var numAutoVirions: Long?
-)
-
-
-data class SpikeModeData(
-	val spikeRadiusA: Double
-)
+	/** shows regular ol' particles */
+	data class Data(
+		/**
+		 * The particles list defined by the particle picking mode,
+		 * or null if the mode is none.
+		 *
+		 * Most of the time, this will point to a list of particles in the database for the owner,
+		 * but in the older combined preprocessing blocks, they can have user-defined list names,
+		 * so the name of the list stored here may not match any actual list of particles in the database.
+		 * In that case, the particles should not be loaded directly from this list name, but the user-chosen
+		 * name should be used to load the particles instead.
+		 */
+		val list: ParticlesList?,
+		/**
+		 * A radius common to all particles, if such a radius exist.
+		 * Otherwise (ie, if all particles have differing radii), set this to null.
+		 */
+		val radius: ValueA? = null
+	) : TiltSeriesesParticlesData
+}

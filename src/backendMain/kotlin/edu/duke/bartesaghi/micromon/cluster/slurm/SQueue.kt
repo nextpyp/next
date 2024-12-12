@@ -25,7 +25,7 @@ class SQueue(
 
 		// run the job as the specified OS user, if needed
 		if (osUsername != null) {
-			cmd = Backend.userProcessors.get(osUsername).wrap(cmd, quiet=true)
+			cmd = Backend.instance.userProcessors.get(osUsername).wrap(cmd, quiet=true)
 		}
 
 		val lines = sshPool.connection {

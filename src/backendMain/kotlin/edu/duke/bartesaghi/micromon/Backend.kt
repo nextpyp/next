@@ -4,6 +4,7 @@ import edu.duke.bartesaghi.micromon.linux.hostprocessor.HostProcessor
 import edu.duke.bartesaghi.micromon.linux.userprocessor.UserProcessors
 import edu.duke.bartesaghi.micromon.projects.ProjectEventListeners
 import edu.duke.bartesaghi.micromon.pyp.Args
+import edu.duke.bartesaghi.micromon.pyp.MockPyp
 import edu.duke.bartesaghi.micromon.pyp.fromToml
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -11,31 +12,57 @@ import org.slf4j.LoggerFactory
 import java.nio.file.Paths
 
 
-object Backend {
+class Backend(config: Config, val pypArgs: Args) {
 
-	val log = LoggerFactory.getLogger("Backend")
+	companion object {
+
+		val log = LoggerFactory.getLogger("Backend")
+
+
+		// load the pyp args from the config file
+		val pypArgsFromConfig = try {
+			Args.fromToml(Paths.get("/opt/micromon/pyp_config.toml").readString())
+		} catch (t: Throwable) {
+			throw Error("Failed to parse pyp_config.toml. Aborting startup.", t)
+		}
+
+
+		private fun prod(): Backend {
+			val config = Config.instance
+			var pypArgs = pypArgsFromConfig
+			if (config.pyp.mock != null) {
+				pypArgs = MockPyp.combineArgs(pypArgs)
+			}
+			return Backend(config, pypArgs)
+		}
+
+		private var _instance: Backend? = null
+
+		val instance: Backend get() =
+			_instance ?: install(prod())
+
+		fun install(backend: Backend): Backend {
+			_instance = backend
+			return backend
+		}
+
+		fun uninstall() {
+			_instance = null
+		}
+	}
+
 
 	/** the current working directory */
 	val cwd = Paths.get(System.getProperty("user.dir"))
 
 	init {
-		log.info("MicroMon started!")
+		log.info("MicroMon backend started!")
 		log.info("CWD: $cwd")
 	}
-
-	// get the config
-	val config = Config.instance
 
 	init {
 		// echo the configuration, useful for troubleshooting issues
 		log.info("Configuration:\n$config")
-	}
-
-	// load the pyp args
-	val pypArgs = try {
-		Args.fromToml(Paths.get("/opt/micromon/pyp_config.toml").readString())
-	} catch (t: Throwable) {
-		throw Error("Failed to parse pyp_config.toml. Aborting startup.", t)
 	}
 
 	fun init() {
@@ -51,7 +78,7 @@ object Backend {
 
 	/**
 	 * coroutine scope tied to this Backend singleton instance
-	 * use `Backend.scope.launch()` instead of eg `GlobalScope.launch()`
+	 * use `Backend.instance.scope.launch()` instead of eg `GlobalScope.launch()`
 	 */
 	val scope = CoroutineScope(Dispatchers.Default)
 

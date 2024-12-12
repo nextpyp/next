@@ -25,6 +25,7 @@ class SingleParticlePickingJob(
 
 		override val config = SingleParticlePickingNodeConfig
 		override val dataType = JobInfo.DataType.Micrograph
+		override val dataClass = SingleParticlePickingData::class
 
 		override fun fromDoc(doc: Document) = SingleParticlePickingJob(
 			doc.getString("userId"),
@@ -78,16 +79,9 @@ class SingleParticlePickingJob(
 		// clear caches
 		wwwDir.recreateAs(project.osUsername)
 
-		val newestArgs = args.newestOrThrow().args
-
 		// build the args for PYP
-		val upstreamJob = inMicrographs?.resolveJob<Job>()
-			?: throw IllegalStateException("no micrographs input configured")
-		val pypArgs = launchArgValues(upstreamJob, newestArgs.values, args.finished?.values)
-
-		// set the hidden args
+		val pypArgs = launchArgValues()
 		pypArgs.dataMode = "spr"
-		pypArgs.dataParent = upstreamJob.dir.toString()
 
 		Pyp.pyp.launch(project.osUsername, runId, pypArgs, "Launch", "pyp_launch")
 
@@ -114,9 +108,14 @@ class SingleParticlePickingJob(
 	override fun wipeData() {
 
 		// also delete any associated data
-		Database.micrographs.deleteAll(idOrThrow)
-		Database.particleLists.deleteAll(idOrThrow)
-		Database.particles.deleteAllParticles(idOrThrow)
+		Database.instance.micrographs.deleteAll(idOrThrow)
+		Database.instance.particleLists.deleteAll(idOrThrow)
+		Database.instance.particles.deleteAllParticles(idOrThrow)
+
+		// also reset the finished args
+		args.unrun()
+		latestMicrographId = null
+		update()
 	}
 
 	override fun newestArgValues(): ArgValuesToml? =

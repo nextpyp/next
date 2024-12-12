@@ -15,10 +15,10 @@ open class PreprocessingFilters private constructor(
 	companion object {
 
 		fun ofJob(jobId: String) =
-			PreprocessingFilters(jobId, Database.jobPreprocessingFilters)
+			PreprocessingFilters(jobId, Database.instance.jobPreprocessingFilters)
 
 		fun ofSession(sessionId: String) =
-			PreprocessingFilters(sessionId, Database.sessionPreprocessingFilters)
+			PreprocessingFilters(sessionId, Database.instance.sessionPreprocessingFilters)
 	}
 
 	fun getAll(): List<PreprocessingFilter> {

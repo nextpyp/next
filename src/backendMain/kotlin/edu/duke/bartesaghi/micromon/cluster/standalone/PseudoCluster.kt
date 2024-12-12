@@ -252,10 +252,10 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 				cmd.envvars.addAll(clusterJob.env)
 
 				job.clusterJob.osUsername?.let { username ->
-					cmd = Backend.userProcessors.get(username).wrap(cmd)
+					cmd = Backend.instance.userProcessors.get(username).wrap(cmd)
 				}
 
-				process = Backend.hostProcessor.exec(cmd)
+				process = Backend.instance.hostProcessor.exec(cmd)
 			}
 		}
 	}

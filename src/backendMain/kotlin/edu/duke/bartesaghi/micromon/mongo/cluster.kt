@@ -1,5 +1,6 @@
 package edu.duke.bartesaghi.micromon.mongo
 
+import com.mongodb.client.MongoDatabase
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.UpdateOptions
 import com.mongodb.client.model.Updates
@@ -11,12 +12,12 @@ import org.bson.conversions.Bson
 import java.util.NoSuchElementException
 
 
-class ClusterJobs {
+class ClusterJobs(db: MongoDatabase) {
 
-	class Launches {
+	class Launches(db: MongoDatabase) {
 
 		// NOTE: named "slurm___" for historical reasons
-		private val collection = Database.db.getCollection("slurmLaunch")
+		private val collection = db.getCollection("slurmLaunch")
 
 		init {
 			// create indices to speed up common but slow operations
@@ -96,12 +97,12 @@ class ClusterJobs {
 			collection.deleteOne(filter(id))
 		}
 	}
-	val launches = Launches()
+	val launches = Launches(db)
 
-	class Log {
+	class Log(db: MongoDatabase) {
 
 		// NOTE: named "slurm___" for historical reasons
-		private val collection = Database.db.getCollection("slurmLog")
+		private val collection = db.getCollection("slurmLog")
 
 		companion object {
 
@@ -183,5 +184,5 @@ class ClusterJobs {
 			collection.deleteOne(filter(clusterJobId, arrayId))
 		}
 	}
-	val log = Log()
+	val log = Log(db)
 }

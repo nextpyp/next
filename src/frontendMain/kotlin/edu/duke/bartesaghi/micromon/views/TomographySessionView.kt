@@ -75,11 +75,12 @@ class TomographySessionView(
 		}
 	}
 
-
+	override val routed = Companion
 	override val elem = Div(classes = setOf("dock-page", "session"))
 
 	private var viewport: Viewport? = null
 	private val statsElem = Div(classes = setOf("stats"))
+	private val tiltSeriesStats = TiltSeriesStats()
 	private val header = Div(classes = setOf("header"))
 	private val tabs = LazyTabPanel()
 	private var settingsTab: SettingsTab? = null
@@ -120,7 +121,7 @@ class TomographySessionView(
 		tabs.addTab("Settings", "fas fa-sliders-h") {
 			settingsTab?.show(it.elem)
 		}
-		tabs.activateDefaultTab()
+		tabs.initWithDefaultTab()
 
 		val session = session
 		if (session == null) {
@@ -192,7 +193,6 @@ class TomographySessionView(
 			val initMsg = input.receiveMessage<RealTimeS2C.SessionStatus>()
 			try {
 				opsTab?.init(initMsg)
-				tableTab?.init(initMsg)
 			} catch (t: Throwable) {
 				t.reportError()
 				Toast.error("An error occurred while loading the session status.")
@@ -202,6 +202,7 @@ class TomographySessionView(
 			val smallDataMsg = input.receiveMessage<RealTimeS2C.SessionSmallData>()
 			opsTab?.exportsMonitor?.setData(smallDataMsg)
 			try {
+				// TODO: anything to update here?
 			} catch (t: Throwable) {
 				t.reportError()
 				Toast.error("An error occurred while loading the session small data.")
@@ -211,6 +212,11 @@ class TomographySessionView(
 			val dataMsg = input.receiveMessage<RealTimeS2C.SessionLargeData>()
 			try {
 				tiltSeriesesData.loadForSession(session, initMsg, dataMsg)
+				tiltSeriesStats.set(
+					tiltSeriesesData,
+					virions = dataMsg.autoVirionsCount,
+					particles = dataMsg.autoParticlesCount
+				)
 				updateStatistics()
 				plotsTab?.loader?.setData(dataMsg)
 				tableTab?.loader?.setData(dataMsg)
@@ -218,7 +224,7 @@ class TomographySessionView(
 				tiltSeriesTab?.loader?.setData(dataMsg)
 			} catch (t: Throwable) {
 				t.reportError()
-				Toast.error("An error occurred while loading the session data.")
+				Toast.error("An error occurred while loading the large session data.")
 			}
 
 			// wait for other updates from the server
@@ -244,12 +250,11 @@ class TomographySessionView(
 								opsTab?.speedsMonitor?.transferFinished()
 							}
 							is RealTimeS2C.UpdatedParameters -> {
-								tiltSeriesesData.imagesScale = msg.imagesScale
 								tiltSeriesTab?.listNav?.reshow()
-								tableTab?.update(msg)
 							}
 							is RealTimeS2C.SessionTiltSeries -> {
-								tiltSeriesesData.update(msg)
+								tiltSeriesesData.update(msg.tiltSeries)
+								tiltSeriesStats.increment(tiltSeriesesData, msg.tiltSeries)
 								updateStatistics()
 								tiltSeriesTab?.listNav?.newItem()
 								plotsTab?.onTiltSeries(msg)
@@ -427,8 +432,6 @@ class TomographySessionView(
 
 		val loader = TabDataLoader<RealTimeS2C.SessionLargeData>()
 
-		private var imagesScale: ImagesScale? = null
-
 		private val table = FilterTable(
 			"Tilt Series",
 			tiltSeriesesData.tiltSerieses,
@@ -441,7 +444,7 @@ class TomographySessionView(
 					link(tiltSeries.id, classes = setOf("link"))
 						.onClick { showTiltSeries(index, true) }
 				}
-				elem.add(SessionTiltSeriesImage(session, tiltSeries, imagesScale).apply {
+				elem.add(SessionTiltSeriesImage(session, tiltSeries).apply {
 					loadParticles()
 				})
 				elem.add(SessionTiltSeries1DPlot(session, tiltSeries).apply {
@@ -475,14 +478,6 @@ class TomographySessionView(
 			lazyTab.elem.add(this)
 		}
 
-		fun init(msg: RealTimeS2C.SessionStatus) {
-			imagesScale = msg.imagesScale
-		}
-
-		fun update(msg: RealTimeS2C.UpdatedParameters) {
-			imagesScale = msg.imagesScale
-		}
-
 		fun onTiltSeries() {
 			table.update()
 		}
@@ -492,9 +487,9 @@ class TomographySessionView(
 
 		val loader = TabDataLoader<RealTimeS2C.SessionLargeData>()
 
-		private val gallery = HyperGallery(tiltSeriesesData.tiltSerieses).apply {
+		private val gallery = HyperGallery(tiltSeriesesData.tiltSerieses, ImageSizes.from(ImageSize.Small)).apply {
 			html = { tiltSeries ->
-				document.create.img(src = tiltSeries.imageUrl(this@GalleryTab.session, ImageSize.Small))
+				listenToImageSize(document.create.img(src = tiltSeries.imageUrl(this@GalleryTab.session, ImageSize.Small)))
 			}
 			linker = { _, index ->
 				showTiltSeries(index, true)
@@ -529,7 +524,7 @@ class TomographySessionView(
 
 		private val tiltSeriesElem = Div()
 
-		val listNav = BigListNav(tiltSeriesesData.tiltSerieses) e@{ index ->
+		val listNav = BigListNav(tiltSeriesesData.tiltSerieses, onSearch=tiltSeriesesData::searchById) e@{ index ->
 
 			// clear the previous contents
 			tiltSeriesElem.removeAll()
@@ -599,10 +594,8 @@ class TomographySessionView(
 			val argsValues = session?.newestArgs?.values?.toArgValues(args)
 
 			statsElem.removeAll()
-			statsElem.add(TiltSeriesStats().apply {
-				updateCombined(tiltSeriesesData)
-			})
-			statsElem.add(PypStatsLine(PypStats.fromTomography(argsValues)))
+			statsElem.add(tiltSeriesStats)
+			statsElem.add(PypStatsLine(PypStats.fromArgValues(argsValues)))
 		}
 	}
 }

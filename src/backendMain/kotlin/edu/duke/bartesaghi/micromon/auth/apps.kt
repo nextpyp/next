@@ -138,7 +138,7 @@ class AppTokenInfo(
 			val hash = hashToken(token)
 
 			val permissionIds = permissions.map { it.appPermissionId }
-			val info = Database.appTokens.create { tokenId ->
+			val info = Database.instance.appTokens.create { tokenId ->
 				AppTokenInfo(tokenId, userId, appName, hash, permissionIds)
 			}
 
@@ -146,10 +146,10 @@ class AppTokenInfo(
 		}
 
 		fun getAll(userId: String): List<AppTokenInfo> =
-			Database.appTokens.getAll(userId)
+			Database.instance.appTokens.getAll(userId)
 
 		fun get(tokenId: String): AppTokenInfo? =
-			Database.appTokens.get(tokenId)
+			Database.instance.appTokens.get(tokenId)
 
 		fun find(userId: String, token: String): AppTokenInfo? {
 			val rawToken = try {
@@ -157,7 +157,7 @@ class AppTokenInfo(
 			} catch (t: Throwable) {
 				return null
 			}
-			return Database.appTokens.find(userId) { hash ->
+			return Database.instance.appTokens.find(userId) { hash ->
 				argon.verify(hash, rawToken)
 			}
 		}
@@ -179,7 +179,7 @@ class AppTokenInfo(
 	)
 
 	fun revoke() {
-		Database.appTokens.delete(this)
+		Database.instance.appTokens.delete(this)
 	}
 }
 
@@ -203,15 +203,15 @@ class AppTokenRequest(
 			)
 
 		fun create(userId: String, appName: String, permissionIds: List<String>) =
-			Database.appTokenRequests.create { requestId ->
+			Database.instance.appTokenRequests.create { requestId ->
 				AppTokenRequest(requestId, userId, appName, permissionIds)
 			}
 
 		fun getAll(userId: String): List<AppTokenRequest> =
-			Database.appTokenRequests.getAll(userId)
+			Database.instance.appTokenRequests.getAll(userId)
 
 		fun get(requestId: String): AppTokenRequest? =
-			Database.appTokenRequests.get(requestId)
+			Database.instance.appTokenRequests.get(requestId)
 
 	}
 
@@ -229,14 +229,14 @@ class AppTokenRequest(
 	)
 
 	fun reject() {
-		Database.appTokenRequests.delete(this)
+		Database.instance.appTokenRequests.delete(this)
 	}
 
 	fun accept(): Pair<String,AppTokenInfo> {
 		val permissions = appPermissionIds
 			.map { AppPermissions.getOrThrow(it) }
 		val (token, info) = AppTokenInfo.generate(userId, appName, permissions)
-		Database.appTokenRequests.delete(this)
+		Database.instance.appTokenRequests.delete(this)
 		return token to info
 	}
 }

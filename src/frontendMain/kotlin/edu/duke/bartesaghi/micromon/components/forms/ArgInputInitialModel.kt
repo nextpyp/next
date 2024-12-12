@@ -22,21 +22,8 @@ class ArgInputInitialModel(
 	companion object {
 
 		fun initialFolder(outNodes: List<Node>): String? =
-			// TODO: how to handle multiple inputs?
-			when (val node = outNodes.firstOrNull()) {
-
-				is SingleParticleCoarseRefinementNode,
-				is SingleParticleFineRefinementNode,
-				is SingleParticleFlexibleRefinementNode,
-				is SingleParticlePostprocessingNode,
-				is SingleParticleMaskingNode,
-				is TomographyCoarseRefinementNode,
-				is TomographyFineRefinementNode,
-				is TomographyMovieCleaningNode,
-				is TomographyFlexibleRefinementNode -> PathType.Project.make("${node.dir}/frealign/maps")
-
-				else -> null
-			}
+			outNodes.firstOrNull()
+				?.let { PathType.Project.make("${it.dir}/frealign/maps") }
 	}
 
 	val default: String? get() = null

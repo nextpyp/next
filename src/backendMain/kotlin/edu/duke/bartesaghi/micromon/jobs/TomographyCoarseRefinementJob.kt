@@ -1,8 +1,6 @@
 package edu.duke.bartesaghi.micromon.jobs
 
 import com.mongodb.client.model.Updates
-import edu.duke.bartesaghi.micromon.linux.userprocessor.createDirsIfNeededAs
-import edu.duke.bartesaghi.micromon.linux.userprocessor.writeStringAs
 import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.mongo.getDocument
 import edu.duke.bartesaghi.micromon.nodes.TomographyCoarseRefinementNodeConfig
@@ -13,7 +11,6 @@ import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.*
 import org.bson.Document
 import org.bson.conversions.Bson
-import kotlin.io.path.div
 
 
 class TomographyCoarseRefinementJob(
@@ -30,6 +27,7 @@ class TomographyCoarseRefinementJob(
 
 		override val config = TomographyCoarseRefinementNodeConfig
 		override val dataType = JobInfo.DataType.TiltSeries
+		override val dataClass = TomographyCoarseRefinementData::class
 
 		override fun fromDoc(doc: Document) = TomographyCoarseRefinementJob(
 			doc.getString("userId"),
@@ -81,6 +79,7 @@ class TomographyCoarseRefinementJob(
 	override suspend fun launch(runId: Int) {
 
 		val project = projectOrThrow()
+		val newestArgs = args.newestOrThrow().args
 
 		// clear caches
 		wwwDir.recreateAs(project.osUsername)
@@ -89,25 +88,18 @@ class TomographyCoarseRefinementJob(
 		val upstreamJob = inMovieRefinement?.resolveJob<Job>()
 			?: throw IllegalStateException("no movie refinement input configured")
 
-		// are we using a tilt series filter?
-		if (upstreamJob is FilteredJob) {
-			val filter = args.newestOrThrow().args.filter
-				?.let { filter -> upstreamJob.filters[filter] }
-			if (filter != null) {
-
-				// write out the micrographs file to the job folder before starting pyp
-				val dir = dir.createDirsIfNeededAs(project.osUsername)
-				val file = dir / "${dir.fileName}.micrographs"
-				val tiltSeriesIds = upstreamJob.resolveFilter(filter)
-				file.writeStringAs(project.osUsername, tiltSeriesIds.joinToString("\n"))
-			}
+		// write out the filter from the upstream job, if needed
+		if (upstreamJob is FilteredJob && newestArgs.filter != null) {
+			upstreamJob.writeFilter(newestArgs.filter, dir, project.osUsername)
 		}
 
-		// build the args for PYP
-		val pypArgs = launchArgValues(upstreamJob, args.newestOrThrow().args.values, args.finished?.values)
+		// write out manual particles from the upstream job, so we can use them for training
+		ParticlesJobs.clear(project.osUsername, dir)
+		upstreamJob.manualParticlesList()
+			?.let { ParticlesJobs.writeTomography(project.osUsername, upstreamJob, dir, it) }
 
-		// set the hidden args
-		pypArgs.dataParent = upstreamJob.dir.toString()
+		// build the args for PYP
+		val pypArgs = launchArgValues()
 		pypArgs.extractFmt = "frealign"
 
 		Pyp.csp.launch(project.osUsername, runId, pypArgs, "Launch", "pyp_launch")
@@ -136,8 +128,13 @@ class TomographyCoarseRefinementJob(
 	override fun wipeData() {
 
 		// remove any reconstructions and refinements
-		Database.reconstructions.deleteAll(idOrThrow)
-		Database.refinements.deleteAll(idOrThrow)
+		Database.instance.reconstructions.deleteAll(idOrThrow)
+		Database.instance.refinements.deleteAll(idOrThrow)
+
+		// also reset the finished args
+		args.unrun()
+		latestReconstructionId = null
+		update()
 	}
 
 	fun diagramImageURL(): String =

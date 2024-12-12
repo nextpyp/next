@@ -33,6 +33,8 @@ class SingleParticleImportDataData(
 	val numParticles: Long
 ) : JobData {
 	override fun isChanged() = args.hasNext()
+	override fun finishedArgValues() = args.finished?.values
+	override fun nextArgValues() = args.next?.values
 }
 
 /**
@@ -40,7 +42,6 @@ class SingleParticleImportDataData(
  */
 @Serializable
 data class SingleParticleImportDataArgs(
-	val values: ArgValuesToml,
-	val particlesName: String? = null
+	val values: ArgValuesToml
 	// NOTE: kvision's forms require a default value here, otherwise the deserializer will throw an error
 )

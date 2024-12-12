@@ -8,29 +8,29 @@ import edu.duke.bartesaghi.micromon.mongo.authProjectOrThrow
 import io.ktor.application.*
 
 
-actual class TomographyDenoisingService : ITomographyDenoisingService, Service {
+actual class TomographySegmentationOpenService : ITomographySegmentationOpenService, Service {
 
 	@Inject
 	override lateinit var call: ApplicationCall
 
-	override suspend fun addNode(userId: String, projectId: String, inTomograms: CommonJobData.DataId, args: TomographyDenoisingArgs): TomographyDenoisingData = sanitizeExceptions {
+	override suspend fun addNode(userId: String, projectId: String, inData: CommonJobData.DataId, args: TomographySegmentationOpenArgs): TomographySegmentationOpenData = sanitizeExceptions {
 
 		val user = call.authOrThrow()
 		user.authProjectOrThrow(ProjectPermission.Write, userId, projectId)
 
 		// make the job
-		val job = TomographyDenoisingJob(userId, projectId)
+		val job = TomographySegmentationOpenJob(userId, projectId)
 		job.args.next = args
-		job.inTomograms = inTomograms
+		job.inTomograms = inData
 		job.create()
 
 		return job.data()
 	}
 
-	private fun String.authJob(permission: ProjectPermission): AuthInfo<TomographyDenoisingJob> =
+	private fun String.authJob(permission: ProjectPermission): AuthInfo<TomographySegmentationOpenJob> =
 		authJob(permission, this)
 
-	override suspend fun edit(jobId: String, args: TomographyDenoisingArgs?): TomographyDenoisingData = sanitizeExceptions {
+	override suspend fun edit(jobId: String, args: TomographySegmentationOpenArgs?): TomographySegmentationOpenData = sanitizeExceptions {
 
 		val job = jobId.authJob(ProjectPermission.Write).job
 
@@ -41,7 +41,7 @@ actual class TomographyDenoisingService : ITomographyDenoisingService, Service {
 		return job.data()
 	}
 
-	override suspend fun get(jobId: String): TomographyDenoisingData = sanitizeExceptions {
+	override suspend fun get(jobId: String): TomographySegmentationOpenData = sanitizeExceptions {
 
 		val job = jobId.authJob(ProjectPermission.Read).job
 
@@ -49,6 +49,6 @@ actual class TomographyDenoisingService : ITomographyDenoisingService, Service {
 	}
 
 	override suspend fun getArgs(): String = sanitizeExceptions {
-		return TomographyDenoisingJob.args().toJson()
+		return TomographySegmentationOpenJob.args().toJson()
 	}
 }

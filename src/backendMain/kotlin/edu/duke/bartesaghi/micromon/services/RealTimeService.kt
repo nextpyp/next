@@ -43,11 +43,11 @@ object RealTimeService {
 			outgoing.sendMessage(RealTimeS2C.ProjectStatus(
 				recentRuns = recentRuns.map { it.toData() },
 				hasOlderRuns = olderRuns.isNotEmpty(),
-				blocks = Backend.pypArgs.blocks
+				blocks = Backend.instance.pypArgs.blocks
 			))
 
 			// route job events to the client
-			val listenerId = Backend.projectEventListeners.add(
+			val listenerId = Backend.instance.projectEventListeners.add(
 				msg.userId,
 				msg.projectId,
 				listeners = object : ProjectEventListeners.Listeners {
@@ -70,8 +70,8 @@ object RealTimeService {
 						outgoing.trySendMessage(RealTimeS2C.JobUpdate(job))
 					}
 
-					override suspend fun onJobFinish(runId: Int, job: JobData, status: RunStatus) {
-						outgoing.trySendMessage(RealTimeS2C.JobFinish(runId, job, status))
+					override suspend fun onJobFinish(runId: Int, job: JobData, status: RunStatus, errorMessage: String?) {
+						outgoing.trySendMessage(RealTimeS2C.JobFinish(runId, job, status, errorMessage))
 					}
 
 					override suspend fun onRunFinish(runId: Int, status: RunStatus) {
@@ -105,7 +105,7 @@ object RealTimeService {
 
 			// wait for the connection to close, then cleanup the listeners
 			incoming.waitForClose(outgoing)
-			Backend.projectEventListeners.remove(listenerId)
+			Backend.instance.projectEventListeners.remove(listenerId)
 		}
 
 		suspend fun DefaultWebSocketServerSession.micrographsService() {
@@ -128,8 +128,7 @@ object RealTimeService {
 
 					onParams = { values ->
 						outgoing.trySendMessage(RealTimeS2C.UpdatedParameters(
-							imagesScale = job.imagesScale(values),
-							pypStats = PypStats.fromSingleParticle(values)
+							pypStats = PypStats.fromArgValues(values)
 						))
 					}
 
@@ -179,16 +178,13 @@ object RealTimeService {
 
 					onParams = { values ->
 						outgoing.trySendMessage(RealTimeS2C.UpdatedParameters(
-							imagesScale = job.imagesScale(values),
-							pypStats = PypStats.fromTomography(values)
+							pypStats = PypStats.fromArgValues(values)
 						))
 					}
 
 					onTiltSeries = { tiltSeries ->
 						outgoing.trySendMessage(RealTimeS2C.UpdatedTiltSeries(
-							tiltSeries = tiltSeries.getMetadata(),
-							numAutoParticles = Database.particles.countParticles(job.idOrThrow, ParticlesList.PypAutoParticles, tiltSeries.tiltSeriesId),
-							numAutoVirions = Database.particles.countParticles(job.idOrThrow, ParticlesList.PypAutoVirions, tiltSeries.tiltSeriesId)
+							tiltSeries = tiltSeries.getMetadata()
 						))
 					}
 				}
@@ -206,11 +202,19 @@ object RealTimeService {
 			tiltSeriesesService()
 		}
 
-		routing.webSocket(RealTimeServices.tomographyDenoising) {
+		routing.webSocket(RealTimeServices.tomographyDenoisingEval) {
 			tiltSeriesesService()
 		}
 
 		routing.webSocket(RealTimeServices.tomographyPicking) {
+			tiltSeriesesService()
+		}
+
+		routing.webSocket(RealTimeServices.tomographySegmentationOpen) {
+			tiltSeriesesService()
+		}
+
+		routing.webSocket(RealTimeServices.tomographySegmentationClosed) {
 			tiltSeriesesService()
 		}
 
@@ -219,6 +223,14 @@ object RealTimeService {
 		}
 
 		routing.webSocket(RealTimeServices.tomographyPickingClosed) {
+			tiltSeriesesService()
+		}
+
+		routing.webSocket(RealTimeServices.tomographyParticlesEval) {
+			tiltSeriesesService()
+		}
+
+		routing.webSocket(RealTimeServices.tomographySessionData) {
 			tiltSeriesesService()
 		}
 
@@ -237,14 +249,7 @@ object RealTimeService {
 			val listener = RefinementJobs.eventListeners.add(job.idOrThrow)
 			listener.onParams = { values ->
 				outgoing.trySendMessage(RealTimeS2C.UpdatedParameters(
-					imagesScale = job.imagesScale(values),
-					pypStats = when (job.baseConfig.jobInfo.dataType) {
-						// reconstructions could be for either single particle jobs or tomography jobs,
-						// so we need to pick the correct version of the stats here
-						JobInfo.DataType.Micrograph -> PypStats.fromSingleParticle(values)
-						JobInfo.DataType.TiltSeries -> PypStats.fromTomography(values)
-						else -> throw NoSuchElementException("job ${job.baseConfig.id} has no data type")
-					}
+					pypStats = PypStats.fromArgValues(values)
 				))
 			}
 			listener.onReconstruction = { reconstruction ->
@@ -331,6 +336,7 @@ object RealTimeService {
 
 			// send the large data (can take a while, so send it after the session status)
 			outgoing.sendMessage(RealTimeS2C.SessionLargeData(
+				autoParticlesCount = Database.instance.particles.countAllParticles(session.idOrThrow, ParticlesList.AutoParticles),
 				micrographs = Micrograph.getAll(session.idOrThrow) { cursor ->
 					cursor
 						.map { it.getMetadata() }
@@ -348,8 +354,7 @@ object RealTimeService {
 			// set up single-particle events
 			listener.onParams = { values ->
 				outgoing.trySendMessage(RealTimeS2C.UpdatedParameters(
-					imagesScale = session.imagesScale(values),
-					pypStats = PypStats.fromSingleParticle(values)
+					pypStats = PypStats.fromArgValues(values)
 				))
 			}
 			listener.onMicrograph = listener@{ micrographId ->
@@ -388,7 +393,7 @@ object RealTimeService {
 
 				// do all the cleanup steps, but independently
 				// ie, if one step fails, still try to do the other steps
-				attempt { Backend.filesystems.listeners.remove(filesystemListener) }
+				attempt { Backend.instance.filesystems.listeners.remove(filesystemListener) }
 				attempt { listener.close() }
 				slowIOs {
 					attempt { transfers.stopAndWait() }
@@ -411,6 +416,8 @@ object RealTimeService {
 
 			// send the large data (can take a while, so send it after the session status)
 			outgoing.sendMessage(RealTimeS2C.SessionLargeData(
+				autoVirionsCount = Database.instance.particles.countAllParticles(session.idOrThrow, ParticlesList.AutoVirions),
+				autoParticlesCount = Database.instance.particles.countAllParticles(session.idOrThrow, ParticlesList.AutoParticles),
 				tiltSerieses = TiltSeries.getAll(session.idOrThrow) { cursor ->
 					cursor
 						.map { it.getMetadata() }
@@ -426,16 +433,13 @@ object RealTimeService {
 			// set up tomography events
 			listener.onParams = { values ->
 				outgoing.trySendMessage(RealTimeS2C.UpdatedParameters(
-					imagesScale = session.imagesScale(values),
-					pypStats = PypStats.fromTomography(values)
+					pypStats = PypStats.fromArgValues(values)
 				))
 			}
 			listener.onTiltSeries = listener@{ tiltSeriesId ->
 				val tiltSeries = TiltSeries.get(session.idOrThrow, tiltSeriesId) ?: return@listener
 				outgoing.trySendMessage(RealTimeS2C.SessionTiltSeries(
-					tiltSeries = tiltSeries.getMetadata(),
-					numAutoParticles = Database.particles.countParticles(session.idOrThrow, ParticlesList.PypAutoParticles, tiltSeries.tiltSeriesId),
-					numAutoVirions = Database.particles.countParticles(session.idOrThrow, ParticlesList.PypAutoVirions, tiltSeries.tiltSeriesId)
+					tiltSeries = tiltSeries.getMetadata()
 				))
 			}
 			listener.onExport = listener@{ export ->
@@ -467,7 +471,7 @@ object RealTimeService {
 
 				// do all the cleanup steps, but independently
 				// ie, if one step fails, still try to do the other steps
-				attempt { Backend.filesystems.listeners.remove(filesystemListener) }
+				attempt { Backend.instance.filesystems.listeners.remove(filesystemListener) }
 				attempt { listener.close() }
 				slowIOs {
 					attempt { transfers.stopAndWait() }
@@ -494,7 +498,7 @@ object RealTimeService {
 	private suspend fun SendChannel<Frame>.sendSessionStatus(session: Session) {
 
 		val values = session.pypParameters()
-		val defaults = ArgValues(Backend.pypArgs)
+		val defaults = ArgValues(Backend.instance.pypArgs)
 
 		// send the initial status
 		// NOTE: this should be FAST so the UI feels responsive
@@ -513,10 +517,12 @@ object RealTimeService {
 					)
 				},
 
-			imagesScale = values?.let { session.imagesScale(it) },
 			tomoVirMethod = (values ?: defaults).tomoVirMethodOrDefault,
 			tomoVirRad = (values ?: defaults).tomoVirRadOrDefault,
-			tomoVirBinn = (values ?: defaults).tomoVirBinnOrDefault
+			tomoVirBinn = (values ?: defaults).tomoVirBinnOrDefault,
+			tomoVirDetectMethod = (values ?: defaults).tomoVirDetectMethodOrDefault,
+			tomoSpkMethod = (values ?: defaults).tomoSpkMethodOrDefault,
+			tomoSpkRad = (values ?: defaults).tomoSpkRadOrDefault
 		))
 
 		// send the small data
@@ -573,10 +579,10 @@ object RealTimeService {
 		}
 
 		// report the current filesystems
-		Backend.filesystems.filesystems().send()
+		Backend.instance.filesystems.filesystems().send()
 
 		// route filesystem events to the client
-		return Backend.filesystems.listeners.add { filesystems ->
+		return Backend.instance.filesystems.listeners.add { filesystems ->
 			filesystems.send()
 		}
 	}

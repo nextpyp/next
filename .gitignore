@@ -5,6 +5,7 @@
 /run/host-processor
 /run/user-processor
 /run/runas
+/run/mock-pyp
 /.gettext.json
 /local.properties
 *.sif

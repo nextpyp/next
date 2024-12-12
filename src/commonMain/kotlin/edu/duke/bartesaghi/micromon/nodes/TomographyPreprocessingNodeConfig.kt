@@ -9,8 +9,7 @@ object TomographyPreprocessingNodeConfig : NodeConfig {
 	override val configId = "tomo_pre_process"
 	override val name = "Pre-processing (legacy)"
 	override val hasFiles = true
-	// TODO: obsolete the old nodes
-	//override val status = NodeConfig.NodeStatus.Obsolete
+	override val status = NodeConfig.NodeStatus.Legacy
 
 	val tiltSeries = NodeConfig.Data("tilt-series", NodeConfig.Data.Type.TiltSeries)
 	val movieRefinement = NodeConfig.Data("movie-refinement", NodeConfig.Data.Type.MovieRefinement)

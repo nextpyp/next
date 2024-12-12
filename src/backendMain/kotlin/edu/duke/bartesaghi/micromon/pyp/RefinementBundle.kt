@@ -16,11 +16,11 @@ class RefinementBundle(
 	companion object {
 
 		fun get(jobId: String, dataId: String): RefinementBundle? =
-			Database.refinementBundles.get(jobId, dataId)
+			Database.instance.refinementBundles.get(jobId, dataId)
 				?.let { fromDoc(it) }
 
 		fun getAll(jobId: String): List<RefinementBundle> =
-			Database.refinementBundles.getAll(jobId) { cursor ->
+			Database.instance.refinementBundles.getAll(jobId) { cursor ->
 				cursor
 					.map { fromDoc(it) }
 					.toList()
@@ -34,7 +34,7 @@ class RefinementBundle(
 		)
 
 		fun deleteAllNotIteration(jobId: String, iteration: Int) {
-			Database.refinementBundles.deleteAllNotIteration(jobId, iteration)
+			Database.instance.refinementBundles.deleteAllNotIteration(jobId, iteration)
 		}
 	}
 
@@ -53,7 +53,7 @@ class RefinementBundle(
 	)
 
 	fun write() {
-		Database.refinementBundles.write(jobId, refinementBundleId) {
+		Database.instance.refinementBundles.write(jobId, refinementBundleId) {
 			putAll(toDoc())
 		}
 	}
