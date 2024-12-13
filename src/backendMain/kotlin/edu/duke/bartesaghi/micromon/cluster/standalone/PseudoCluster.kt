@@ -489,7 +489,7 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 			return@use job
 		}
 
-		return ClusterJob.LaunchResult(job.jobId, "", null, emptyList())
+		return ClusterJob.LaunchResult(job.jobId, "", null)
 	}
 
 	private suspend fun ClusterJob.findJob(): Job? =

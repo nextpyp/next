@@ -165,10 +165,6 @@ class SBatch(val config: Config.Slurm) : Cluster {
 		// ie, with proper argument quoting to avoid injection attacks
 		val sbatchCmd = sbatch.toShellSafeString()
 
-		// collect all the other sbatch arguments for the launch result, but don't add them to the command
-		// (since they're already in the batch script)
-		val args = buildArguments(clusterJob)
-
 		// call sbatch on the SLURM host and wait for the job to submit
 		val result = sshPool
 			.connection {
@@ -198,8 +194,7 @@ class SBatch(val config: Config.Slurm) : Cluster {
 		return ClusterJob.LaunchResult(
 			sbatchId,
 			result.console.joinToString("\n"),
-			sbatchCmd,
-			args
+			sbatchCmd
 		)
 	}
 

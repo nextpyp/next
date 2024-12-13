@@ -128,8 +128,7 @@ interface Cluster {
 						set("sbatch", ClusterJob.LaunchResult(
 							null,
 							t.console.joinToString("\n"),
-							t.command,
-							emptyList()
+							t.command
 						).toDoc())
 
 					is ClusterJob.ValidationFailedException ->

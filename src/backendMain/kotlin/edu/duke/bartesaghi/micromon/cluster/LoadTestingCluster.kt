@@ -98,7 +98,7 @@ class LoadTestingCluster : Cluster {
 			}
 		}
 
-		return ClusterJob.LaunchResult(null, "", null, emptyList())
+		return ClusterJob.LaunchResult(null, "", null)
 	}
 
 	override suspend fun waitingReason(clusterJob: ClusterJob, launchResult: ClusterJob.LaunchResult) =

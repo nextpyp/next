@@ -239,16 +239,13 @@ class ClusterJob(
 		/** the console output from the cluster launcher, eg sbatch */
 		val out: String,
 		/** the submission command, if any */
-		val command: String?,
-		/** any arguments to the launcher that don't appear in the command itself */
-		val arguments: List<String>
+		val command: String?
 	) {
 
 		fun toDoc() = Document().apply {
 			set("id", jobId)
 			set("out", out)
 			set("command", command)
-			set("arguments", arguments)
 		}
 
 		companion object {
@@ -257,15 +254,13 @@ class ClusterJob(
 				jobId = doc.getLong("id"),
 				out = doc.getString("out"),
 				command = doc.getString("command"),
-				arguments = doc.getListOfStrings("arguments") ?: emptyList()
 			)
 		}
 
 		fun toData() = ClusterJobLaunchResultData(
 			command,
 			out,
-			success = jobId != null,
-			arguments
+			success = jobId != null
 		)
 	}
 
