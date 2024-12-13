@@ -27,8 +27,6 @@ class ArgInputParFile(
 				is SingleParticlePreprocessingNode,
 				is TomographyPreprocessingNode,
 				is TomographyPickingNode,
-				is SingleParticleRelionDataNode,
-				is TomographyRelionDataNode,
 				// TODO: segmented picking blocks, when they're ready
 				is TomographyParticlesEvalNode-> PathType.Project.make("${node.dir}/frealign")
 
@@ -40,6 +38,8 @@ class ArgInputParFile(
 				is TomographyCoarseRefinementNode,
 				is TomographyFineRefinementNode,
 				is TomographyMovieCleaningNode,
+				is SingleParticleRelionDataNode,
+				is TomographyRelionDataNode,
 				is TomographyFlexibleRefinementNode -> PathType.Project.make("${node.dir}/frealign/maps")
 
 				else -> null
