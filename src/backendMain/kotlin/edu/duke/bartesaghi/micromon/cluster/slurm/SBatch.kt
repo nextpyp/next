@@ -5,18 +5,33 @@ import edu.duke.bartesaghi.micromon.cluster.Cluster
 import edu.duke.bartesaghi.micromon.cluster.ClusterJob
 import edu.duke.bartesaghi.micromon.cluster.Commands
 import edu.duke.bartesaghi.micromon.linux.Command
-import edu.duke.bartesaghi.micromon.linux.Posix
 import edu.duke.bartesaghi.micromon.linux.userprocessor.deleteAs
 import edu.duke.bartesaghi.micromon.linux.userprocessor.readStringAs
 import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.ClusterJobResultType
 import edu.duke.bartesaghi.micromon.services.ClusterMode
 import edu.duke.bartesaghi.micromon.services.ClusterQueues
+import io.pebbletemplates.pebble.error.PebbleException
 import java.nio.file.Path
-import kotlin.collections.ArrayList
 
 
 class SBatch(val config: Config.Slurm) : Cluster {
+
+	companion object {
+
+		val BANNED_ARGS = setOf(
+			"output",
+			"error",
+			"chdir",
+			"array"
+		)
+
+		val SUPPORTED_ARGS = setOf(
+			"cpus-per-task",
+			"mem",
+			"time"
+		)
+	}
 
 	override val clusterMode = ClusterMode.SLURM
 
@@ -33,30 +48,22 @@ class SBatch(val config: Config.Slurm) : Cluster {
 
 	override fun validate(job: ClusterJob) {
 
-		val args = job.argsPosix
+		val args = job.argsParsed
 
 		// look for any banned arguments
-		if (args.any { it.startsWith("--output=") }) {
-			throw IllegalArgumentException("job outputs are handled automatically by nextPYP, no need to specify them explicitly")
-		}
-		if (args.any { it.startsWith("--error=") }) {
-			throw IllegalArgumentException("job errors are handled automatically by nextPYP, no need to specify them explicitly")
-		}
-		if (args.any { it.startsWith("--chdir=") }) {
-			throw IllegalArgumentException("the submission directory is handled automatically by nextPYP, no need to specifiy it explicitly")
-		}
-		if (args.any { it.startsWith("--array=") }) {
-			throw IllegalArgumentException("the array is handled automatically by nextPYP, no need to specify it explicitly")
-		}
+		BANNED_ARGS
+			.filter { bannedName -> args.any { (name, _) -> name == bannedName } }
+			.takeIf { it.isNotEmpty() }
+			?.let { found ->
+				throw IllegalArgumentException("The sbatch argument(s) $found are handled automatically by nextPYP, no need to specify them explicitly")
+			}
 
-		// validate the queue names, if any are given
-		val queues = config.queues + config.gpuQueues
-		args.filter { it.startsWith("--partition=") }
-			.map { it.substring("--partition=".length) }
-			.forEach { queue ->
-				if (queue !in queues) {
-					throw IllegalArgumentException("the partition '$queue' was not valid, try one of $queues")
-				}
+		// look for any unsupported arguments
+		args
+			.filter { (name, _) -> name !in SUPPORTED_ARGS }
+			.takeIf { it.isNotEmpty() }
+			?.let { found ->
+				throw IllegalArgumentException("unsupported sbatch argument(s): $found\nMicromon must be updated to support these arguments.")
 			}
 
 		// these are errors caused by users (rather than programmers),
@@ -64,8 +71,8 @@ class SBatch(val config: Config.Slurm) : Cluster {
 		try {
 
 			// validate any gres arguments
-			args.filter { it.startsWith("--gres=") }
-				.forEach { Gres.parseAll(it) }
+			args.filter { (name, _) -> name == "gres" }
+				.forEach { (_, value) -> Gres.parseAll(value) }
 
 		} catch (t: Throwable) {
 			throw ClusterJob.ValidationFailedException(t)
@@ -74,56 +81,23 @@ class SBatch(val config: Config.Slurm) : Cluster {
 
 	override suspend fun buildScript(clusterJob: ClusterJob, commands: String): String {
 
-		// NOTE: In SLURM, command-line arguments to sbatch take precedence over #SBATCH directives in the script
-		//       This precedence is apparently not documented in the official SLURM docs, but I determined it empirically.
-		//       Since it's undocumented (?), it's possible this behavior could change in a future release.
-		//       Meaning, #SBATCH directives in this script *cannot* override command-line arguments set in launch()
+		// TODO: allow the cluster job to choose a template?
+		val template = TemplateEngine().templateOrThrow()
 
-		val out = StringBuilder()
+		// TODO: set (possibly dynamic) args from the user
 
-		fun StringBuilder.write(msg: String) {
-			append(msg)
-		}
-		fun StringBuilder.writeln(msg: String? = null) {
-			msg?.let { write(it) }
-			write("\n")
-		}
-		fun StringBuilder.writeArg(arg: String) {
-			writeln("#SBATCH ${Posix.quote(arg)}")
-		}
-		fun StringBuilder.writeArg(name: String, value: String) {
-			writeln("--$name=$value")
-		}
-
-		out.writeln("#!/bin/bash")
-		out.writeln()
-
-		// write sbatch directives
-		out.writeln("# configure SLURM's sbatch")
-
-		// add all the arguments from the job submission
-		// TODO: need to formalize pyp's submitted arguments??
-		for (arg in clusterJob.args) {
-			out.writeArg(arg)
+		// set args from the job
+		for ((name, value) in clusterJob.argsParsed) {
+			if (name != null) {
+				template.args.job[name] = value
+			}
 		}
 
 		// handle cluster job dependencies
 		val deps = clusterJob.dependencies()
 		if (deps.isNotEmpty()) {
 			val launchIds = deps.joinToString(",") { it.launchIdOrThrow }
-			out.writeArg("dependency", "afterany:$launchIds")
-		}
-
-		// if no partition was specified in the args, use the default cpu partition
-		// TODO: get partition from the template. get rid of configured queues
-		val partition = clusterJob.argsPosix
-			.find { it.startsWith("--partition=") }
-			?.split("=")
-			?.lastOrNull()
-		if (partition == null) {
-			// that is, if any default queue exists
-			config.queues.firstOrNull()
-				?.let { out.writeArg("partition", it) }
+			template.args.job["dependency"] = "afterany:$launchIds"
 		}
 
 		// render the array arguments
@@ -131,20 +105,19 @@ class SBatch(val config: Config.Slurm) : Cluster {
 			val bundleInfo = clusterJob.commands.bundleSize
 				?.let { "%$it" }
 				?: ""
-			out.writeArg("array", "1-$arraySize$bundleInfo")
+			template.args.job["array"] = "1-$arraySize$bundleInfo"
 		}
 
 		// set the job name, if any
 		clusterJob.clusterName?.let {
-			out.writeArg("job-name", it)
+			template.args.job["name"] = it
 		}
 
-		out.writeln()
+		// TODO: add a job phase to ClusterJob?
 
-		// write the commands
-		out.write(commands)
+		template.args.job["commands"] = commands
 
-		return out.toString()
+		return template.eval()
 	}
 
 	override suspend fun launch(clusterJob: ClusterJob, scriptPath: Path): ClusterJob.LaunchResult? {

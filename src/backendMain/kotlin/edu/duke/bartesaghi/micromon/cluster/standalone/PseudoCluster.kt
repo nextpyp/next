@@ -41,13 +41,13 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 		val created = Instant.now()!!
 
 		// parse the arguments
+		private val args = clusterJob.argsParsed
 
 		// CPU arguments will look like: --cpus-per-task=5
 		val numCpus: Int? =
-			clusterJob.argsPosix
-				.firstOrNull { it.startsWith("--cpus-per-task=") }
-				?.substringAfterFirst('=')
-				?.let { value ->
+			args
+				.firstOrNull { (name, _) -> name == "cpus-per-task" }
+				?.let { (_, value) ->
 					when (val i = value.toIntOrNull()) {
 						null -> {
 							Backend.log.warn("--cpus-per-task value unrecognizable: $value")
@@ -59,10 +59,9 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 
 		// memory arguments will look like: --mem=5G
 		val memGiB: Int? =
-			clusterJob.argsPosix
-				.firstOrNull { it.startsWith("--mem=") }
-				?.substringAfterFirst('=')
-				?.let { value ->
+			args
+				.firstOrNull { (name, _) -> name == "mem" }
+				?.let { (_, value) ->
 					if (value.endsWith('G') || value.endsWith('g')) {
 						value.substring(0, value.length - 1)
 							.toIntOrNull()
@@ -76,10 +75,9 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 		// --gres=gpu:1
 		// --gres=foo:bar,cow:moo:5g
 		val numGpus: Int? =
-			clusterJob.argsPosix
-				.firstOrNull { it.startsWith("--gres=") }
-				?.substringAfterFirst('=')
-				?.let { Gres.parseAll(it) }
+			args
+				.firstOrNull { (name, _) -> name == "gres" }
+				?.let { (_, value) -> Gres.parseAll(value) }
 				?.firstOrNull { it.name == "gpu" }
 				?.count
 				?.expand()
@@ -464,15 +462,15 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 
 	override fun validate(job: ClusterJob) {
 
-		val args = job.argsPosix
+		val args = job.argsParsed
 
 		// these are errors caused by users (rather than programmers),
 		// so remap the error types so the errors can be shown in the UI
 		try {
 
 			// validate any gres arguments
-			args.filter { it.startsWith("--gres=") }
-				.forEach { Gres.parseAll(it) }
+			args.filter { (name, _) -> name == "gres" }
+				.forEach { (_, value) -> Gres.parseAll(value) }
 
 		} catch (t: Throwable) {
 			throw ClusterJob.ValidationFailedException(t)

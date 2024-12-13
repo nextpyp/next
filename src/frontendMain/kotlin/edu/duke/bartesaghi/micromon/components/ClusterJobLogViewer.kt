@@ -132,7 +132,9 @@ class ClusterJobLogViewer(
 			}
 			launchElem.h2("Reason:")
 			launchElem.div(classes = setOf("section")) {
-				content = clusterJobLog.submitFailure
+				tag(TAG.PRE) {
+					content = clusterJobLog.submitFailure
+				}
 			}
 
 		} else if (clusterJobLog.launchResult != null) {

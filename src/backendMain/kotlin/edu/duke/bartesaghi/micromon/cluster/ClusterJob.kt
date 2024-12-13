@@ -41,11 +41,23 @@ class ClusterJob(
 ) {
 
 	/**
-	 * The cluster job arguments, but tokenized like a POSIX shell would handle them.
-	 * Useful when you want to read/use the arguments before sending them to a shell.
+	 * The cluster job arguments, but tokenized like a POSIX shell would handle them, and then parsed into a key=value map
+	 * Useful when you want to read/use the arguments before sending them to a shell, or some other non-shell place
 	 */
-	val argsPosix: List<String> =
-		args.map { Posix.tokenize(it).firstOrNull() ?: "" }
+	val argsParsed: List<Pair<String?,String>> get() =
+		args.flatMap { Posix.tokenize(it) }
+			.map { arg ->
+				val pos = arg.indexOfFirst { it == '=' }
+					.takeIf { it >= 0 }
+				if (pos != null) {
+					val name = arg.substring(0 until pos)
+						.trimStart('-')
+					val value = arg.substring(pos + 1)
+					name to value
+				} else {
+					null to arg
+				}
+			}
 
 	fun submit(): String? = runBlocking {
 		Cluster.submit(this@ClusterJob)

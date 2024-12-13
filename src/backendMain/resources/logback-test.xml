@@ -17,5 +17,6 @@
     <!-- turn off log spam -->
     <logger name="org.mongodb" level="WARN"/>
     <logger name="io.netty" level="WARN"/>
+    <logger name="io.pebbletemplates" level="WARN"/>
 
 </configuration>

@@ -239,6 +239,11 @@ interface Cluster {
 					line
 				}
 
+			// archive the launch script
+			Database.instance.cluster.log.update(clusterJobId, null,
+				set("launchScript", script)
+			)
+
 			// try to launch the job on the cluster
 			val launchResult = instance.launch(clusterJob, scriptPath)
 				?: run {
@@ -256,7 +261,6 @@ interface Cluster {
 			// launch succeeded, update the database with the launch result
 			Database.instance.cluster.log.update(clusterJobId, null,
 				push("history", ClusterJob.HistoryEntry(ClusterJob.Status.Launched).toDBList()),
-				set("launchScript", script),
 				set("sbatch", launchResult.toDoc())
 			)
 
