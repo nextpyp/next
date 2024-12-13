@@ -72,46 +72,6 @@ class SBatch(val config: Config.Slurm) : Cluster {
 		}
 	}
 
-	fun buildArguments(clusterJob: ClusterJob): List<String> {
-
-		val out = ArrayList<String>()
-
-		// add all the arguments from the job submission
-		out.addAll(clusterJob.args)
-
-		val deps = clusterJob.dependencies()
-		if (deps.isNotEmpty()) {
-			val launchIds = deps.joinToString(",") { it.launchIdOrThrow }
-			out.add("--dependency=afterany:$launchIds")
-		}
-
-		// use the default cpu queue, if none was specified in the args
-		val partition = clusterJob.argsPosix
-			.find { it.startsWith("--partition=") }
-			?.split("=")
-			?.lastOrNull()
-		if (partition == null) {
-			// that is, if any default queue exists
-			config.queues.firstOrNull()
-				?.let { out.add("--partition=$it") }
-		}
-
-		// render the array arguments
-		clusterJob.commands.arraySize?.let { arraySize ->
-			val bundleInfo = clusterJob.commands.bundleSize
-				?.let { "%$it" }
-				?: ""
-			out.add("--array=1-$arraySize$bundleInfo")
-		}
-
-		// set the job name, if any
-		clusterJob.clusterName?.let {
-			out.add("--job-name=$it")
-		}
-
-		return out
-	}
-
 	override suspend fun buildScript(clusterJob: ClusterJob, commands: String): String {
 
 		// NOTE: In SLURM, command-line arguments to sbatch take precedence over #SBATCH directives in the script
@@ -128,15 +88,57 @@ class SBatch(val config: Config.Slurm) : Cluster {
 			msg?.let { write(it) }
 			write("\n")
 		}
+		fun StringBuilder.writeArg(arg: String) {
+			writeln("#SBATCH ${Posix.quote(arg)}")
+		}
+		fun StringBuilder.writeArg(name: String, value: String) {
+			writeln("--$name=$value")
+		}
 
 		out.writeln("#!/bin/bash")
 		out.writeln()
 
 		// write sbatch directives
 		out.writeln("# configure SLURM's sbatch")
-		for (arg in buildArguments(clusterJob)) {
-			out.writeln("#SBATCH ${Posix.quote(arg)}")
+
+		// add all the arguments from the job submission
+		// TODO: need to formalize pyp's submitted arguments??
+		for (arg in clusterJob.args) {
+			out.writeArg(arg)
 		}
+
+		// handle cluster job dependencies
+		val deps = clusterJob.dependencies()
+		if (deps.isNotEmpty()) {
+			val launchIds = deps.joinToString(",") { it.launchIdOrThrow }
+			out.writeArg("dependency", "afterany:$launchIds")
+		}
+
+		// if no partition was specified in the args, use the default cpu partition
+		// TODO: get partition from the template. get rid of configured queues
+		val partition = clusterJob.argsPosix
+			.find { it.startsWith("--partition=") }
+			?.split("=")
+			?.lastOrNull()
+		if (partition == null) {
+			// that is, if any default queue exists
+			config.queues.firstOrNull()
+				?.let { out.writeArg("partition", it) }
+		}
+
+		// render the array arguments
+		clusterJob.commands.arraySize?.let { arraySize ->
+			val bundleInfo = clusterJob.commands.bundleSize
+				?.let { "%$it" }
+				?: ""
+			out.writeArg("array", "1-$arraySize$bundleInfo")
+		}
+
+		// set the job name, if any
+		clusterJob.clusterName?.let {
+			out.writeArg("job-name", it)
+		}
+
 		out.writeln()
 
 		// write the commands
