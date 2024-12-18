@@ -8,18 +8,18 @@ import edu.duke.bartesaghi.micromon.mongo.authProjectOrThrow
 import io.ktor.application.*
 
 
-actual class TomographyDrgnService : ITomographyDrgnService, Service {
+actual class TomographyDrgnTrainService : ITomographyDrgnTrainService, Service {
 
 	@Inject
 	override lateinit var call: ApplicationCall
 
-	override suspend fun addNode(userId: String, projectId: String, inData: CommonJobData.DataId, args: TomographyDrgnArgs): TomographyDrgnData = sanitizeExceptions {
+	override suspend fun addNode(userId: String, projectId: String, inData: CommonJobData.DataId, args: TomographyDrgnTrainArgs): TomographyDrgnTrainData = sanitizeExceptions {
 
 		val user = call.authOrThrow()
 		user.authProjectOrThrow(ProjectPermission.Write, userId, projectId)
 
 		// make the job
-		val job = TomographyDrgnJob(userId, projectId)
+		val job = TomographyDrgnTrainJob(userId, projectId)
 		job.args.next = args
 		job.inMovieRefinements = inData
 		job.create()
@@ -27,10 +27,10 @@ actual class TomographyDrgnService : ITomographyDrgnService, Service {
 		return job.data()
 	}
 
-	private fun String.authJob(permission: ProjectPermission): AuthInfo<TomographyDrgnJob> =
+	private fun String.authJob(permission: ProjectPermission): AuthInfo<TomographyDrgnTrainJob> =
 		authJob(permission, this)
 
-	override suspend fun edit(jobId: String, args: TomographyDrgnArgs?): TomographyDrgnData = sanitizeExceptions {
+	override suspend fun edit(jobId: String, args: TomographyDrgnTrainArgs?): TomographyDrgnTrainData = sanitizeExceptions {
 
 		val job = jobId.authJob(ProjectPermission.Write).job
 
@@ -41,7 +41,7 @@ actual class TomographyDrgnService : ITomographyDrgnService, Service {
 		return job.data()
 	}
 
-	override suspend fun get(jobId: String): TomographyDrgnData = sanitizeExceptions {
+	override suspend fun get(jobId: String): TomographyDrgnTrainData = sanitizeExceptions {
 
 		val job = jobId.authJob(ProjectPermission.Read).job
 
@@ -49,6 +49,6 @@ actual class TomographyDrgnService : ITomographyDrgnService, Service {
 	}
 
 	override suspend fun getArgs(): String = sanitizeExceptions {
-		return TomographyDrgnJob.args().toJson()
+		return TomographyDrgnTrainJob.args().toJson()
 	}
 }

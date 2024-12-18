@@ -2,43 +2,43 @@ package edu.duke.bartesaghi.micromon.jobs
 
 import com.mongodb.client.model.Updates
 import edu.duke.bartesaghi.micromon.mongo.getDocument
-import edu.duke.bartesaghi.micromon.nodes.TomographyDrgnNodeConfig
+import edu.duke.bartesaghi.micromon.nodes.TomographyDrgnEvalNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.*
 import org.bson.Document
 import org.bson.conversions.Bson
 
 
-class TomographyDrgnJob(
+class TomographyDrgnEvalJob(
 	userId: String,
 	projectId: String
 ) : Job(userId, projectId, config) {
 
-	val args = JobArgs<TomographyDrgnArgs>()
+	val args = JobArgs<TomographyDrgnEvalArgs>()
 
 	var inMovieRefinements: CommonJobData.DataId? by InputProp(config.inMovieRefinements)
 
 	companion object : JobInfo {
 
-		override val config = TomographyDrgnNodeConfig
+		override val config = TomographyDrgnEvalNodeConfig
 		override val dataType = JobInfo.DataType.TiltSeries
-		override val dataClass = TomographyDrgnData::class
+		override val dataClass = TomographyDrgnEvalData::class
 
-		override fun fromDoc(doc: Document) = TomographyDrgnJob(
+		override fun fromDoc(doc: Document) = TomographyDrgnEvalJob(
 			doc.getString("userId"),
 			doc.getString("projectId")
 		).apply {
-			args.finished = doc.getDocument("finishedArgs")?.let { TomographyDrgnArgs.fromDoc(it) }
-			args.next = doc.getDocument("nextArgs")?.let { TomographyDrgnArgs.fromDoc(it) }
+			args.finished = doc.getDocument("finishedArgs")?.let { TomographyDrgnEvalArgs.fromDoc(it) }
+			args.next = doc.getDocument("nextArgs")?.let { TomographyDrgnEvalArgs.fromDoc(it) }
 			fromDoc(doc)
 		}
 
-		private fun TomographyDrgnArgs.toDoc() = Document().also { doc ->
+		private fun TomographyDrgnEvalArgs.toDoc() = Document().also { doc ->
 			doc["values"] = values
 		}
 
-		private fun TomographyDrgnArgs.Companion.fromDoc(doc: Document) =
-			TomographyDrgnArgs(
+		private fun TomographyDrgnEvalArgs.Companion.fromDoc(doc: Document) =
+			TomographyDrgnEvalArgs(
 				doc.getString("values")
 			)
 
@@ -60,7 +60,7 @@ class TomographyDrgnJob(
 	override fun isChanged() = args.hasNext()
 
 	override suspend fun data() =
-		TomographyDrgnData(
+		TomographyDrgnEvalData(
 			commonData(),
 			args,
 			diagramImageURL()
