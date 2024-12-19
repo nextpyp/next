@@ -61,6 +61,9 @@ interface NodeConfig {
 			/** A trained model for denoising */
 			DenoisingModel("Denoising Model"),
 
+			/** A trained model for DRGN */
+			DrgnModel("DRGN Model"),
+
 			/** A trained model for MiLoPYP */
 			MiloModel("MiLoPYP Model"),
 

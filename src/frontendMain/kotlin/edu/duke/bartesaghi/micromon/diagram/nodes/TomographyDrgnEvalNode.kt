@@ -4,7 +4,7 @@ import edu.duke.bartesaghi.micromon.AppScope
 import edu.duke.bartesaghi.micromon.components.forms.*
 import edu.duke.bartesaghi.micromon.diagram.Diagram
 import edu.duke.bartesaghi.micromon.dynamicImageClassName
-import edu.duke.bartesaghi.micromon.nodes.TomographyDrgnNodeConfig
+import edu.duke.bartesaghi.micromon.nodes.TomographyDrgnEvalNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
 import edu.duke.bartesaghi.micromon.pyp.Args
 import edu.duke.bartesaghi.micromon.refreshDynamicImages
@@ -16,36 +16,36 @@ import js.micromondiagrams.MicromonDiagrams
 import js.micromondiagrams.nodeType
 
 
-class TomographyDrgnNode(
+class TomographyDrgnEvalNode(
 	viewport: Viewport,
 	diagram: Diagram,
 	project: ProjectData,
-	job: TomographyDrgnData
+	job: TomographyDrgnEvalData
 ) : Node(viewport, diagram, type, config, project, job) {
 
-	val job get() = baseJob as TomographyDrgnData
+	val job get() = baseJob as TomographyDrgnEvalData
 
 	companion object : NodeClientInfo {
 
-		override val config = TomographyDrgnNodeConfig
-		override val type = MicromonDiagrams.nodeType(config, "fas fa-crosshairs")
-		override val jobClass = TomographyDrgnData::class
+		override val config = TomographyDrgnEvalNodeConfig
+		override val type = MicromonDiagrams.nodeType(config, "fas fa-dragon")
+		override val jobClass = TomographyDrgnEvalData::class
 		override val urlFragment = null
 
 		override fun makeNode(viewport: Viewport, diagram: Diagram, project: ProjectData, job: JobData) =
-			TomographyDrgnNode(viewport, diagram, project, job as TomographyDrgnData)
+			TomographyDrgnEvalNode(viewport, diagram, project, job as TomographyDrgnEvalData)
 
 		override suspend fun showUseDataForm(viewport: Viewport, diagram: Diagram, project: ProjectData, outNode: Node, input: CommonJobData.DataId, copyFrom: Node?, callback: (Node) -> Unit) {
-			val defaultArgs = (copyFrom as TomographyDrgnNode?)?.job?.args
-				?: JobArgs.fromNext(TomographyDrgnArgs(newArgValues(project, input)))
+			val defaultArgs = (copyFrom as TomographyDrgnEvalNode?)?.job?.args
+				?: JobArgs.fromNext(TomographyDrgnEvalArgs(newArgValues(project, input)))
 			form(config.name, outNode, defaultArgs, true) { args ->
 
 				// save the node to the server
 				AppScope.launch {
-					val data = Services.tomographyDrgn.addNode(project.owner.id, project.projectId, input, args)
+					val data = Services.tomographyDrgnEval.addNode(project.owner.id, project.projectId, input, args)
 
 					// send the node back to the diagram
-					callback(TomographyDrgnNode(viewport, diagram, project, data))
+					callback(TomographyDrgnEvalNode(viewport, diagram, project, data))
 				}
 			}
 		}
@@ -54,20 +54,20 @@ class TomographyDrgnNode(
 			@Suppress("NAME_SHADOWING")
 			val input = input
 				?: throw IllegalArgumentException("input required to make job for ${config.id}")
-			val args = TomographyDrgnArgs(
+			val args = TomographyDrgnEvalArgs(
 				values = argValues
 			)
-			return Services.tomographyDrgn.addNode(project.owner.id, project.projectId, input, args)
+			return Services.tomographyDrgnEval.addNode(project.owner.id, project.projectId, input, args)
 		}
 
-		override suspend fun getJob(jobId: String): TomographyDrgnData =
-			Services.tomographyDrgn.get(jobId)
+		override suspend fun getJob(jobId: String): TomographyDrgnEvalData =
+			Services.tomographyDrgnEval.get(jobId)
 
 		override val pypArgs = ServerVal {
-			Args.fromJson(Services.tomographyDrgn.getArgs())
+			Args.fromJson(Services.tomographyDrgnEval.getArgs())
 		}
 
-		private fun form(caption: String, upstreamNode: Node, args: JobArgs<TomographyDrgnArgs>?, enabled: Boolean, onDone: (TomographyDrgnArgs) -> Unit) = AppScope.launch {
+		private fun form(caption: String, upstreamNode: Node, args: JobArgs<TomographyDrgnEvalArgs>?, enabled: Boolean, onDone: (TomographyDrgnEvalArgs) -> Unit) = AppScope.launch {
 
 			val pypArgs = pypArgs.get()
 
@@ -78,8 +78,8 @@ class TomographyDrgnNode(
 				classes = setOf("dashboard-popup", "args-form-popup", "max-height-dialog")
 			)
 
-			val form = win.formPanel<TomographyDrgnArgs>().apply {
-				add(TomographyDrgnArgs::values, ArgsForm(pypArgs, listOf(upstreamNode), enabled, config.configId))
+			val form = win.formPanel<TomographyDrgnEvalArgs>().apply {
+				add(TomographyDrgnEvalArgs::values, ArgsForm(pypArgs, listOf(upstreamNode), enabled, config.configId))
 			}
 
 			form.init(args)
@@ -99,7 +99,7 @@ class TomographyDrgnNode(
 		content {
 			button(className = "image-button", onClick = {
 				// TODO: make a view
-				//TomographyDrgnView.go(viewport, project, job)
+				//TomographyDrgnEvalView.go(viewport, project, job)
 			}) {
 				img(job.imageUrl, className = dynamicImageClassName)
 			}
@@ -121,7 +121,7 @@ class TomographyDrgnNode(
 			val diff = job.args.diff(newArgs)
 			if (diff.shouldSave) {
 				AppScope.launch {
-					baseJob = Services.tomographyDrgn.edit(baseJob.jobId, diff.newNextArgs(newArgs))
+					baseJob = Services.tomographyDrgnEval.edit(baseJob.jobId, diff.newNextArgs(newArgs))
 					edited()
 				}
 			}

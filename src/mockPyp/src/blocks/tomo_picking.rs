@@ -61,7 +61,7 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 			}
 
 			Some("virions") => {
-				let radius = args.get("tomo_vir_rad")
+				let radius = args.get("tomo_pick_vir_rad")
 					.into_f64()?
 					.or(100.0)
 					.value()

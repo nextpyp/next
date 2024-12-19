@@ -29,6 +29,7 @@ class TestForwardedGroups : FunSpec({
 	val sharedGroup = argExtensions.group("shared")
 	val argIntS = sharedGroup.arg("argInt", ArgType.TInt())
 	val argIntSNoCopy = sharedGroup.arg("argIntNoCopy", ArgType.TInt(), copyToNewBlock=false)
+	val argBoolSNoCopy = sharedGroup.arg("argBoolNoCopy", ArgType.TBool(), copyToNewBlock=false, default=ArgValue.VBool(true))
 	val argIntSDefaulted = sharedGroup.arg("argIntDefaulted", ArgType.TInt(), default = ArgValue.VInt(42))
 	argExtensions.extendBlock(SingleParticleRawDataNodeConfig, upstreamGroup, sharedGroup)
 	argExtensions.extendBlock(SingleParticlePurePreprocessingNodeConfig, downstreamGroup, sharedGroup)
@@ -118,6 +119,7 @@ class TestForwardedGroups : FunSpec({
 			val rawDataArgs = SingleParticleRawDataArgs(econfig.argsToml {
 				this[argIntS] = 5
 				this[argIntSNoCopy] = 7
+				this[argBoolSNoCopy] = false
 			})
 			val rawDataJob = website.importBlock(project, ISingleParticleRawDataService::import, rawDataArgs)
 
@@ -134,6 +136,7 @@ class TestForwardedGroups : FunSpec({
 			println("raw data args: $rawDataValues")
 			rawDataValues[argIntS] shouldBe 5
 			rawDataValues[argIntSNoCopy] shouldBe 7
+			rawDataValues[argBoolSNoCopy] shouldBe false
 
 			// the preprocessing block shouldn't have any shared arguments merged
 			// (instead, the arg values should be copied into the new block's own arg values)
@@ -141,6 +144,7 @@ class TestForwardedGroups : FunSpec({
 			println("preprocessing args: $preprocessingValues")
 			preprocessingValues[argIntS] shouldBe null
 			preprocessingValues[argIntSNoCopy] shouldBe null
+			preprocessingValues[argBoolSNoCopy] shouldBe null
 		}
 	}
 
@@ -151,6 +155,7 @@ class TestForwardedGroups : FunSpec({
 			val rawDataArgs = SingleParticleRawDataArgs(econfig.argsToml {
 				this[argIntS] = 5
 				this[argIntSNoCopy] = 7
+				this[argBoolSNoCopy] = false
 			})
 			val rawDataJob = website.importBlock(project, ISingleParticleRawDataService::import, rawDataArgs)
 
@@ -168,12 +173,14 @@ class TestForwardedGroups : FunSpec({
 			println("raw data args: $rawDataValues")
 			rawDataValues[argIntS] shouldBe 5
 			rawDataValues[argIntSNoCopy] shouldBe 7
+			rawDataValues[argBoolSNoCopy] shouldBe false
 
 			// the preprocessing block should only have the copied args
 			val preprocessingValues = runResult.clusterJobs[1].pypValues(econfig)
 			println("preprocessing args: $preprocessingValues")
 			preprocessingValues[argIntS] shouldBe 5
 			preprocessingValues[argIntSNoCopy] shouldBe null
+			preprocessingValues[argBoolSNoCopy] shouldBe null
 		}
 	}
 
