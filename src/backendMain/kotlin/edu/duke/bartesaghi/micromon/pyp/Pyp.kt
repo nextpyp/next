@@ -2,11 +2,13 @@ package edu.duke.bartesaghi.micromon.pyp
 
 import edu.duke.bartesaghi.micromon.Backend
 import edu.duke.bartesaghi.micromon.Config
+import edu.duke.bartesaghi.micromon.User
 import edu.duke.bartesaghi.micromon.cluster.Cluster
 import edu.duke.bartesaghi.micromon.cluster.ClusterJob
 import edu.duke.bartesaghi.micromon.cluster.CommandsScript
 import edu.duke.bartesaghi.micromon.cluster.Container
 import edu.duke.bartesaghi.micromon.linux.Posix
+import edu.duke.bartesaghi.micromon.mongo.Database
 import java.nio.file.Path
 
 
@@ -30,6 +32,13 @@ enum class Pyp(private val cmdName: String) {
 	streampyp("streampyp");
 
 	fun launch(
+		/** The user for whom properties will be fetched for the cluster job launch, if any */
+		userId: String?,
+		/**
+		 * The OS username to use for filesystem operations.
+		 * WARNRING: The OS username must match the one for project whose job is being launched.
+		 *           That is not necessarily the same as the OS username of user launching this job.
+		 */
 		osUsername: String?,
 		/** a user-friendly name for the job to display on the website */
 		webName: String,
@@ -60,6 +69,7 @@ enum class Pyp(private val cmdName: String) {
 
 		val clusterJob = ClusterJob(
 			osUsername = osUsername,
+			userProperties = userId?.let { Database.instance.users.getProperties(it) },
 			containerId = containerId,
 			commands = CommandsScript(
 				commands = listOf(
@@ -72,7 +82,8 @@ enum class Pyp(private val cmdName: String) {
 			ownerId = owner,
 			ownerListener = ownerListener,
 			webName = webName,
-			clusterName = clusterName
+			clusterName = clusterName,
+			type = "launch"
 		)
 
 		clusterJob.submit()

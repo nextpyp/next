@@ -5,8 +5,6 @@ import edu.duke.bartesaghi.micromon.auth.authOrThrow
 import edu.duke.bartesaghi.micromon.cluster.ClusterJob
 import edu.duke.bartesaghi.micromon.cluster.slurm.toSbatchArgs
 import edu.duke.bartesaghi.micromon.files.Speeds
-import edu.duke.bartesaghi.micromon.jobs.Job
-import edu.duke.bartesaghi.micromon.jobs.resolveJob
 import edu.duke.bartesaghi.micromon.linux.userprocessor.WebCacheDir
 import edu.duke.bartesaghi.micromon.linux.userprocessor.writeStringAs
 import edu.duke.bartesaghi.micromon.mongo.Database
@@ -18,7 +16,6 @@ import org.bson.Document
 import org.bson.conversions.Bson
 import java.nio.file.Path
 import java.time.Instant
-import java.util.ArrayDeque
 import java.util.ArrayList
 import java.util.NoSuchElementException
 import kotlin.io.path.div
@@ -262,6 +259,7 @@ sealed class Session(
 
 		// launch the cluster job
 		Pyp.streampyp.launch(
+			userId = null,
 			osUsername = null,
 			webName = webName,
 			clusterName = SessionDaemon.Streampyp.clusterJobClusterName,

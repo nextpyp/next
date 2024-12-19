@@ -380,16 +380,23 @@ abstract class Job(
 	/** runs this job on the server */
 	abstract suspend fun launch(runId: Int)
 
-	protected suspend fun Pyp.launch(osUsername: String?, runId: Int, argValues: ArgValues, webName: String, clusterName: String) {
+	protected suspend fun Pyp.launch(
+		project: Project,
+		runId: Int,
+		argValues: ArgValues,
+		webName: String,
+		clusterName: String
+	) {
 
 		// write the parameters file
 		val paramsPath = pypParamsPath()
 		val argValuesToml = argValues.toToml()
-		paramsPath.writeStringAs(osUsername, argValuesToml)
+		paramsPath.writeStringAs(project.osUsername, argValuesToml)
 
 		// launch the cluster job
 		launch(
-			osUsername = osUsername,
+			userId = project.userId,
+			osUsername = project.osUsername,
 			webName = webName,
 			clusterName = clusterName,
 			owner = JobOwner(idOrThrow, runId).toString(),

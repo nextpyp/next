@@ -156,6 +156,7 @@ actual class AdminService : IAdminService {
 
 		// launch a PYP job to send the ping
 		Pyp.webrpc.launch(
+			me.id,
 			me.osUsername,
 			"ping",
 			"ping",

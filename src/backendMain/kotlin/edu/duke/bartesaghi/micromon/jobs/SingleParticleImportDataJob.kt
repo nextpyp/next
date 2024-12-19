@@ -83,7 +83,7 @@ class SingleParticleImportDataJob(
 		val pypArgs = launchArgValues()
 		pypArgs.dataImport = true
 
-		Pyp.pyp.launch(project.osUsername, runId, pypArgs, "Import Single Particle", "pyp_import")
+		Pyp.pyp.launch(project, runId, pypArgs, "Import Single Particle", "pyp_import")
 
 		// job was launched, move the args over
 		args.run()

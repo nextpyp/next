@@ -83,7 +83,7 @@ class SingleParticleDenoisingJob(
 		val pypArgs = launchArgValues()
 		pypArgs.dataMode = "spr"
 
-		Pyp.pyp.launch(project.osUsername, runId, pypArgs, "Launch", "pyp_launch")
+		Pyp.pyp.launch(project, runId, pypArgs, "Launch", "pyp_launch")
 
 		// job was launched, move the args over
 		args.run()

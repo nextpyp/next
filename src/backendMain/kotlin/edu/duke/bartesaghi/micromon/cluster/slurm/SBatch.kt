@@ -84,7 +84,13 @@ class SBatch(val config: Config.Slurm) : Cluster {
 		// TODO: allow the cluster job to choose a template?
 		val template = TemplateEngine().templateOrThrow()
 
-		// TODO: set (possibly dynamic) args from the user
+		// set args from the user
+		clusterJob.osUsername?.let {
+			template.args.user["os_username"] = it
+		}
+		clusterJob.userProperties?.let {
+			template.args.user["properties"] = it
+		}
 
 		// set args from the job
 		for ((name, value) in clusterJob.argsParsed) {
@@ -113,7 +119,10 @@ class SBatch(val config: Config.Slurm) : Cluster {
 			template.args.job["name"] = it
 		}
 
-		// TODO: add a job phase to ClusterJob?
+		// set the job type, if any
+		clusterJob.type?.let {
+			template.args.job["type"] = it
+		}
 
 		template.args.job["commands"] = commands
 

@@ -3,6 +3,7 @@ package edu.duke.bartesaghi.micromon.cluster.slurm
 import edu.duke.bartesaghi.micromon.Config
 import edu.duke.bartesaghi.micromon.cluster.ClusterJob
 import edu.duke.bartesaghi.micromon.exists
+import edu.duke.bartesaghi.micromon.linux.Posix
 import io.pebbletemplates.pebble.PebbleEngine
 import io.pebbletemplates.pebble.error.PebbleException
 import io.pebbletemplates.pebble.extension.AbstractExtension
@@ -59,10 +60,12 @@ class TemplateEngine {
 		})
 		// fail early and fast if we try to print a variable in a template that doesn't exist
 		.strictVariables(true)
-		// Pebble's escaping only works for eg. HTML,JS,JSON,CSS outputs,
-		// so it is at best completely useless here (we're building shell scripts),
-		// or at worst actively destructive
-		.autoEscaping(false)
+		// Pebble's built-in escaping only works for eg. HTML,JS,JSON,CSS outputs,
+		// so implement our own escaping strategy here based on POSIX shell quoting
+		.addEscapingStrategy("shell") { input ->
+			input?.let { Posix.quote(it) }
+		}
+		.defaultEscapingStrategy("shell")
 		.extension(object : AbstractExtension() {
 
 			override fun getFilters(): Map<String,Filter> = mapOf(
@@ -120,12 +123,6 @@ class Template(
 		fun exists(): Boolean =
 			absPath?.exists()
 				?: false
-	}
-
-	enum class Phase(val id: String) {
-		Launch("launch"),
-		Split("split"),
-		Merge("merge")
 	}
 
 

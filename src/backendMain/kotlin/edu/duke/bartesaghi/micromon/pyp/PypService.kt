@@ -144,7 +144,8 @@ object PypService {
 				}
 			},
 			args = params.getStrings("args") ?: emptyList(),
-			deps = params.getStrings("deps") ?: emptyList()
+			deps = params.getStrings("deps") ?: emptyList(),
+			type = params.getString("type")
 		)
 		val clusterJobId = try {
 			clusterJob.submit()

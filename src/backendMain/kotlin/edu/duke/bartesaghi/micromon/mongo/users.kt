@@ -136,6 +136,19 @@ class Users(db: MongoDatabase) {
 			)
 		}
 	}
+
+	fun getProperties(userId: String): Map<String,String> =
+		get(userId)
+			?.getMap<String>("properties")
+			?: emptyMap()
+
+	fun setProperties(userId: String, properties: Map<String,String>) {
+		if (properties.isEmpty()) {
+			update(userId, Updates.unset("properties"))
+		} else {
+			update(userId, Updates.set("properties", properties))
+		}
+	}
 }
 
 

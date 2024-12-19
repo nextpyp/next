@@ -96,7 +96,7 @@ class SingleParticleCoarseRefinementJob(
 		val pypArgs = launchArgValues()
 		pypArgs.extractFmt = "frealign"
 		
-		Pyp.csp.launch(project.osUsername, runId, pypArgs, "Launch", "pyp_launch")
+		Pyp.csp.launch(project, runId, pypArgs, "Launch", "pyp_launch")
 
 		// job was launched, move the args over
 		args.run()

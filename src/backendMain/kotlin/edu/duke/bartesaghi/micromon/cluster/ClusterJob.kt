@@ -21,6 +21,8 @@ import kotlin.collections.ArrayList
 class ClusterJob(
 	/** run the job as the specified OS user, if any */
 	val osUsername: String?,
+	/** user-specific properties for the cluster template, if needed */
+	val userProperties: Map<String,String>? = null,
 	val containerId: String?,
 	val commands: Commands,
 	/** working directory of the command. if a container was given, this path is inside the container */
@@ -38,6 +40,8 @@ class ClusterJob(
 	val webName: String? = null,
 	/** the name of the job to display in cluster management tools (eq `squeue`) */
 	val clusterName: String? = null,
+	/** the type of the job, if any */
+	val type: String? = null
 ) {
 
 	/**
@@ -280,6 +284,7 @@ class ClusterJob(
 		// create a database record of the submission
 		val dbid = Database.instance.cluster.launches.create {
 			set("osUsername", osUsername)
+			set("userProperties", userProperties)
 			set("container", containerId)
 			set("commands", commands.toDoc())
 			set("dir", dir.toString())
@@ -289,6 +294,7 @@ class ClusterJob(
 			set("owner", ownerId)
 			set("name", webName)
 			set("clusterName", clusterName)
+			set("type", type)
 			set("listener", ownerListener?.id)
 		}
 		this.id = dbid
@@ -492,6 +498,7 @@ class ClusterJob(
 			}
 			return ClusterJob(
 				osUsername = doc.getString("osUsername"),
+				userProperties = doc.getMap<String>("userProperties"),
 				containerId = doc.getString("container"),
 				commands = when (val c = doc.get("commands")) {
 					is Document -> Commands.fromDoc(c)
@@ -509,7 +516,8 @@ class ClusterJob(
 				// if we see any old long values, just ignore them
 				ownerListener = ownerListeners.find(doc["listener"] as? String),
 				webName = doc.getString("name"),
-				clusterName = doc.getString("clusterName")
+				clusterName = doc.getString("clusterName"),
+				type = doc.getString("type")
 			).apply {
 				id = doc.getObjectId("_id").toStringId()
 			}
