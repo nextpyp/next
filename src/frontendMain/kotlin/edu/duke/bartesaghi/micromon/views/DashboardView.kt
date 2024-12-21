@@ -220,7 +220,7 @@ class DashboardView : View {
 			)
 
 			val nameText = win.text(label = "Name")
-			val errorsElem = div()
+			val errorsElem = win.div()
 			val createButton = Button("Create")
 				.also { win.addButton(it) }
 
