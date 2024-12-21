@@ -1,12 +1,17 @@
+
+#---
+title = "Default"
+description = "The default template for SLURM jobs in nextPYP"
+comment = """
+    These templates use a jinja-like syntax to dynamically build SLURM sbatch scripts.
+    For more information, see the Pebble templating engine documentation:
+    https://pebbletemplates.io/wiki/guide/basic-usage/
+"""
+#---
+
+
 #!/bin/bash
 
-#=======================================================================================
-# nextPYP default SLURM template
-#---------------------------------------------------------------------------------------
-# These templates use a jinja-like syntax to dynamically build SLURM sbatch scripts.
-# For more information, see the Pebble templating engine documentation:
-# https://pebbletemplates.io/wiki/guide/basic-usage/
-#=======================================================================================
 
 #SBATCH --job-name={{ job.name }}
 
@@ -30,7 +35,10 @@
 #SBATCH --time={{ job.time }}
 {% endif %}
 
-{# TODO: comment these out #}
+{% if job.gres | exists %}
+#SBATCH --gres={{ job.gres }}
+{% endif %}
+
 {# OPTIONAL: do something different for each type of cluster job #}
 {% if job.type | exists %}
 {% if job.type == "launch" %}

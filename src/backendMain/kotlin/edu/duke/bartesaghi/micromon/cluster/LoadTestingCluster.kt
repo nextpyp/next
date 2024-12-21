@@ -5,7 +5,6 @@ import edu.duke.bartesaghi.micromon.linux.userprocessor.deleteAs
 import edu.duke.bartesaghi.micromon.linux.userprocessor.readStringAs
 import edu.duke.bartesaghi.micromon.services.ClusterJobResultType
 import edu.duke.bartesaghi.micromon.services.ClusterMode
-import edu.duke.bartesaghi.micromon.services.ClusterQueues
 import io.ktor.client.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
@@ -28,9 +27,6 @@ class LoadTestingCluster : Cluster {
 
 	override val commandsConfig: Commands.Config get() =
 		Commands.Config()
-
-	override val queues: ClusterQueues =
-		ClusterQueues(emptyList(), emptyList())
 
 	override fun validate(job: ClusterJob) {
 		// whatever, it's fine

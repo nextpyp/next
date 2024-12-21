@@ -1,9 +1,9 @@
 package edu.duke.bartesaghi.micromon.cluster.slurm
 
-import edu.duke.bartesaghi.micromon.Config
+import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.cluster.ClusterJob
-import edu.duke.bartesaghi.micromon.exists
 import edu.duke.bartesaghi.micromon.linux.Posix
+import edu.duke.bartesaghi.micromon.services.TemplateData
 import io.pebbletemplates.pebble.PebbleEngine
 import io.pebbletemplates.pebble.error.PebbleException
 import io.pebbletemplates.pebble.extension.AbstractExtension
@@ -12,12 +12,15 @@ import io.pebbletemplates.pebble.extension.core.DefaultFilter
 import io.pebbletemplates.pebble.loader.Loader
 import io.pebbletemplates.pebble.template.EvaluationContext
 import io.pebbletemplates.pebble.template.PebbleTemplate
+import org.tomlj.Toml
 import java.io.Reader
 import java.io.StringWriter
+import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
-import kotlin.io.path.bufferedReader
 import kotlin.io.path.div
+import kotlin.io.path.isDirectory
+import kotlin.io.path.relativeTo
 
 
 /**
@@ -25,6 +28,22 @@ import kotlin.io.path.div
  * https://pebbletemplates.io/
  */
 class TemplateEngine {
+
+	companion object {
+
+		fun findTemplates(): List<Template> {
+			val dir = Config.instance.web.clusterTemplatesDir
+				?: return emptyList()
+			return Files.walk(dir).use { paths ->
+				paths
+					.filter { !it.isDirectory() }
+					.map { it.relativeTo(dir) }
+					.toList()
+					.mapNotNull { Template.Key(it).toTemplate() }
+			}
+		}
+	}
+
 
 	// configure pebble
 	private val pebble = PebbleEngine.Builder()
@@ -52,10 +71,10 @@ class TemplateEngine {
 			}
 
 			override fun getReader(cacheKey: Template.Key?): Reader? {
-				cacheKey ?: return null
-				return cacheKey
-					.absPath
-					?.bufferedReader()
+				val template = cacheKey?.toTemplate()
+					?: return null
+				val (_, content) = template.parse()
+				return content.reader()
 			}
 		})
 		// fail early and fast if we try to print a variable in a template that doesn't exist
@@ -74,75 +93,22 @@ class TemplateEngine {
 		})
 		.build()
 
-	private fun Template.Key.toTemplate(): Template? =
-		if (exists()) {
-			Template(pebble, this)
-		} else {
-			null
-		}
-
-	private fun Template.Key.toTemplateOrThrow(): Template =
-		toTemplate()
-			?: throw MissingTemplateException(this)
-
 	fun template(path: String? = null): Template? =
 		Template.Key(path).toTemplate()
 
 	fun templateOrThrow(path: String? = null): Template =
 		Template.Key(path).toTemplateOrThrow()
-}
 
-
-class Template(
-	private val pebble: PebbleEngine,
-	val key: Key
-) {
-
-	data class Key(val path: Path) {
-
-		companion object {
-			const val DEFAULT = "default.peb"
-		}
-
-		constructor(path: String? = null) : this(Paths.get(path ?: DEFAULT))
-
-		val absPath: Path? get() {
-
-			// if no templates folder is configured, then we don't have a path
-			val dir = Config.instance.web.clusterTemplatesDir
-				?: return null
-
-			// path must not contain any parent segments: eg, ..
-			if (path.any { it.toString() == ".." }) {
-				return null
-			}
-
-			return dir / path
-		}
-
-		fun exists(): Boolean =
-			absPath?.exists()
-				?: false
-	}
-
-
-	class TemplateArgs {
-		val user = HashMap<String,Any>()
-		val job = HashMap<String,Any>()
-	}
-	val args = TemplateArgs()
-
-
-	fun eval(): String {
+	fun eval(template: Template): String {
 
 		val writer = StringWriter()
 		val context = mapOf(
-			"user" to args.user,
-			"job" to args.job
+			"user" to template.args.user,
+			"job" to template.args.job
 		)
 
 		try {
-			val compiledTemplate = pebble.getTemplate(key.path.toString())
+			val compiledTemplate = pebble.getTemplate(template.relPath.toString())
 			compiledTemplate.evaluate(writer, context)
 		} catch (ex: PebbleException) {
 
@@ -177,17 +143,148 @@ class Template(
 			throw ClusterJob.ValidationFailedException(out.toString())
 		}
 
-		return writer.toString()
+		return writer.toString().trim()
+	}
+}
+
+
+class Template(val relPath: Path, val absPath: Path) {
+
+	data class Key(val path: Path) {
+
+		companion object {
+			const val DEFAULT = "default.peb"
+		}
+
+		constructor(path: String? = null) : this(Paths.get(path ?: DEFAULT))
+
+		val absPath: Path? get() {
+
+			// if no templates folder is configured, then we don't have a path
+			val dir = Config.instance.web.clusterTemplatesDir
+				?: return null
+
+			// path must not be absolute
+			if (path.isAbsolute) {
+				return null
+			}
+
+			// path must not contain any parent segments: eg, ..
+			if (path.any { it.toString() == ".." }) {
+				return null
+			}
+
+			return dir / path
+		}
+
+		fun exists(): Boolean =
+			absPath?.exists()
+				?: false
+
+		fun toTemplate(): Template? =
+			absPath?.let { Template(this.path, it) }
+
+		fun toTemplateOrThrow(): Template =
+			toTemplate()
+				?: throw MissingTemplateException(this)
+	}
+
+
+	class TemplateArgs {
+		val user = HashMap<String,Any>()
+		val job = HashMap<String,Any>()
+	}
+	val args = TemplateArgs()
+
+
+	/**
+	 * Split the template file into a preceeding "front matter" section (which is a TOML doc, delimited by boundary lines)
+	 * and a proceeding "template" section (which is the pebble doc)
+	 */
+	fun parse(): Pair<String,String> {
+
+		val frontMatterLines = ArrayList<String>()
+		val templateLines = ArrayList<String>()
+
+		val modeStart = 0
+		val modeFrontMatter = 1
+		val modeTemplate = 2
+		val boundaryLine = "#---"
+		var mode = modeStart
+
+		absPath
+			.readString()
+			.lineSequence()
+			.forEach { line ->
+
+				when (mode) {
+
+					modeStart -> {
+
+						// skip lines until the first boundary
+						if (line == boundaryLine) {
+							mode = modeFrontMatter
+						}
+
+						// but preserve line numbers so syntax errors still make sense
+						frontMatterLines.add("")
+						templateLines.add("")
+					}
+
+					modeFrontMatter -> {
+
+						// collect lines until the next boundary
+						if (line == boundaryLine) {
+							mode = modeTemplate
+						} else {
+							frontMatterLines.add(line)
+						}
+
+						// but preserve line numbers so syntax errors still make sense
+						templateLines.add("")
+					}
+
+					modeTemplate -> {
+						// collect all the rest of the lines
+						templateLines.add(line)
+					}
+				}
+			}
+
+		fun List<String>.toDoc(): String =
+			joinToString("\n")
+
+		return frontMatterLines.toDoc() to templateLines.toDoc()
+	}
+
+	fun readData(): TemplateData {
+
+		// parse the TOML from the template front matter
+		val (toml, _) = parse()
+		val doc = Toml.parse(toml)
+		if (doc.hasErrors()) {
+			throw TomlParseException("""
+				|Failed to parse cluster template font matter: $absPath:
+				|${doc.errors().joinToString("\n")}
+			""".trimMargin())
+		}
+
+		// read the metadata from the TOML
+		return TemplateData(
+			path = relPath.toString(),
+			title = doc.getStringOrThrow("title"),
+			description = doc.getString("description")
+		)
 	}
 }
 
 
 data class MissingTemplateException(
-	val path: Path,
+	val relPath: Path,
 	val absPath: Path?
 ) : NoSuchElementException("""
 	|No template file found:
-	|           path:  $path
+	|           path:  $relPath
 	|  templates dir:  ${Config.instance.web.clusterTemplatesDir}
 	|       resolved:  $absPath
 """.trimIndent()) {

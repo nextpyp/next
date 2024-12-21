@@ -55,7 +55,9 @@ enum class Pyp(private val cmdName: String) {
 		/** parameters for the executable passed via the parameters file, if any. All paths must be in the internal (to the container) file system */
 		params: String? = null,
 		/** arguments for when submitting the initial job to cluster, eg sbatch */
-		launchArgs: List<String> = emptyList()
+		launchArgs: List<String> = emptyList(),
+		/** the template to use for this job, if any */
+		template: String? = null
 	) : ClusterJob {
 
 		// launch a PYP script inside of the container via SLURM
@@ -83,7 +85,8 @@ enum class Pyp(private val cmdName: String) {
 			ownerListener = ownerListener,
 			webName = webName,
 			clusterName = clusterName,
-			type = "launch"
+			type = "launch",
+			template = template
 		)
 
 		clusterJob.submit()

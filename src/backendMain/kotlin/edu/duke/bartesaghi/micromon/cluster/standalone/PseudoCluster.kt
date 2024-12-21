@@ -13,7 +13,6 @@ import edu.duke.bartesaghi.micromon.linux.userprocessor.deleteAs
 import edu.duke.bartesaghi.micromon.linux.userprocessor.readStringAs
 import edu.duke.bartesaghi.micromon.services.ClusterJobResultType
 import edu.duke.bartesaghi.micromon.services.ClusterMode
-import edu.duke.bartesaghi.micromon.services.ClusterQueues
 import edu.duke.bartesaghi.micromon.services.StandaloneData
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -456,9 +455,6 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 
 	override val commandsConfig: Commands.Config get() =
 		config.commandsConfig
-
-	override val queues: ClusterQueues =
-		ClusterQueues(emptyList(), emptyList())
 
 	override fun validate(job: ClusterJob) {
 

@@ -4,6 +4,7 @@ import edu.duke.bartesaghi.micromon.linux.hostprocessor.HostProcessor
 import edu.duke.bartesaghi.micromon.linux.userprocessor.UserProcessors
 import edu.duke.bartesaghi.micromon.projects.ProjectEventListeners
 import edu.duke.bartesaghi.micromon.pyp.Args
+import edu.duke.bartesaghi.micromon.pyp.MicromonArgs
 import edu.duke.bartesaghi.micromon.pyp.MockPyp
 import edu.duke.bartesaghi.micromon.pyp.fromToml
 import kotlinx.coroutines.CoroutineScope
@@ -50,6 +51,9 @@ class Backend(config: Config, val pypArgs: Args) {
 			_instance = null
 		}
 	}
+
+	val pypArgsWithMicromon get() =
+		pypArgs.appendAll(MicromonArgs.slurmLaunch)
 
 
 	/** the current working directory */

@@ -233,6 +233,11 @@ class ClusterJobLogViewer(
 		// show the full launch script
 		launchElem.h1("Script")
 		launchElem.div(classes = setOf("script")) {
+
+			// show the chosen template, if any
+			div("Template: ${clusterJobLog.template ?: "(none)"}")
+
+			// show the launch script
 			if (clusterJobLog.launchScript != null) {
 				add(ScriptView.fromText(clusterJobLog.launchScript))
 			} else {

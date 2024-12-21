@@ -80,10 +80,10 @@ object Workflows {
 
 			// read the args values
 			val askArgs = ArrayList<String>()
-			val argValues = ArgValues(Backend.instance.pypArgs)
+			val argValues = ArgValues(Backend.instance.pypArgsWithMicromon)
 			blockDoc.getTable("args")?.let { argsDoc ->
 				for (argFullId in argsDoc.keySetInOrder()) {
-					val arg = Backend.instance.pypArgs.argOrThrow(argFullId)
+					val arg = Backend.instance.pypArgsWithMicromon.argOrThrow(argFullId)
 					val value = argsDoc.get(argFullId)
 
 					when (value) {

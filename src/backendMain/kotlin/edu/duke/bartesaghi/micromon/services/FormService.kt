@@ -4,7 +4,7 @@ import com.google.inject.Inject
 import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.auth.authOrThrow
 import edu.duke.bartesaghi.micromon.auth.dir
-import edu.duke.bartesaghi.micromon.cluster.Cluster
+import edu.duke.bartesaghi.micromon.cluster.slurm.TemplateEngine
 import edu.duke.bartesaghi.micromon.linux.Filesystem
 import edu.duke.bartesaghi.micromon.linux.userprocessor.Response.Stat
 import edu.duke.bartesaghi.micromon.linux.userprocessor.globCountAs
@@ -180,9 +180,19 @@ actual class FormService : IFormService, Service {
 	}
 
 
-	override suspend fun clusterQueues(): ClusterQueues = sanitizeExceptions {
+	override suspend fun clusterTemplates(): List<TemplateData> = sanitizeExceptions {
 
-		return Cluster.queues
+		call.authOrThrow()
+
+		return TemplateEngine.findTemplates()
+			.mapNotNull { template ->
+				try {
+					template.readData()
+				} catch (t: Throwable) {
+					Backend.log.error("Failed to read template front matter from: ${template.absPath}", t)
+					null
+				}
+			}
 	}
 
 	override suspend fun users(search: String?, initial: String?, state: String?): List<RemoteOption> = sanitizeExceptions {

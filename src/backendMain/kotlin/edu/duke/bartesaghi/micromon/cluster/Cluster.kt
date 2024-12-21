@@ -12,7 +12,6 @@ import edu.duke.bartesaghi.micromon.linux.userprocessor.writeStringAs
 import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.services.ClusterJobResultType
 import edu.duke.bartesaghi.micromon.services.ClusterMode
-import edu.duke.bartesaghi.micromon.services.ClusterQueues
 import edu.duke.bartesaghi.micromon.services.StreamLog
 import java.nio.file.Path
 import java.nio.file.attribute.PosixFilePermission
@@ -24,8 +23,6 @@ interface Cluster {
 	val clusterMode: ClusterMode
 
 	val commandsConfig: Commands.Config
-
-	val queues: ClusterQueues
 
 	/**
 	 * Throw an error if the job is somehow not valid.
@@ -66,8 +63,6 @@ interface Cluster {
 					PseudoCluster(config.standalone ?: Config.Standalone())
 				}
 			}
-
-		val queues: ClusterQueues get() = instance.queues
 
 		suspend fun waitingReason(clusterJob: ClusterJob): String {
 

@@ -41,7 +41,9 @@ class ClusterJob(
 	/** the name of the job to display in cluster management tools (eq `squeue`) */
 	val clusterName: String? = null,
 	/** the type of the job, if any */
-	val type: String? = null
+	val type: String? = null,
+	/** the path of the template to use for this job */
+	val template: String? = null
 ) {
 
 	/**
@@ -295,6 +297,7 @@ class ClusterJob(
 			set("name", webName)
 			set("clusterName", clusterName)
 			set("type", type)
+			set("template", template)
 			set("listener", ownerListener?.id)
 		}
 		this.id = dbid
@@ -517,7 +520,8 @@ class ClusterJob(
 				ownerListener = ownerListeners.find(doc["listener"] as? String),
 				webName = doc.getString("name"),
 				clusterName = doc.getString("clusterName"),
-				type = doc.getString("type")
+				type = doc.getString("type"),
+				template = doc.getString("template")
 			).apply {
 				id = doc.getObjectId("_id").toStringId()
 			}

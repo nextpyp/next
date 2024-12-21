@@ -225,11 +225,11 @@ sealed class Session(
 
 	protected fun launchArgValues(): ArgValues {
 
-		val values = ArgValues(Backend.instance.pypArgs)
+		val values = ArgValues(Backend.instance.pypArgsWithMicromon)
 
 		// add arg values from this session
 		val jobValues = (this.newestArgValues() ?: "")
-			.toArgValues(Backend.instance.pypArgs)
+			.toArgValues(Backend.instance.pypArgsWithMicromon)
 		for (arg in values.args.args) {
 
 			// skip args whose value is the default value

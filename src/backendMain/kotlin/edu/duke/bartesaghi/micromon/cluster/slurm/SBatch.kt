@@ -10,8 +10,6 @@ import edu.duke.bartesaghi.micromon.linux.userprocessor.readStringAs
 import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.ClusterJobResultType
 import edu.duke.bartesaghi.micromon.services.ClusterMode
-import edu.duke.bartesaghi.micromon.services.ClusterQueues
-import io.pebbletemplates.pebble.error.PebbleException
 import java.nio.file.Path
 
 
@@ -37,12 +35,6 @@ class SBatch(val config: Config.Slurm) : Cluster {
 
 	override val commandsConfig: Commands.Config get() =
 		config.commandsConfig
-
-	override val queues: ClusterQueues =
-		ClusterQueues(
-			config.queues,
-			config.gpuQueues
-		)
 
 	private val sshPool = SSHPool(config.sshPoolConfig)
 
@@ -81,8 +73,8 @@ class SBatch(val config: Config.Slurm) : Cluster {
 
 	override suspend fun buildScript(clusterJob: ClusterJob, commands: String): String {
 
-		// TODO: allow the cluster job to choose a template?
-		val template = TemplateEngine().templateOrThrow()
+		val templates = TemplateEngine()
+		val template = templates.templateOrThrow(clusterJob.template)
 
 		// set args from the user
 		clusterJob.osUsername?.let {
@@ -126,7 +118,7 @@ class SBatch(val config: Config.Slurm) : Cluster {
 
 		template.args.job["commands"] = commands
 
-		return template.eval()
+		return templates.eval(template)
 	}
 
 	override suspend fun launch(clusterJob: ClusterJob, scriptPath: Path): ClusterJob.LaunchResult? {
@@ -265,8 +257,6 @@ fun ArgValues.toSbatchArgs(): List<String> =
 		add("--cpus-per-task=$slurmLaunchCpus")
 		add("--mem=${slurmLaunchMemory}G")
 		add("--time=$slurmLaunchWalltime")
-		slurmLaunchQueue?.let { add("--partition=$it") }
-		slurmLaunchAccount?.let { add("--account=$it") }
 		slurmLaunchGres?.let { add("--gres=$it") }
 	}
 	// NOTE: argument sanitization is handled by the job submitter, so we don't need to double-sanitize each argument here

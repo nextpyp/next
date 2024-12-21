@@ -426,6 +426,7 @@ class ClusterJobLog(
 	val representativeCommand: String,
 	val commandParams: String?,
 	val submitFailure: String?,
+	val template: String?,
 	val launchScript: String?,
 	val launchResult: ClusterJobLaunchResultData?,
 	val resultType: ClusterJobResultType?,
