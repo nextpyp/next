@@ -27,7 +27,8 @@ class SBatch(val config: Config.Slurm) : Cluster {
 		val SUPPORTED_ARGS = setOf(
 			"cpus-per-task",
 			"mem",
-			"time"
+			"time",
+			"gres"
 		)
 	}
 
