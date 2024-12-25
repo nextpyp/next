@@ -1,0 +1,58 @@
+
+#---
+title = "Default"
+description = "The default template for SLURM jobs in nextPYP"
+comment = """
+    These templates use a jinja-like syntax to dynamically build SLURM sbatch scripts.
+    For more information, see the Pebble templating engine documentation:
+    https://pebbletemplates.io/wiki/guide/basic-usage/
+"""
+#---
+
+
+#!/bin/bash
+# default template
+
+#SBATCH --job-name={{ job.name }}
+
+{% if job.dependency | exists %}
+#SBATCH --dependency={{ job.dependency }}
+{% endif %}
+
+{% if job.array | exists %}
+#SBATCH --array={{ job.array }}
+{% endif %}
+
+{% if job['cpus-per-task'] | exists %}
+#SBATCH --cpus-per-task={{ job['cpus-per-task'] }}
+{% endif %}
+
+{% if job.mem | exists %}
+#SBATCH --mem={{ job.mem }}
+{% endif %}
+
+{% if job.time | exists %}
+#SBATCH --time={{ job.time }}
+{% endif %}
+
+{% if job.gres | exists %}
+#SBATCH --partition=bartesaghilab-gpu
+#SBATCH --gres={{ job.gres }}
+{% endif %}
+
+{# OPTIONAL: do something different for each type of cluster job #}
+{% if job.type | exists %}
+{% if job.type == "launch" %}
+echo job.type = "launch"
+{% elseif job.type == "split" %}
+echo job.type = "split"
+{% elseif job.type == "merge" %}
+echo job.type = "merge"
+{% endif %}
+{% endif %}
+
+{# TODO: comment these out #}
+{# OPTIONAL: do something user-specific, if needed #}
+{# echo user.os_username = {{ user.os_username }} #}
+
+{{ job.commands | raw }}
