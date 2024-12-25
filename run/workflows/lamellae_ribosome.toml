@@ -28,14 +28,12 @@ movie_eer_frames = 10
 ctf_max_res = 7.0
 tomo_ali_method = "aretomo"
 tomo_rec_method = "aretomo"
-slurm_tasks = { ask = true }            # e.g.: 42 for pre-processing, 124 for refinement
-slurm_memory = { ask = true }           # e.g.: 420 for pre-processingm 720 for refinement
-slurm_walltime = { ask = true }         # e.g.: 72:00:00
-slurm_queue = { ask = true }
-slurm_merge_tasks = { ask = true }      # e.g.: 13 for refinement, 100 for classification
-slurm_merge_memory = { ask = true }     # e.g.: 20 for refinement, 200 for classification
-slurm_merge_walltime = { ask = true }   # e.g.: 48:00:00
-slurm_merge_queue = { ask = true }
+slurm_tasks = 11
+slurm_memory = 44
+slurm_walltime = "2:00:00"
+slurm_merge_tasks = 6
+slurm_merge_memory = 24
+slurm_merge_walltime = "2:00:00"
 
 [blocks.particlepicking]
 blockId = "tomo-picking"
@@ -51,6 +49,9 @@ tomo_pick_detection_width_3d = 80
 tomo_pick_stdtimes_filt_3d = 1.2
 tomo_pick_remove_edge_3d = true
 tomo_pick_rand = true
+slurm_tasks = 4
+slurm_memory = 22
+slurm_walltime = "2:00:00"
 
 [blocks.reference_refinement]
 blockId = "tomo-coarse-refinement"
@@ -73,7 +74,10 @@ csp_ToleranceParticlesTheta = 180.0
 csp_ToleranceParticlesPsi = 90.0
 csp_ToleranceParticlesShifts = 60.0
 csp_NumberOfRandomIterations = 5000000
-refine_model = { ask = true }
+csp_ctf_handedness = true
+slurm_tasks = 124
+slurm_memory = 720
+slurm_walltime = "72:00:00"
 
 [blocks.particle_filtering]
 blockId = "tomo-fine-refinement"
@@ -137,6 +141,10 @@ csp_ToleranceParticlesShifts = 30.0
 dose_weighting_enable = true
 dose_weighting_fraction = 4
 dose_weighting_global = true
+csp_ctf_handedness = true
+slurm_tasks = 124
+slurm_memory = 720
+slurm_walltime = "72:00:00"
 
 [blocks.mask_generation]
 blockId = "sp-masking"
