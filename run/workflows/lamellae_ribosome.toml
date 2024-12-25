@@ -32,11 +32,9 @@ tomo_rec_method = "aretomo"
 slurm_tasks = 11
 slurm_memory = 44
 slurm_walltime = "2:00:00"
-slurm_queue = "bartesaghilab-gpu"
 slurm_merge_tasks = 6
 slurm_merge_memory = 24
 slurm_merge_walltime = "2:00:00"
-slurm_merge_queue = "bartesaghilab-cpu"
 
 [blocks.particlepicking]
 blockId = "tomo-picking"
@@ -55,7 +53,6 @@ tomo_pick_rand = true
 slurm_tasks = 4
 slurm_memory = 22
 slurm_walltime = "2:00:00"
-slurm_queue = "bartesaghilab-amd"
 
 [blocks.reference_refinement]
 blockId = "tomo-coarse-refinement"
@@ -84,7 +81,6 @@ csp_ctf_handedness = true
 slurm_tasks = 124
 slurm_memory = 720
 slurm_walltime = "72:00:00"
-slurm_queue = "bartesaghilab-amd"
 
 [blocks.mask_generation]
 blockId = "sp-masking"
@@ -158,7 +154,6 @@ csp_ctf_handedness = true
 slurm_tasks = 124
 slurm_memory = 720
 slurm_walltime = "72:00:00"
-slurm_queue = "bartesaghilab-amd"
 
 [blocks.dose_weighting]
 blockId = "tomo-coarse-refinement"
