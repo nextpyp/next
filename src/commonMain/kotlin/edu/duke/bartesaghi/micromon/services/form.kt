@@ -1,7 +1,6 @@
 package edu.duke.bartesaghi.micromon.services
 
 import edu.duke.bartesaghi.micromon.div
-import edu.duke.bartesaghi.micromon.pyp.ArgInput
 import io.kvision.annotations.KVBindingRoute
 import io.kvision.annotations.KVService
 import io.kvision.remote.RemoteOption
@@ -23,8 +22,8 @@ interface IFormService {
 	@KVBindingRoute("form/globPicker/count")
 	suspend fun globPickerCount(path: String): GlobCount
 
-	@KVBindingRoute("form/clusterQueues")
-	suspend fun clusterQueues(): ClusterQueues
+	@KVBindingRoute("form/clusterTemplates")
+	suspend fun clusterTemplates(): List<TemplateData>
 
 	@KVBindingRoute("form/users")
 	suspend fun users(search: String?, initial: String?, state: String?): List<RemoteOption>
@@ -119,14 +118,8 @@ enum class PathType(val id: String) {
 
 
 @Serializable
-data class ClusterQueues(
-	val cpu: List<String>,
-	val gpu: List<String>
-) {
-
-	operator fun get(group: ArgInput.ClusterQueue.Group): List<String> =
-		when (group) {
-			ArgInput.ClusterQueue.Group.Cpu -> cpu
-			ArgInput.ClusterQueue.Group.Gpu -> gpu
-		}
-}
+data class TemplateData(
+	val path: String,
+	val title: String,
+	val description: String?
+)

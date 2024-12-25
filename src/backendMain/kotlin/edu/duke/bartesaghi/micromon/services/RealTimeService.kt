@@ -498,7 +498,7 @@ object RealTimeService {
 	private suspend fun SendChannel<Frame>.sendSessionStatus(session: Session) {
 
 		val values = session.pypParameters()
-		val defaults = ArgValues(Backend.instance.pypArgs)
+		val defaults = ArgValues(Backend.instance.pypArgsWithMicromon)
 
 		// send the initial status
 		// NOTE: this should be FAST so the UI feels responsive

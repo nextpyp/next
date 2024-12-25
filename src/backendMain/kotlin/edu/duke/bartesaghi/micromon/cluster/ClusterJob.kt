@@ -21,6 +21,8 @@ import kotlin.collections.ArrayList
 class ClusterJob(
 	/** run the job as the specified OS user, if any */
 	val osUsername: String?,
+	/** user-specific properties for the cluster template, if needed */
+	val userProperties: Map<String,String>? = null,
 	val containerId: String?,
 	val commands: Commands,
 	/** working directory of the command. if a container was given, this path is inside the container */
@@ -38,14 +40,30 @@ class ClusterJob(
 	val webName: String? = null,
 	/** the name of the job to display in cluster management tools (eq `squeue`) */
 	val clusterName: String? = null,
+	/** the type of the job, if any */
+	val type: String? = null,
+	/** the path of the template to use for this job */
+	val template: String? = null
 ) {
 
 	/**
-	 * The cluster job arguments, but tokenized like a POSIX shell would handle them.
-	 * Useful when you want to read/use the arguments before sending them to a shell.
+	 * The cluster job arguments, but tokenized like a POSIX shell would handle them, and then parsed into a key=value map
+	 * Useful when you want to read/use the arguments before sending them to a shell, or some other non-shell place
 	 */
-	val argsPosix: List<String> =
-		args.map { Posix.tokenize(it).firstOrNull() ?: "" }
+	val argsParsed: List<Pair<String?,String>> get() =
+		args.flatMap { Posix.tokenize(it) }
+			.map { arg ->
+				val pos = arg.indexOfFirst { it == '=' }
+					.takeIf { it >= 0 }
+				if (pos != null) {
+					val name = arg.substring(0 until pos)
+						.trimStart('-')
+					val value = arg.substring(pos + 1)
+					name to value
+				} else {
+					null to arg
+				}
+			}
 
 	fun submit(): String? = runBlocking {
 		Cluster.submit(this@ClusterJob)
@@ -140,21 +158,13 @@ class ClusterJob(
 		val clusterJobId: String,
 		val arrayId: Int? = null,
 		var submitFailure: String? = null,
+		val launchScript: String? = null,
 		var launchResult: LaunchResult? = null,
 		var arrayProgress: ArrayProgress? = null,
 		val history: MutableList<HistoryEntry> = ArrayList(),
 		var result: Result? = null,
 		val failures: MutableList<FailureEntry> = ArrayList()
 	) {
-
-		fun toDoc() = Document().apply {
-			submitFailure?.let { set("submitFailure", it) }
-			launchResult?.let { set("sbatch", it.toDoc()) }
-			arrayProgress?.let { set("arrayProgress", it.toDoc()) }
-			set("history", history.toDBList())
-			result?.let { set("result", it.toDoc()) }
-			set("failures", failures.map { it.toDoc() })
-		}
 
 		companion object {
 
@@ -168,6 +178,7 @@ class ClusterJob(
 					sbatchId,
 					arrayId,
 					submitFailure = doc.getString("submitFailure"),
+					launchScript = doc.getString("launchScript"),
 					launchResult = doc.getDocument("sbatch")?.let { LaunchResult.fromDoc(it) },
 					arrayProgress = doc.getDocument("arrayProgress")?.let { ArrayProgress.fromDoc(it) },
 					history = ArrayList<HistoryEntry>().apply {
@@ -260,7 +271,7 @@ class ClusterJob(
 			fun fromDoc(doc: Document) = LaunchResult(
 				jobId = doc.getLong("id"),
 				out = doc.getString("out"),
-				command = doc.getString("command")
+				command = doc.getString("command"),
 			)
 		}
 
@@ -275,6 +286,7 @@ class ClusterJob(
 		// create a database record of the submission
 		val dbid = Database.instance.cluster.launches.create {
 			set("osUsername", osUsername)
+			set("userProperties", userProperties)
 			set("container", containerId)
 			set("commands", commands.toDoc())
 			set("dir", dir.toString())
@@ -284,6 +296,8 @@ class ClusterJob(
 			set("owner", ownerId)
 			set("name", webName)
 			set("clusterName", clusterName)
+			set("type", type)
+			set("template", template)
 			set("listener", ownerListener?.id)
 		}
 		this.id = dbid
@@ -418,6 +432,47 @@ class ClusterJob(
 		id = null
 	}
 
+	data class Dependency(
+		val dependencyId: String,
+		val launchId: String?
+	) {
+
+		val launchIdOrThrow: String get() =
+			launchId
+				?: throw NoSuchElementException("dependency job with id=$dependencyId not launched yet")
+	}
+
+	/**
+	 * Resolve the job's dependency ids (that refer to micromon targets)
+	 * into launch ids (that refer to cluster scheduler (eg SLURM) targets).
+	 *
+	 * A resolved id is only returned if the job has already been launched.
+	 * Unlaunched jobs will have null resolved ids.
+	 */
+	fun dependencies(): List<Dependency> =
+		deps.map { depId ->
+
+			// Sometimes, pyp puts `_N` on the end of the dependency id to signal a dependency
+			// on the Nth element in an array job. The database doesn't know anything about that,
+			// so take it off before jobId resolution.
+			val (depIdJob, depIdArray) = depId
+				.split('_')
+				.let { it[0] to it.getOrNull(1) }
+
+			var launchId = Database.instance.cluster.log.get(depIdJob)
+				?.let { Log.fromDoc(it) }
+				?.launchResult
+				?.jobId
+				?.toString()
+
+			// But then put the `_N` back on before giving the IDs to the cluster.
+			if (depIdArray != null) {
+				launchId = "${launchId}_$depIdArray"
+			}
+
+			Dependency(depId, launchId)
+		}
+
 
 	companion object {
 
@@ -446,6 +501,7 @@ class ClusterJob(
 			}
 			return ClusterJob(
 				osUsername = doc.getString("osUsername"),
+				userProperties = doc.getMap<String>("userProperties"),
 				containerId = doc.getString("container"),
 				commands = when (val c = doc.get("commands")) {
 					is Document -> Commands.fromDoc(c)
@@ -463,7 +519,9 @@ class ClusterJob(
 				// if we see any old long values, just ignore them
 				ownerListener = ownerListeners.find(doc["listener"] as? String),
 				webName = doc.getString("name"),
-				clusterName = doc.getString("clusterName")
+				clusterName = doc.getString("clusterName"),
+				type = doc.getString("type"),
+				template = doc.getString("template")
 			).apply {
 				id = doc.getObjectId("_id").toStringId()
 			}

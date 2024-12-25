@@ -55,4 +55,11 @@ echo job.type = "merge"
 {# OPTIONAL: do something user-specific, if needed #}
 {# echo user.os_username = {{ user.os_username }} #}
 
+{# {% if user.properties.acct | exists %} #}
+{# echo user.properties.acct = {{ user.properties.acct }} #}
+{{# % else %} #}
+{# echo (no user.properties.acct) #}
+{{# % endif %} #}
+
+
 {{ job.commands | raw }}

@@ -5,8 +5,6 @@ import edu.duke.bartesaghi.micromon.auth.authOrThrow
 import edu.duke.bartesaghi.micromon.cluster.ClusterJob
 import edu.duke.bartesaghi.micromon.cluster.slurm.toSbatchArgs
 import edu.duke.bartesaghi.micromon.files.Speeds
-import edu.duke.bartesaghi.micromon.jobs.Job
-import edu.duke.bartesaghi.micromon.jobs.resolveJob
 import edu.duke.bartesaghi.micromon.linux.userprocessor.WebCacheDir
 import edu.duke.bartesaghi.micromon.linux.userprocessor.writeStringAs
 import edu.duke.bartesaghi.micromon.mongo.Database
@@ -18,7 +16,6 @@ import org.bson.Document
 import org.bson.conversions.Bson
 import java.nio.file.Path
 import java.time.Instant
-import java.util.ArrayDeque
 import java.util.ArrayList
 import java.util.NoSuchElementException
 import kotlin.io.path.div
@@ -228,11 +225,11 @@ sealed class Session(
 
 	protected fun launchArgValues(): ArgValues {
 
-		val values = ArgValues(Backend.instance.pypArgs)
+		val values = ArgValues(Backend.instance.pypArgsWithMicromon)
 
 		// add arg values from this session
 		val jobValues = (this.newestArgValues() ?: "")
-			.toArgValues(Backend.instance.pypArgs)
+			.toArgValues(Backend.instance.pypArgsWithMicromon)
 		for (arg in values.args.args) {
 
 			// skip args whose value is the default value
@@ -262,6 +259,7 @@ sealed class Session(
 
 		// launch the cluster job
 		Pyp.streampyp.launch(
+			userId = null,
 			osUsername = null,
 			webName = webName,
 			clusterName = SessionDaemon.Streampyp.clusterJobClusterName,

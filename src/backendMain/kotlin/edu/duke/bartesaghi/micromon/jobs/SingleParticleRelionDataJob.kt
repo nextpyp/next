@@ -97,7 +97,7 @@ class SingleParticleRelionDataJob(
 		pypArgs.importMode = "SPA_STAR"
 		pypArgs.importReadStar = true
 
-		Pyp.rlp.launch(project.osUsername, runId, pypArgs, "Import Star", "pyp_import")
+		Pyp.rlp.launch(project, runId, pypArgs, "Import Star", "pyp_import")
 
 		// job was launched, move the args over
 		args.run()

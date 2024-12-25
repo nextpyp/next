@@ -832,28 +832,13 @@ sealed class ArgInput {
 	}
 
 	/**
-	 * Helps the user pick a cluster queue
+	 * Helps the user pick a cluster template
 	 */
 	@Serializable
-	class ClusterQueue(val group: Group) : ArgInput() {
-
-		@Serializable
-		enum class Group(val id: String) {
-
-			Cpu("cpu"),
-			Gpu("gpu");
-
-			companion object {
-				operator fun get(name: String): Group? =
-					values()
-						.find { it.id == name.lowercase() }
-			}
-		}
+	class ClusterTemplate : ArgInput() {
 
 		companion object {
-			// NOTE: called a "slurmQueue" for historical reasons
-			// to change it here would also require a change to pyp
-			const val id = "slurmQueue"
+			const val id = "template"
 		}
 
 		override val argInputId = id

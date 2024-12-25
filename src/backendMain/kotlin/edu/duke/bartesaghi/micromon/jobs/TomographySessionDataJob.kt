@@ -97,7 +97,7 @@ class TomographySessionDataJob(
 		pypArgs.dataParent = session.pypDir(session.newestArgs().pypNamesOrThrow()).toString()
 		pypArgs.dataImport = true
 
-		Pyp.pyp.launch(project.osUsername, runId, pypArgs, "Import Tomography Session", "pyp_import")
+		Pyp.pyp.launch(project, runId, pypArgs, "Import Tomography Session", "pyp_import")
 
 		// job was launched, move the args over
 		args.run()

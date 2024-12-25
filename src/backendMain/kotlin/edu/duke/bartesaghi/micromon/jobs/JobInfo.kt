@@ -23,9 +23,8 @@ interface JobInfo {
 	}
 
 	fun args() =
-		Backend.instance.pypArgs
+		Backend.instance.pypArgsWithMicromon
 			.filter(config.configId)
-			.appendAll(MicromonArgs.slurmLaunch)
 
 	fun newArgValues(inData: CommonJobData.DataId): ArgValues {
 

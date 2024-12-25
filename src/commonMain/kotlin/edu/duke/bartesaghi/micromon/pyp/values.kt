@@ -369,6 +369,17 @@ enum class TomoSrfMethod(val id: String, val particlesList: (ownerId: String) ->
  */
 object MicromonArgs {
 
+	val slurmTemplate = Arg(
+		groupId = "slurm",
+		argId = "template",
+		name = "Cluster Template",
+		description = "Job runtime configuration on the cluster",
+		type = ArgType.TStr(),
+		required = false,
+		input = ArgInput.ClusterTemplate(),
+		target = ArgTarget.Micromon
+	)
+
 	val slurmLaunchCpus = Arg(
 		groupId = "slurm",
 		argId = "launch_tasks",
@@ -402,29 +413,6 @@ object MicromonArgs {
 		target = ArgTarget.Micromon
 	)
 
-	val slurmLaunchAccount = Arg(
-		groupId = "slurm",
-		argId = "launch_account",
-		name = "Slurm account (launch task)",
-		description = "Charge resources used by this job to specified account",
-		type = ArgType.TStr(),
-		required = false,
-		advanced = true,
-		default = null,
-		target = ArgTarget.Micromon
-	)
-
-	val slurmLaunchQueue = Arg(
-		groupId = "slurm",
-		argId = "launch_queue",
-		name = "CPU partition (launch task)",
-		description = "SLURM partition to submit CPU jobs",
-		type = ArgType.TStr(),
-		input = ArgInput.ClusterQueue(ArgInput.ClusterQueue.Group.Cpu),
-		required = false,
-		target = ArgTarget.Micromon
-	)
-
 	val slurmLaunchGres = Arg(
 		groupId = "slurm",
 		argId = "launch_gres",
@@ -438,12 +426,11 @@ object MicromonArgs {
 	)
 
 	val slurmLaunch = listOf(
+		slurmTemplate,
 		slurmLaunchCpus,
 		slurmLaunchMemory,
-		slurmLaunchGres,
-		slurmLaunchAccount,
 		slurmLaunchWalltime,
-		slurmLaunchQueue
+		slurmLaunchGres
 	)
 
 	val args = Args(
@@ -453,6 +440,9 @@ object MicromonArgs {
 	)
 }
 
+val ArgValues.slurmTemplate: String?
+	get() = get(MicromonArgs.slurmTemplate) as String?
+
 val ArgValues.slurmLaunchCpus: Long
 	get() = getOrDefault(MicromonArgs.slurmLaunchCpus) as Long
 
@@ -461,12 +451,6 @@ val ArgValues.slurmLaunchMemory: Long
 
 val ArgValues.slurmLaunchWalltime: String
 	get() = getOrDefault(MicromonArgs.slurmLaunchWalltime) as String
-
-val ArgValues.slurmLaunchAccount: String?
-	get() = get(MicromonArgs.slurmLaunchAccount) as String?
-
-val ArgValues.slurmLaunchQueue: String?
-	get() = get(MicromonArgs.slurmLaunchQueue) as String?
 
 val ArgValues.slurmLaunchGres: String?
 	get() = get(MicromonArgs.slurmLaunchGres) as String?

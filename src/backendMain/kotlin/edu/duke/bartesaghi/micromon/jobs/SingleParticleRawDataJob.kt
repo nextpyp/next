@@ -95,7 +95,7 @@ class SingleParticleRawDataJob(
 		val pypArgs = launchArgValues()
 		pypArgs.dataMode = "spr"
 
-		Pyp.gyp.launch(project.osUsername, runId, pypArgs, "Check gain reference", "pyp_gainref")
+		Pyp.gyp.launch(project, runId, pypArgs, "Check gain reference", "pyp_gainref")
 
 		// job was launched, move the args over
 		args.run()

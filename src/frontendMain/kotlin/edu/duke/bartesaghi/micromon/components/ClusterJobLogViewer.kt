@@ -2,7 +2,6 @@ package edu.duke.bartesaghi.micromon.components
 
 import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.components.forms.enabled
-import edu.duke.bartesaghi.micromon.diagram.nodes.clientInfo
 import edu.duke.bartesaghi.micromon.pyp.Args
 import edu.duke.bartesaghi.micromon.pyp.toArgValues
 import edu.duke.bartesaghi.micromon.services.*
@@ -53,13 +52,13 @@ class ClusterJobLogViewer(
 	init {
 
 		// layout the UI
-		tabs.addTab("Launch") { tab ->
+		val launchTab = tabs.addTab("Launch") { tab ->
 			tab.elem.add(launchElem)
 		}
 		val streamTab = tabs.addTab("Stream") { tab ->
 			tab.elem.add(streamElem)
 		}
-		tabs.addTab("Logs") { tab ->
+		val logTab = tabs.addTab("Logs") { tab ->
 			tab.elem.add(logsElem)
 
 			AppScope.launch {
@@ -71,9 +70,6 @@ class ClusterJobLogViewer(
 			}
 		}
 		win.add(tabs)
-
-		// show the stream tab by default
-		tabs.initWithDefaultTab(streamTab)
 
 		// wire up events
 		win.onEvent {
@@ -90,7 +86,18 @@ class ClusterJobLogViewer(
 
 		AppScope.launch {
 			clusterJobLog = load()
-			clusterJobLog?.let { updateLaunch(it) }
+			clusterJobLog?.let { log ->
+
+				// show a default tab depending on the cluster job state
+				val showLaunchTab = updateLaunch(log)
+				tabs.initWithDefaultTab(if (showLaunchTab) {
+					launchTab
+				} else if (log.resultType != null) {
+					logTab
+				} else {
+					streamTab
+				})
+			}
 		}
 	}
 
@@ -108,7 +115,10 @@ class ClusterJobLogViewer(
 		}
 	}
 
-	private fun updateLaunch(clusterJobLog: ClusterJobLog) {
+	private fun updateLaunch(clusterJobLog: ClusterJobLog): Boolean {
+
+		// show the launch tab by default, since that's where the launch errors will be
+		var showLaunchTab = true
 
 		launchElem.removeAll()
 
@@ -122,18 +132,23 @@ class ClusterJobLogViewer(
 			}
 			launchElem.h2("Reason:")
 			launchElem.div(classes = setOf("section")) {
-				content = clusterJobLog.submitFailure
+				tag(TAG.PRE) {
+					content = clusterJobLog.submitFailure
+				}
 			}
 
 		} else if (clusterJobLog.launchResult != null) {
 
 			launchElem.h2("Success:")
 			launchElem.div(classes = setOf("section")) {
-				content = if (clusterJobLog.launchResult.success) {
-					"Yes"
-				} else {
-					"No"
-				}
+				content =
+					if (clusterJobLog.launchResult.success) {
+						// launch worked! show something else instead
+						showLaunchTab = false
+						"Yes"
+					} else {
+						"No"
+					}
 			}
 			launchElem.h2("Command")
 			launchElem.div(classes = setOf("commands", "section")) {
@@ -152,11 +167,30 @@ class ClusterJobLogViewer(
 
 		} else {
 
-			launchElem.span("(none)")
+			launchElem.h2("Waiting:")
+			val elem = launchElem.div()
+
+			// job not launched yet? show waiting reason
+			val loading = elem.loading("Checking ...")
+			AppScope.launch {
+
+				val reason = try {
+					Services.projects.waitingReason(clusterJobId)
+				} catch (t: Throwable) {
+					launchElem.errorMessage(t)
+					return@launch
+				} finally {
+					elem.remove(loading)
+				}
+
+				elem.content = reason
+			}
 		}
 
 		// show the commands
-		launchElem.h1("Commands")
+		launchElem.h1("Representative command").apply {
+			title = "Cluster jobs may have many different commands. Shown here is one such command, as an example."
+		}
 		launchElem.div(classes = setOf("commands")) {
 			content = clusterJobLog.representativeCommand
 		}
@@ -195,6 +229,23 @@ class ClusterJobLogViewer(
 				content = "(none)"
 			}
 		}
+
+		// show the full launch script
+		launchElem.h1("Script")
+		launchElem.div(classes = setOf("script")) {
+
+			// show the chosen template, if any
+			div("Template: ${clusterJobLog.template ?: "(none)"}")
+
+			// show the launch script
+			if (clusterJobLog.launchScript != null) {
+				add(ScriptView.fromText(clusterJobLog.launchScript))
+			} else {
+				content = "(none)"
+			}
+		}
+
+		return showLaunchTab
 	}
 
 	private fun updateLogs(clusterJobLog: ClusterJobLog) {

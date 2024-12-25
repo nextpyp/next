@@ -49,9 +49,8 @@ class SingleParticleSession(
 			Session.fromIdOrThrow(sessionId) as SingleParticleSession
 
 		fun args() =
-			Backend.instance.pypArgs
+			Backend.instance.pypArgsWithMicromon
 				.filter(configId)
-				.appendAll(MicromonArgs.slurmLaunch)
 
 		object StreampypListener : ClusterJob.OwnerListener {
 
@@ -79,7 +78,7 @@ class SingleParticleSession(
 		args.newest()?.args?.values
 
 	override fun newestPypValues(): ArgValues =
-		args.newestOrThrow().args.values.toArgValues(Backend.instance.pypArgs)
+		args.newestOrThrow().args.values.toArgValues(Backend.instance.pypArgsWithMicromon)
 
 	override fun data(user: User?): SingleParticleSessionData {
 		val (numMicrographs, numFrames) = Database.instance.micrographs.counts(idOrThrow)

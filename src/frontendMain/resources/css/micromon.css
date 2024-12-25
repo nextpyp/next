@@ -2099,7 +2099,7 @@ img.large-scale-down {
 }
 
 .cluster-job-logs .launch {
-	margin-bottom: 16px;
+	overflow-y: auto;
 
 	h1 {
 		font-size: 140%;
@@ -2117,10 +2117,8 @@ img.large-scale-down {
 	}
 
 	.commands {
-		flex-shrink: 0;
 		font-family: monospace;
 		font-size: 85%;
-		margin-bottom: 10px;
 	}
 
 	.params {
@@ -3914,4 +3912,16 @@ div.file-browser .file-browser-bottom .file-browser-controls .file-browser-glob 
 			}
 		}
 	}
+}
+
+
+/* NATIVE SELECT */
+
+select.native {
+	background-color: transparent;
+	border: none;
+}
+
+.form-group select.native {
+	width: 100%;
 }

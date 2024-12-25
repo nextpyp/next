@@ -12,7 +12,6 @@ import edu.duke.bartesaghi.micromon.linux.userprocessor.writeStringAs
 import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.services.ClusterJobResultType
 import edu.duke.bartesaghi.micromon.services.ClusterMode
-import edu.duke.bartesaghi.micromon.services.ClusterQueues
 import edu.duke.bartesaghi.micromon.services.StreamLog
 import java.nio.file.Path
 import java.nio.file.attribute.PosixFilePermission
@@ -25,8 +24,6 @@ interface Cluster {
 
 	val commandsConfig: Commands.Config
 
-	val queues: ClusterQueues
-
 	/**
 	 * Throw an error if the job is somehow not valid.
 	 * If the user should be notified about the error, throw a ClusterJob.ValidationFailedException specifically
@@ -34,12 +31,18 @@ interface Cluster {
 	fun validate(job: ClusterJob)
 
 	/**
-	 * Throw an error if the dependency id format can't be recognized.
-	 * But don't try to check if the dependency exists yet.
+	 * Builds the batch script to run the job.
 	 */
-	fun validateDependency(depId: String)
+	suspend fun buildScript(clusterJob: ClusterJob, commands: String): String {
+		// by default, just wrap the commands in a simple bash script, with no other fanfare
+		return """
+			|#!/bin/bash
+			|
+			|$commands
+		""".trimMargin()
+	}
 
-	suspend fun launch(clusterJob: ClusterJob, depIds: List<String>, scriptPath: Path): ClusterJob.LaunchResult?
+	suspend fun launch(clusterJob: ClusterJob, scriptPath: Path): ClusterJob.LaunchResult?
 
 	suspend fun waitingReason(clusterJob: ClusterJob, launchResult: ClusterJob.LaunchResult): String?
 
@@ -60,8 +63,6 @@ interface Cluster {
 					PseudoCluster(config.standalone ?: Config.Standalone())
 				}
 			}
-
-		val queues: ClusterQueues get() = instance.queues
 
 		suspend fun waitingReason(clusterJob: ClusterJob): String {
 
@@ -181,38 +182,7 @@ interface Cluster {
 			// but wait until at least after the submission event went out, so failures here can be shown in the UI
 			instance.validate(clusterJob)
 
-			// resolve the dependency ids, or die trying
-			val depIds = clusterJob.deps
-				.map { depId ->
-
-					// Sometimes, pyp puts `_N` on the end of the dependency id to signal a dependency
-					// on the Nth element in an array job. The database doesn't know anything about that,
-					// so take it off before jobId resolution.
-					val (depIdJob, depIdArray) = depId
-						.split('_')
-						.let { it[0] to it.getOrNull(1) }
-
-					val launchId = Database.instance.cluster.log.get(depIdJob)
-						?.let { ClusterJob.Log.fromDoc(it) }
-						?.launchResult
-						?.jobId
-						?: throw IllegalStateException("dependency job with id=$depId not launched yet")
-
-					// But then put the `_N` back on before giving the IDs to the cluster.
-					if (depIdArray != null) {
-						"${launchId}_$depIdArray"
-					} else {
-						launchId.toString()
-					}
-				}
-
-			// validate the dependency ids
-			for (depId in depIds) {
-				instance.validateDependency(depId)
-			}
-
 			// write the script files
-			val scriptPath = clusterJob.batchPath()
 			fun cmdWebrpc(vararg args: String): String =
 				if (Config.instance.pyp.mock != null) {
 					Container.MockPyp.cmdWebrpc(*args)
@@ -220,32 +190,68 @@ interface Cluster {
 					Container.Pyp.cmdWebrpc(*args)
 				}
 			val commands = clusterJob.commands.render(clusterJob, instance.commandsConfig)
-			scriptPath.writeStringAs(clusterJob.osUsername, """
-				|#!/bin/bash
-				|
+			var script = instance.buildScript(clusterJob, """
+				|# send info to the command via envvars
 				|export NEXTPYP_WEBHOST="${Config.instance.web.webhost}"
 				|export NEXTPYP_TOKEN="${JsonRpc.token}"
 				|export NEXTPYP_WEBID="$clusterJobId"
 				|
-				|# cd into any non-home folder before running any singularity commands.
-				|# For some weird reason, singularity behaves differently when run from the home folder.
-				|# Sometimes it will ignore the --no-home flag and bind the home folder anyway.
-				|# Since pyp can be incredibly destructive to folders it runs in,
-				|# we never *ever* want pyp to have access to the home folder.
+				|# apptainer behaves differently when run from the home folder (like ignoring --no-home)
+				|# so start in an explicitly-defined non-home folder
 				|cd /tmp || exit 1
 				|
+				|# send cluster job events to the website
 				|${cmdWebrpc("slurm_started")}
 				|trap "${cmdWebrpc("slurm_ended", "--exit=\\$?").replace("\"", "\\\"")}" exit
 				|
+				|# run the commands
 				|${commands.joinToString("\n")}
 			""".trimMargin())
+			// NOTE: Commands.render() adds a `cd | exit` command to protect against pyp mayhem, so it's redundant to do it here too
+			//       however, we still need one to protect against apptainer mayhem with the home folder
+			val scriptPath = clusterJob.batchPath()
+			scriptPath.writeStringAs(clusterJob.osUsername, script)
 			scriptPath.editPermissionsAs(clusterJob.osUsername) {
 				add(PosixFilePermission.OWNER_EXECUTE)
 			}
 
+			// now that we've written the script to the filesystem, redact any sensitive information before archiving it
+			val secrets = listOf(
+				// like security tokens
+				Regex("NEXTPYP_TOKEN\\s*=\\s*\"?(\\S*)\"?") to "NEXTPYP_TOKEN=(redacted)"
+			)
+			script = script.lines()
+				.joinToString("\n") { line ->
+
+					@Suppress("NAME_SHADOWING")
+					var line = line
+
+					// scrub out any secrets
+					for ((secret, replacement) in secrets) {
+						line = secret.replace(line, replacement)
+					}
+
+					line
+				}
+
+			// archive the launch script
+			Database.instance.cluster.log.update(clusterJobId, null,
+				set("launchScript", script)
+			)
+
 			// try to launch the job on the cluster
-			val launchResult = instance.launch(clusterJob, depIds, scriptPath)
-				?: return null
+			val launchResult = instance.launch(clusterJob, scriptPath)
+				?: run {
+					// job was canceled during the launch process:
+
+					// clean up files we just created, since the job finish handler will never run
+					scriptPath.deleteAs(clusterJob.osUsername)
+					for (file in clusterJob.commands.filesToDelete(clusterJob)) {
+						file.deleteAs(clusterJob.osUsername)
+					}
+
+					return null
+				}
 
 			// launch succeeded, update the database with the launch result
 			Database.instance.cluster.log.update(clusterJobId, null,

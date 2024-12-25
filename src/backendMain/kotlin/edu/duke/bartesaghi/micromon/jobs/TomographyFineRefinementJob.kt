@@ -84,7 +84,7 @@ class TomographyFineRefinementJob(
 		// build the args for PYP
 		val pypArgs = launchArgValues()
 
-		Pyp.pcl.launch(project.osUsername, runId, pypArgs, "Launch", "pyp_launch")
+		Pyp.pcl.launch(project, runId, pypArgs, "Launch", "pyp_launch")
 
 		// job was launched, move the args over
 		args.run()

@@ -5,6 +5,7 @@ import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.projects.Project
 import edu.duke.bartesaghi.micromon.auth.authOrThrow
 import edu.duke.bartesaghi.micromon.cluster.Cluster
+import edu.duke.bartesaghi.micromon.cluster.slurm.Template
 import edu.duke.bartesaghi.micromon.jobs.Job
 import edu.duke.bartesaghi.micromon.jobs.JobRunner
 import edu.duke.bartesaghi.micromon.jobs.jobInfo
@@ -258,10 +259,25 @@ actual class ProjectsService : IProjectsService {
 		val failedArrayIds = Database.instance.cluster.log.findArrayIdsByResultType(clusterJobId, ClusterJobResultType.Failure)
 			.sorted()
 
+		// load the template name, if possible
+		val template = try {
+			clusterJob.template?.let {
+				Template.Key(it)
+					.toTemplateOrThrow()
+					.readData()
+					.title
+			}
+		} catch (t: Throwable) {
+			// can't read the template metadata, so use the path
+			clusterJob.template
+		}
+
 		return ClusterJobLog(
 			clusterJob.commands.representativeCommand(),
 			clusterJob.commands.params(),
 			log?.submitFailure,
+			template,
+			log?.launchScript,
 			log?.launchResult?.toData(),
 			log?.result?.type,
 			log?.result?.exitCode,
@@ -407,7 +423,7 @@ actual class ProjectsService : IProjectsService {
 		val workflow = Workflows.workflows[workflowId]
 			?: throw ServiceException("Workflow not found with id=$workflowId")
 
-		Backend.instance.pypArgs
+		Backend.instance.pypArgsWithMicromon
 			.filterArgs(workflow.blocks.flatMap { it.askArgs })
 			.toJson()
 	}

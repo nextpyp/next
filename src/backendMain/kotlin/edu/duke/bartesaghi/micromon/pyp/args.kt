@@ -211,12 +211,11 @@ fun TomlTable.getInput(key: String): ArgInput? {
 		ArgInput.CryocareTrainedModel.id -> ArgInput.CryocareTrainedModel()
 		ArgInput.TrainedModel2D.id -> ArgInput.TrainedModel2D()
 		ArgInput.TrainedModel3D.id -> ArgInput.TrainedModel3D()
+		ArgInput.ClusterTemplate.id -> ArgInput.ClusterTemplate()
 
-		ArgInput.ClusterQueue.id -> {
-			val groupStr = inputTable.getStringOrThrow("group")
-			val group = ArgInput.ClusterQueue.Group[groupStr]
-				?: throw TomlParseException("unrecognized SLURM queue group: $groupStr, try one of ${ArgInput.ClusterQueue.Group.values().map { it.id }}")
-			ArgInput.ClusterQueue(group)
+		"slurmQueue" -> {
+			Backend.log.warn("ignored `input = { type=\"slurmQueue\" }` near $pos, since it has been replaced by the template system")
+			null
 		}
 
 		else -> throw TomlParseException("unrecognized input type: $inputTypeId", pos)

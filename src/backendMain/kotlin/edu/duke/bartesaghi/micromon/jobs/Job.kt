@@ -299,9 +299,9 @@ abstract class Job(
 		return jobs
 	}
 
-	protected fun launchArgValues(): ArgValues {
+	fun launchArgValues(): ArgValues {
 
-		val values = ArgValues(Backend.instance.pypArgs)
+		val values = ArgValues(Backend.instance.pypArgsWithMicromon)
 		val launchingArgs = baseConfig.jobInfo.args()
 
 		val debugMsg =
@@ -380,16 +380,23 @@ abstract class Job(
 	/** runs this job on the server */
 	abstract suspend fun launch(runId: Int)
 
-	protected suspend fun Pyp.launch(osUsername: String?, runId: Int, argValues: ArgValues, webName: String, clusterName: String) {
+	protected suspend fun Pyp.launch(
+		project: Project,
+		runId: Int,
+		argValues: ArgValues,
+		webName: String,
+		clusterName: String
+	) {
 
 		// write the parameters file
 		val paramsPath = pypParamsPath()
 		val argValuesToml = argValues.toToml()
-		paramsPath.writeStringAs(osUsername, argValuesToml)
+		paramsPath.writeStringAs(project.osUsername, argValuesToml)
 
 		// launch the cluster job
 		launch(
-			osUsername = osUsername,
+			userId = project.userId,
+			osUsername = project.osUsername,
 			webName = webName,
 			clusterName = clusterName,
 			owner = JobOwner(idOrThrow, runId).toString(),
@@ -397,7 +404,8 @@ abstract class Job(
 			dir = dir,
 			args = listOf("-params_file=$paramsPath"),
 			params = argValuesToml,
-			launchArgs = argValues.toSbatchArgs()
+			launchArgs = argValues.toSbatchArgs(),
+			template = argValues.slurmTemplate
 		)
 	}
 
@@ -424,8 +432,8 @@ abstract class Job(
 
 	fun pypParametersOrNewestArgs(): ArgValues =
 		pypParameters()
-			?: newestArgValues()?.toArgValues(Backend.instance.pypArgs)
-			?: ArgValues(Backend.instance.pypArgs)
+			?: newestArgValues()?.toArgValues(Backend.instance.pypArgsWithMicromon)
+			?: ArgValues(Backend.instance.pypArgsWithMicromon)
 
 	abstract fun newestArgValues(): ArgValuesToml?
 	abstract fun finishedArgValues(): ArgValuesToml?

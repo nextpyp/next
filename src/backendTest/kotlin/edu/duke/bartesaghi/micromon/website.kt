@@ -3,10 +3,7 @@ package edu.duke.bartesaghi.micromon
 import edu.duke.bartesaghi.micromon.cluster.ClusterJob
 import edu.duke.bartesaghi.micromon.jobs.jobInfo
 import edu.duke.bartesaghi.micromon.nodes.NodeConfig
-import edu.duke.bartesaghi.micromon.pyp.ArgValues
-import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
-import edu.duke.bartesaghi.micromon.pyp.Args
-import edu.duke.bartesaghi.micromon.pyp.MockPyp
+import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.*
 import io.ktor.client.features.websocket.*
 import io.ktor.client.statement.*
@@ -139,7 +136,7 @@ class EphemeralConfig(configurator: Configurator.() -> Unit = {}) : AutoCloseabl
 
 
 	fun argsToml(block: ArgValues.() -> Unit): ArgValuesToml =
-		ArgValues(pypArgs).apply {
+		ArgValues(pypArgs.appendAll(MicromonArgs.slurmLaunch)).apply {
 			block()
 		}.toToml()
 }

@@ -248,6 +248,7 @@ kotlin {
 				implementation("org.apache.commons:commons-vfs2:2.9.0") // Apache 2
 				implementation("org.reflections:reflections:0.10.2") // Apache 2
 				implementation("org.jetbrains.kotlinx:kotlinx-serialization-protobuf:$serializationVersion") // Apache 2
+				implementation("io.pebbletemplates:pebble:3.2.2") // BSD 3-Clause
 
 				// library for WebP support in ImageIO
 				implementation("io.github.darkxanter:webp-imageio:0.2.3") // Apache 2

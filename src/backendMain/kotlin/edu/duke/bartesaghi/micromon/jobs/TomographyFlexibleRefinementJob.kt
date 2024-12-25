@@ -85,7 +85,7 @@ class TomographyFlexibleRefinementJob(
 		val pypArgs = launchArgValues()
 		pypArgs.extractFmt = "frealign_local"
 
-		Pyp.csp.launch(project.osUsername, runId, pypArgs, "Launch", "pyp_launch")
+		Pyp.csp.launch(project, runId, pypArgs, "Launch", "pyp_launch")
 
 		// job was launched, move the args over
 		args.run()

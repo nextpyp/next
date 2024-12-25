@@ -84,7 +84,7 @@ class TomographyMovieCleaningJob(
 		// build the args for PYP
 		val pypArgs = launchArgValues()
 
-		Pyp.pcl.launch(project.osUsername, runId, pypArgs, "Launch", "launch")
+		Pyp.pcl.launch(project, runId, pypArgs, "Launch", "launch")
 
 		// job was launched, move the args over
 		args.run()

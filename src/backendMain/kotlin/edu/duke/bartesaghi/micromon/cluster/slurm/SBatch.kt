@@ -10,52 +10,53 @@ import edu.duke.bartesaghi.micromon.linux.userprocessor.readStringAs
 import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.ClusterJobResultType
 import edu.duke.bartesaghi.micromon.services.ClusterMode
-import edu.duke.bartesaghi.micromon.services.ClusterQueues
 import java.nio.file.Path
-import kotlin.collections.ArrayList
 
 
 class SBatch(val config: Config.Slurm) : Cluster {
+
+	companion object {
+
+		val BANNED_ARGS = setOf(
+			"output",
+			"error",
+			"chdir",
+			"array"
+		)
+
+		val SUPPORTED_ARGS = setOf(
+			"cpus-per-task",
+			"mem",
+			"time",
+			"gres"
+		)
+	}
 
 	override val clusterMode = ClusterMode.SLURM
 
 	override val commandsConfig: Commands.Config get() =
 		config.commandsConfig
 
-	override val queues: ClusterQueues =
-		ClusterQueues(
-			config.queues,
-			config.gpuQueues
-		)
-
 	private val sshPool = SSHPool(config.sshPoolConfig)
 
 	override fun validate(job: ClusterJob) {
 
-		val args = job.argsPosix
+		val args = job.argsParsed
 
 		// look for any banned arguments
-		if (args.any { it.startsWith("--output=") }) {
-			throw IllegalArgumentException("job outputs are handled automatically by nextPYP, no need to specify them explicitly")
-		}
-		if (args.any { it.startsWith("--error=") }) {
-			throw IllegalArgumentException("job errors are handled automatically by nextPYP, no need to specify them explicitly")
-		}
-		if (args.any { it.startsWith("--chdir=") }) {
-			throw IllegalArgumentException("the submission directory is handled automatically by nextPYP, no need to specifiy it explicitly")
-		}
-		if (args.any { it.startsWith("--array=") }) {
-			throw IllegalArgumentException("the array is handled automatically by nextPYP, no need to specify it explicitly")
-		}
+		BANNED_ARGS
+			.filter { bannedName -> args.any { (name, _) -> name == bannedName } }
+			.takeIf { it.isNotEmpty() }
+			?.let { found ->
+				throw IllegalArgumentException("The sbatch argument(s) $found are handled automatically by nextPYP, no need to specify them explicitly")
+			}
 
-		// validate the queue names, if any are given
-		val queues = config.queues + config.gpuQueues
-		args.filter { it.startsWith("--partition=") }
-			.map { it.substring("--partition=".length) }
-			.forEach { queue ->
-				if (queue !in queues) {
-					throw IllegalArgumentException("the partition '$queue' was not valid, try one of $queues")
-				}
+		// look for any unsupported arguments
+		args
+			.filter { (name, _) -> name !in SUPPORTED_ARGS }
+			.takeIf { it.isNotEmpty() }
+			?.let { found ->
+				throw IllegalArgumentException("unsupported sbatch argument(s): $found\nMicromon must be updated to support these arguments.")
 			}
 
 		// these are errors caused by users (rather than programmers),
@@ -63,42 +64,39 @@ class SBatch(val config: Config.Slurm) : Cluster {
 		try {
 
 			// validate any gres arguments
-			args.filter { it.startsWith("--gres=") }
-				.forEach { Gres.parseAll(it) }
+			args.filter { (name, _) -> name == "gres" }
+				.forEach { (_, value) -> Gres.parseAll(value) }
 
 		} catch (t: Throwable) {
 			throw ClusterJob.ValidationFailedException(t)
 		}
 	}
 
-	override fun validateDependency(depId: String) {
-		// sbatch will validate the dependency ids, so we don't have to do it here
-	}
+	override suspend fun buildScript(clusterJob: ClusterJob, commands: String): String {
 
-	override suspend fun launch(clusterJob: ClusterJob, depIds: List<String>, scriptPath: Path): ClusterJob.LaunchResult? {
+		val templates = TemplateEngine()
+		val template = templates.templateOrThrow(clusterJob.template)
 
-		// build the sbatch command and add any args
-		// NOTE: argument sanitization is handled by Command.toSafeShellString(), so we don't need to double-sanitize each argument here
-		var sbatch = Command(config.cmdSbatch)
-
-		sbatch.args.add("--output=${clusterJob.outPathMask()}")
-
-		// add all the arguments from the job submission
-		sbatch.args.addAll(clusterJob.args)
-
-		if (depIds.isNotEmpty()) {
-			sbatch.args.add("--dependency=afterany:${depIds.joinToString(",")}")
+		// set args from the user
+		clusterJob.osUsername?.let {
+			template.args.user["os_username"] = it
+		}
+		clusterJob.userProperties?.let {
+			template.args.user["properties"] = it
 		}
 
-		// use the default cpu queue, if none was specified in the args
-		val partition = clusterJob.argsPosix
-			.find { it.startsWith("--partition=") }
-			?.split("=")
-			?.lastOrNull()
-		if (partition == null) {
-			// that is, if any default queue exists
-			config.queues.firstOrNull()
-				?.let { sbatch.args.add("--partition=$it") }
+		// set args from the job
+		for ((name, value) in clusterJob.argsParsed) {
+			if (name != null) {
+				template.args.job[name] = value
+			}
+		}
+
+		// handle cluster job dependencies
+		val deps = clusterJob.dependencies()
+		if (deps.isNotEmpty()) {
+			val launchIds = deps.joinToString(",") { it.launchIdOrThrow }
+			template.args.job["dependency"] = "afterany:$launchIds"
 		}
 
 		// render the array arguments
@@ -106,14 +104,30 @@ class SBatch(val config: Config.Slurm) : Cluster {
 			val bundleInfo = clusterJob.commands.bundleSize
 				?.let { "%$it" }
 				?: ""
-			sbatch.args.add("--array=1-$arraySize$bundleInfo")
+			template.args.job["array"] = "1-$arraySize$bundleInfo"
 		}
 
 		// set the job name, if any
 		clusterJob.clusterName?.let {
-			sbatch.args.add("--job-name=$it")
+			template.args.job["name"] = it
 		}
 
+		// set the job type, if any
+		clusterJob.type?.let {
+			template.args.job["type"] = it
+		}
+
+		template.args.job["commands"] = commands
+
+		return templates.eval(template)
+	}
+
+	override suspend fun launch(clusterJob: ClusterJob, scriptPath: Path): ClusterJob.LaunchResult? {
+
+		// build the sbatch command and add any args
+		// NOTE: argument sanitization is handled by Command.toSafeShellString(), so we don't need to double-sanitize each argument here
+		var sbatch = Command(config.cmdSbatch)
+		sbatch.args.add("--output=${clusterJob.outPathMask()}")
 		sbatch.args.add("$scriptPath")
 
 		// run the job as the specified OS user, if needed
@@ -244,8 +258,6 @@ fun ArgValues.toSbatchArgs(): List<String> =
 		add("--cpus-per-task=$slurmLaunchCpus")
 		add("--mem=${slurmLaunchMemory}G")
 		add("--time=$slurmLaunchWalltime")
-		slurmLaunchQueue?.let { add("--partition=$it") }
-		slurmLaunchAccount?.let { add("--account=$it") }
 		slurmLaunchGres?.let { add("--gres=$it") }
 	}
 	// NOTE: argument sanitization is handled by the job submitter, so we don't need to double-sanitize each argument here

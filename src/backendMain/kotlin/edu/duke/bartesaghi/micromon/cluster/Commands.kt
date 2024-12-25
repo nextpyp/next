@@ -5,7 +5,6 @@ import edu.duke.bartesaghi.micromon.cluster.slurm.Gres
 import edu.duke.bartesaghi.micromon.linux.userprocessor.editPermissionsAs
 import edu.duke.bartesaghi.micromon.linux.userprocessor.writeStringAs
 import edu.duke.bartesaghi.micromon.mongo.getListOfStrings
-import edu.duke.bartesaghi.micromon.substringAfterFirst
 import org.bson.Document
 import java.nio.file.Path
 import java.nio.file.attribute.PosixFilePermission
@@ -266,20 +265,21 @@ fun singularityWrapper(job: ClusterJob, container: Container): (String) -> Strin
 	// set the working directory
 	singularityArgs += listOf("--pwd \"${job.dir}\"")
 
+	// TODO: how to integrate this with the cluster templates??
+	//       need associated args with ClusterJob.container?
 	// turn on NVidia support if the job was submitted to a GPU queue
-	val isGpuQueue = job.argsPosix
-		.firstOrNull { it.startsWith("--partition=") }
-		?.let { arg ->
-			val queue = arg.split("=").getOrNull(1) ?: ""
+	val args = job.argsParsed
+	val isGpuQueue = args
+		.firstOrNull { (name, _) -> name == "partition" }
+		?.let { (_, queue) ->
 			val gpuQueues = Config.instance.slurm?.gpuQueues
 			gpuQueues != null && queue in gpuQueues
 		}
 		?: false
 	// or if the job requested a GPU specifically
-	val requestedGpu = job.argsPosix
-		.firstOrNull { it.startsWith("--gres=") }
-		?.substringAfterFirst('=')
-		?.let { Gres.parseAll(it) }
+	val requestedGpu = args
+		.firstOrNull { (name, _) -> name == "gres" }
+		?.let { (_, value) -> Gres.parseAll(value) }
 		?.any { it.name == "gpu" }
 		?: false
 	if (isGpuQueue || requestedGpu) {

@@ -162,6 +162,7 @@ class Config(toml: String) {
 		val jmx: Boolean,
 		val oomdump: Boolean,
 		val workflowDirs: List<Path>,
+		val clusterTemplatesDir: Path?,
 		val demo: Boolean,
 		val maxProjectsPerUser: Int?,
 		val minPasswordLength: Int
@@ -281,6 +282,8 @@ class Config(toml: String) {
 						getString(i).toPath()
 					}
 				} ?: emptyList(),
+				clusterTemplatesDir = getString("clusterTemplatesDir")
+					?.toPath(),
 				demo = getBoolean("demo") ?: false,
 				maxProjectsPerUser = getInt("maxProjectsPerUser"),
 				minPasswordLength = getInt("minPasswordLength") ?: 12
@@ -325,21 +328,22 @@ class Config(toml: String) {
 		}
 		append("""
 			|[web]
-			|             host:  ${web.host}
-			|             port:  ${web.port}
-			|        local dir:  ${web.localDir}
-			|       shared dir:  ${web.sharedDir}
-			|  shared exec dir:  ${web.sharedExecDir}
-			|             auth:  ${web.auth}
-			|          webhost:  ${web.webhost}
-			|            debug:  ${web.debug}
-			|     sendmail cmd:  ${web.cmdSendmail}
-			|         heap MiB:  ${web.heapMiB}
-			|      database GB:  ${web.databaseGB}
-			|              JMX:  ${web.jmx}
-			|   OOM heap dumps:  ${web.oomdump}
-			|    workflow dirs:  ${web.workflowDirs.joinToString("\n$indent")}
-			|        demo mode:  ${web.demo}
+			|                   host:  ${web.host}
+			|                   port:  ${web.port}
+			|              local dir:  ${web.localDir}
+			|             shared dir:  ${web.sharedDir}
+			|        shared exec dir:  ${web.sharedExecDir}
+			|                   auth:  ${web.auth}
+			|                webhost:  ${web.webhost}
+			|                  debug:  ${web.debug}
+			|           sendmail cmd:  ${web.cmdSendmail}
+			|               heap MiB:  ${web.heapMiB}
+			|            database GB:  ${web.databaseGB}
+			|                    JMX:  ${web.jmx}
+			|         OOM heap dumps:  ${web.oomdump}
+			|          workflow dirs:  ${web.workflowDirs.joinToString("\n$indent")}
+			|  cluster templates dir:  ${web.clusterTemplatesDir}
+			|              demo mode:  ${web.demo}
 		""".trimMargin())
 	}.toString()
 }

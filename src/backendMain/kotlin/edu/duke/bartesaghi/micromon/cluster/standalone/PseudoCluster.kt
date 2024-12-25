@@ -13,7 +13,6 @@ import edu.duke.bartesaghi.micromon.linux.userprocessor.deleteAs
 import edu.duke.bartesaghi.micromon.linux.userprocessor.readStringAs
 import edu.duke.bartesaghi.micromon.services.ClusterJobResultType
 import edu.duke.bartesaghi.micromon.services.ClusterMode
-import edu.duke.bartesaghi.micromon.services.ClusterQueues
 import edu.duke.bartesaghi.micromon.services.StandaloneData
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -35,20 +34,19 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 	private inner class Job(
 		val jobId: Long,
 		val clusterJob: ClusterJob,
-		val depIds: List<String>,
 		val scriptPath: Path
 	) {
 
 		val created = Instant.now()!!
 
 		// parse the arguments
+		private val args = clusterJob.argsParsed
 
 		// CPU arguments will look like: --cpus-per-task=5
 		val numCpus: Int? =
-			clusterJob.argsPosix
-				.firstOrNull { it.startsWith("--cpus-per-task=") }
-				?.substringAfterFirst('=')
-				?.let { value ->
+			args
+				.firstOrNull { (name, _) -> name == "cpus-per-task" }
+				?.let { (_, value) ->
 					when (val i = value.toIntOrNull()) {
 						null -> {
 							Backend.log.warn("--cpus-per-task value unrecognizable: $value")
@@ -60,10 +58,9 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 
 		// memory arguments will look like: --mem=5G
 		val memGiB: Int? =
-			clusterJob.argsPosix
-				.firstOrNull { it.startsWith("--mem=") }
-				?.substringAfterFirst('=')
-				?.let { value ->
+			args
+				.firstOrNull { (name, _) -> name == "mem" }
+				?.let { (_, value) ->
 					if (value.endsWith('G') || value.endsWith('g')) {
 						value.substring(0, value.length - 1)
 							.toIntOrNull()
@@ -77,10 +74,9 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 		// --gres=gpu:1
 		// --gres=foo:bar,cow:moo:5g
 		val numGpus: Int? =
-			clusterJob.argsPosix
-				.firstOrNull { it.startsWith("--gres=") }
-				?.substringAfterFirst('=')
-				?.let { Gres.parseAll(it) }
+			args
+				.firstOrNull { (name, _) -> name == "gres" }
+				?.let { (_, value) -> Gres.parseAll(value) }
 				?.firstOrNull { it.name == "gpu" }
 				?.count
 				?.expand()
@@ -168,8 +164,8 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 				}
 
 				// see if the dependencies are finished
-				for (depId in job.depIds) {
-					if (!dependencySatisfied(jobs, depId)) {
+				for (dep in job.clusterJob.dependencies()) {
+					if (!dependencySatisfied(jobs, dep)) {
 						return WaitingReason.Dependency
 					}
 				}
@@ -185,9 +181,13 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 				return null
 			}
 
-			private fun dependencySatisfied(jobs: Jobs, depId: String): Boolean {
+			private fun dependencySatisfied(jobs: Jobs, dep: ClusterJob.Dependency): Boolean {
 
-				val (depIdJob, depIdArray) = depId
+				val launchId = dep.launchId
+					// dependency not launched yet, so the dependency is not satisfied
+					?: return false
+
+				val (depIdJob, depIdArray) = launchId
 					.split('_')
 					.let { it[0].toLong() to it.getOrNull(1)?.toInt() }
 
@@ -456,52 +456,28 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 	override val commandsConfig: Commands.Config get() =
 		config.commandsConfig
 
-	override val queues: ClusterQueues =
-		ClusterQueues(emptyList(), emptyList())
-
 	override fun validate(job: ClusterJob) {
 
-		val args = job.argsPosix
+		val args = job.argsParsed
 
 		// these are errors caused by users (rather than programmers),
 		// so remap the error types so the errors can be shown in the UI
 		try {
 
 			// validate any gres arguments
-			args.filter { it.startsWith("--gres=") }
-				.forEach { Gres.parseAll(it) }
+			args.filter { (name, _) -> name == "gres" }
+				.forEach { (_, value) -> Gres.parseAll(value) }
 
 		} catch (t: Throwable) {
 			throw ClusterJob.ValidationFailedException(t)
 		}
 	}
 
-	override fun validateDependency(depId: String) {
-
-		val parts = depId.split('_')
-		when (parts.size) {
-
-			1 -> {
-				parts[0].toLongOrNull()
-					?: throw IllegalArgumentException("dependency id $depId is not a number")
-			}
-
-			2 -> {
-				parts[0].toLongOrNull()
-					?: throw IllegalArgumentException("dependency id $depId job part ${parts[0]} is not a number")
-				parts[1].toIntOrNull()
-					?: throw IllegalArgumentException("dependency id $depId array part ${parts[1]} is not an integer")
-			}
-
-			else -> throw IllegalArgumentException("dependency id $depId is unrecognizable")
-		}
-	}
-
-	override suspend fun launch(clusterJob: ClusterJob, depIds: List<String>, scriptPath: Path): ClusterJob.LaunchResult {
+	override suspend fun launch(clusterJob: ClusterJob, scriptPath: Path): ClusterJob.LaunchResult {
 
 		// create the job, and start it, if possible
 		val job = jobs.use { jobs ->
-			val job = Job(jobs.nextId(), clusterJob, depIds, scriptPath)
+			val job = Job(jobs.nextId(), clusterJob, scriptPath)
 			jobs.add(job)
 			jobs.maybeStartTasks()
 			return@use job
