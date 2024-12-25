@@ -30,11 +30,9 @@ tomo_rec_erase_fiducials = true
 slurm_tasks = { ask = true }            # e.g.: 42 for pre-processing, 124 for refinement
 slurm_memory = { ask = true }           # e.g.: 420 for pre-processingm 720 for refinement
 slurm_walltime = { ask = true }         # e.g.: 72:00:00
-slurm_queue = { ask = true }
 slurm_merge_tasks = { ask = true }      # e.g.: 13 for refinement, 100 for classification
 slurm_merge_memory = { ask = true }     # e.g.: 20 for refinement, 200 for classification
 slurm_merge_walltime = { ask = true }   # e.g.: 48:00:00
-slurm_merge_queue = { ask = true }
 
 [blocks.particlepicking]
 blockId = "tomo-picking"
@@ -138,6 +136,7 @@ csp_ToleranceParticlesPsi = 30.0
 csp_ToleranceParticlesPhi = 30.0
 csp_ToleranceParticlesTheta = 30.0
 csp_ToleranceParticlesShifts = 30.0
+csp_ctf_handedness = true
 dose_weighting_enable = true
 dose_weighting_fraction = 4
 dose_weighting_global = true
@@ -182,6 +181,7 @@ csp_ToleranceParticlesPhi = 5.0
 csp_ToleranceParticlesTheta = 5.0
 csp_ToleranceParticlesShifts = 20.0
 csp_Grid = "8,8,2"
+csp_ctf_handedness = true
 dose_weighting_enable = true
 dose_weighting_fraction = 4
 dose_weighting_global = true
@@ -212,6 +212,7 @@ csp_UseImagesForRefinementMax = 25
 csp_NumberOfRandomIterations = 0
 csp_ToleranceMicrographDefocus1 = 2000
 csp_ToleranceMicrographDefocus2 = 2000
+csp_ctf_handedness = true
 csp_Grid = "8,8,2"
 dose_weighting_enable = true
 dose_weighting_fraction = 4
@@ -248,6 +249,7 @@ csp_ToleranceParticlesPsi = 5.0
 csp_ToleranceParticlesPhi = 5.0
 csp_ToleranceParticlesTheta = 5.0
 csp_ToleranceParticlesShifts = 20.0
+csp_ctf_handedness = true
 csp_Grid = "16,16,4"
 dose_weighting_enable = true
 dose_weighting_fraction = 2
@@ -270,9 +272,14 @@ refine_skip = false
 refine_maxiter = 20
 refine_rhref = "8"
 refine_fboost = true
+refine_refine_angle_phi = false
+refine_refine_angle_psi = false
+refine_refine_angle_theta = false
 csp_refine_particles = false
 csp_refine_micrographs = false
 csp_refine_ctf = false
+csp_Grid = "1,1,1"
+csp_ctf_handedness = true
 class_num = 8
 class_rhcls = 8.0
 dose_weighting_enable = true

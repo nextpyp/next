@@ -10,10 +10,10 @@ blockId = "tomo-rawdata"
 name = "Raw Data"
 
 [blocks.rawdata.args]
-data_path = { ask = true }
-data_path_mdoc = { ask = true }
-gain_reference = { ask = true }
-scope_pixel = 1.85
+data_path = "/nfs/bartesaghilab/nextpyp/lamellae/HeLa_argon/*.eer"
+data_path_mdoc = "/nfs/bartesaghilab/nextpyp/lamellae/HeLa_argon/*.mdoc"
+gain_reference = "/nfs/bartesaghilab/nextpyp/lamellae/HeLa_argon/gain_ref/20220406_175020_EER_GainReference.gain"
+scope_pixel = 1.9
 scope_voltage = 300
 scope_tilt_axis = -174.23
 
@@ -23,19 +23,20 @@ name = "Pre-processing"
 parent = "rawdata"
 
 [blocks.preprocessing.args]
+movie_ali = "motioncor"
 movie_pattern = "TILTSERIES_SCANORD_ANGLE_EER.eer"
 movie_eer_frames = 10
 ctf_max_res = 7.0
 tomo_ali_method = "aretomo"
 tomo_rec_method = "aretomo"
-slurm_tasks = { ask = true }            # e.g.: 42 for pre-processing, 124 for refinement
-slurm_memory = { ask = true }           # e.g.: 420 for pre-processingm 720 for refinement
-slurm_walltime = { ask = true }         # e.g.: 72:00:00
-slurm_queue = { ask = true }
-slurm_merge_tasks = { ask = true }      # e.g.: 13 for refinement, 100 for classification
-slurm_merge_memory = { ask = true }     # e.g.: 20 for refinement, 200 for classification
-slurm_merge_walltime = { ask = true }   # e.g.: 48:00:00
-slurm_merge_queue = { ask = true }
+slurm_tasks = 11
+slurm_memory = 44
+slurm_walltime = "2:00:00"
+slurm_queue = "bartesaghilab-gpu"
+slurm_merge_tasks = 6
+slurm_merge_memory = 24
+slurm_merge_walltime = "2:00:00"
+slurm_merge_queue = "bartesaghilab-cpu"
 
 [blocks.particlepicking]
 blockId = "tomo-picking"
@@ -51,6 +52,10 @@ tomo_pick_detection_width_3d = 80
 tomo_pick_stdtimes_filt_3d = 1.2
 tomo_pick_remove_edge_3d = true
 tomo_pick_rand = true
+slurm_tasks = 4
+slurm_memory = 22
+slurm_walltime = "2:00:00"
+slurm_queue = "bartesaghilab-amd"
 
 [blocks.reference_refinement]
 blockId = "tomo-coarse-refinement"
@@ -61,11 +66,13 @@ parent = "particlepicking"
 refine_parfile_tomo = "auto"
 particle_mw = 3000
 particle_rad = 150
-extract_box = 100
+extract_box = 162
 extract_bin = 2
 extract_gold = false
 refine_rhref = "20.0"
 refine_fboost = true
+refine_maskth = "/nfs/bartesaghilab/nextpyp/lamellae/mask_bin2.mrc"
+refine_model = "/nfs/bartesaghilab/nextpyp/lamellae/emd_15636.mrc.mrc"
 csp_UseImagesForRefinementMax = 16
 csp_refine_particles = true
 csp_ToleranceParticlesPhi = 180.0
@@ -73,7 +80,23 @@ csp_ToleranceParticlesTheta = 180.0
 csp_ToleranceParticlesPsi = 90.0
 csp_ToleranceParticlesShifts = 60.0
 csp_NumberOfRandomIterations = 5000000
-refine_model = { ask = true }
+csp_ctf_handedness = true
+slurm_tasks = 124
+slurm_memory = 720
+slurm_walltime = "72:00:00"
+slurm_queue = "bartesaghilab-amd"
+
+[blocks.mask_generation]
+blockId = "sp-masking"
+name = "Create shape mask"
+parent = "reference_refinement"
+
+[blocks.mask_generation.args]
+mask_model = "auto"
+mask_threshold = 0.18
+mask_normalized = false
+mask_lowpass = 5
+mask_edge_width = 6
 
 [blocks.particle_filtering]
 blockId = "tomo-fine-refinement"
@@ -81,15 +104,14 @@ name = "Particle filtering"
 parent = "reference_refinement"
 
 [blocks.particle_filtering.args]
-particle_mw = 2000
+particle_mw = 3000
 particle_rad = 150
-extract_box = 64
-extract_bin = 4
-clean_threshold = 15.0
-clean_dist = 20.0
-clean_mintilt = -7.0
-clean_maxtilt = 7.0
-clean_min_num_projections = 1
+extract_box = 162
+extract_bin = 2
+clean_threshold = 9.0
+clean_dist = 100.0
+clean_mintilt = -16.0
+clean_maxtilt = 16.0
 clean_check_reconstruction = true
 clean_parfile = 'auto'
 refine_model = 'auto'
@@ -100,13 +122,13 @@ name = "Particle deep cleaning"
 parent = "particle_filtering"
 
 [blocks.particle_deep_clean.args]
+particle_mw = 3000
+particle_rad = 150
+extract_box = 162
+extract_bin = 2
 clean_parfile = 'auto'
 refine_model = 'auto'
 clean_discard = true
-particle_mw = 2000
-particle_rad = 150
-extract_box = 64
-extract_bin = 4
 
 [blocks.constrained_refinement]
 blockId = "tomo-coarse-refinement"
@@ -114,104 +136,103 @@ name = "Fully constrained refinement"
 parent = "particle_deep_clean"
 
 [blocks.constrained_refinement.args]
+particle_mw = 3000
+particle_rad = 150
+extract_box = 162
+extract_bin = 2
 refine_parfile = "auto"
 refine_model = "auto"
-particle_mw = 2000
-particle_rad = 150
-extract_box = 256
-extract_bin = 1
 refine_skip = true
-refine_maxiter = 3
-refine_rhref = "18:14"
-refine_fboost = true
+refine_maxiter = 6
+refine_rhref = "10"
+refine_fboost = false
+refine_fssnr = false
+refine_maskth = "/nfs/bartesaghilab/nextpyp/lamellae/mask_bin2.mrc"
+reconstruct_mintilt = -50
+reconstruct_maxtilt = 50
 csp_refine_particles = true
 csp_refine_micrographs = true
-csp_OptimizerStepLength = 100.0
-csp_UseImagesForRefinementMin = 15
-csp_UseImagesForRefinementMax = 25
+csp_UseImagesForRefinementMax = 12
 csp_NumberOfRandomIterations = 0
-csp_ToleranceParticlesPsi = 30.0
-csp_ToleranceParticlesPhi = 30.0
-csp_ToleranceParticlesTheta = 30.0
-csp_ToleranceParticlesShifts = 30.0
-dose_weighting_enable = true
-dose_weighting_fraction = 4
-dose_weighting_global = true
+csp_ctf_handedness = true
+slurm_tasks = 124
+slurm_memory = 720
+slurm_walltime = "72:00:00"
+slurm_queue = "bartesaghilab-amd"
 
-[blocks.mask_generation]
-blockId = "sp-masking"
-name = "Create shape mask"
+[blocks.dose_weighting]
+blockId = "tomo-coarse-refinement"
+name = "Dose weighting"
 parent = "constrained_refinement"
 
-[blocks.mask_generation.args]
-mask_model = "auto"
-mask_threshold = 0.4
-mask_edge_width = 8
+[blocks.dose_weighting.args]
+particle_mw = 3000
+particle_rad = 150
+extract_box = 162
+extract_bin = 2
+refine_parfile = "auto"
+refine_model = "auto"
+refine_maxiter = 3
+refine_rhref = "8"
+refine_maskth = "/nfs/bartesaghilab/nextpyp/lamellae/mask_bin2.mrc"
+dose_weighting_enable = true
+dose_weighting_fraction = 6
+dose_weighting_global = true
 
 [blocks.region_refinement]
 blockId = "tomo-coarse-refinement"
 name = "Region-based refinement"
-parent = "constrained_refinement"
+parent = "dose_weighting"
 
 [blocks.region_refinement.args]
+particle_mw = 3000
+particle_rad = 150
+extract_box = 162
+extract_bin = 2
 refine_parfile = "auto"
 refine_model = "auto"
-refine_maskth = "auto"
-particle_mw = 2000
+refine_rhref = "6"
+refine_maskth = "/nfs/bartesaghilab/nextpyp/lamellae/mask_bin2.mrc"
+csp_Grid = "4,4,4"
+
+[blocks.unbinned_refinement]
+blockId = "tomo-coarse-refinement"
+name = "Unbnned refinement"
+parent = "region_refinement"
+
+[blocks.unbinned_refinement.args]
+particle_mw = 3000
 particle_rad = 150
-extract_box = 256
+extract_box = 324
 extract_bin = 1
-refine_skip = true
-refine_maxiter = 6
-refine_rhref = "12:10:8:6:5"
-refine_fboost = true
-csp_refine_particles = true
-csp_refine_micrographs = true
-csp_OptimizerStepLength = 100.0
-csp_UseImagesForRefinementMin = 18
-csp_UseImagesForRefinementMax = 22
-csp_NumberOfRandomIterations = 0
-csp_ToleranceMicrographTiltAngles = 5.0
-csp_ToleranceMicrographTiltAxisAngles = 5.0
-csp_ToleranceParticlesPsi = 5.0
-csp_ToleranceParticlesPhi = 5.0
-csp_ToleranceParticlesTheta = 5.0
-csp_ToleranceParticlesShifts = 20.0
-csp_Grid = "8,8,2"
-dose_weighting_enable = true
-dose_weighting_fraction = 4
-dose_weighting_global = true
+refine_parfile = "auto"
+refine_model = "auto"
+refine_maxiter = 3
+refine_rhref = "6:5"
+refine_maskth = "/nfs/bartesaghilab/nextpyp/lamellae/mask_bin1.mrc"
+csp_ToleranceParticlesShifts = 30.0
+dose_weighting_fraction = 7
 
 [blocks.ctf_refinement]
 blockId = "tomo-coarse-refinement"
 name = "Particle-based CTF refinement"
-parent = "region_refinement"
+parent = "unbinned_refinement"
 
 [blocks.ctf_refinement.args]
+particle_mw = 3000
+particle_rad = 150
+extract_box = 324
+extract_bin = 1
 refine_parfile = "auto"
 refine_model = "auto"
-refine_maskth = "auto"
-particle_mw = 2000
-particle_rad = 150
-extract_box = 256
-extract_bin = 1
-refine_skip = true
 refine_maxiter = 2
-refine_rhref = "4.5"
-refine_fboost = true
+refine_maskth = "/nfs/bartesaghilab/nextpyp/lamellae/mask_bin1.mrc"
 csp_refine_particles = false
 csp_refine_micrographs = false
 csp_refine_ctf = true
-csp_OptimizerStepLength = 100.0
-csp_UseImagesForRefinementMin = 15
-csp_UseImagesForRefinementMax = 25
-csp_NumberOfRandomIterations = 0
 csp_ToleranceMicrographDefocus1 = 2000
 csp_ToleranceMicrographDefocus2 = 2000
-csp_Grid = "8,8,2"
-dose_weighting_enable = true
-dose_weighting_fraction = 4
-dose_weighting_global = true
+denoise_enable = true
 
 [blocks.region_refinement_2]
 blockId = "tomo-coarse-refinement"
@@ -219,58 +240,25 @@ name = "Region-based refinement 2"
 parent = "ctf_refinement"
 
 [blocks.region_refinement_2.args]
+particle_mw = 3000
+particle_rad = 150
+extract_box = 324
+extract_bin = 1
 refine_parfile = "auto"
 refine_model = "auto"
-refine_maskth = "auto"
-particle_mw = 2000
-particle_rad = 150
-extract_box = 256
-extract_bin = 1
-refine_skip = true
+refine_maskth = "/nfs/bartesaghilab/nextpyp/lamellae/mask_bin1.mrc"
 refine_maxiter = 4
-refine_rhref = "6:5:4.5"
-refine_fboost = true
+refine_rhref = "5:5:4.8:4.5"
 csp_refine_particles = true
 csp_refine_micrographs = true
 csp_refine_ctf = false
-csp_OptimizerStepLength = 20.0
-csp_UseImagesForRefinementMin = 18
-csp_UseImagesForRefinementMax = 22
-csp_NumberOfRandomIterations = 0
-csp_ToleranceMicrographShifts = 20.0
-csp_ToleranceMicrographTiltAngles = 5.0
-csp_ToleranceMicrographTiltAxisAngles = 5.0
-csp_ToleranceParticlesPsi = 5.0
-csp_ToleranceParticlesPhi = 5.0
-csp_ToleranceParticlesTheta = 5.0
-csp_ToleranceParticlesShifts = 20.0
-csp_Grid = "16,16,4"
-dose_weighting_enable = true
-dose_weighting_fraction = 2
-dose_weighting_global = true
 
-[blocks.constrained_classification]
-blockId = "tomo-coarse-refinement"
-name = "Constrained classification"
+[blocks.sharpening]
+blockId = "sp-postprocessing"
+name = "Map-sharpening"
 parent = "region_refinement_2"
 
-[blocks.constrained_classification.args]
-refine_parfile = "auto"
-refine_model = "auto"
-refine_maskth = "auto"
-particle_mw = 2000
-particle_rad = 150
-extract_box = 256
-extract_bin = 1
-refine_skip = false
-refine_maxiter = 20
-refine_rhref = "8"
-refine_fboost = true
-csp_refine_particles = false
-csp_refine_micrographs = false
-csp_refine_ctf = false
-class_num = 8
-class_rhcls = 8.0
-dose_weighting_enable = true
-dose_weighting_fraction = 2
-dose_weighting_weights = "auto"
+[blocks.sharpening.args]
+sharpen_input_map = 'auto'
+sharpen_automask_threshold = 0.35
+sharpen_adhoc_bfac = -25
