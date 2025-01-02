@@ -11,7 +11,6 @@ comment = """
 
 
 #!/bin/bash
-# default template
 
 #SBATCH --job-name={{ job.name }}
 
@@ -36,30 +35,8 @@ comment = """
 {% endif %}
 
 {% if job.gres | exists %}
-#SBATCH --partition=bartesaghilab-gpu
 #SBATCH --gres={{ job.gres }}
 {% endif %}
-
-{# OPTIONAL: do something different for each type of cluster job #}
-{% if job.type | exists %}
-{% if job.type == "launch" %}
-echo job.type = "launch"
-{% elseif job.type == "split" %}
-echo job.type = "split"
-{% elseif job.type == "merge" %}
-echo job.type = "merge"
-{% endif %}
-{% endif %}
-
-{# TODO: comment these out #}
-{# OPTIONAL: do something user-specific, if needed #}
-{# echo user.os_username = {{ user.os_username }} #}
-
-{# {% if user.properties.acct | exists %} #}
-{# echo user.properties.acct = {{ user.properties.acct }} #}
-{{# % else %} #}
-{# echo (no user.properties.acct) #}
-{{# % endif %} #}
 
 
 {{ job.commands | raw }}
