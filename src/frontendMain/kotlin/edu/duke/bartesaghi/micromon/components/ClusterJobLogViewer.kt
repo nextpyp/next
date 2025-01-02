@@ -165,26 +165,26 @@ class ClusterJobLogViewer(
 				}
 			}
 
-		} else {
+		}
+		
+		// show waiting info, if any
+		// NOTE: Always show waiting info, even if the job has launched (from the website),
+		//       because the job could still be waiting inside the job scheduler (eg, SLURM).
+		launchElem.h1("Waiting")
+		val elem = launchElem.div()
+		val loading = elem.loading("Checking ...")
+		AppScope.launch {
 
-			launchElem.h2("Waiting:")
-			val elem = launchElem.div()
-
-			// job not launched yet? show waiting reason
-			val loading = elem.loading("Checking ...")
-			AppScope.launch {
-
-				val reason = try {
-					Services.projects.waitingReason(clusterJobId)
-				} catch (t: Throwable) {
-					launchElem.errorMessage(t)
-					return@launch
-				} finally {
-					elem.remove(loading)
-				}
-
-				elem.content = reason
+			val reason = try {
+				Services.projects.waitingReason(clusterJobId)
+			} catch (t: Throwable) {
+				launchElem.errorMessage(t)
+				return@launch
+			} finally {
+				elem.remove(loading)
 			}
+
+			elem.content = reason
 		}
 
 		// show the commands
