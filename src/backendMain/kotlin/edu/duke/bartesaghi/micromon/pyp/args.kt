@@ -298,14 +298,21 @@ actual fun ArgValuesToml.toArgValues(args: Args): ArgValues {
 	val argErrors = StringBuilder()
 
 	for (key in doc.keySetInOrder()) {
-		val arg = args.arg(key) ?: continue
 
-		val value = doc.get(key).translateTomlValueForReading(arg)
+		val arg = args.arg(key) ?: continue
+		val value = doc.get(key) ?: continue
+		val translatedValue = value.translateTomlValueForReading(arg)
 
 		try {
-			values[arg] = arg.type.valueOf(value)
+			values[arg] = arg.type.valueOf(translatedValue)
 		} catch (ex: ArgCheckException) {
-			argErrors.append("\targ ${arg.fullId} value $value: ${ex.message}\n")
+			val originalType = value::class.simpleName ?: "(unknown type)"
+			val translatedType = translatedValue::class.simpleName ?: "(unknown type)"
+			val typeInfo = when {
+				originalType == translatedType -> originalType
+				else -> "$originalType, translated to $translatedType"
+			} + ", expecting ${arg.type.argTypeId}"
+			argErrors.append("\targ ${arg.fullId} value $value ($typeInfo): ${ex.message}\n")
 		}
 	}
 
@@ -316,7 +323,7 @@ actual fun ArgValuesToml.toArgValues(args: Args): ArgValues {
 	return values
 }
 
-fun Any?.translateTomlValueForReading(arg: Arg): Any? =
+fun Any.translateTomlValueForReading(arg: Arg): Any =
 	when (arg.type) {
 
 		is ArgType.TFloat -> {

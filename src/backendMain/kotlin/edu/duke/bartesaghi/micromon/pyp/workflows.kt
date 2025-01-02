@@ -95,7 +95,7 @@ object Workflows {
 								throw IllegalArgumentException("unrecognized special value for argument $argFullId")
 							}
 
-						else -> argValues[arg] = value.translateTomlValueForReading(arg)
+						else -> argValues[arg] = value?.translateTomlValueForReading(arg)
 					}
 				}
 			}
