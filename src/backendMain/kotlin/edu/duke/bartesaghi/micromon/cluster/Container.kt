@@ -43,7 +43,7 @@ sealed interface Container {
 
 			fun cmdWebrpc(vararg args: String): String =
 				ArrayList<String>().apply {
-					add("singularity")
+					add("apptainer")
 					add("--quiet")
 					add("exec")
 					add("--no-home")

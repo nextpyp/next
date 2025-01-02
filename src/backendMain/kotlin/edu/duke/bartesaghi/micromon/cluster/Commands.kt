@@ -94,7 +94,7 @@ private fun batchHeader(job: ClusterJob): String =
 
 
 /**
- * Run commands in SLURM where all the commands are wrapped with singularity (or not) as a whole
+ * Run commands in SLURM where all the commands are wrapped with apptainer (or not) as a whole
  */
 class CommandsScript(
 	val commands: List<String>,
@@ -152,17 +152,17 @@ class CommandsScript(
 
 		val commands = ArrayList<String>()
 
-		// get the singularity wrapper, if needed
+		// get the apptainer wrapper, if needed
 		val container = Container.fromId(job.containerId)
-		val singularitiWrapper = if (container != null) {
+		val apptainerWrapper = if (container != null) {
 			commands.addAll(container.prelaunchCommands())
-			singularityWrapper(job, container)
+			apptainerWrapper(job, container)
 		} else {
 			null
 		}
 
 		// apply the wraps to the script
-		commands.add("\"${batchPath}\"".wrap(singularitiWrapper))
+		commands.add("\"${batchPath}\"".wrap(apptainerWrapper))
 
 		return commands
 	}
@@ -206,11 +206,11 @@ class CommandsGrid(
 
 		val commands = ArrayList<String>()
 
-		// get the singularity wrapper, if needed
+		// get the apptainer wrapper, if needed
 		val container = Container.fromId(job.containerId)
-		val singularityWrapper = if (container != null) {
+		val apptainerWrapper = if (container != null) {
 			commands.addAll(container.prelaunchCommands())
-			singularityWrapper(job, container)
+			apptainerWrapper(job, container)
 		} else {
 			null
 		}
@@ -226,7 +226,7 @@ class CommandsGrid(
 				appendLine("if [ \"\$SLURM_ARRAY_TASK_ID\" -eq \"$arrayId\" ]; then")
 				for (command in group) {
 					append('\t')
-					appendLine(command.wrap(singularityWrapper))
+					appendLine(command.wrap(apptainerWrapper))
 				}
 				appendLine("fi")
 			}
@@ -245,12 +245,12 @@ class CommandsGrid(
 
 
 /**
- * Returns a function that wraps a command within a singulartiy launch command
+ * Returns a function that wraps a command within a apptainer launch command
  */
-fun singularityWrapper(job: ClusterJob, container: Container): (String) -> String {
+fun apptainerWrapper(job: ClusterJob, container: Container): (String) -> String {
 
-	// build the args needed to run the singularity container
-	val singularityArgs = mutableListOf(
+	// build the args needed to run the apptainer container
+	val apptainerArgs = mutableListOf(
 		// don't automatically pull in random stuff from the user's home directory
 		// this confuses the hell out of Python package lookups
 		"--no-home"
@@ -258,12 +258,12 @@ fun singularityWrapper(job: ClusterJob, container: Container): (String) -> Strin
 
 	// handle the container binds
 	for (path in container.binds) {
-		singularityArgs.add("--bind=\"$path\"")
+		apptainerArgs.add("--bind=\"$path\"")
 	}
-	singularityArgs.add("--bind=\"${Config.instance.web.sharedDir}\"")
+	apptainerArgs.add("--bind=\"${Config.instance.web.sharedDir}\"")
 
 	// set the working directory
-	singularityArgs += listOf("--pwd \"${job.dir}\"")
+	apptainerArgs += listOf("--pwd \"${job.dir}\"")
 
 	// TODO: how to integrate this with the cluster templates??
 	//       need associated args with ClusterJob.container?
@@ -283,12 +283,12 @@ fun singularityWrapper(job: ClusterJob, container: Container): (String) -> Strin
 		?.any { it.name == "gpu" }
 		?: false
 	if (isGpuQueue || requestedGpu) {
-		singularityArgs.add("--nv")
+		apptainerArgs.add("--nv")
 	}
 
-	// build the singularity command
-	val prefix = mutableListOf("singularity --quiet exec",
-		singularityArgs.joinToString(" "),
+	// build the apptainer command
+	val prefix = mutableListOf("apptainer --quiet exec",
+		apptainerArgs.joinToString(" "),
 		"\"${container.sifPath}\"",
 	).joinToString(" ")
 

@@ -1,3 +1,3 @@
 #!/bin/sh
 
-singularity instance stop reverse-proxy
+apptainer instance stop reverse-proxy

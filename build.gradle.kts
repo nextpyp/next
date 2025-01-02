@@ -679,10 +679,10 @@ afterEvaluate {
 					environment("PYP_SRC", pypDir)
 					args("stop", projectDir, gradleCachesDir, "run")
 
-					// if the container isn't running, Singularity will return an error exit code,
+					// if the container isn't running, Apptainer will return an error exit code,
 					// which translates into a gradle exception by default
 					// except, if the container isn't running, we've already won! =D
-					// there's no need to stop it again, so just ignore errors from singularity entirely
+					// there's no need to stop it again, so just ignore errors from apptainer entirely
 					isIgnoreExitValue = true
 				}
 			}
@@ -1063,7 +1063,7 @@ afterEvaluate {
 
 		create("vmBuildNextPyp") {
 			group = "build"
-			description = "build the singularity image for the application server and MongoDB"
+			description = "build the apptainer image for the application server and MongoDB"
 			dependsOn("image")
 			doLast {
 				buildContainer("nextPYP")
@@ -1072,7 +1072,7 @@ afterEvaluate {
 
 		create("vmBuildReverseProxy") {
 			group = "build"
-			description = "build the singularity image for the Caddy reverse proxy"
+			description = "build the apptainer image for the Caddy reverse proxy"
 			doLast {
 				buildContainer("reverse-proxy")
 			}
@@ -1080,7 +1080,7 @@ afterEvaluate {
 
 		create("vmBuildRustc") {
 			group = "build"
-			description = "build the singularity image for the Rust build environment"
+			description = "build the apptainer image for the Rust build environment"
 			doLast {
 				buildContainer("rustc")
 			}
@@ -1165,10 +1165,10 @@ afterEvaluate {
 				// make sure the needed files exist
 				getConfigPath()
 
-				// if the container isn't running, Singularity will return an error exit code,
+				// if the container isn't running, Apptainer will return an error exit code,
 				// which translates into a gradle exception by default
 				// except, if the container isn't running, we've already won! =D
-				// there's no need to stop it again, so just ignore errors from singularity entirely
+				// there's no need to stop it again, so just ignore errors from apptainer entirely
 				vboxrun(vmid, "cd \"$vmRunDir\" && PYP_SRC=\"$vmPypDir\" ./nextpyp stop \"$vmMicromonDir\" \"$vmGradleCachesDir\" run", ignoreExit=true)
 			}
 		}
@@ -1209,10 +1209,10 @@ afterEvaluate {
 				// make sure the needed files exist
 				getConfigPath()
 
-				// if the container isn't running, Singularity will return an error exit code,
+				// if the container isn't running, Apptainer will return an error exit code,
 				// which translates into a gradle exception by default
 				// except, if the container isn't running, we've already won! =D
-				// there's no need to stop it again, so just ignore errors from singularity entirely
+				// there's no need to stop it again, so just ignore errors from apptainer entirely
 				vboxrun(vmid, "cd \"$vmRunDir\" && ./nextpyp stop", ignoreExit=true)
 			}
 		}

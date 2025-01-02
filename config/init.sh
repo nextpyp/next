@@ -4,7 +4,7 @@
 set -e
 
 
-# tragically, singularity doesn't seem to send the output from this script to anywhere visible
+# tragically, apptainer doesn't seem to send the output from this script to anywhere visible
 # so explcitly set stdout/stderr to a log file
 # hopefully the NEXTPYP_LOCAL env var has been set by the launcher so we know where to write the log
 exec > "$NEXTPYP_LOCAL/logs/init.log" 2>&1

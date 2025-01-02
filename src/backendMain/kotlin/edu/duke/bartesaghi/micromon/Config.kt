@@ -66,6 +66,7 @@ class Config(toml: String) {
 				"/sbin/**",
 				"/scif/**",
 				"/singularity/**",
+				"/apptainer/**",
 				"/srv/**",
 				"/sys/**",
 				"/usr/**",

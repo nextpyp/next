@@ -9,4 +9,4 @@ fi
 
 mkdir -p /var/www/reverse-proxy
 
-singularity instance start --bind /var/www/reverse-proxy reverse-proxy.sif reverse-proxy "$1"
+apptainer instance start --bind /var/www/reverse-proxy reverse-proxy.sif reverse-proxy "$1"

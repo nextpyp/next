@@ -182,7 +182,7 @@ When you're all done, run:
 
 ## Building releases
 
-To build the release singularity container, run the `vmBuildNextPyp`
+To build the release apptainer container, run the `vmBuildNextPyp`
 Gradle task. When finished, the container will appear at `run/nextPYP.sif`.
 
 To build the reverse proxy container, run the `vmBuildReverseProxy`

@@ -150,7 +150,7 @@ setup()
 
   # build the command to run the CLI
   cli=(\
-    singularity exec "${binds[@]}" --no-home "$container" \
+    apptainer exec "${binds[@]}" --no-home "$container" \
     java \
     -Xmx64M \
     -Djava.awt.headless=true \
@@ -357,7 +357,7 @@ case "$1" in
     export NEXTPYP_APPTAINER_ARGS
 
     # finally, start the website container
-    echo "Starting singularity container ..."
+    echo "Starting apptainer container ..."
     if [ "$devmain" == "test" ]; then
 
       # ok to fail here, keep going so we can cleanup
@@ -370,7 +370,7 @@ case "$1" in
         -Dlogback.configurationFile=logback-test.xml \
         @/opt/micromon/bin/classpath.txt \
       )
-      singularity exec "${apptainerargs[@]}" java "${jvmargs[@]}" edu.duke.bartesaghi.micromon.DevvmKt
+      apptainer exec "${apptainerargs[@]}" java "${jvmargs[@]}" edu.duke.bartesaghi.micromon.DevvmKt
 
       echo "apptainer/JVM exited, cleaning up ..."
 
@@ -385,7 +385,7 @@ case "$1" in
     else
 
       # start the production website instance
-      singularity instance start "${apptainerargs[@]}" nextPYP
+      apptainer instance start "${apptainerargs[@]}" nextPYP
     fi
 
     ;;
@@ -402,7 +402,7 @@ case "$1" in
     set +e
 
     # stop the website container
-    singularity instance stop nextPYP
+    apptainer instance stop nextPYP
 
     # stop any running user processors
     # NOTE: tragically, the JVM can't shut them down, so we'll have to do it here
