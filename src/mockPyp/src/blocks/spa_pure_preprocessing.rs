@@ -6,6 +6,7 @@ use tracing::info;
 
 use crate::args::{Args, ArgsConfig};
 use crate::metadata::{Ctf, Micrograph};
+use crate::progress::ProgressBar;
 use crate::rand::{sample_avgrot, sample_ctf, sample_xf};
 use crate::single_particle;
 use crate::single_particle::images::DEFAULT_NOISE;
@@ -28,6 +29,16 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 		.context("Failed to create webp dir")?;
 	fs::create_dir_all("log")
 		.context("Failed to create log dir")?;
+
+	// do some progress stuff
+	let mut progress = ProgressBar::new(100);
+	for i in 0 .. progress.total() {
+		if i % 5 == 0 {
+			progress.report();
+		}
+		progress.update(1);
+	}
+	progress.report();
 
 	// generate micrographs
 	for micrograph_i in 0 .. pp_args.num_micrographs {

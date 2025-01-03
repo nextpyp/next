@@ -790,3 +790,62 @@ inline fun <R> retryLoop(timeoutMs: Long, block: (elapsedMs: () -> Long, timedOu
 		}
 	}
 }
+
+
+fun StringBuilder.print(msg: String) =
+	append(msg)
+
+fun StringBuilder.println(line: String) {
+	append(line)
+	append("\n")
+}
+
+
+fun String.collapseLog(): String {
+
+	val buf = StringBuilder()
+	var progress: TQDMProgressInfo? = null
+
+	fun flush() {
+		val p = progress
+		if (p != null) {
+			val info = if (p.value == p.max) {
+				"all ${p.max} finished"
+			} else {
+				"finished ${p.value} of ${p.max}"
+			}
+			buf.println("(progress bar info collapsed: $info)")
+			progress = null
+		}
+	}
+
+	for (line in lineSequence()) {
+		when (TQDMProgressInfo.isProgress(line)) {
+			false -> {
+
+				// this line isn't progress: emit old progress info, if any
+				flush()
+
+				buf.println(line)
+			}
+			true -> {
+
+				// this line is progress info: try to collapse
+				val newProgress = TQDMProgressInfo.from(line)
+				if (newProgress == null) {
+					Backend.log.warn("Failed to parse log progress line: $line")
+					continue
+				}
+				if (progress?.matches(newProgress) == false) {
+					flush()
+				}
+				progress = newProgress
+			}
+		}
+	}
+
+	// just in case the last line is progress
+	flush()
+
+	return buf.toString()
+}

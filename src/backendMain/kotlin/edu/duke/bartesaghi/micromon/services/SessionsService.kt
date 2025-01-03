@@ -268,7 +268,7 @@ actual class SessionsService : ISessionsService, Service {
 		val job = user.authClusterJobOrThrow(session, jobId)
 
 		return SessionLog(
-			log = job.getLog()?.result?.out
+			log = job.getLog()?.result?.out?.collapseLog()
 		)
 	}
 
@@ -320,14 +320,14 @@ actual class SessionsService : ISessionsService, Service {
 						.map { arrayId ->
 							SessionJobLog(
 								arrayId = arrayId,
-								log = job.getLog(arrayId)?.result?.out
+								log = job.getLog(arrayId)?.result?.out?.collapseLog()
 							)
 						}
 				} else {
 					// not an array, just retun the one log
 					listOf(SessionJobLog(
 						arrayId = null,
-						log = job.getLog()?.result?.out
+						log = job.getLog()?.result?.out?.collapseLog()
 					))
 				}
 		)

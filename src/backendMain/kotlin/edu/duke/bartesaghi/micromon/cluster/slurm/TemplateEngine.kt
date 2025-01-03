@@ -115,13 +115,6 @@ class TemplateEngine {
 			// format the pebble exceptions in a user-friendly way
 			val out = StringBuilder()
 
-			fun StringBuilder.print(msg: String) =
-				append(msg)
-			fun StringBuilder.println(line: String) {
-				print(line)
-				print("\n")
-			}
-
 			out.println("There was an error processing the SLURM template:")
 
 			var e: PebbleException? = ex
