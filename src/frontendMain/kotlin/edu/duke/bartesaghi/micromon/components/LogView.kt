@@ -229,9 +229,6 @@ class LogView : Div(classes = setOf("log-view")) {
 		this.lines.add(line)
 	}
 
-	fun shouldFormatNextLine(): Boolean =
-		nextLineNum <= maxNumFormattedLines
-
 	fun scrollToBottom() {
 		scroller.getHTMLElement()
 			?.let { elem ->

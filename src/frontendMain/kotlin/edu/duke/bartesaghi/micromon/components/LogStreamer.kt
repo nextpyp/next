@@ -122,10 +122,11 @@ class LogStreamer(
 
 		batch {
 			val msgIter = messages.iterator()
+			var numFormattedLines = 0
 			while (msgIter.hasNext()) {
 
-				// stop formatting long logs after a few lines, to save browser resources
-				if (!logView.shouldFormatNextLine()) {
+				// stop formatting long logs after a few lines (when we're loading it all at once), to save browser resources
+				if (numFormattedLines > LogView.maxNumFormattedLines) {
 					logView.addRest(msgIter.asSequence().joinToString("\n") { msg ->
 
 						val timestamp = msg.timestamp.timestampToString()
@@ -151,6 +152,7 @@ class LogStreamer(
 					// otherwise, render the line as usual
 					else -> renderLine(msg)
 				}
+				numFormattedLines += 1
 			}
 		}
 
