@@ -1329,6 +1329,35 @@ div.admin-popup div.block {
 }
 
 
+/* ADMIN USER PROPERTY BUILDER */
+
+.user-property-builder {
+	display: flex;
+	flex-direction: column;
+	gap: 1em;
+	align-items: flex-start;
+
+	.help {
+		font-style: italic;
+	}
+
+	.props {
+		table-layout: auto;
+		border-collapse: separate;
+		border-spacing: 1em;
+		/* dirty hack to hide the border spacing on the table boundary */
+		margin: -1em;
+		width: calc(100% + 2em);
+		height: calc(100% + 2em);
+
+		thead {
+			font-size: 115%;
+			text-transform: uppercase;
+		}
+	}
+}
+
+
 /* NEW SESSION VIEW */
 
 div.startSession form {

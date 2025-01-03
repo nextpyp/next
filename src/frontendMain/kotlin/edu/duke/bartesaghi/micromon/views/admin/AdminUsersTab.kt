@@ -7,8 +7,10 @@ import edu.duke.bartesaghi.micromon.components.forms.enabled
 import edu.duke.bartesaghi.micromon.services.AdminInfo
 import edu.duke.bartesaghi.micromon.services.Services
 import edu.duke.bartesaghi.micromon.services.UserProcessorCheck
+import edu.duke.bartesaghi.micromon.services.UserProperties
 import io.kvision.core.Container
 import io.kvision.core.onEvent
+import io.kvision.form.check.CheckBox
 import io.kvision.form.check.checkBox
 import io.kvision.form.text.TextInput
 import io.kvision.form.text.text
@@ -28,7 +30,7 @@ class AdminUsersTab(val elem: Container, val info: AdminInfo) {
 
 	private val proxy = TabulatorProxy<User>()
 
-	private fun showUserForm(user: User?, onSave: (User) -> Unit) {
+	private fun showUserForm(user: User?, onSave: (User, UserProperties) -> Unit) {
 		Modal(
 			caption = if (user == null) {
 				"Add User"
@@ -39,99 +41,85 @@ class AdminUsersTab(val elem: Container, val info: AdminInfo) {
 			closeButton = true,
 			classes = setOf("admin-popup", "admin-user-popup", "max-height-dialog")
 		).apply modal@{
-			AppScope.launch l@{
 
-				// load the groups
-				val loading = loading("Loading ...")
-				val groups = try {
-					Services.admin.getGroups()
-				} catch (t: Throwable) {
-					errorMessage("Error loading groups:")
-					errorMessage(t)
-					return@l
-				} finally {
-					remove(loading)
+			// show a box to type the id, if needed
+			val useridText = text {
+				label = "User ID"
+				value = user?.id ?: ""
+				disabled = user != null
+			}
+
+			val nameText = text {
+				label = "Display Name"
+				value = user?.name ?: ""
+			}
+
+			val osUsernameText = text {
+				label = "OS Username"
+				value = user?.osUsername
+			}
+
+			val runasInfo = RunasInfo()
+			runasInfo.username = user?.osUsername
+			add(runasInfo)
+
+			osUsernameText.onEvent {
+				input = {
+					runasInfo.username = osUsernameText.value
 				}
+			}
 
-				// show a box to type the id, if needed
-				val useridText = text {
-					label = "User ID"
-					value = user?.id ?: ""
-					disabled = user != null
-				}
+			// show the permissions
+			val permissionChecks = div(classes = setOf("block")).run {
+				h1("Permissions")
+				User.Permission.values()
+					.toList()
+					.associateWith { perm ->
+						checkBox(
+							value = user != null && perm in user.permissions,
+							label = perm.name
+						) {
 
-				val nameText = text {
-					label = "Display Name"
-					value = user?.name ?: ""
-				}
-
-				val osUsernameText = text {
-					label = "OS Username"
-					value = user?.osUsername
-				}
-
-				val runasInfo = RunasInfo()
-				runasInfo.username = user?.osUsername
-				add(runasInfo)
-
-				osUsernameText.onEvent {
-					input = {
-						runasInfo.username = osUsernameText.value
-					}
-				}
-
-				// show the permissions
-				val permissionChecks = div(classes = setOf("block")).run {
-					h1("Permissions")
-					User.Permission.values()
-						.toList()
-						.associateWith { perm ->
-							checkBox(
-								value = user != null && perm in user.permissions,
-								label = perm.name
-							) {
-
-								// HACKHACK: don't let administrators remove their own administrative permission
-								// this could lead to an unrecoverable state where no one is an administrator anywhere!
-								if (perm == User.Permission.Admin) {
-									if (myUserId == user?.id) {
-										disabled = true
-										title = "Can't remove own administrative permissions"
-									} else {
-										title = perm.description
-									}
+							// HACKHACK: don't let administrators remove their own administrative permission
+							// this could lead to an unrecoverable state where no one is an administrator anywhere!
+							if (perm == User.Permission.Admin) {
+								if (myUserId == user?.id) {
+									disabled = true
+									title = "Can't remove own administrative permissions"
 								} else {
-									if (user?.isAdmin == true) {
-										disabled = true
-										title = "Administrators have all permissions"
-									} else {
-										title = perm.description
-									}
+									title = perm.description
+								}
+							} else {
+								if (user?.isAdmin == true) {
+									disabled = true
+									title = "Administrators have all permissions"
+								} else {
+									title = perm.description
 								}
 							}
 						}
-				}
-
-				// show the groups
-				val groupChecks = div(classes = setOf("block")).run {
-					h1("Groups")
-					groups.associateWith { group ->
-						checkBox(
-							value = user?.hasGroup(group) ?: false,
-							label = group.name
-						)
 					}
-				}
+			}
 
-				button("Save").onClick addUser@{
+			var groupChecks: Map<Group,CheckBox>? = null
+			var properties: List<UserPropertyControls>? = null
 
-					// save user from form data
-					onSave(User(
+			val saveButton = Button("Save")
+			saveButton.onClick {
+
+				@Suppress("NAME_SHADOWING")
+				val groupChecks = groupChecks ?: return@onClick
+				@Suppress("NAME_SHADOWING")
+				val properties = properties ?: return@onClick
+
+				// save user from form data
+				onSave(
+					User(
 						id = user?.id
 							?: useridText.value
-							?: return@addUser,
+							?: return@onClick,
 						name = nameText.value
-							?: return@addUser,
+							?: return@onClick,
 						permissions = permissionChecks
 							.filter { (_, check) -> check.value }
 							.map { (perm, _) -> perm }
@@ -141,21 +129,101 @@ class AdminUsersTab(val elem: Container, val info: AdminInfo) {
 							.map { (groupId, _) -> groupId }
 							.toSet(),
 						osUsername = osUsernameText.value
-					))
-					this@modal.hide()
-				}
+					),
+					UserProperties(
+						props = properties
+							.mapNotNull {
+								val key = it.keyText.value
+									?.takeIf { it.isNotBlank() }
+									?: return@mapNotNull null
+								val value = it.valueText.value
+									?: ""
+								key to value
+							}
+							.associate { (k, v) -> k to v }
+					)
+				)
 
-				show()
+				// save properties too
+
+				this@modal.hide()
 			}
+			addButton(saveButton)
+
+			// start with the save button disabled
+			saveButton.enabled = false
+
+			// but enable it when all the parts are ready
+			fun updateSaveButton() {
+				groupChecks ?: return
+				properties ?: return
+				saveButton.enabled = true
+			}
+
+			// show the groups
+			div(classes = setOf("block")) {
+				h1("Groups")
+
+				val loading = loading("Loading ...")
+				AppScope.launch {
+
+					val groups = try {
+						Services.admin.getGroups()
+					} catch (t: Throwable) {
+						errorMessage("Error loading groups:")
+						errorMessage(t)
+						return@launch
+					} finally {
+						remove(loading)
+					}
+
+					groupChecks = groups.associateWith { group ->
+						checkBox(
+							value = user?.hasGroup(group) ?: false,
+							label = group.name
+						)
+					}
+
+					updateSaveButton()
+				}
+			}
+
+			// show the properties
+			div(classes = setOf("block")) {
+				h1("Custom Properties")
+				AppScope.launch {
+
+					val p = if (user != null) {
+						val loading = loading("Loading ...")
+						try {
+							Services.admin.getUserProperties(user.id)
+						} catch (t: Throwable) {
+							errorMessage("Error loading custom properties:")
+							errorMessage(t)
+							return@launch
+						} finally {
+							remove(loading)
+						}
+					} else {
+						UserProperties()
+					}
+
+					properties = showProperties(p)
+					updateSaveButton()
+				}
+			}
+
+			show()
 		}
 	}
 
-	fun add(user: User) {
+	fun add(user: User, properties: UserProperties) {
 		AppScope.launch addLaunch@{
 
 			// tell the server
 			try {
 				Services.admin.createUser(user)
+				Services.admin.setUserProperties(user.id, properties)
 			} catch (t: Throwable) {
 				t.alert()
 				return@addLaunch
@@ -167,12 +235,13 @@ class AdminUsersTab(val elem: Container, val info: AdminInfo) {
 		}
 	}
 
-	fun edit(user: User) {
+	fun edit(user: User, properties: UserProperties) {
 		AppScope.launch editLaunch@{
 
 			// tell the server
 			try {
 				Services.admin.editUser(user)
+				Services.admin.setUserProperties(user.id, properties)
 			} catch (t: Throwable) {
 				t.alert()
 				return@editLaunch
@@ -312,7 +381,9 @@ class AdminUsersTab(val elem: Container, val info: AdminInfo) {
 								button("", icon = "far fa-edit").apply {
 									title = "Edit this user"
 								}.onClick {
-									showUserForm(user) { edit(it) }
+									showUserForm(user) { user, properties ->
+										edit(user, properties)
+									}
 								}
 
 								button("", icon = "fas fa-trash").apply {
@@ -404,7 +475,9 @@ class AdminUsersTab(val elem: Container, val info: AdminInfo) {
 
 		// make a button to add a new user
 		val showAddUserButton = Button("Add User", icon = "fas fa-plus").onClick {
-			showUserForm(null) { add(it) }
+			showUserForm(null) { user, properties ->
+				add(user, properties)
+			}
 		}
 
 		// show disclaimer in Auth=None + dev mode
@@ -572,4 +645,90 @@ class RunasInfo : Div(classes = setOf("runas-info")) {
 
 		update()
 	}
+}
+
+
+class UserPropertyControls() : Tr() {
+
+	val keyText = TextInput()
+	val valueText = TextInput()
+	val deleteButton = Button("", icon = "fas fa-trash")
+
+	init {
+		// once again, Kotlin DSLs are dumb ... =(
+		val self = this
+		td {
+			add(self.keyText)
+		}
+		td {
+			add(self.valueText)
+		}
+		td {
+			add(self.deleteButton)
+		}
+	}
+
+	constructor(key: String, value: String) : this() {
+		keyText.value = key
+		valueText.value = value
+	}
+}
+
+
+private fun Container.showProperties(properties: UserProperties): List<UserPropertyControls> {
+
+	val controls = ArrayList<UserPropertyControls>()
+
+	div(classes = setOf("user-property-builder")) {
+
+		div(classes = setOf("help")) {
+			content = "These property values are available in cluster job templates using the syntax: user.properties.<key>"
+		}
+
+		val propsElem = table(classes = setOf("props"))
+
+		// show a header
+		propsElem.thead {
+			tr {
+				td("Key")
+				td("Value")
+			}
+		}
+
+		val propsBody = propsElem.tbody()
+
+		fun UserPropertyControls.attach() {
+			val propControls = this
+			controls.add(propControls)
+			propsBody.add(propControls)
+			deleteButton.onClick {
+
+				controls.removeAll { it === propControls }
+				propsBody.remove(propControls)
+
+				// always make sure at least one property controls is showing, even if its just empty
+				if (controls.isEmpty()) {
+					UserPropertyControls().attach()
+				}
+			}
+		}
+
+		// show controls for existing properties
+		for ((key, value) in properties.props) {
+			UserPropertyControls(key, value).attach()
+		}
+
+		// if there are no current properties, make space for a new one
+		if (controls.isEmpty()) {
+			UserPropertyControls().attach()
+		}
+
+		// add a button to add new props
+		val newButton = button("", icon = "fas fa-plus")
+		newButton.onClick {
+			UserPropertyControls().attach()
+		}
+	}
+
+	return controls
 }

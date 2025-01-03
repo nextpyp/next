@@ -60,6 +60,12 @@ interface IAdminService {
 
 	@KVBindingRoute("admin/userProcessor/check")
 	suspend fun checkUserProcessor(osUsername: String): UserProcessorCheck
+
+	@KVBindingRoute("admin/userProperties/get")
+	suspend fun getUserProperties(userId: String): UserProperties
+
+	@KVBindingRoute("admin/userProperties/set")
+	suspend fun setUserProperties(userId: String, properties: UserProperties)
 }
 
 
@@ -276,3 +282,9 @@ data class UserProcessorCheck(
 			UserProcessorCheck(path, username, null)
 	}
 }
+
+
+@Serializable
+class UserProperties(
+	val props: Map<String,String> = HashMap()
+)

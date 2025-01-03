@@ -357,6 +357,9 @@ actual class AdminService : IAdminService {
 
 	override suspend fun checkUserProcessor(osUsername: String): UserProcessorCheck = sanitizeExceptions {
 
+		// authenticate the user as an admin
+		call.authOrThrow().adminOrThrow()
+
 		val userProcessor = try {
 			Backend.instance.userProcessors.get(osUsername)
 		} catch (ex: UserProcessorException) {
@@ -386,6 +389,23 @@ actual class AdminService : IAdminService {
 		}
 
 		return UserProcessorCheck.success(userProcessor.path.toString(), username)
+	}
+
+	override suspend fun getUserProperties(userId: String): UserProperties = sanitizeExceptions {
+
+		// authenticate the user as an admin
+		call.authOrThrow().adminOrThrow()
+
+		Database.instance.users.getProperties(userId)
+			.let { UserProperties(it) }
+	}
+
+	override suspend fun setUserProperties(userId: String, properties: UserProperties) = sanitizeExceptions {
+
+		// authenticate the user as an admin
+		call.authOrThrow().adminOrThrow()
+
+		Database.instance.users.setProperties(userId, properties.props)
 	}
 
 
