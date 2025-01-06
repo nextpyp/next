@@ -3,8 +3,8 @@ use std::fs;
 use std::path::Path;
 
 use anyhow::{bail, Context, Result};
-use tracing::info;
 
+use crate::info;
 use crate::args::{Args, ArgsConfig};
 use crate::metadata::{Ctf, TiltSeries, TiltSeriesDrifts};
 use crate::particles::{sample_particle_3d, sample_virion};
@@ -19,7 +19,7 @@ use crate::web::Web;
 const GROUP_ID: &str = "stream_tomo";
 
 
-pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
+pub fn run(web: &Web, args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 
 	let pp_args = PreprocessingArgs::from(args, args_config, GROUP_ID)?;
 
@@ -58,7 +58,6 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 	fs::create_dir_all(dir.join("log"))
 		.context("Failed to create log dir")?;
 
-	let web = Web::new()?;
 	web.write_parameters(&args, &args_config)?;
 
 	// generate tilt series
@@ -88,7 +87,7 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 		let virions = match tomo_vir_method {
 			None => None,
 			Some(method) => {
-				info!("Generating virions: method={}", method);
+				info!(web, "Generating virions: method={}", method);
 				match method {
 					"auto" => {
 						let radius = args.get("tomo_vir_rad")
@@ -123,7 +122,7 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 			// match virion spikes first to prefer that method over the other one
 			(Some(method), _) => match method {
 				"template" | "mesh" => {
-					info!("Generating virion spikes, method={}", method);
+					info!(web, "Generating virion spikes, method={}", method);
 					let spikes = (0 .. num_spikes)
 						.map(|_| sample_particle_3d(pp_args.tomogram_dims, spike_radius))
 						.collect();
@@ -134,7 +133,7 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 
 			(None, Some(method)) => match method {
 				"auto" | "virions" => {
-					info!("Generating particles: method={}", method);
+					info!(web, "Generating particles: method={}", method);
 					let radius = args.get("tomo_spk_rad")
 						.into_f64()?
 						.or(75.0)
@@ -166,23 +165,23 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 
 		// generate images
 		tomography::images::tilt_series(GROUP_ID, &tilt_series, tilt_series_i, &pp_args, &DEFAULT_NOISE)
-			.save(dir.join(format!("webp/{}.webp", &tilt_series.tilt_series_id)))?;
+			.save(web, dir.join(format!("webp/{}.webp", &tilt_series.tilt_series_id)))?;
 		tomography::images::sides(GROUP_ID, &tilt_series, tilt_series_i, &pp_args, &DEFAULT_NOISE)
-			.save(dir.join(format!("webp/{}_sides.webp", &tilt_series.tilt_series_id)))?;
+			.save(web, dir.join(format!("webp/{}_sides.webp", &tilt_series.tilt_series_id)))?;
 		tomography::images::raw_tilts_montage(GROUP_ID, &tilt_series, tilt_series_i, &pp_args, &DEFAULT_NOISE)
-			.save(dir.join(format!("webp/{}_raw.webp", &tilt_series.tilt_series_id)))?;
+			.save(web, dir.join(format!("webp/{}_raw.webp", &tilt_series.tilt_series_id)))?;
 		tomography::images::aligned_tilts_montage(GROUP_ID, &tilt_series, tilt_series_i, &pp_args, &DEFAULT_NOISE)
-			.save(dir.join(format!("webp/{}_ali.webp", &tilt_series.tilt_series_id)))?;
+			.save(web, dir.join(format!("webp/{}_ali.webp", &tilt_series.tilt_series_id)))?;
 		tomography::images::twod_ctf_montage(GROUP_ID, &tilt_series, tilt_series_i, &pp_args, &DEFAULT_NOISE)
-			.save(dir.join(format!("webp/{}_2D_ctftilt.webp", &tilt_series.tilt_series_id)))?;
+			.save(web, dir.join(format!("webp/{}_2D_ctftilt.webp", &tilt_series.tilt_series_id)))?;
 		tomography::images::reconstruction_montage(GROUP_ID, &tilt_series, tilt_series_i, &pp_args, &DEFAULT_NOISE)
-			.save(dir.join(format!("webp/{}_rec.webp", &tilt_series.tilt_series_id)))?;
+			.save(web, dir.join(format!("webp/{}_rec.webp", &tilt_series.tilt_series_id)))?;
 
 		// write the log file
 		let log_path = dir.join(format!("log/{}.log", &tilt_series.tilt_series_id));
 		fs::write(&log_path, format!("Things happened for tilt series {}", &tilt_series.tilt_series_id))
 			.context(format!("Failed to write log file: {}", &log_path.to_string_lossy()))?;
-		info!("Wrote log file: {}", &log_path.to_string_lossy());
+		info!(web, "Wrote log file: {}", &log_path.to_string_lossy());
 
 		// tell the website
 		web.write_tilt_series(&tilt_series)?;

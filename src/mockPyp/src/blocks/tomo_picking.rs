@@ -2,8 +2,8 @@
 use std::fs;
 
 use anyhow::{Context, Result};
-use tracing::info;
 
+use crate::info;
 use crate::args::{Args, ArgsConfig};
 use crate::metadata::{Ctf, TiltSeries};
 use crate::particles::{sample_particle_3d, sample_virion};
@@ -18,7 +18,7 @@ use crate::web::Web;
 pub const BLOCK_ID: &'static str = "tomo-picking";
 
 
-pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
+pub fn run(web: &Web, args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 
 	let pp_args = PreprocessingArgs::from(args, args_config, BLOCK_ID)?;
 
@@ -28,7 +28,6 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 		.or(20)
 		.value();
 
-	let web = Web::new()?;
 	web.write_parameters(&args, &args_config)?;
 
 	// create subfolders
@@ -38,7 +37,7 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 	let tomo_pick_method = args.get("tomo_pick_method")
 		.into_str()?
 		.value();
-	info!("pick method: {:?}", tomo_pick_method);
+	info!(web, "pick method: {:?}", tomo_pick_method);
 
 	// generate tilt series
 	for tilt_series_i in 0 .. pp_args.num_tilt_series {
@@ -92,11 +91,11 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 
 		// generate images
 		tomography::images::tilt_series(BLOCK_ID, &tilt_series, tilt_series_i, &pp_args, &DEFAULT_NOISE)
-			.save(format!("webp/{}.webp", &tilt_series.tilt_series_id))?;
+			.save(web, format!("webp/{}.webp", &tilt_series.tilt_series_id))?;
 		tomography::images::sides(BLOCK_ID, &tilt_series, tilt_series_i, &pp_args, &DEFAULT_NOISE)
-			.save(format!("webp/{}_sides.webp", &tilt_series.tilt_series_id))?;
+			.save(web, format!("webp/{}_sides.webp", &tilt_series.tilt_series_id))?;
 		tomography::images::reconstruction_montage(BLOCK_ID, &tilt_series, tilt_series_i, &pp_args, &DEFAULT_NOISE)
-			.save(format!("webp/{}_rec.webp", &tilt_series.tilt_series_id))?;
+			.save(web, format!("webp/{}_rec.webp", &tilt_series.tilt_series_id))?;
 
 		// tell the website
 		web.write_tilt_series(&tilt_series)?;

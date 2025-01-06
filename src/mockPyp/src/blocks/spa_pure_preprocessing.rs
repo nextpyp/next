@@ -2,8 +2,8 @@
 use std::fs;
 
 use anyhow::{Context, Result};
-use tracing::info;
 
+use crate::info;
 use crate::args::{Args, ArgsConfig};
 use crate::metadata::{Ctf, Micrograph};
 use crate::progress::ProgressBar;
@@ -17,11 +17,10 @@ use crate::web::Web;
 pub const BLOCK_ID: &'static str = "sp-pure-preprocessing";
 
 
-pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
+pub fn run(web: &Web, args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 
 	let pp_args = PreprocessingArgs::from(args, args_config, BLOCK_ID)?;
 
-	let web = Web::new()?;
 	web.write_parameters(&args, &args_config)?;
 
 	// create subfolders
@@ -34,11 +33,11 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 	let mut progress = ProgressBar::new(100);
 	for i in 0 .. progress.total() {
 		if i % 5 == 0 {
-			progress.report();
+			progress.report(&web);
 		}
 		progress.update(1);
 	}
-	progress.report();
+	progress.report(&web);
 
 	// generate micrographs
 	for micrograph_i in 0 .. pp_args.num_micrographs {
@@ -54,15 +53,15 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 
 		// generate images
 		single_particle::images::micrograph(BLOCK_ID, &micrograph, micrograph_i, &pp_args, &DEFAULT_NOISE)
-			.save(format!("webp/{}.webp", &micrograph.micrograph_id))?;
+			.save(web, format!("webp/{}.webp", &micrograph.micrograph_id))?;
 		single_particle::images::ctf_find(BLOCK_ID, &micrograph, micrograph_i, &pp_args, &DEFAULT_NOISE)
-			.save(format!("webp/{}_ctffit.webp", &micrograph.micrograph_id))?;
+			.save(web, format!("webp/{}_ctffit.webp", &micrograph.micrograph_id))?;
 
 		// write the log file
 		let log_path = format!("log/{}.log", &micrograph.micrograph_id);
 		fs::write(&log_path, format!("Things happened for micrograph {}", &micrograph.micrograph_id))
 			.context(format!("Failed to write log file: {}", &log_path))?;
-		info!("Wrote log file: {}", &log_path);
+		info!(web, "Wrote log file: {}", &log_path);
 
 		// tell the website
 		web.write_micrograph(&micrograph)?;

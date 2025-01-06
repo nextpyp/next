@@ -1,9 +1,9 @@
 
 use std::env;
 use std::path::Path;
+use std::time::SystemTime;
 use anyhow::{bail, Context, Result};
 use serde_json::{json, Map, Value};
-use tracing::info;
 
 use crate::args::{Args, ArgsConfig, ArgType};
 use crate::metadata::{Micrograph, TiltSeries};
@@ -38,7 +38,7 @@ impl Web {
 
 		let method = method.as_ref();
 
-		info!("JSON RPC: {}", method);
+		tracing::debug!("JSON RPC: {}", method);
 
 		let client = reqwest::blocking::Client::new();
 		let response = client.post(format!("{}/pyp", &self.host))
@@ -51,7 +51,7 @@ impl Web {
 			.send()
 			.context("Failed to send request to website")?;
 
-		info!("\tresponse: HTTP status={}", response.status());
+		tracing::debug!("\tresponse: HTTP status={}", response.status());
 
 		let mut response = response
 			.json::<Value>()
@@ -432,6 +432,28 @@ impl Web {
 
 		Ok(())
 	}
+
+	pub fn log(&self, timestamp: SystemTime, level: i32, path: &str, line: u32, msg: String) -> Result<()> {
+
+		// convert the system time to a millisecond-precision timestamp
+		let timestamp_ms = match timestamp.duration_since(SystemTime::UNIX_EPOCH) {
+			Ok(d) => d.as_millis() as u64, // NOTE: this can't overflow a u64 in our lifetime
+			Err(_) => 0 // system clock is set before the unix epoch: probably wrong. unless time travel
+		};
+
+		let mut args = Map::<String,Value>::new();
+		args.ins("webid", self.id.as_str());
+
+		args.ins("timestamp", timestamp_ms);
+		args.ins("level", level);
+		args.ins("path", path);
+		args.ins("line", line);
+		args.ins("msg", msg);
+
+		self.json_rpc("log", Value::Object(args))?;
+
+		Ok(())
+	}
 }
 
 
@@ -512,4 +534,126 @@ impl Commands {
 	pub fn mock_pyp(cmd: impl AsRef<str>, args_path: &Path) -> String {
 		format!("RUST_BACKTRACE=1 /usr/bin/mock-pyp {} -params_file=\"{}\"", cmd.as_ref(), args_path.to_string_lossy())
 	}
+}
+
+
+#[macro_export]
+macro_rules! log {
+
+	($web:expr, $level:literal, $msg:expr) => {
+		{
+			let result = $web.log(std::time::SystemTime::now(), $level, file!(), line!(), $msg);
+			if let Err(e) = result {
+				use std::ops::Deref;
+				use display_error_chain::ErrorChainExt;
+				tracing::error!("Failed to send log message to website: {}", e.deref().chain());
+			}
+		}
+	};
+
+	($level:literal, $msg:expr) => {
+		match $crate::web::Web::new() {
+			Ok(web) => $crate::web::log!(web, $level, $msg),
+			Err(e) => {
+				use std::ops::Deref;
+				use display_error_chain::ErrorChainExt;
+				tracing::error!("Failed to create Web instance: {}", e.deref().chain());
+			}
+		}
+	};
+}
+
+
+#[macro_export]
+macro_rules! error {
+
+		($web:expr, $fmt:literal $($arg:tt)*) => {
+		{
+			tracing::error!($fmt $($arg)*);
+			$crate::log!($web, 40, format!($fmt $($arg)*));
+		}
+	};
+
+	($fmt:literal $($arg:tt)*) => {
+		{
+			tracing::error!($fmt $($arg)*);
+			$crate::log!(40, format!($fmt $($arg)*));
+		}
+	};
+}
+
+
+#[macro_export]
+macro_rules! warn {
+
+	($web:expr, $fmt:literal $($arg:tt)*) => {
+		{
+			tracing::warn!($fmt $($arg)*);
+			$crate::log!($web, 30, format!($fmt $($arg)*));
+		}
+	};
+
+	($fmt:literal $($arg:tt)*) => {
+		{
+			tracing::warn!($fmt $($arg)*);
+			$crate::log!(30, format!($fmt $($arg)*));
+		}
+	};
+}
+
+
+#[macro_export]
+macro_rules! info {
+
+	($web:expr, $fmt:literal $($arg:tt)*) => {
+		{
+			tracing::info!($fmt $($arg)*);
+			$crate::log!($web, 20, format!($fmt $($arg)*));
+		}
+	};
+
+	($fmt:literal $($arg:tt)*) => {
+		{
+			tracing::info!($fmt $($arg)*);
+			$crate::log!(20, format!($fmt $($arg)*));
+		}
+	};
+}
+
+
+#[macro_export]
+macro_rules! debug {
+
+	($web:expr, $fmt:literal $($arg:tt)*) => {
+		{
+			tracing::debug!($fmt $($arg)*);
+			$crate::log!($web, 10, format!($fmt $($arg)*));
+		}
+	};
+
+	($fmt:literal $($arg:tt)*) => {
+		{
+			tracing::debug!($fmt $($arg)*);
+			$crate::log!(10, format!($fmt $($arg)*));
+		}
+	};
+}
+
+
+#[macro_export]
+macro_rules! progress {
+
+	($web:expr, $fmt:literal $($arg:tt)*) => {
+		{
+			tracing::info!($fmt $($arg)*);
+			$crate::log!($web, -10, format!($fmt $($arg)*));
+		}
+	};
+
+	($fmt:literal $($arg:tt)*) => {
+		{
+			tracing::info!($fmt $($arg)*);
+			$crate::log!(-10, format!($fmt $($arg)*));
+		}
+	};
 }

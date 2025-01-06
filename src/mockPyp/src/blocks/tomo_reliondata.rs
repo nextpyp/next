@@ -5,12 +5,13 @@ use image::Rgb;
 use crate::args::{Args, ArgsConfig};
 use crate::image::{Image, ImageDrawing};
 use crate::tomography::images::DEFAULT_NOISE;
+use crate::web::Web;
 
 
 pub const BLOCK_ID: &'static str = "tomo-reliondata";
 
 
-pub fn run(args: &mut Args, _args_config: &ArgsConfig) -> Result<()> {
+pub fn run(web: &Web, args: &mut Args, _args_config: &ArgsConfig) -> Result<()> {
 
 	// get args
 	let size = args.get_mock(BLOCK_ID, "image_size")
@@ -26,7 +27,7 @@ pub fn run(args: &mut Args, _args_config: &ArgsConfig) -> Result<()> {
 		format!("Block: {}", BLOCK_ID),
 		"Type: Gain Corrected".to_string()
 	]);
-	img.save("gain_corrected.webp")?;
+	img.save(web, "gain_corrected.webp")?;
 
 	Ok(())
 }

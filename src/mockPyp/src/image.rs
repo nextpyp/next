@@ -9,9 +9,10 @@ use image::{GenericImage, Pixel, Rgb, Rgba, RgbImage};
 use imageproc::definitions::Clamp;
 use imageproc::drawing::{draw_filled_rect_mut, draw_filled_circle_mut, draw_text_mut, Canvas};
 use imageproc::rect::Rect;
-use tracing::info;
 
+use crate::info;
 use crate::rand::Gaussian;
+use crate::web::Web;
 
 
 static FONT: LazyLock<FontRef> = LazyLock::new(|| {
@@ -217,11 +218,11 @@ impl Image {
 		}
 	}
 
-	pub fn save(&self, path: impl AsRef<Path>) -> Result<()> {
+	pub fn save(&self, web: &Web, path: impl AsRef<Path>) -> Result<()> {
 		let path = path.as_ref();
 		self.img.save(path)
 			.context(format!("Failed to save image to: {}", path.to_string_lossy()))?;
-		info!("Saved image: {}", path.to_string_lossy());
+		info!(web, "Saved image: {}", path.to_string_lossy());
 		Ok(())
 	}
 }

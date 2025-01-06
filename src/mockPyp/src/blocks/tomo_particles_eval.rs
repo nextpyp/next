@@ -17,7 +17,7 @@ use crate::web::Web;
 pub const BLOCK_ID: &'static str = "tomo-particles-eval";
 
 
-pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
+pub fn run(web: &Web, args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 
 	let pp_args = PreprocessingArgs::from(args, args_config, BLOCK_ID)?;
 
@@ -34,7 +34,6 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 		.to_unbinned(pp_args.pixel_size);
 
 	// tell the website
-	let web = Web::new()?;
 	web.write_parameters(&args, &args_config)?;
 
 	// create subfolders
@@ -62,11 +61,11 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 
 		// generate images
 		tomography::images::tilt_series(BLOCK_ID, &tilt_series, tilt_series_i, &pp_args, &DEFAULT_NOISE)
-			.save(format!("webp/{}.webp", &tilt_series.tilt_series_id))?;
+			.save(web, format!("webp/{}.webp", &tilt_series.tilt_series_id))?;
 		tomography::images::sides(BLOCK_ID, &tilt_series, tilt_series_i, &pp_args, &DEFAULT_NOISE)
-			.save(format!("webp/{}_sides.webp", &tilt_series.tilt_series_id))?;
+			.save(web, format!("webp/{}_sides.webp", &tilt_series.tilt_series_id))?;
 		tomography::images::reconstruction_montage(BLOCK_ID, &tilt_series, tilt_series_i, &pp_args, &DEFAULT_NOISE)
-			.save(format!("webp/{}_rec.webp", &tilt_series.tilt_series_id))?;
+			.save(web, format!("webp/{}_rec.webp", &tilt_series.tilt_series_id))?;
 
 		web.write_tilt_series(&tilt_series)?;
 	}

@@ -2,8 +2,8 @@
 use std::fs;
 use std::path::PathBuf;
 use anyhow::{Context, Result};
-use tracing::info;
 
+use crate::info;
 use crate::args::{Args, ArgsConfig};
 use crate::metadata::{Ctf, TiltSeries, TiltSeriesDrifts};
 use crate::rand::{sample_avgrot, sample_ctf, sample_drift_ctf, sample_drifts, sample_xf};
@@ -16,7 +16,7 @@ use crate::web::{Commands, Web};
 pub const BLOCK_ID: &'static str = "tomo-pure-preprocessing";
 
 
-pub fn run(args: &mut Args, args_config: &ArgsConfig, array_element: Option<u32>) -> Result<()> {
+pub fn run(web: &Web, args: &mut Args, args_config: &ArgsConfig, array_element: Option<u32>) -> Result<()> {
 
 	let split_mode = args.get_mock(BLOCK_ID, "split_mode")
 		.into_bool()?
@@ -26,25 +26,24 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig, array_element: Option<u32>
 	match (split_mode, array_element) {
 
 		// in a split-mode array job, run the array element
-		(true, Some(array_element)) => run_array(args, args_config, array_element),
+		(true, Some(array_element)) => run_array(web, args, args_config, array_element),
 
 		// not in an array job, but we should launch one
-		(true, None) => launch(args, args_config),
+		(true, None) => launch(web, args, args_config),
 
 		// not in split mode, just run everything
-		(false, _) => run_all(args, args_config)
+		(false, _) => run_all(web, args, args_config)
 	}
 }
 
 
-fn run_all(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
+fn run_all(web: &Web, args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 
-	info!("run all");
+	info!(web, "run all");
 
 	let pp_args = PreprocessingArgs::from(args, args_config, BLOCK_ID)?;
 
 	// send params to the website
-	let web = Web::new()?;
 	web.write_parameters(&args, &args_config)?;
 
 	// generate tilt series
@@ -56,16 +55,15 @@ fn run_all(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 }
 
 
-fn launch(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
+fn launch(web: &Web, args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 
-	info!("launch");
+	info!(web, "launch");
 
 	let num_tilt_series = args.get_mock(BLOCK_ID, "num_tilt_series")
 		.into_u32()?
 		.or(4)
 		.value();
 
-	let web = Web::new()?;
 	web.write_parameters(&args, &args_config)?;
 
 	// write the params file
@@ -93,14 +91,12 @@ fn launch(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 }
 
 
-fn run_array(args: &mut Args, args_config: &ArgsConfig, array_element: u32) -> Result<()> {
+fn run_array(web: &Web, args: &mut Args, args_config: &ArgsConfig, array_element: u32) -> Result<()> {
 
-	info!("run array: {}", array_element);
+	info!(web, "run array: {}", array_element);
 
 	let pp_args = PreprocessingArgs::from(args, args_config, BLOCK_ID)?;
 
-	let web = Web::new()?;
-	
 	// generate tilt series
 	let tilt_series_i = array_element - 1;
 	generate_tilt(tilt_series_i, &pp_args, &web)?;
@@ -150,17 +146,17 @@ fn generate_tilt(tilt_series_i: u32, pp_args: &PreprocessingArgs, web: &Web) -> 
 
 	// generate images
 	tomography::images::tilt_series(BLOCK_ID, &tilt_series, tilt_series_i, &pp_args, &DEFAULT_NOISE)
-		.save(format!("webp/{}.webp", &tilt_series.tilt_series_id))?;
+		.save(web, format!("webp/{}.webp", &tilt_series.tilt_series_id))?;
 	tomography::images::sides(BLOCK_ID, &tilt_series, tilt_series_i, &pp_args, &DEFAULT_NOISE)
-		.save(format!("webp/{}_sides.webp", &tilt_series.tilt_series_id))?;
+		.save(web, format!("webp/{}_sides.webp", &tilt_series.tilt_series_id))?;
 	tomography::images::raw_tilts_montage(BLOCK_ID, &tilt_series, tilt_series_i, &pp_args, &DEFAULT_NOISE)
-		.save(format!("webp/{}_raw.webp", &tilt_series.tilt_series_id))?;
+		.save(web, format!("webp/{}_raw.webp", &tilt_series.tilt_series_id))?;
 	tomography::images::aligned_tilts_montage(BLOCK_ID, &tilt_series, tilt_series_i, &pp_args, &DEFAULT_NOISE)
-		.save(format!("webp/{}_ali.webp", &tilt_series.tilt_series_id))?;
+		.save(web, format!("webp/{}_ali.webp", &tilt_series.tilt_series_id))?;
 	tomography::images::twod_ctf_montage(BLOCK_ID, &tilt_series, tilt_series_i, &pp_args, &DEFAULT_NOISE)
-		.save(format!("webp/{}_2D_ctftilt.webp", &tilt_series.tilt_series_id))?;
+		.save(web, format!("webp/{}_2D_ctftilt.webp", &tilt_series.tilt_series_id))?;
 	tomography::images::reconstruction_montage(BLOCK_ID, &tilt_series, tilt_series_i, &pp_args, &DEFAULT_NOISE)
-		.save(format!("webp/{}_rec.webp", &tilt_series.tilt_series_id))?;
+		.save(web, format!("webp/{}_rec.webp", &tilt_series.tilt_series_id))?;
 
 	web.write_tilt_series(&tilt_series)?;
 

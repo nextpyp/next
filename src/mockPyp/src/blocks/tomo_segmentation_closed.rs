@@ -2,8 +2,8 @@
 use std::fs;
 
 use anyhow::{Context, Result};
-use tracing::info;
 
+use crate::info;
 use crate::args::{Args, ArgsConfig};
 use crate::metadata::{Ctf, TiltSeries};
 use crate::particles::{read_next_tomo_virions, sample_tomo_virions};
@@ -18,7 +18,7 @@ use crate::web::Web;
 pub const BLOCK_ID: &'static str = "tomo-segmentation-closed";
 
 
-pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
+pub fn run(web: &Web, args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 
 	let pp_args = PreprocessingArgs::from(args, args_config, BLOCK_ID)?;
 
@@ -35,7 +35,6 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 		.value();
 
 	// tell the website about the params
-	let web = Web::new()?;
 	web.write_parameters(args, args_config)?;
 
 	// try to read the submitted particles, or sample new ones
@@ -48,11 +47,11 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 			let num_particles = tilt_series_virions.iter()
 				.map(|(_, tilt_series)| tilt_series.len())
 				.sum::<usize>();
-			info!("Read {} manual virions from {} tilt series", num_particles, tilt_series_virions.len());
+			info!(web, "Read {} manual virions from {} tilt series", num_particles, tilt_series_virions.len());
 			tilt_series_virions
 		})
 		.unwrap_or_else(|| {
-			info!("No manual particles, sampled new ones");
+			info!(web, "No manual particles, sampled new ones");
 			sample_tomo_virions(pp_args.num_tilt_series, num_particles, pp_args.tomogram_dims, virion_radius, default_threshold)
 		});
 
@@ -66,7 +65,7 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 		// generate segmentation images
 		for virioni in 0 .. virions.len() {
 			tomography::images::segmentation(&DEFAULT_NOISE)
-				.save(format!("webp/{}_vir{:0>4}_binned_nad.webp", &tilt_series_id, virioni))?;
+				.save(web, format!("webp/{}_vir{:0>4}_binned_nad.webp", &tilt_series_id, virioni))?;
 		}
 
 		let tilt_series = TiltSeries {
@@ -82,11 +81,11 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 		// generate images
 		let tilt_series_i = 0; // TODO: any way to preserve the order here?
 		tomography::images::tilt_series(BLOCK_ID, &tilt_series, tilt_series_i, &pp_args, &DEFAULT_NOISE)
-			.save(format!("webp/{}.webp", &tilt_series.tilt_series_id))?;
+			.save(web, format!("webp/{}.webp", &tilt_series.tilt_series_id))?;
 		tomography::images::sides(BLOCK_ID, &tilt_series, tilt_series_i, &pp_args, &DEFAULT_NOISE)
-			.save(format!("webp/{}_sides.webp", &tilt_series.tilt_series_id))?;
+			.save(web, format!("webp/{}_sides.webp", &tilt_series.tilt_series_id))?;
 		tomography::images::reconstruction_montage(BLOCK_ID, &tilt_series, tilt_series_i, &pp_args, &DEFAULT_NOISE)
-			.save(format!("webp/{}_rec.webp", &tilt_series.tilt_series_id))?;
+			.save(web, format!("webp/{}_rec.webp", &tilt_series.tilt_series_id))?;
 
 		web.write_tilt_series(&tilt_series)?;
 	}

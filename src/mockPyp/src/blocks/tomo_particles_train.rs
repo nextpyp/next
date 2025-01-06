@@ -2,17 +2,18 @@
 use std::fs;
 
 use anyhow::{Context, Result};
-use tracing::info;
 
+use crate::info;
 use crate::args::{Args, ArgsConfig};
 use crate::particles::read_next_tomo_particles;
 use crate::svg::{Rgb, SvgImage};
+use crate::web::Web;
 
 
 pub const BLOCK_ID: &'static str = "tomo-particles-train";
 
 
-pub fn run(_args: &mut Args, _args_config: &ArgsConfig) -> Result<()> {
+pub fn run(web: &Web, _args: &mut Args, _args_config: &ArgsConfig) -> Result<()> {
 
 	// try to read the manual particles, if any
 	match read_next_tomo_particles()? {
@@ -20,9 +21,9 @@ pub fn run(_args: &mut Args, _args_config: &ArgsConfig) -> Result<()> {
 			let num_particles = tilt_series_particles.iter()
 				.map(|(_, tilt_series)| tilt_series.len())
 				.sum::<usize>();
-			info!("Read {} manual particles from {} tilt series", num_particles, tilt_series_particles.len());
+			info!(web, "Read {} manual particles from {} tilt series", num_particles, tilt_series_particles.len());
 		}
-		_ => info!("No manual particles")
+		_ => info!(web, "No manual particles")
 	}
 
 	// create subfolders
@@ -38,7 +39,7 @@ pub fn run(_args: &mut Args, _args_config: &ArgsConfig) -> Result<()> {
 		format!("Block: {}", BLOCK_ID),
 		"Type: Training Results".to_string()
 	]);
-	img.save("train/training_loss.svgz")?;
+	img.save(web, "train/training_loss.svgz")?;
 
 	Ok(())
 }

@@ -5,12 +5,13 @@ use anyhow::{Context, Result};
 
 use crate::args::{Args, ArgsConfig};
 use crate::svg::{Rgb, SvgImage};
+use crate::web::Web;
 
 
 pub const BLOCK_ID: &'static str = "tomo-milo-train";
 
 
-pub fn run(_args: &mut Args, _args_config: &ArgsConfig) -> Result<()> {
+pub fn run(web: &Web, _args: &mut Args, _args_config: &ArgsConfig) -> Result<()> {
 
 	// create subfolders
 	fs::create_dir_all("train")
@@ -23,7 +24,7 @@ pub fn run(_args: &mut Args, _args_config: &ArgsConfig) -> Result<()> {
 		format!("Block: {}", BLOCK_ID),
 		"Type: Training Results".to_string()
 	]);
-	img.save("train/milo_training.svgz")?;
+	img.save(web, "train/milo_training.svgz")?;
 
 	Ok(())
 }

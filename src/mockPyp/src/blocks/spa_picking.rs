@@ -2,8 +2,8 @@
 use std::fs;
 
 use anyhow::{Context, Result};
-use tracing::info;
 
+use crate::info;
 use crate::args::{Args, ArgsConfig};
 use crate::metadata::{Ctf, Micrograph};
 use crate::particles::sample_particle_2d;
@@ -18,7 +18,7 @@ use crate::web::Web;
 pub const BLOCK_ID: &'static str = "sp-picking";
 
 
-pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
+pub fn run(web: &Web, args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 
 	let pp_args = PreprocessingArgs::from(args, args_config, BLOCK_ID)?;
 
@@ -28,7 +28,6 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 		.or(20)
 		.value();
 
-	let web = Web::new()?;
 	web.write_parameters(&args, &args_config)?;
 
 	// create subfolders
@@ -38,7 +37,7 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 	let detect_method = args.get("detect_method")
 		.into_str()?
 		.value();
-	info!("pick method: {:?}", detect_method);
+	info!(web, "pick method: {:?}", detect_method);
 
 	// generate micrographs
 	for micrograph_i in 0 .. pp_args.num_micrographs {
@@ -73,9 +72,9 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 
 		// generate images
 		single_particle::images::micrograph(BLOCK_ID, &micrograph, micrograph_i, &pp_args, &DEFAULT_NOISE)
-			.save(format!("webp/{}.webp", &micrograph.micrograph_id))?;
+			.save(web, format!("webp/{}.webp", &micrograph.micrograph_id))?;
 		single_particle::images::ctf_find(BLOCK_ID, &micrograph, micrograph_i, &pp_args, &DEFAULT_NOISE)
-			.save(format!("webp/{}_ctffit.webp", &micrograph.micrograph_id))?;
+			.save(web, format!("webp/{}_ctffit.webp", &micrograph.micrograph_id))?;
 
 		// tell the website
 		web.write_micrograph(&micrograph)?;

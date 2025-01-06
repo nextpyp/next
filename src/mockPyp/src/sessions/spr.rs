@@ -3,8 +3,8 @@ use std::fs;
 use std::path::Path;
 
 use anyhow::{bail, Context, Result};
-use tracing::info;
 
+use crate::info;
 use crate::args::{Args, ArgsConfig};
 use crate::metadata::{Ctf, Micrograph};
 use crate::particles::sample_particle_2d;
@@ -19,7 +19,7 @@ use crate::web::Web;
 const GROUP_ID: &str = "stream_spr";
 
 
-pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
+pub fn run(web: &Web, args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 
 	let pp_args = PreprocessingArgs::from(args, args_config, GROUP_ID)?;
 
@@ -40,7 +40,6 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 	fs::create_dir_all(dir.join("log"))
 		.context("Failed to create log dir")?;
 
-	let web = Web::new()?;
 	web.write_parameters(&args, &args_config)?;
 
 	// generate micrographs
@@ -58,7 +57,7 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 
 			Some(method) => match method {
 				"auto" | "all" => {
-					info!("Generating particles: method={}", method);
+					info!(web, "Generating particles: method={}", method);
 					let num_particles = args.get_mock(GROUP_ID, "num_particles")
 						.into_u32()?
 						.or(20)
@@ -88,15 +87,15 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 
 		// generate images
 		single_particle::images::micrograph(GROUP_ID, &micrograph, micrograph_i, &pp_args, &DEFAULT_NOISE)
-			.save(dir.join(format!("webp/{}.webp", &micrograph.micrograph_id)))?;
+			.save(web, dir.join(format!("webp/{}.webp", &micrograph.micrograph_id)))?;
 		single_particle::images::ctf_find(GROUP_ID, &micrograph, micrograph_i, &pp_args, &DEFAULT_NOISE)
-			.save(dir.join(format!("webp/{}_ctffit.webp", &micrograph.micrograph_id)))?;
+			.save(web, dir.join(format!("webp/{}_ctffit.webp", &micrograph.micrograph_id)))?;
 
 		// write the log file
 		let log_path = dir.join(format!("log/{}.log", &micrograph.micrograph_id));
 		fs::write(&log_path, format!("Things happened for micrograph {}", &micrograph.micrograph_id))
 			.context(format!("Failed to write log file: {}", &log_path.to_string_lossy()))?;
-		info!("Wrote log file: {}", &log_path.to_string_lossy());
+		info!(web, "Wrote log file: {}", &log_path.to_string_lossy());
 
 		// tell the website
 		web.write_micrograph(&micrograph)?;

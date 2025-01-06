@@ -9,7 +9,9 @@ use flate2::write::GzEncoder;
 use svg::{Document, Node};
 use svg::node::element::{Rectangle, Text};
 use svg::node::Value;
-use tracing::info;
+
+use crate::info;
+use crate::web::Web;
 
 
 #[derive(Debug, Clone, Copy)]
@@ -49,7 +51,7 @@ impl SvgImage {
 		}
 	}
 
-	pub fn save(&self, path: impl AsRef<Path>) -> Result<()> {
+	pub fn save(&self, web: &Web, path: impl AsRef<Path>) -> Result<()> {
 
 		let path = path.as_ref();
 
@@ -67,7 +69,7 @@ impl SvgImage {
 				.context(format!("Failed to save image to: {}", path.to_string_lossy()))?;
 		}
 
-		info!("Saved image: {}", path.to_string_lossy());
+		info!(web, "Saved image: {}", path.to_string_lossy());
 		Ok(())
 	}
 }

@@ -1,4 +1,8 @@
 
+use crate::progress;
+use crate::web::Web;
+
+
 /// Emulates progress messages used by the `tqdm` library
 pub struct ProgressBar {
 	progress: u32,
@@ -26,7 +30,7 @@ impl ProgressBar {
 		self.progress += work;
 	}
 
-	pub fn report(&self) {
+	pub fn report(&self, web: &Web) {
 
 		// messages look like, eg:
 		// (unknown file):0 |  0%|          | 0/100 [00:00<?, ?it/s]
@@ -48,6 +52,6 @@ impl ProgressBar {
 		let bar = (0 .. percent/10)
 			.map(|_| '#')
 			.collect::<String>();
-		println!("{:>3}%|{:<10}| {}/{} [00:00<00:05, 5.6it/s]", percent, bar, self.progress, self.total);
+		progress!(web, "{:>3}%|{:<10}| {}/{} [00:00<00:05, 5.6it/s]", percent, bar, self.progress, self.total);
 	}
 }

@@ -8,7 +8,7 @@ use anyhow::{bail, Context, Result};
 use display_error_chain::ErrorChainExt;
 use tracing::{error, info, warn};
 
-use mock_pyp::{blocks, logging, sessions};
+use mock_pyp::{blocks, logging, sessions, info as web_info, error as web_error};
 use mock_pyp::args::{Args, ArgsConfig};
 use mock_pyp::logging::ResultExt;
 use mock_pyp::web::Web;
@@ -52,11 +52,28 @@ fn run() -> Result<()> {
 
 	// run the command
 	match cmd.as_str() {
+
 		"webrpc" => run_webrpc(args, array_element),
-		"streampyp" => run_session(args, array_element),
+
+		"streampyp" => {
+			let web = Web::new()?;
+			let result = run_session(&web, args, array_element);
+			if let Err(e) = &result {
+				// make an attempt to stream the error to the log
+				web_error!(web, "{}", e.deref().chain());
+			}
+			result
+		}
+
 		_ => {
-			info!("command: {}", cmd);
-			run_project(args, array_element)
+			let web = Web::new()?;
+			web_info!(&web, "command: {}", cmd);
+			let result = run_project(&web, args, array_element);
+			if let Err(e) = &result {
+				// make an attempt to stream the error to the log
+				web_error!(web, "{}", e.deref().chain());
+			}
+			result
 		}
 	}
 }
@@ -132,7 +149,7 @@ fn parse_args(args: VecDeque<String>) -> Result<(Args,ArgsConfig)> {
 }
 
 
-fn run_project(args: VecDeque<String>, array_element: Option<u32>) -> Result<()> {
+fn run_project(web: &Web, args: VecDeque<String>, array_element: Option<u32>) -> Result<()> {
 
 	let (mut args, args_config) = parse_args(args)?;
 
@@ -143,16 +160,16 @@ fn run_project(args: VecDeque<String>, array_element: Option<u32>) -> Result<()>
 		.value()
 		.to_string();
 
-	info!("block id: {}", block_id);
+	web_info!(web, "block id: {}", block_id);
 
 	// run the block command
-	blocks::run(block_id.as_str(), &mut args, &args_config, array_element)?;
+	blocks::run(web, block_id.as_str(), &mut args, &args_config, array_element)?;
 
 	Ok(())
 }
 
 
-fn run_session(args: VecDeque<String>, _array_element: Option<u32>) -> Result<()> {
+fn run_session(web: &Web, args: VecDeque<String>, _array_element: Option<u32>) -> Result<()> {
 
 	let (mut args, args_config) = parse_args(args)?;
 
@@ -162,11 +179,11 @@ fn run_session(args: VecDeque<String>, _array_element: Option<u32>) -> Result<()
 		.into_str()?
 		.value();
 
-	info!("session: {}", data_mode);
+	web_info!(web, "session: {}", data_mode);
 
 	match data_mode {
-		"tomo" => sessions::tomo::run(&mut args, &args_config)?,
-		"spr" => sessions::spr::run(&mut args, &args_config)?,
+		"tomo" => sessions::tomo::run(web, &mut args, &args_config)?,
+		"spr" => sessions::spr::run(web, &mut args, &args_config)?,
 		_ => bail!("unrecognized session mode: {}", data_mode)
 	}
 

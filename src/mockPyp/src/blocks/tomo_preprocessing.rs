@@ -2,8 +2,8 @@
 use std::fs;
 
 use anyhow::{bail, Context, Result};
-use tracing::info;
 
+use crate::info;
 use crate::args::{Args, ArgsConfig};
 use crate::metadata::{Ctf, TiltSeries, TiltSeriesDrifts};
 use crate::particles::{sample_particle_3d, sample_virion};
@@ -18,7 +18,7 @@ use crate::web::Web;
 pub const BLOCK_ID: &'static str = "tomo-preprocessing";
 
 
-pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
+pub fn run(web: &Web, args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 
 	let pp_args = PreprocessingArgs::from(args, args_config, BLOCK_ID)?;
 
@@ -44,7 +44,6 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 	fs::create_dir_all("webp")
 		.context("Failed to create webp dir")?;
 
-	let web = Web::new()?;
 	web.write_parameters(&args, &args_config)?;
 
 	// generate tilt series
@@ -74,7 +73,7 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 		let virions = match tomo_vir_method {
 			None => None,
 			Some(method) => {
-				info!("Generating virions: method={}", method);
+				info!(web, "Generating virions: method={}", method);
 				match method {
 					"auto" => {
 						let radius = args.get("tomo_vir_rad")
@@ -90,7 +89,7 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 						// generate segmentation images
 						for virioni in 0 .. virions.len() {
 							tomography::images::segmentation(&DEFAULT_NOISE)
-								.save(format!("webp/{}_vir{:0>4}_binned_nad.webp", &tilt_series_id, virioni))?;
+								.save(web, format!("webp/{}_vir{:0>4}_binned_nad.webp", &tilt_series_id, virioni))?;
 						}
 
 						Some(virions)
@@ -116,7 +115,7 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 			// match virion spikes first to prefer that method over the other one
 			(Some(method), _) => match method {
 				"template" | "mesh" => {
-					info!("Generating virion spikes, method={}", method);
+					info!(web, "Generating virion spikes, method={}", method);
 					let spikes = (0 .. num_spikes)
 						.map(|_| sample_particle_3d(pp_args.tomogram_dims, spike_radius))
 						.collect();
@@ -127,7 +126,7 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 
 			(None, Some(method)) => match method {
 				"auto" | "virions" => {
-					info!("Generating particles: method={}", method);
+					info!(web, "Generating particles: method={}", method);
 					let radius = args.get("tomo_spk_rad")
 						.into_f64()?
 						.or(75.0)
@@ -159,17 +158,17 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 
 		// generate images
 		tomography::images::tilt_series(BLOCK_ID, &tilt_series, tilt_series_i, &pp_args, &DEFAULT_NOISE)
-			.save(format!("webp/{}.webp", &tilt_series.tilt_series_id))?;
+			.save(web, format!("webp/{}.webp", &tilt_series.tilt_series_id))?;
 		tomography::images::sides(BLOCK_ID, &tilt_series, tilt_series_i, &pp_args, &DEFAULT_NOISE)
-			.save(format!("webp/{}_sides.webp", &tilt_series.tilt_series_id))?;
+			.save(web, format!("webp/{}_sides.webp", &tilt_series.tilt_series_id))?;
 		tomography::images::raw_tilts_montage(BLOCK_ID, &tilt_series, tilt_series_i, &pp_args, &DEFAULT_NOISE)
-			.save(format!("webp/{}_raw.webp", &tilt_series.tilt_series_id))?;
+			.save(web, format!("webp/{}_raw.webp", &tilt_series.tilt_series_id))?;
 		tomography::images::aligned_tilts_montage(BLOCK_ID, &tilt_series, tilt_series_i, &pp_args, &DEFAULT_NOISE)
-			.save(format!("webp/{}_ali.webp", &tilt_series.tilt_series_id))?;
+			.save(web, format!("webp/{}_ali.webp", &tilt_series.tilt_series_id))?;
 		tomography::images::twod_ctf_montage(BLOCK_ID, &tilt_series, tilt_series_i, &pp_args, &DEFAULT_NOISE)
-			.save(format!("webp/{}_2D_ctftilt.webp", &tilt_series.tilt_series_id))?;
+			.save(web, format!("webp/{}_2D_ctftilt.webp", &tilt_series.tilt_series_id))?;
 		tomography::images::reconstruction_montage(BLOCK_ID, &tilt_series, tilt_series_i, &pp_args, &DEFAULT_NOISE)
-			.save(format!("webp/{}_rec.webp", &tilt_series.tilt_series_id))?;
+			.save(web, format!("webp/{}_rec.webp", &tilt_series.tilt_series_id))?;
 
 		// tell the website
 		web.write_tilt_series(&tilt_series)?;

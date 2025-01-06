@@ -18,7 +18,7 @@ use crate::web::Web;
 pub const BLOCK_ID: &'static str = "tomo-milo";
 
 
-pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
+pub fn run(web: &Web, args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 
 	let pp_args = PreprocessingArgs::from(args, args_config, BLOCK_ID)?;
 
@@ -55,7 +55,7 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 		format!("Block: {}", BLOCK_ID),
 		"Type: 2D Results".to_string()
 	]);
-	img.save("train/2d_visualization_out.webp")?;
+	img.save(web, "train/2d_visualization_out.webp")?;
 
 	// generate the results 2D labels image
 	let mut img = Image::new(RESULTS_IMG_SIZE, RESULTS_IMG_SIZE);
@@ -64,7 +64,7 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 		format!("Block: {}", BLOCK_ID),
 		"Type: 2D Results Labels".to_string()
 	]);
-	img.save("train/2d_visualization_labels.webp")?;
+	img.save(web, "train/2d_visualization_labels.webp")?;
 
 	// generate the results 3D image
 	let mut img = Image::new(RESULTS_IMG_SIZE, RESULTS_IMG_SIZE);
@@ -81,13 +81,12 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 		format!("Block: {}", BLOCK_ID),
 		"Type: 3D Results".to_string()
 	]);
-	img.save("train/3d_visualization_out.webp")?;
+	img.save(web, "train/3d_visualization_out.webp")?;
 
 	// generate the downloadable file
 	fs::write("train/milopyp_interactive.tbz", "just TBZ things")
 		.context("Failed to write the tbz file")?;
 
-	let web = Web::new()?;
 	web.write_parameters(&args, &args_config)?;
 
 	// generate particles for each tilt series

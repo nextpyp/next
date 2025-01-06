@@ -2,23 +2,25 @@
 use std::fs;
 
 use anyhow::{bail, Context, Result};
-use tracing::info;
 
+use crate::info;
 use crate::args::{Args, ArgsConfig};
 use crate::svg::{Rgb, SvgImage};
+use crate::web::Web;
+
 
 pub const BLOCK_ID: &'static str = "tomo-denoising-train";
 
 
-pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
+pub fn run(web: &Web, args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 
 	// TODO: update this to use the new training tab arg
 	let method = args.get("tomo_denoise_method")
 		.into_str()?
 		.value();
 	match method {
-		Some("none") | None => info!("No training method"),
-		Some("isonet-train") => run_isonet(args, args_config)?,
+		Some("none") | None => info!(web, "No training method"),
+		Some("isonet-train") => run_isonet(web, args, args_config)?,
 		Some(method) => bail!("unrecognized training method: {}", method)
 	}
 
@@ -26,12 +28,12 @@ pub fn run(args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 }
 
 
-fn run_isonet(_args: &mut Args, _args_config: &ArgsConfig) -> Result<()> {
+fn run_isonet(web: &Web, _args: &mut Args, _args_config: &ArgsConfig) -> Result<()> {
 
 	// generate the model file
 	fs::write("model.h5", "H5 model file")
 		.context("Failed to write model file")?;
-	info!("write model.h5");
+	info!(web, "write model.h5");
 
 	// create subfolders
 	fs::create_dir_all("train")
@@ -44,7 +46,7 @@ fn run_isonet(_args: &mut Args, _args_config: &ArgsConfig) -> Result<()> {
 		format!("Block: {}", BLOCK_ID),
 		"Type: Training Results".to_string()
 	]);
-	img.save("train/training_loss.svgz")?;
+	img.save(web, "train/training_loss.svgz")?;
 
 	Ok(())
 }
