@@ -14,7 +14,9 @@ data class TQDMProgressInfo(
 ) {
 	companion object {
 
-		private val isRegex = Regex("(^|.* \\|)[0-9 ]{3}%\\|[# ]{10}\\| \\d+/\\d+ \\[.*]$")
+		private val isRegex = Regex("(^|.* \\|)[0-9 ]{3}%\\|[# ]{10}\\| \\d+/\\d+ \\[.*\\]$")
+		// WARNING: Even though IntelliJ says the `\\]` is a redundant escape, it's actually necessary in Kotlin/JS land.
+		//          Don't trust the IDE, it LIES!! =P
 		private val rateRegex = Regex("([0-9.? ]+)([a-zA-Z/]+)")
 
 		fun isProgress(line: String): Boolean =
