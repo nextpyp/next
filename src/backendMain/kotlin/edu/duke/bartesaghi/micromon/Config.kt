@@ -109,9 +109,7 @@ class Config(toml: String) {
 		val port: Int,
 		val maxConnections: Int,
 		val timeoutSeconds: Int,
-		val path: Path,
-		val queues: List<String>,
-		val gpuQueues: List<String>
+		val path: Path
 	) {
 
 		val commandsConfig = Commands.Config()
@@ -201,6 +199,7 @@ class Config(toml: String) {
 						getString(i).toPath()
 					}
 				} ?: emptyList(),
+				// NOTE: there's a `containerExec` option that is used by the pyp launcher, but not the website
 				cudaLibs = getArray("cudaLibs")?.run {
 					indices.map { i ->
 						getString(i).toPath()
@@ -224,13 +223,7 @@ class Config(toml: String) {
 				maxConnections = getInt("maxConnections") ?: SshPoolConfig.defaultPoolSize,
 				timeoutSeconds = getInt("timeoutSeconds") ?: SshPoolConfig.defaultTimeoutSeconds,
 				path = getString("path")?.toPath()
-					?: Paths.get("/usr/bin"),
-				queues = getArray("queues")?.run {
-						indices.map { i -> getString(i) }
-					} ?: emptyList(),
-				gpuQueues = getArray("gpuQueues")?.run {
-						indices.map { i -> getString(i) }
-					} ?: emptyList()
+					?: Paths.get("/usr/bin")
 			)
 		}
 
@@ -313,8 +306,6 @@ class Config(toml: String) {
 				|  max connections:  ${slurm.maxConnections}
 				|     conn timeout:  ${slurm.timeoutSeconds} s
 				|             path:  ${slurm.path}
-				|           queues:  ${slurm.queues}
-				|       GPU queues:  ${slurm.gpuQueues}
 				|
 			""".trimMargin())
 		} else {

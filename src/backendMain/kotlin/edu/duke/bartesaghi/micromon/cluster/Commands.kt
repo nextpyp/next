@@ -265,24 +265,13 @@ fun apptainerWrapper(job: ClusterJob, container: Container): (String) -> String 
 	// set the working directory
 	apptainerArgs += listOf("--pwd \"${job.dir}\"")
 
-	// TODO: how to integrate this with the cluster templates??
-	//       need associated args with ClusterJob.container?
-	// turn on NVidia support if the job was submitted to a GPU queue
-	val args = job.argsParsed
-	val isGpuQueue = args
-		.firstOrNull { (name, _) -> name == "partition" }
-		?.let { (_, queue) ->
-			val gpuQueues = Config.instance.slurm?.gpuQueues
-			gpuQueues != null && queue in gpuQueues
-		}
-		?: false
-	// or if the job requested a GPU specifically
-	val requestedGpu = args
+	// turn on NVidia support if the job requested a GPU specifically
+	val requestedGpu = job.argsParsed
 		.firstOrNull { (name, _) -> name == "gres" }
 		?.let { (_, value) -> Gres.parseAll(value) }
 		?.any { it.name == "gpu" }
 		?: false
-	if (isGpuQueue || requestedGpu) {
+	if (requestedGpu) {
 		apptainerArgs.add("--nv")
 	}
 
