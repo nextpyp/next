@@ -27,19 +27,17 @@ import kotlin.io.path.relativeTo
  * A templating engine for SLURM sbatch scripts, powered by Pebble:
  * https://pebbletemplates.io/
  */
-class TemplateEngine {
+class TemplateEngine(val config: Config.Slurm) {
 
 	companion object {
 
-		fun findTemplates(): List<Template> {
-			val dir = Config.instance.web.clusterTemplatesDir
-				?: return emptyList()
-			return Files.walk(dir).use { paths ->
+		fun findTemplates(config: Config.Slurm): List<Template> {
+			return Files.walk(config.templatesDir).use { paths ->
 				paths
 					.filter { !it.isDirectory() }
-					.map { it.relativeTo(dir) }
+					.map { it.relativeTo(config.templatesDir) }
 					.toList()
-					.mapNotNull { Template.Key(it).toTemplate() }
+					.mapNotNull { Template.Key(config, it).toTemplate() }
 			}
 		}
 	}
@@ -61,13 +59,13 @@ class TemplateEngine {
 
 			override fun resourceExists(templateName: String?): Boolean {
 				templateName ?: return false
-				return Template.Key(templateName)
+				return Template.Key(config, templateName)
 					.exists()
 			}
 
 			override fun createCacheKey(templateName: String?): Template.Key? {
 				templateName ?: return null
-				return Template.Key(templateName)
+				return Template.Key(config, templateName)
 			}
 
 			override fun getReader(cacheKey: Template.Key?): Reader? {
@@ -94,10 +92,10 @@ class TemplateEngine {
 		.build()
 
 	fun template(path: String? = null): Template? =
-		Template.Key(path).toTemplate()
+		Template.Key(config, path).toTemplate()
 
 	fun templateOrThrow(path: String? = null): Template =
-		Template.Key(path).toTemplateOrThrow()
+		Template.Key(config, path).toTemplateOrThrow()
 
 	fun eval(template: Template): String {
 
@@ -143,19 +141,22 @@ class TemplateEngine {
 
 class Template(val relPath: Path, val absPath: Path) {
 
-	data class Key(val path: Path) {
+	class Key(val config: Config.Slurm, val path: Path) {
 
 		companion object {
 			const val DEFAULT = "default.peb"
 		}
 
-		constructor(path: String? = null) : this(Paths.get(path ?: DEFAULT))
+		constructor(config: Config.Slurm, path: String? = null) : this(config, Paths.get(path ?: DEFAULT))
+
+		// hashCode() and equals() implementations are required by Pebble for cache key objects
+		override fun hashCode(): Int =
+			path.hashCode()
+		override fun equals(other: Any?): Boolean =
+			other is Key
+				&& this.path == other.path
 
 		val absPath: Path? get() {
-
-			// if no templates folder is configured, then we don't have a path
-			val dir = Config.instance.web.clusterTemplatesDir
-				?: return null
 
 			// path must not be absolute
 			if (path.isAbsolute) {
@@ -167,7 +168,7 @@ class Template(val relPath: Path, val absPath: Path) {
 				return null
 			}
 
-			return dir / path
+			return config.templatesDir / path
 		}
 
 		fun exists(): Boolean =
@@ -274,15 +275,16 @@ class Template(val relPath: Path, val absPath: Path) {
 
 data class MissingTemplateException(
 	val relPath: Path,
+	val templatesDir: Path,
 	val absPath: Path?
 ) : NoSuchElementException("""
 	|No template file found:
 	|           path:  $relPath
-	|  templates dir:  ${Config.instance.web.clusterTemplatesDir}
+	|  templates dir:  $templatesDir
 	|       resolved:  $absPath
 """.trimIndent()) {
 
-	constructor(key: Template.Key) : this(key.path, key.absPath)
+	constructor(key: Template.Key) : this(key.path, key.config.templatesDir, key.absPath)
 }
 
 

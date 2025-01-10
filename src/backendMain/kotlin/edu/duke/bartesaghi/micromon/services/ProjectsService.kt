@@ -261,11 +261,13 @@ actual class ProjectsService : IProjectsService {
 
 		// load the template name, if possible
 		val template = try {
-			clusterJob.template?.let {
-				Template.Key(it)
-					.toTemplateOrThrow()
-					.readData()
-					.title
+			Config.instance.slurm?.let { config ->
+				clusterJob.template?.let {
+					Template.Key(config, it)
+						.toTemplateOrThrow()
+						.readData()
+						.title
+				}
 			}
 		} catch (t: Throwable) {
 			// can't read the template metadata, so use the path

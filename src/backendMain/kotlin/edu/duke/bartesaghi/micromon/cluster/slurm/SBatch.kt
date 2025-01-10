@@ -74,7 +74,7 @@ class SBatch(val config: Config.Slurm) : Cluster {
 
 	override suspend fun buildScript(clusterJob: ClusterJob, commands: String): String {
 
-		val templates = TemplateEngine()
+		val templates = TemplateEngine(config)
 		val template = templates.templateOrThrow(clusterJob.template)
 
 		// set args from the user

@@ -184,7 +184,10 @@ actual class FormService : IFormService, Service {
 
 		call.authOrThrow()
 
-		return TemplateEngine.findTemplates()
+		val config = Config.instance.slurm
+			?: return emptyList()
+
+		return TemplateEngine.findTemplates(config)
 			.mapNotNull { template ->
 				try {
 					template.readData()
