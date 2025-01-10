@@ -199,6 +199,7 @@ if [ -n "$PYP_LOCAL" ]; then
   localDir="$PYP_LOCAL"
 
   # make a symlink to the local folder in the install dir so scripts can easily find it again later
+  # NOTE: currently  not actually used by any other scripts
   if [ -L "$here/local" ]; then
     $heredo rm "$here/local"
   fi
@@ -233,6 +234,7 @@ if [ -n "$PYP_SHARED_DATA" ]; then
   sharedDataDir="$PYP_SHARED_DATA"
 
   # make a symlink to the shared folder in the install dir so scripts can easily find it again later
+  # NOTE: currently not actually used by any other scripts
   if [ -L "$here/shared" ]; then
     $heredo rm "$here/shared"
   fi
@@ -269,6 +271,7 @@ if [ -n "$PYP_SHARED_EXEC" ]; then
   sharedexecdo="sudo -u $admin"
 
   # make a symlink to the shared exec folder in the install dir so scripts can easily find it again later
+  # NOTE: currently used only by the uninstall script to remove containers and user-processor executables
   if [ -L "$here/sharedExec" ]; then
     $heredo rm "$here/sharedExec"
   fi
