@@ -399,6 +399,9 @@ class BigListNav private constructor(
 		}
 
 		// wire up events
+		selectButton.onClick {
+			choose()
+		}
 		searchText.onEvent {
 
 			input = f@{
