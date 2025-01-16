@@ -49,9 +49,65 @@ impl ProgressBar {
 		//   0%|          | 0/1 [00:00<?, ?it/s]
 
 		let percent = self.progress*100/self.total;
-		let bar = (0 .. percent/10)
-			.map(|_| '#')
-			.collect::<String>();
-		progress!(web, "{:>3}%|{:<10}| {}/{} [00:00<00:05, 5.6it/s]", percent, bar, self.progress, self.total);
+		let bar = bar(percent);
+		progress!(web, "{:>3}%|{}| {}/{} [00:00<00:05, 5.6it/s]", percent, bar, self.progress, self.total);
+	}
+}
+
+
+fn bar(percent: u32) -> String {
+	(0 .. 10)
+		.map(|i|  {
+			let min = i*10;
+			let max = min + 10;
+			if percent <= min {
+				' '
+			} else if percent >= max {
+				'#'
+			} else {
+				match percent - min {
+					1 => '1',
+					2 => '2',
+					3 => '3',
+					4 => '4',
+					5 => '5',
+					6 => '6',
+					7 => '7',
+					8 => '8',
+					9 => '9',
+					_ => '?' // shouldn't happen, since (percent - min) \in [1,9]
+				}
+			}
+		})
+		.collect::<String>()
+}
+
+
+#[cfg(test)]
+mod test {
+
+	use super::*;
+
+
+	#[test]
+	fn bar_values() {
+		assert_eq!(bar(  0).as_str(), "          ");
+		assert_eq!(bar(  1).as_str(), "1         ");
+		assert_eq!(bar(  2).as_str(), "2         ");
+		assert_eq!(bar(  8).as_str(), "8         ");
+		assert_eq!(bar(  9).as_str(), "9         ");
+		assert_eq!(bar( 10).as_str(), "#         ");
+		assert_eq!(bar( 11).as_str(), "#1        ");
+		assert_eq!(bar( 12).as_str(), "#2        ");
+		assert_eq!(bar( 18).as_str(), "#8        ");
+		assert_eq!(bar( 19).as_str(), "#9        ");
+		assert_eq!(bar( 20).as_str(), "##        ");
+		assert_eq!(bar( 21).as_str(), "##1       ");
+		assert_eq!(bar( 90).as_str(), "######### ");
+		assert_eq!(bar( 91).as_str(), "#########1");
+		assert_eq!(bar( 92).as_str(), "#########2");
+		assert_eq!(bar( 98).as_str(), "#########8");
+		assert_eq!(bar( 99).as_str(), "#########9");
+		assert_eq!(bar(100).as_str(), "##########");
 	}
 }

@@ -7,7 +7,7 @@ package edu.duke.bartesaghi.micromon
 data class TQDMProgressInfo(
 	val value: Int,
 	val max: Int,
-	val timeElapsed: String,
+	val timeElapsed: String?,
 	val timeRemaining: String?,
 	val rate: Double?,
 	val unit: String
@@ -15,7 +15,7 @@ data class TQDMProgressInfo(
 	companion object {
 
 		@Suppress("RegExpRedundantEscape")
-		private val isRegex = Regex("(^|.* \\|)[0-9 ]{3}%\\|[# ]{10}\\| \\d+/\\d+ \\[.*\\]$")
+		private val isRegex = Regex("(^|.* \\|?|)[0-9 ]{3}%\\|[# 0-9]{10}\\| \\d+/\\d+ \\[.*\\]$")
 		// WARNING: Even though IntelliJ says the `\\]` is a redundant escape, it's actually necessary in Kotlin/JS land.
 		//          Don't trust the IDE, it LIES!! =P
 		private val rateRegex = Regex("([0-9.? ]+)([a-zA-Z/]+)")
@@ -40,6 +40,9 @@ data class TQDMProgressInfo(
 			// (unknown file):0 |100%|##########| 100/100 [00:05<00:00, 18.98it/s]
 			// or even, eg:
 			//   0%|          | 0/1 [00:00<?, ?it/s]
+			// or even, eg:
+			// `Progress:  10%|#         | 10/100 [00:00<00:04, 19.96it/s]`
+			// `Progress:  98%|#####8    | 88/100 [00:00<00:04, 19.96it/s]`
 
 			val parts = line.split("|")
 				.lastOrNull()
@@ -54,8 +57,10 @@ data class TQDMProgressInfo(
 			return TQDMProgressInfo(
 				value = parts.getOrNull(0)?.toIntOrNull() ?: return null,
 				max = parts.getOrNull(1)?.toIntOrNull() ?: return null,
-				timeElapsed = parts.getOrNull(2) ?: "?",
-				timeRemaining = parts.getOrNull(3),
+				timeElapsed = parts.getOrNull(2)
+					.takeIf { it != "?" },
+				timeRemaining = parts.getOrNull(3)
+					.takeIf { it != "?" },
 				rate = matcher?.groups?.get(1)?.value?.toDoubleOrNull(),
 				unit = "${matcher?.groups?.get(2)?.value ?: "?"}/${parts.getOrNull(5) ?: "?"}"
 			)
@@ -66,3 +71,58 @@ data class TQDMProgressInfo(
 		this.max == next.max
 			&& this.value <= next.value
 }
+
+
+fun <T> Sequence<T>.collapseProgress(liner: (T) -> String): Sequence<T> = object : Sequence<T> {
+
+	val input = this@collapseProgress.iterator()
+	var buf: T? = null
+
+	override fun iterator(): Iterator<T> = object : Iterator<T> {
+
+		override fun hasNext(): Boolean =
+			buf != null || input.hasNext()
+
+		override fun next(): T {
+
+			// consume the buffered line, if available
+			buf?.let {
+				buf = null
+				return it
+			}
+
+			var progress: T? = null
+
+			while (true) {
+
+				// get the next line, if any
+				val line = input
+					.takeIf { input.hasNext() }
+					?.next()
+					?: break
+
+				if (TQDMProgressInfo.isProgress(liner(line))) {
+					// this line is progress info: aggregate it with later lines if possible
+					progress = line
+				} else if (progress != null) {
+					// had progress lines before, but this line isn't progress info:
+					// buffer this line for the next time and return last progress line as the aggregate
+					buf = line
+					return progress
+				} else {
+					// no progress, all line: just return this line without any fanfare
+					return line
+				}
+			}
+
+			return progress
+				?: throw NoSuchElementException()
+		}
+	}
+}
+
+
+fun String.collapseProgress(): String =
+	lineSequence()
+		.collapseProgress { it }
+		.joinToString("\n")

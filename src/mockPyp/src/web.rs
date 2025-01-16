@@ -38,7 +38,9 @@ impl Web {
 
 		let method = method.as_ref();
 
-		tracing::debug!("JSON RPC: {}", method);
+		if method != "log" {
+			tracing::debug!("JSON RPC: {}", method);
+		}
 
 		let client = reqwest::blocking::Client::new();
 		let response = client.post(format!("{}/pyp", &self.host))
@@ -51,7 +53,9 @@ impl Web {
 			.send()
 			.context("Failed to send request to website")?;
 
-		tracing::debug!("\tresponse: HTTP status={}", response.status());
+		if method != "log" {
+			tracing::debug!("\tresponse: HTTP status={}", response.status());
+		}
 
 		let mut response = response
 			.json::<Value>()

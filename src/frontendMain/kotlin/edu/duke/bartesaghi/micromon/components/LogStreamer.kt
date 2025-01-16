@@ -366,7 +366,7 @@ private class TQDMProgressBar(initialInfo: TQDMProgressInfo) : Span(classes = se
 		bar.width = percent.perc
 		bar.content = "${percent.toFixed(0)}%"
 
-		timeElapsed.content = info.timeElapsed
+		timeElapsed.content = info.timeElapsed ?: "?"
 		timeRemaining.content = info.timeRemaining ?: "?"
 
 		rate.content = info.rate?.toString() ?: "?"

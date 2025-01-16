@@ -295,7 +295,7 @@ object RealTimeService {
 			}
 
 			// get all the current log entries from the stream log,
-			// and the repsetentative result, eg the first array job or the main job
+			// and the representative result, eg the first array job or the main job
 			val representativeLog = clusterJob.getLog(if (clusterJob.commands.isArray) {
 				1
 			} else {

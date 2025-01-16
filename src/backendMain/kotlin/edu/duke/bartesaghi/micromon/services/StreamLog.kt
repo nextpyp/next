@@ -1,6 +1,7 @@
 package edu.duke.bartesaghi.micromon.services
 
 import edu.duke.bartesaghi.micromon.cluster.ClusterJob
+import edu.duke.bartesaghi.micromon.collapseProgress
 import edu.duke.bartesaghi.micromon.mongo.Database
 
 
@@ -36,15 +37,18 @@ object StreamLog {
 		val out = ArrayList<StreamLogMsg>()
 
 		Database.instance.pypLog.getAll(clusterJobId) { cursor ->
-			for (doc in cursor) {
-				out.add(StreamLogMsg(
-					timestamp = doc.getLong("timestamp"),
-					level = doc.getInteger("level"),
-					path = doc.getString("path"),
-					line = doc.getInteger("line"),
-					msg = doc.getString("msg")
-				))
-			}
+			cursor
+				.map { doc ->
+					StreamLogMsg(
+						timestamp = doc.getLong("timestamp"),
+						level = doc.getInteger("level"),
+						path = doc.getString("path"),
+						line = doc.getInteger("line"),
+						msg = doc.getString("msg")
+					)
+				}
+				.collapseProgress { it.msg }
+				.forEach { out.add(it) }
 		}
 
 		return out

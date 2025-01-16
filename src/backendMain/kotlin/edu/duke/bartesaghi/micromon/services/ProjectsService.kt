@@ -283,7 +283,7 @@ actual class ProjectsService : IProjectsService {
 			log?.launchResult?.toData(),
 			log?.result?.type,
 			log?.result?.exitCode,
-			log?.result?.out?.collapseLog(),
+			log?.result?.out?.collapseProgress(),
 			clusterJob.commands.arraySize,
 			failedArrayIds
 		)
@@ -298,7 +298,7 @@ actual class ProjectsService : IProjectsService {
 		// load the array element log
 		val log = clusterJob.getLog(arrayId)
 
-		return ClusterJobArrayLog(log?.result?.type, log?.result?.exitCode, log?.result?.out?.collapseLog())
+		return ClusterJobArrayLog(log?.result?.type, log?.result?.exitCode, log?.result?.out?.collapseProgress())
 	}
 
 	override suspend fun waitingReason(clusterJobId: String): String = sanitizeExceptions {
