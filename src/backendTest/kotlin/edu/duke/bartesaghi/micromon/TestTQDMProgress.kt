@@ -32,7 +32,9 @@ class TestTQDMProgress : DescribeSpec({
 			/* 15 */ "  0%|          | 37/42 [?<?, 5beers/florp]",
 			/* 16 */ "\r  5%|5         | 5/7 [?<?, 5a/b]",
 			/* 17 */ "2025-01-16 15:05:26.9869 -05:00  INFO MockPyp: 83%|########3 | 83/100 [00:00<00:05, 5.6it/s]",
+			// sometimes, we get whitespace at the end of the lines too
 			/* 18 */ "  5%|5         | 5/7 [?<?, 5a/b]\r",
+			/* 19 */ "  5%|5         | 5/7 [?<?, 5a/b] ",
 		)
 
 
@@ -212,6 +214,25 @@ class TestTQDMProgress : DescribeSpec({
 				|not progress: aftermath
 			""".trimMargin()
 
+			// progress bar with extra whitespace at the end
+			// observed in pyp stdout (WHY?!?!?!)
+			"""
+				|not progress: the before times
+				|
+				|  0%|          | 0/3 [00:00<?, ?it/s]
+				|
+				| 33%|###3      | 1/3 [00:00<?, ?it/s] 
+				|
+				| 66%|######6   | 2/3 [00:00<?, ?it/s]
+				|
+				|100%|##########| 3/3 [00:00<?, ?it/s]
+				|not progress: aftermath
+			""".trimMargin().collapseProgress() shouldBe """
+				|not progress: the before times
+				|100%|##########| 3/3 [00:00<?, ?it/s]
+				|not progress: aftermath
+			""".trimMargin()
+
 			// progress bar with extra carraige returns
 			// observed in pyp streaming log messages
 			// NOTE: build a raw line sequence here so we can deliberately make bad newline encodings
@@ -234,7 +255,7 @@ class TestTQDMProgress : DescribeSpec({
 				|not progress: aftermath
 			""".trimMargin()
 
-			// sometimes the carriage returns show up at the end of the line too
+			// just in case the carriage returns show up at the end of the line too
 			sequenceOf(
 				"not progress: the before times",
 				"  0%|          | 0/3 [00:00<?, ?it/s]\r",
