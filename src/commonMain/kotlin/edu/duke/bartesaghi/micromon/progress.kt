@@ -15,7 +15,7 @@ data class TQDMProgressInfo(
 	companion object {
 
 		@Suppress("RegExpRedundantEscape")
-		private val isRegex = Regex("(^|.* \\|?|)[0-9 ]{3}%\\|[# 0-9]{10}\\| \\d+/\\d+ \\[.*\\]$")
+		private val isRegex = Regex("^\\r?.*( \\||: |:)?[0-9 ]{3}%\\|[# 0-9]{10}\\| \\d+/\\d+ \\[.*\\]$")
 		// WARNING: Even though IntelliJ says the `\\]` is a redundant escape, it's actually necessary in Kotlin/JS land.
 		//          Don't trust the IDE, it LIES!! =P
 		private val rateRegex = Regex("([0-9.? ]+)([a-zA-Z/]+)")
@@ -43,8 +43,14 @@ data class TQDMProgressInfo(
 			// or even, eg:
 			// `Progress:  10%|#         | 10/100 [00:00<00:04, 19.96it/s]`
 			// `Progress:  98%|#####8    | 88/100 [00:00<00:04, 19.96it/s]`
+			// or even, eg:
+			// `\rProgress:  98%|#####8    | 88/100 [00:00<00:04, 19.96it/s]`
+			// or even, eg:
+			// `2025-01-16 15:05:26.9869 -05:00  INFO MockPyp: 83%|########3 | 83/100 [00:00<00:05, 5.6it/s]`
 
-			val parts = line.split("|")
+			val parts = line
+				.dropWhile { it == '\r' }
+				.split("|")
 				.lastOrNull()
 				?.split(" ", "/", "[", "<", ",", "]")
 				?.filter { it.isNotBlank() }
@@ -76,22 +82,21 @@ data class TQDMProgressInfo(
 fun <T> Sequence<T>.collapseProgress(liner: (T) -> String): Sequence<T> = object : Sequence<T> {
 
 	val input = this@collapseProgress.iterator()
-	var buf: T? = null
+	val buf = ArrayDeque<T>()
 
 	override fun iterator(): Iterator<T> = object : Iterator<T> {
 
 		override fun hasNext(): Boolean =
-			buf != null || input.hasNext()
+			buf.isNotEmpty() || input.hasNext()
 
 		override fun next(): T {
 
-			// consume the buffered line, if available
-			buf?.let {
-				buf = null
-				return it
-			}
+			// consume any buffered lines, if available
+			buf.removeFirstOrNull()
+				?.let { return it }
 
 			var progress: T? = null
+			val blankLines = ArrayDeque<T>()
 
 			while (true) {
 
@@ -104,11 +109,20 @@ fun <T> Sequence<T>.collapseProgress(liner: (T) -> String): Sequence<T> = object
 				if (TQDMProgressInfo.isProgress(liner(line))) {
 					// this line is progress info: aggregate it with later lines if possible
 					progress = line
+					blankLines.clear()
 				} else if (progress != null) {
 					// had progress lines before, but this line isn't progress info:
-					// buffer this line for the next time and return last progress line as the aggregate
-					buf = line
-					return progress
+					if (liner(line).isBlank() && blankLines.size <= 0) {
+						// blank lines are sometimes between the progress messages
+						// ignore up to one of them and skip to the next non-blank line
+						blankLines.addLast(line)
+						continue
+					} else {
+						// buffer this line (and any blank lines) for the next time and return last progress line as the aggregate
+						buf.addAll(blankLines)
+						buf.add(line)
+						return progress
+					}
 				} else {
 					// no progress, all line: just return this line without any fanfare
 					return line

@@ -30,6 +30,8 @@ class TestTQDMProgress : DescribeSpec({
 			/* 13 */ "Progress:  10%|#         | 10/100 [00:00<00:04, 19.96it/s]",
 			/* 14 */ "Progress:  98%|#####8    | 88/100 [00:00<00:04, 19.96it/s]",
 			/* 15 */ "  0%|          | 37/42 [?<?, 5beers/florp]",
+			/* 16 */ "\r  5%|5         | 5/7 [?<?, 5a/b]",
+			/* 17 */ "2025-01-16 15:05:26.9869 -05:00  INFO MockPyp: 83%|########3 | 83/100 [00:00<00:05, 5.6it/s]"
 		)
 
 
@@ -97,6 +99,24 @@ class TestTQDMProgress : DescribeSpec({
 				rate shouldBe 5.0
 				unit shouldBe "beers/florp"
 			}
+
+			TQDMProgressInfo.from(lines[16]).shouldNotBeNull().apply {
+				value shouldBe 5
+				max shouldBe 7
+				timeElapsed shouldBe null
+				timeRemaining shouldBe null
+				rate shouldBe 5.0
+				unit shouldBe "a/b"
+			}
+
+			TQDMProgressInfo.from(lines[17]).shouldNotBeNull().apply {
+				value shouldBe 83
+				max shouldBe 100
+				timeElapsed shouldBe "00:00"
+				timeRemaining shouldBe "00:05"
+				rate shouldBe 5.6
+				unit shouldBe "it/s"
+			}
 		}
 
 
@@ -159,6 +179,46 @@ class TestTQDMProgress : DescribeSpec({
 			""".trimMargin().collapseProgress() shouldBe """
 				|not progress
 				|100%|##########| 3/3 [00:00<?, ?it/s]
+			""".trimMargin()
+
+			// progress bar with extra newlines
+			// observed in pyp stdout
+			// possibly emitted by a logging library trying to use console control characters or non-standard newlines
+			// but they're getting re-encoded or translated somehow before reaching the website
+			"""
+				|not progress: the before times
+				|
+				|  0%|          | 0/3 [00:00<?, ?it/s]
+				|
+				| 33%|##3       | 1/3 [00:00<?, ?it/s]
+				|
+				| 66%|######6   | 2/3 [00:00<?, ?it/s]
+				|
+				|100%|##########| 3/3 [00:00<?, ?it/s]
+				|
+				|not progress: aftermath
+			""".trimMargin().collapseProgress() shouldBe """
+				|not progress: the before times
+				|
+				|100%|##########| 3/3 [00:00<?, ?it/s]
+				|
+				|not progress: aftermath
+			""".trimMargin()
+
+			// progress bar with extra carraige returns
+			// observed in pyp streaming log messages
+			val cr = '\r'
+			"""
+				|not progress: the before times
+				|  0%|          | 0/3 [00:00<?, ?it/s]
+				|$cr 33%|##3       | 1/3 [00:00<?, ?it/s]
+				|$cr 66%|######6   | 2/3 [00:00<?, ?it/s]
+				|${cr}100%|##########| 3/3 [00:00<?, ?it/s]
+				|not progress: aftermath
+			""".trimMargin().collapseProgress() shouldBe """
+				|not progress: the before times
+				|100%|##########| 3/3 [00:00<?, ?it/s]
+				|not progress: aftermath
 			""".trimMargin()
 		}
 	}
