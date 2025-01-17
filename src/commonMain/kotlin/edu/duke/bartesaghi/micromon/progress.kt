@@ -79,7 +79,10 @@ data class TQDMProgressInfo(
 }
 
 
-fun <T> Sequence<T>.collapseProgress(liner: (T) -> String): Sequence<T> = object : Sequence<T> {
+fun <T> Sequence<T>.collapseProgress(
+	transformer: ((T) -> T)? = null,
+	liner: (T) -> String
+): Sequence<T> = object : Sequence<T> {
 
 	val input = this@collapseProgress.iterator()
 	val buf = ArrayDeque<T>()
@@ -96,7 +99,7 @@ fun <T> Sequence<T>.collapseProgress(liner: (T) -> String): Sequence<T> = object
 				?.let { return it }
 
 			var progress: T? = null
-			val blankLines = ArrayDeque<T>()
+			var blank: T? = null
 
 			while (true) {
 
@@ -108,18 +111,22 @@ fun <T> Sequence<T>.collapseProgress(liner: (T) -> String): Sequence<T> = object
 
 				if (TQDMProgressInfo.isProgress(liner(line))) {
 					// this line is progress info: aggregate it with later lines if possible
-					progress = line
-					blankLines.clear()
+					progress =
+						if (transformer != null) {
+							transformer(line)
+						} else {
+							line
+						}
+					blank = null
 				} else if (progress != null) {
 					// had progress lines before, but this line isn't progress info:
-					if (liner(line).isBlank() && blankLines.size <= 0) {
+					if (liner(line).isBlank() && blank == null) {
 						// blank lines are sometimes between the progress messages
 						// ignore up to one of them and skip to the next non-blank line
-						blankLines.addLast(line)
-						continue
+						blank = line
 					} else {
-						// buffer this line (and any blank lines) for the next time and return last progress line as the aggregate
-						buf.addAll(blankLines)
+						// buffer this line (and the blank, if there) for the next time and return last progress line as the aggregate
+						blank?.let { buf.add(it) }
 						buf.add(line)
 						return progress
 					}
@@ -140,3 +147,14 @@ fun String.collapseProgress(): String =
 	lineSequence()
 		.collapseProgress { it }
 		.joinToString("\n")
+
+
+/**
+ * remove the preceeding carriage returns from progress messages
+ * apparently pyp's logging library likes to put them there
+ */
+fun <T> preceedingCarriageReturnTrimmer(liner: (T) -> String, factory: (T, String) -> T): (T) -> T =
+	{ item ->
+		val line = liner(item).trimStart('\r')
+		factory(item, line)
+	}

@@ -207,15 +207,21 @@ class TestTQDMProgress : DescribeSpec({
 
 			// progress bar with extra carraige returns
 			// observed in pyp streaming log messages
-			val cr = '\r'
-			"""
-				|not progress: the before times
-				|  0%|          | 0/3 [00:00<?, ?it/s]
-				|$cr 33%|##3       | 1/3 [00:00<?, ?it/s]
-				|$cr 66%|######6   | 2/3 [00:00<?, ?it/s]
-				|${cr}100%|##########| 3/3 [00:00<?, ?it/s]
-				|not progress: aftermath
-			""".trimMargin().collapseProgress() shouldBe """
+			// NOTE: build a raw line sequence here so we can deliberately make bad newline encodings
+			sequenceOf(
+				"not progress: the before times",
+				"\r  0%|          | 0/3 [00:00<?, ?it/s]",
+				"\r 33%|##3       | 1/3 [00:00<?, ?it/s]",
+				"\r 66%|######6   | 2/3 [00:00<?, ?it/s]",
+				"\r100%|##########| 3/3 [00:00<?, ?it/s]",
+				"not progress: aftermath"
+			).collapseProgress(
+				liner = { it },
+				transformer = preceedingCarriageReturnTrimmer(
+					liner = { it },
+					factory = { _, line -> line }
+				)
+			).joinToString("\n") shouldBe """
 				|not progress: the before times
 				|100%|##########| 3/3 [00:00<?, ?it/s]
 				|not progress: aftermath

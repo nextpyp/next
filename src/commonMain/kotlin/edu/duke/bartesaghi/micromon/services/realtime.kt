@@ -601,7 +601,7 @@ enum class RunStatus(val id: String, val oldIds: List<String>? = null) {
 
 
 @Serializable
-class StreamLogMsg(
+data class StreamLogMsg(
 	val timestamp: Long,
 	val level: Int,
 	val path: String,
