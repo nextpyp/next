@@ -82,3 +82,43 @@ suspend fun <T:SuspendCloseable,R> T.use(block: suspend (T) -> R): R =
 	} finally {
 		close()
 	}
+
+
+
+interface PeekingIterator<T> : Iterator<T> {
+	fun peek(): T
+}
+
+fun <T> Iterator<T>.peeking(): PeekingIterator<T> {
+
+	val src = this
+	if (src is PeekingIterator) {
+		return src
+	}
+
+	return object : PeekingIterator<T> {
+
+		private val next = ArrayList<T>()
+
+		override fun hasNext(): Boolean =
+			next.isNotEmpty() || src.hasNext()
+
+		override fun next(): T {
+
+			if (next.isEmpty()) {
+				return src.next()
+			}
+
+			val out = next[0]
+			next.clear()
+			return out
+		}
+
+		override fun peek(): T {
+			if (next.isEmpty()) {
+				next.add(src.next())
+			}
+			return next[0]
+		}
+	}
+}

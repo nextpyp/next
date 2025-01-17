@@ -85,6 +85,7 @@ fun <T> Sequence<T>.collapseProgress(
 ): Sequence<T> = object : Sequence<T> {
 
 	val input = this@collapseProgress.iterator()
+		.peeking()
 	val buf = ArrayDeque<T>()
 
 	override fun iterator(): Iterator<T> = object : Iterator<T> {
@@ -109,7 +110,8 @@ fun <T> Sequence<T>.collapseProgress(
 					?.next()
 					?: break
 
-				if (TQDMProgressInfo.isProgress(liner(line))) {
+				val linestr = liner(line)
+				if (TQDMProgressInfo.isProgress(linestr)) {
 					// this line is progress info: aggregate it with later lines if possible
 					progress =
 						if (transformer != null) {
@@ -120,10 +122,11 @@ fun <T> Sequence<T>.collapseProgress(
 					blank = null
 				} else if (progress != null) {
 					// had progress lines before, but this line isn't progress info:
-					if (liner(line).isBlank() && blank == null) {
+					if (linestr.isBlank() && blank == null) {
 						// blank lines are sometimes between the progress messages
 						// ignore up to one of them and skip to the next non-blank line
 						blank = line
+						continue
 					} else {
 						// buffer this line (and the blank, if there) for the next time and return last progress line as the aggregate
 						blank?.let { buf.add(it) }
@@ -131,7 +134,18 @@ fun <T> Sequence<T>.collapseProgress(
 						return progress
 					}
 				} else {
-					// no progress, all line: just return this line without any fanfare
+					// no progress, all line
+					if (linestr.isBlank()) {
+						// except sometimes we get blank lines *before* the first progress message,
+						// so we need to look ahead to filter those out too
+						val peekLine = input
+							.takeIf { it.hasNext() }
+							?.peek()
+						if (peekLine != null && TQDMProgressInfo.isProgress(liner(peekLine))) {
+							blank = peekLine
+							continue
+						}
+					}
 					return line
 				}
 			}

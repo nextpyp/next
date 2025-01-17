@@ -184,7 +184,8 @@ class TestTQDMProgress : DescribeSpec({
 			// progress bar with extra newlines
 			// observed in pyp stdout
 			// possibly emitted by a logging library trying to use console control characters or non-standard newlines
-			// but they're getting re-encoded or translated somehow before reaching the website
+			// but they're getting re-encoded or translated somehow before reaching the website,
+			// so they just show up as extra newlines
 			"""
 				|not progress: the before times
 				|
@@ -195,13 +196,10 @@ class TestTQDMProgress : DescribeSpec({
 				| 66%|######6   | 2/3 [00:00<?, ?it/s]
 				|
 				|100%|##########| 3/3 [00:00<?, ?it/s]
-				|
 				|not progress: aftermath
 			""".trimMargin().collapseProgress() shouldBe """
 				|not progress: the before times
-				|
 				|100%|##########| 3/3 [00:00<?, ?it/s]
-				|
 				|not progress: aftermath
 			""".trimMargin()
 
