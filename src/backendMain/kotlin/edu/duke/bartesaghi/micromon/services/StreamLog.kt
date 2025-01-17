@@ -3,7 +3,7 @@ package edu.duke.bartesaghi.micromon.services
 import edu.duke.bartesaghi.micromon.cluster.ClusterJob
 import edu.duke.bartesaghi.micromon.collapseProgress
 import edu.duke.bartesaghi.micromon.mongo.Database
-import edu.duke.bartesaghi.micromon.preceedingCarriageReturnTrimmer
+import edu.duke.bartesaghi.micromon.carriageReturnTrimmer
 
 
 object StreamLog {
@@ -50,7 +50,7 @@ object StreamLog {
 				}
 				.collapseProgress(
 					liner = { it.msg },
-					transformer = preceedingCarriageReturnTrimmer(
+					transformer = carriageReturnTrimmer(
 						liner = { it.msg },
 						factory = { line, msg -> line.copy(msg = msg) }
 					)

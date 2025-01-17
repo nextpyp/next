@@ -31,7 +31,8 @@ class TestTQDMProgress : DescribeSpec({
 			/* 14 */ "Progress:  98%|#####8    | 88/100 [00:00<00:04, 19.96it/s]",
 			/* 15 */ "  0%|          | 37/42 [?<?, 5beers/florp]",
 			/* 16 */ "\r  5%|5         | 5/7 [?<?, 5a/b]",
-			/* 17 */ "2025-01-16 15:05:26.9869 -05:00  INFO MockPyp: 83%|########3 | 83/100 [00:00<00:05, 5.6it/s]"
+			/* 17 */ "2025-01-16 15:05:26.9869 -05:00  INFO MockPyp: 83%|########3 | 83/100 [00:00<00:05, 5.6it/s]",
+			/* 18 */ "  5%|5         | 5/7 [?<?, 5a/b]\r",
 		)
 
 
@@ -191,7 +192,15 @@ class TestTQDMProgress : DescribeSpec({
 				|
 				|  0%|          | 0/3 [00:00<?, ?it/s]
 				|
-				| 33%|##3       | 1/3 [00:00<?, ?it/s]
+				|  5%|5         | 1/3 [00:00<?, ?it/s]
+				|
+				| 17%|#7        | 1/3 [00:00<?, ?it/s]
+				|
+				| 27%|##7       | 1/3 [00:00<?, ?it/s]
+				|
+				| 31%|###1      | 1/3 [00:00<?, ?it/s]
+				|
+				| 33%|###3      | 1/3 [00:00<?, ?it/s]
 				|
 				| 66%|######6   | 2/3 [00:00<?, ?it/s]
 				|
@@ -215,7 +224,44 @@ class TestTQDMProgress : DescribeSpec({
 				"not progress: aftermath"
 			).collapseProgress(
 				liner = { it },
-				transformer = preceedingCarriageReturnTrimmer(
+				transformer = carriageReturnTrimmer(
+					liner = { it },
+					factory = { _, line -> line }
+				)
+			).joinToString("\n") shouldBe """
+				|not progress: the before times
+				|100%|##########| 3/3 [00:00<?, ?it/s]
+				|not progress: aftermath
+			""".trimMargin()
+
+			// sometimes the carriage returns show up at the end of the line too
+			sequenceOf(
+				"not progress: the before times",
+				"  0%|          | 0/3 [00:00<?, ?it/s]\r",
+				"",
+				" 11%|          | 1/3 [00:00<?, ?it/s]\r",
+				"",
+				" 22%|          | 1/3 [00:00<?, ?it/s]",
+				"",
+				" 33%|          | 1/3 [00:00<?, ?it/s]\r",
+				"",
+				" 44%|          | 1/3 [00:00<?, ?it/s]\r",
+				"",
+				" 55%|          | 1/3 [00:00<?, ?it/s]\r",
+				"",
+				" 66%|          | 1/3 [00:00<?, ?it/s]\r",
+				"",
+				" 77%|          | 1/3 [00:00<?, ?it/s]",
+				"",
+				" 88%|          | 1/3 [00:00<?, ?it/s]\r",
+				"",
+				" 99%|          | 1/3 [00:00<?, ?it/s]\r",
+				"",
+				"100%|##########| 3/3 [00:00<?, ?it/s]\r",
+				"not progress: aftermath"
+			).collapseProgress(
+				liner = { it },
+				transformer = carriageReturnTrimmer(
 					liner = { it },
 					factory = { _, line -> line }
 				)

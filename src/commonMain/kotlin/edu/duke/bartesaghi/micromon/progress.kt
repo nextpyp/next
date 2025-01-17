@@ -15,7 +15,7 @@ data class TQDMProgressInfo(
 	companion object {
 
 		@Suppress("RegExpRedundantEscape")
-		private val isRegex = Regex("^\\r?.*( \\||: |:)?[0-9 ]{3}%\\|[# 0-9]{10}\\| \\d+/\\d+ \\[.*\\]$")
+		private val isRegex = Regex("^\\r?.*( \\||: |:)?[0-9 ]{3}%\\|[# 0-9]{10}\\| \\d+/\\d+ \\[.*\\]\\r?$")
 		// WARNING: Even though IntelliJ says the `\\]` is a redundant escape, it's actually necessary in Kotlin/JS land.
 		//          Don't trust the IDE, it LIES!! =P
 		private val rateRegex = Regex("([0-9.? ]+)([a-zA-Z/]+)")
@@ -167,8 +167,8 @@ fun String.collapseProgress(): String =
  * remove the preceeding carriage returns from progress messages
  * apparently pyp's logging library likes to put them there
  */
-fun <T> preceedingCarriageReturnTrimmer(liner: (T) -> String, factory: (T, String) -> T): (T) -> T =
+fun <T> carriageReturnTrimmer(liner: (T) -> String, factory: (T, String) -> T): (T) -> T =
 	{ item ->
-		val line = liner(item).trimStart('\r')
+		val line = liner(item).trim('\r')
 		factory(item, line)
 	}
