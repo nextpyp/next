@@ -104,6 +104,42 @@ button.image-button.reconstruction-node img {
 }
 
 
+/* KVISION FORMS */
+
+form {
+
+	> .form-group {
+		> label {
+			> .icon-changed {
+				/* this font-awesome "icon" is actually just text for some reason, we so we need to style it like text */
+				color: #a1c8f1;
+				margin-right: 0.2em;
+				font-size: 80%;
+				vertical-align: text-top;
+			}
+		}
+	}
+}
+
+form.grid {
+
+	> .form-group {
+		display: flex;
+		flex-direction: row;
+		gap: 1em;
+		align-items: baseline;
+
+		> label {
+			text-align: right;
+
+			&::after {
+				content: ": ";
+			}
+		}
+	}
+}
+
+
 /* VIEWPORT */
 
 .viewport .viewport-header {
@@ -3117,29 +3153,27 @@ div.file-browser .file-browser-bottom .file-browser-controls .file-browser-glob 
 	margin-top: 20px;
 }
 
-.session .settings form .form-group {
-	max-width: 600px;
-	display: flex;
-	flex-direction: row;
-}
+.session .settings form {
 
-.session .settings form .form-group label {
-	min-width: 140px;
-	text-align: right;
-	margin-right: 14px;
-	line-height: 37px;
-}
+	> .form-group {
+		max-width: 600px;
 
-.session .settings form .form-group label::after {
-	content: ": ";
-}
+		> label {
+			min-width: 140px;
+		}
+	}
 
-.session .settings form .buttons {
-	text-align: right;
-}
+	.buttons {
+		display: flex;
+		flex-direction: row;
+		gap: 1em;
+		justify-content: flex-end;
+	}
 
-.session .settings form .buttons button {
-	margin-left: 20px;
+	/* the folder chooser has nested fields, so tweak the sizes a bit */
+	.create-folder-chooser {
+		max-width: 1000px;
+	}
 }
 
 .session .ops {
@@ -3953,4 +3987,25 @@ select.native {
 
 .form-group select.native {
 	width: 100%;
+}
+
+
+
+/* FOLDER CHOOSER */
+/* the folder chooser has nested fields, so tweak the sizes a bit */
+.create-folder-chooser {
+	display: flex;
+	flex-direction: column;
+	gap: 0.6em;
+
+	.form-group {
+		display: flex;
+		flex-direction: row;
+		gap: 1em;
+		align-items: baseline;
+
+		> label {
+			width: 3em;
+		}
+	}
 }

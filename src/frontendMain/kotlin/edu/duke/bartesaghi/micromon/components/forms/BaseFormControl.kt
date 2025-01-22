@@ -1,51 +1,79 @@
 package edu.duke.bartesaghi.micromon.components.forms
 
+import edu.duke.bartesaghi.micromon.AppScope
+import io.kvision.core.Component
 import io.kvision.form.*
 import io.kvision.html.Div
 
 
 /**
+ * Because thinking about enabled is much easier than thinking about disabled
+ */
+interface EnableableControl {
+	var enabled: Boolean
+}
+
+
+/**
  * A utility class to cut down on boilerplate when making custom form controls for KVision forms.
  */
-abstract class BaseFormControl(
-	override var name: String? = null,
+abstract class BaseFormControl<T:FormInput>(
 	label: String? = null,
 	classes: Set<String> = emptySet()
-) : FormControl, Div(classes = classes) {
+) : FormControl, EnableableControl, Div(classes = setOf("form-group") + classes) {
+
+	abstract override val input: T
+	abstract val labelReferent: Component
 
 	companion object {
 		var counter = 0
 	}
 
-	private val idc = "micromon_control_${counter++}"
-	override val flabel: FieldLabel
-		= FieldLabel(idc, label)
+	val uniqueControlId = "micromon_control_${counter++}"
+	override val flabel: FieldLabel =
+		FieldLabel(uniqueControlId, label)
 
-	final override val input: FormInput = object : FormInput, Div() {
+	override val invalidFeedback: InvalidFeedback =
+		InvalidFeedback().apply { visible = false }
 
-		override var disabled: Boolean = false
-		override var size: InputSize? = null
-		override var validationStatus: ValidationStatus? = null
+	// forward the interfaces to the input control
+	override var disabled: Boolean
+		get() = input.disabled
+		set(value) { input.disabled = value }
 
-		private val base get() = this@BaseFormControl
+	override var enabled: Boolean
+		get() = !disabled
+		set(value) { disabled = !value }
 
-		override var name: String?
-			get() = base.name
-			set(value) { base.name = value }
+	override fun blur() = input.blur()
+	override fun focus() = input.focus()
 
-		override fun blur() = base.blur()
-		override fun focus() = base.focus()
-
-		init {
-			id = base.idc
-			base.addInternal(this)
+	init {
+		// layout
+		// NOTE: On this constructor, `input` isn't assigned yet, so we can't use it.
+		//       So defer layout until after the constructor of the subclass by launching a task onto the event queue
+		AppScope.launch {
+			// assign the label id to a control
+			labelReferent.setAttribute("id", uniqueControlId)
+			addInternal(flabel)
+			addInternal(input)
 		}
 	}
+}
 
-	override val invalidFeedback: InvalidFeedback
-		= InvalidFeedback().apply { visible = false }
 
-	abstract override var disabled: Boolean
-	abstract override fun blur()
-	abstract override fun focus()
+/**
+ * A utility class to cut down on boilerplate when making custom form controls for KVision forms.
+ */
+abstract class BaseFormInput(
+	override var name: String? = null,
+	classes: Set<String> = emptySet()
+) : FormInput, EnableableControl, Div(classes = classes) {
+
+	override var size: InputSize? = null
+	override var validationStatus: ValidationStatus? = null
+
+	override var disabled: Boolean
+		get() = !enabled
+		set(value) { enabled = !value }
 }

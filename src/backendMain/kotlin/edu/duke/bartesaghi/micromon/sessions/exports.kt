@@ -62,7 +62,7 @@ class SessionExport(
 			}
 
 			// create the export folder
-			export.dir.createDirsIfNeededAs(user.osUsername)
+			export.dir(session).createDirsIfNeededAs(user.osUsername)
 
 			// run the request-specific prep
 			request.handler.prep(session, export)
@@ -83,7 +83,7 @@ class SessionExport(
 				clusterName = "pyp_export",
 				owner = export.idOrThrow,
 				ownerListener = this,
-				dir = export.dir,
+				dir = export.dir(session),
 				args = listOf("-data_parent=${pypDir}"),
 				launchArgs = slurmArgValues.toSbatchArgs()
 			)
@@ -123,9 +123,6 @@ class SessionExport(
 			id = doc.getObjectId("_id").toStringId()
 		}
 
-		fun dir(sessionId: String, exportId: String): Path =
-			Session.dir(sessionId) / "exports" / exportId
-
 		override suspend fun ended(ownerId: String, resultType: ClusterJobResultType) {
 
 			val export = get(ownerId)
@@ -157,8 +154,8 @@ class SessionExport(
 		}
 	}
 
-	val dir: Path get() =
-		dir(sessionId, idOrThrow)
+	fun dir(session: Session): Path =
+		session.dir / "exports" / idOrThrow
 
 	fun toData() = SessionExportData(
 		sessionId,
@@ -216,7 +213,7 @@ private val exportHandlers = mapOf<KClass<out SessionExportRequest>,SessionExpor
 			// yeah, use this file name even for tilt series
 			val names = session.newestArgs().pypNames()
 				?: return@f
-			val file = export.dir / "${names.session}.micrographs"
+			val file = export.dir(session) / "${names.session}.micrographs"
 			file.writeString(session.resolveFilter(filter).joinToString("\n"))
 		},
 
@@ -224,7 +221,7 @@ private val exportHandlers = mapOf<KClass<out SessionExportRequest>,SessionExpor
 			export.request as SessionExportRequest.Filter
 
 			// look for the relion folder created by pyp
-			val path = export.dir / "relion"
+			val path = export.dir(session) / "relion"
 
 			if (!path.exists() && !path.isDirectory()) {
 				SessionExportResult.Failed("The exported files were not found.")

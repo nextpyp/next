@@ -3,6 +3,8 @@ package edu.duke.bartesaghi.micromon.auth
 import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.mongo.Database
 import io.kvision.remote.ServiceException
+import java.nio.file.Path
+import java.nio.file.Paths
 import kotlin.io.path.div
 
 
@@ -43,3 +45,40 @@ fun User.authUserOrThrow(userId: String): User {
 	throw AuthException("access to other user denied")
 		.withInternal("access to $userId requested by user $id")
 }
+
+
+fun User.allowedRoots(): List<Path> {
+
+	val out = ArrayList<Path>()
+
+	// allow all binds configured by the administrator
+	out.addAll(Config.instance.pyp.binds)
+
+	// allow the user's folder
+	out.add(dir())
+
+	return out
+}
+
+fun Path.allowedByOrThrow(user: User, extraAllowedRoots: List<Path> = emptyList()): Path {
+
+	fun bail(): Nothing =
+		throw AuthExceptionWithInternal("folder not allowed", "for user $user to path $this")
+
+	// don't allow any relative paths like ../../../ etc
+	if (contains(Paths.get(".."))) {
+		bail()
+	}
+
+	// otherwise, the path must be in one of the allowed roots
+	val allowedRoots = user.allowedRoots() + extraAllowedRoots
+	if (allowedRoots.none { startsWith(it) }) {
+		bail()
+	}
+
+	return this
+}
+
+fun String.allowedPathOrThrow(user: User, extraAllowedRoots: List<Path> = emptyList()): Path =
+	Paths.get(this)
+		.allowedByOrThrow(user, extraAllowedRoots)

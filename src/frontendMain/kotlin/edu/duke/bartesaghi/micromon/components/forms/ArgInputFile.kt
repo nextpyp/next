@@ -1,6 +1,6 @@
 package edu.duke.bartesaghi.micromon.components.forms
 
-import edu.duke.bartesaghi.micromon.diagram.nodes.*
+import edu.duke.bartesaghi.micromon.diagram.nodes.Node
 import edu.duke.bartesaghi.micromon.pyp.Arg
 import edu.duke.bartesaghi.micromon.pyp.ArgValue
 import edu.duke.bartesaghi.micromon.services.FileBrowserType
@@ -8,23 +8,35 @@ import edu.duke.bartesaghi.micromon.services.PathType
 import io.kvision.core.onEvent
 
 
-class ArgInputTxtFile(
+open class ArgInputFile(
 	override val arg: Arg,
-	outNodes: List<Node>
-) : ArgInputControl, FilesystemPicker.Single(
-	target = FilesystemPicker.Target.Files,
-	name = arg.fullId,
-	initialFolder = initialFolder(outNodes),
-	filenameGlob = "*.txt",
-	globTypes = setOf(FileBrowserType.File,  FileBrowserType.Symlink)
+	filenameGlob: String? = null,
+	initialFolder: String? = null
+) : ArgInputControl, FilesystemPicker.Single.Control(
+	FilesystemPicker.Single(
+		target = FilesystemPicker.Target.Files,
+		name = arg.fullId,
+		initialFolder = initialFolder,
+		filenameGlob = filenameGlob,
+		globTypes = setOf(FileBrowserType.File,  FileBrowserType.Symlink)
+	)
 ) {
+
+	constructor(arg: Arg, filenameGlob: String, nodes: List<Node>, folderer: (Node) -> String?) : this(
+		arg,
+		filenameGlob,
+		folderFromFirstNode(nodes, folderer)
+	)
+
 
 	companion object {
 
-		fun initialFolder(outNodes: List<Node>): String? =
-			outNodes.firstOrNull()
-				?.let { PathType.Project.make("${it.dir}/frealign") }
+		fun folderFromFirstNode(nodes: List<Node>, folderer: (node: Node) -> String?): String? =
+			nodes.firstOrNull()
+				?.let(folderer)
+				?.let { PathType.Project.make(it) }
 	}
+
 
 	val default: String? get() = null
 

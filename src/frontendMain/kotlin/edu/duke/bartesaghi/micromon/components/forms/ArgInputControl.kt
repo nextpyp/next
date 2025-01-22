@@ -6,7 +6,7 @@ import io.kvision.core.Widget
 import io.kvision.form.FormControl
 
 
-interface ArgInputControl : FormControl {
+interface ArgInputControl : FormControl, EnableableControl {
 
 	val arg: Arg
 
@@ -21,8 +21,4 @@ interface ArgInputControl : FormControl {
 			?: throw NoSuchElementException("no source control linked")
 
 	val labelTarget: String? get() = (input as Widget).id
-
-	var enabled: Boolean
-		get() = !disabled
-		set(value) { disabled = !value }
 }

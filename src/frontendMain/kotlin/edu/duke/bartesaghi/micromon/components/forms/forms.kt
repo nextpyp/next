@@ -69,36 +69,47 @@ fun Link.enableClickIf(condition: Boolean, handler: Link.(MouseEvent) -> Unit) {
 }
 
 
+enum class FormIcon(val icon: String, val className: String, val title: String) {
+
+	Changed("fas fa-asterisk", "icon-changed", "This value is different from the previous one");
+
+	companion object {
+		fun from(icon: Icon): FormIcon? =
+			values()
+				.find { it.icon == icon.icon }
+	}
+}
+
 /**
  * Shows icons in the form label
  */
-var FormControl.icons: List<String>
+var FormControl.icons: List<FormIcon>
 	get() = flabel.getChildren()
 		.filterIsInstance<Icon>()
-		.map { it.icon }
+		.mapNotNull { FormIcon.from(it) }
 	set(icons) {
 		flabel.removeAll()
 		for (icon in icons) {
-			flabel.add(IconStyled(icon))
+			flabel.add(IconStyled(icon.icon, classes = setOf(icon.className)).apply {
+				title = icon.title
+			})
 		}
 	}
 
 
 var FormControl.isChanged: Boolean
-	get() = ChangedIcon in icons
+	get() = FormIcon.Changed in icons
 	set(value) {
 		if (value) {
-			if (ChangedIcon !in icons) {
-				icons += listOf(ChangedIcon)
+			if (FormIcon.Changed !in icons) {
+				icons += listOf(FormIcon.Changed)
 			}
 		} else {
-			if (ChangedIcon in icons) {
-				icons -= ChangedIcon
+			if (FormIcon.Changed in icons) {
+				icons -= FormIcon.Changed
 			}
 		}
 	}
-
-private const val ChangedIcon = "fas fa-asterisk"
 
 
 fun <T:Any> T.trackChanges(form: FormPanel<T>, mapper: ArgsMapper<T>) {

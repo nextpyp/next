@@ -2,7 +2,6 @@ package edu.duke.bartesaghi.micromon.pyp
 
 import edu.duke.bartesaghi.micromon.Backend
 import edu.duke.bartesaghi.micromon.Config
-import edu.duke.bartesaghi.micromon.User
 import edu.duke.bartesaghi.micromon.cluster.Cluster
 import edu.duke.bartesaghi.micromon.cluster.ClusterJob
 import edu.duke.bartesaghi.micromon.cluster.CommandsScript

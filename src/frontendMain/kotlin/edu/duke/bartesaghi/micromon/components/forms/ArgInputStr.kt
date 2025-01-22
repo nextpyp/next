@@ -31,6 +31,10 @@ class ArgInputStr(override val arg: Arg) : ArgInputControl, Text(
 
 	override var onChange: (() -> Unit)? = null
 
+	override var enabled: Boolean
+		get() = !disabled
+		set(value) { disabled = !value }
+
 	init {
 		onEvent {
 			change = {

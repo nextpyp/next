@@ -19,14 +19,10 @@ import kotlinx.serialization.modules.subclass
  */
 interface SessionArgs {
 	val name: String
+	val path: String
 	val groupId: String
 	val values: ArgValuesToml
 }
-
-data class SessionPypNames(
-	val group: String,
-	val session: String
-)
 
 interface SessionDisplay {
 	val groupName: String
@@ -89,6 +85,7 @@ sealed interface SessionData {
 @Serializable
 data class SingleParticleSessionArgs(
 	override val name: String,
+	override val path: String,
 	override val groupId: String,
 	override val values: ArgValuesToml
 ) : SessionArgs
@@ -128,6 +125,7 @@ data class SingleParticleSessionData(
 @Serializable
 data class TomographySessionArgs(
 	override val name: String,
+	override val path: String,
 	override val groupId: String,
 	override val values: ArgValuesToml
 ) : SessionArgs
@@ -255,7 +253,8 @@ data class SessionJobLog(
 
 @Serializable
 data class CopySessionArgs(
-	val name: String
+	val name: String,
+	val path: String
 )
 
 @Serializable
@@ -501,6 +500,9 @@ interface ISessionsService {
 	@ExportServiceFunction(AppPermission.SessionExport)
 	@KVBindingRoute("sessions/cancelExport")
 	suspend fun cancelExport(exportId: String)
+
+	@KVBindingRoute("sessions/pickFolder")
+	suspend fun pickFolder(): String
 }
 
 
@@ -518,7 +520,7 @@ interface ISingleParticleSessionService {
 
 	@ExportServiceFunction(AppPermission.SessionWrite)
 	@KVBindingRoute("session/${SingleParticleSessionData.ID}/edit")
-	suspend fun edit(sessionId: String, args: SingleParticleSessionArgs?): SingleParticleSessionData
+	suspend fun edit(sessionId: String, args: SingleParticleSessionArgs): SingleParticleSessionData
 
 	@ExportServiceFunction(AppPermission.SessionRead)
 	@KVBindingRoute("session/${SingleParticleSessionData.ID}/get")
@@ -551,7 +553,7 @@ interface ITomographySessionService {
 
 	@ExportServiceFunction(AppPermission.SessionWrite)
 	@KVBindingRoute("session/${TomographySessionData.ID}/edit")
-	suspend fun edit(sessionId: String, args: TomographySessionArgs?): TomographySessionData
+	suspend fun edit(sessionId: String, args: TomographySessionArgs): TomographySessionData
 
 	@ExportServiceFunction(AppPermission.SessionRead)
 	@KVBindingRoute("session/${TomographySessionData.ID}/get")

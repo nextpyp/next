@@ -2,6 +2,7 @@ package edu.duke.bartesaghi.micromon.components.forms
 
 import edu.duke.bartesaghi.micromon.services.FileBrowserType
 import io.kvision.core.onEvent
+import io.kvision.form.StringFormControl
 import io.kvision.html.Button
 import io.kvision.html.span
 import io.kvision.utils.obj
@@ -10,16 +11,14 @@ import org.w3c.dom.CustomEventInit
 
 open class FilesystemPicker(
 	val target: Target,
-	val multiple: Boolean,
 	defaultPaths: List<String> = emptyList(),
 	name: String? = null,
-	label: String? = null,
 	initialFolder: String? = null,
 	/** applies a filter to filenames, only used for target=Files, ignored otherwise */
 	filenameGlob: String? = null,
 	/** controls which file browser types the glob will be applied to */
 	globTypes: Set<FileBrowserType> = FileBrowser.PickFile.DEFAULT_GLOB_TYPES
-) : BaseFormControl(name, label, classes = setOf("filesystem-picker")) {
+) : BaseFormInput(name, classes = setOf("filesystem-picker")) {
 
 	enum class Target {
 		Files,
@@ -47,8 +46,7 @@ open class FilesystemPicker(
 	private val chooseButton =
 		Button(
 			text = "",
-			icon = "fas fa-search",
-			disabled = input.disabled
+			icon = "fas fa-search"
 		).apply {
 			title = "Choose a new value"
 		}
@@ -177,11 +175,11 @@ open class FilesystemPicker(
 	}
 
 	// route events and state to the button
-	override var disabled: Boolean = true
+	override var enabled: Boolean
+		get() = chooseButton.enabled
 		set(value) {
-			field = value
-			removeButton.disabled = value
-			chooseButton.disabled = value
+			removeButton.enabled = value
+			chooseButton.enabled = value
 		}
 	override fun blur() {
 		removeButton.blur()
@@ -190,19 +188,27 @@ open class FilesystemPicker(
 	override fun focus() = chooseButton.focus()
 
 
-	override fun getValue(): List<String> =
-		paths
+	open class Control(override val input: FilesystemPicker, label: String? = null) : BaseFormControl<FilesystemPicker>(label) {
 
-	/** NOTE: this toString() transformation is not generally reversible, since linux paths can contain just about any character */
-	override fun getValueAsString(): String =
-		paths.joinToString(" ")
+		override val labelReferent get() = input.chooseButton
 
-	override fun setValue(v: Any?) {
-		paths = when (v) {
-			is List<*> -> {
-				v.map { it as String }
+		override fun getValue(): List<String> =
+			input.paths
+
+		/** NOTE: this toString() transformation is not generally reversible, since linux paths can contain just about any character */
+		override fun getValueAsString(): String =
+			input.paths.joinToString(" ")
+
+		override fun setValue(v: Any?) {
+			input.paths = when (v) {
+				is List<*> -> {
+					v.map { item ->
+						item as? String
+							?: throw IllegalArgumentException("value not a string: ${item?.let { it::class.simpleName }}")
+					}
+				}
+				else -> emptyList()
 			}
-			else -> emptyList()
 		}
 	}
 
@@ -213,17 +219,14 @@ open class FilesystemPicker(
 	open class Single(
 		target: Target,
 		name: String? = null,
-		label: String? = null,
 		initialFolder: String? = null,
 		filenameGlob: String? = null,
 		globTypes: Set<FileBrowserType> = FileBrowser.PickFile.DEFAULT_GLOB_TYPES
-	) : BaseFormControl(name, label, classes = setOf("filesystem-picker")) {
+	) : BaseFormInput(name, classes = setOf("filesystem-picker-single")) {
 
-		val picker = FilesystemPicker(
+		private val picker = FilesystemPicker(
 			target,
-			multiple = false,
 			name = name,
-			label = label,
 			initialFolder = initialFolder,
 			filenameGlob = filenameGlob,
 			globTypes = globTypes
@@ -242,26 +245,30 @@ open class FilesystemPicker(
 			}
 		}
 
-		override var disabled
-			get() = picker.disabled
-			set(value) { picker.disabled = value }
+		override var enabled
+			get() = picker.enabled
+			set(value) { picker.enabled = value }
 
 		override fun blur() = picker.blur()
 		override fun focus() = picker.focus()
 
-		override fun getValue(): String? =
-			picker.getValue().firstOrNull()
 
-		override fun getValueAsString(): String? =
-			getValue()
+		open class Control(override val input: Single, label: String? = null) : BaseFormControl<Single>(label), StringFormControl {
 
-		override fun setValue(v: Any?) {
-			when (v) {
-				is String -> {
-					picker.setValue(listOf(v))
+			override val labelReferent get() = input.picker.chooseButton
+
+			override var value: String?
+				get() = input.picker.paths.firstOrNull()
+				set(value) {
+					input.picker.paths = if (value != null) {
+						listOf(value)
+					} else {
+						emptyList()
+					}
 				}
-				else -> Unit
-			}
+
+			// make no-op implementations for stuff we don't care about
+			override fun subscribe(observer: (String?) -> Unit): () -> Unit = {}
 		}
 	}
 }

@@ -2,9 +2,11 @@ package edu.duke.bartesaghi.micromon.services
 
 import com.google.inject.Inject
 import edu.duke.bartesaghi.micromon.*
+import edu.duke.bartesaghi.micromon.auth.allowedPathOrThrow
 import edu.duke.bartesaghi.micromon.auth.authOrThrow
 import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.sessions.AuthInfo
+import edu.duke.bartesaghi.micromon.sessions.Session
 import edu.duke.bartesaghi.micromon.sessions.SingleParticleSession
 import edu.duke.bartesaghi.micromon.sessions.auth
 import io.ktor.application.*
@@ -15,6 +17,9 @@ actual class SingleParticleSessionService : ISingleParticleSessionService, Servi
 
 	@Inject
 	override lateinit var call: ApplicationCall
+
+
+	private val sessionRoots = listOf(Session.defaultDir())
 
 
 	fun auth(sessionId: String, permission: SessionPermission): AuthInfo<SingleParticleSession> =
@@ -39,6 +44,9 @@ actual class SingleParticleSessionService : ISingleParticleSessionService, Servi
 		val user = call.authOrThrow()
 		user.authPermissionOrThrow(User.Permission.EditSession)
 
+		// make sure the user can choose that path
+		args.path.allowedPathOrThrow(user, extraAllowedRoots=sessionRoots)
+
 		// create the session
 		val session = SingleParticleSession(user.id)
 		session.args.next = args
@@ -47,7 +55,7 @@ actual class SingleParticleSessionService : ISingleParticleSessionService, Servi
 		return session.data(user)
 	}
 
-	override suspend fun edit(sessionId: String, args: SingleParticleSessionArgs?): SingleParticleSessionData = sanitizeExceptions {
+	override suspend fun edit(sessionId: String, args: SingleParticleSessionArgs): SingleParticleSessionData = sanitizeExceptions {
 
 		val (user, session) = auth(sessionId, SessionPermission.Write)
 		session.args.next = args
@@ -82,10 +90,16 @@ actual class SingleParticleSessionService : ISingleParticleSessionService, Servi
 
 		val (user, session) = auth(sessionId, SessionPermission.Write)
 
+		// make sure the user can choose that path
+		args.path.allowedPathOrThrow(user, extraAllowedRoots=sessionRoots)
+
 		// make a copy of the session and save it
 		val newSession = SingleParticleSession(user.id)
 		newSession.args.next = session.args.newestOrThrow().args
-			.copy(name = args.name)
+			.copy(
+				name = args.name,
+				path = args.path
+			)
 		newSession.create()
 
 		return newSession.data(user)

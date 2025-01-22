@@ -2,6 +2,7 @@ package edu.duke.bartesaghi.micromon.services
 
 import com.google.inject.Inject
 import edu.duke.bartesaghi.micromon.*
+import edu.duke.bartesaghi.micromon.auth.allowedPathOrThrow
 import edu.duke.bartesaghi.micromon.auth.authOrThrow
 import edu.duke.bartesaghi.micromon.cluster.ClusterJob
 import edu.duke.bartesaghi.micromon.mongo.Database
@@ -16,6 +17,7 @@ import io.ktor.util.pipeline.*
 import io.kvision.remote.RemoteOption
 import io.kvision.remote.ServiceException
 import java.io.FileNotFoundException
+import kotlin.io.path.div
 
 
 actual class SessionsService : ISessionsService, Service {
@@ -481,5 +483,36 @@ actual class SessionsService : ISessionsService, Service {
 		val session = auth(export.sessionId, SessionPermission.Write).session
 
 		export.cancel(session)
+	}
+
+	override suspend fun pickFolder(): String = sanitizeExceptions {
+
+		// NOTE: Be sure to check session create permissions here, like the create function would,
+		//       since this function could be used to mine information about the filesytem remotely,
+		//       so we want to make sure it's only used by authorized people.
+		val user = call.authOrThrow()
+		user.authPermissionOrThrow(User.Permission.EditSession)
+
+		// all good: look at the files in the sessions folder and pick a unique name
+		val baseName = "new_session"
+		fun makePath(name: String) =
+			Session.defaultDir() / name
+
+		var path = makePath(baseName)
+		var counter = 1
+		val numTries = 1000
+		for (i in 0 until numTries) {
+
+			if (!path.exists()) {
+				return path.toString()
+			}
+
+			// already exists: pick a name variant (by adding _c to the end) and try again
+			counter += 1
+			path = makePath("${baseName}_$counter")
+		}
+
+		// no unique name found after a lot of tries
+		throw ServiceException("Failed to find a unique folder for the session after $numTries attempts")
 	}
 }

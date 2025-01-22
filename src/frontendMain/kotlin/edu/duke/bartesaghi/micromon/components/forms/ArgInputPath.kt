@@ -8,20 +8,21 @@ import io.kvision.core.onEvent
 
 class ArgInputPath(
 	override val arg: Arg
-) : ArgInputControl, FilesystemPicker(
-	target = when ((arg.type as ArgType.TPath).kind) {
-		ArgType.TPath.Kind.Files -> when (arg.type.glob) {
-			true -> Target.FilesGlob
-			false -> Target.Files
-		}
-		ArgType.TPath.Kind.Folders -> when (arg.type.glob) {
-			true -> Target.FoldersGlob
-			false -> Target.Folders
-		}
-	},
-	multiple = false,
-	name = arg.fullId
-	// TODO: use job inputs to show shortcuts to the user?
+) : ArgInputControl, FilesystemPicker.Control(
+	FilesystemPicker(
+		target = when ((arg.type as ArgType.TPath).kind) {
+			ArgType.TPath.Kind.Files -> when (arg.type.glob) {
+				true -> FilesystemPicker.Target.FilesGlob
+				false -> FilesystemPicker.Target.Files
+			}
+			ArgType.TPath.Kind.Folders -> when (arg.type.glob) {
+				true -> FilesystemPicker.Target.FoldersGlob
+				false -> FilesystemPicker.Target.Folders
+			}
+		},
+		name = arg.fullId
+		// TODO: use job inputs to show shortcuts to the user?
+	)
 ) {
 
 	val default: String? get() = when (arg.default) {

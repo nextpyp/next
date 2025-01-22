@@ -3,8 +3,6 @@ package edu.duke.bartesaghi.micromon.components.forms
 import edu.duke.bartesaghi.micromon.pyp.Arg
 import edu.duke.bartesaghi.micromon.pyp.ArgValue
 import io.kvision.core.onEvent
-import io.kvision.form.spinner.ForceType
-import io.kvision.form.spinner.Spinner
 import io.kvision.form.text.Text
 
 
@@ -32,6 +30,10 @@ class ArgInputFloat(override val arg: Arg) : ArgInputControl, Text(
 	override var destControl : ArgInputControl? = null
 
 	override var onChange: (() -> Unit)? = null
+
+	override var enabled: Boolean
+		get() = !disabled
+		set(value) { disabled = !value }
 
 	init {
 		onEvent {

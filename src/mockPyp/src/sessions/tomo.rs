@@ -1,6 +1,5 @@
 
 use std::fs;
-use std::path::Path;
 
 use anyhow::{bail, Context, Result};
 
@@ -10,6 +9,7 @@ use crate::metadata::{Ctf, TiltSeries, TiltSeriesDrifts};
 use crate::particles::{sample_particle_3d, sample_virion};
 use crate::rand::{sample_avgrot, sample_ctf, sample_drift_ctf, sample_drifts, sample_xf};
 use crate::scale::ToValueF;
+use crate::sessions::session_dir;
 use crate::tomography;
 use crate::tomography::{interpolate_tilt_angle, PreprocessingArgs};
 use crate::tomography::images::DEFAULT_NOISE;
@@ -43,14 +43,12 @@ pub fn run(web: &Web, args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 
 	// create subfolders
 	let session_group = args.get("stream_session_group")
-		.require()?
 		.into_str()?
 		.value();
 	let session_name = args.get("stream_session_name")
-		.require()?
 		.into_str()?
 		.value();
-	let dir = Path::new(&session_group).join(&session_name);
+	let dir = session_dir(session_group, session_name);
 	fs::create_dir_all(dir.join("mrc"))
 		.context("Failed to create mrc dir")?;
 	fs::create_dir_all(dir.join("webp"))

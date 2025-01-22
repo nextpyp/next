@@ -31,6 +31,10 @@ class ArgInputBool(override val arg: Arg) : ArgInputControl, CheckBox(
 
 	override var onChange: (() -> Unit)? = null
 
+	override var enabled: Boolean
+		get() = !disabled
+		set(value) { disabled = !value }
+
 	init {
 		onEvent {
 			style = CheckBoxStyle.PRIMARY;

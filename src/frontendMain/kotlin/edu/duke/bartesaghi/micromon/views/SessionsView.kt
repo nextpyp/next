@@ -3,6 +3,7 @@ package edu.duke.bartesaghi.micromon.views
 import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.components.PathPopup
 import edu.duke.bartesaghi.micromon.components.TabulatorProxy
+import edu.duke.bartesaghi.micromon.components.forms.CreateFolderChooser
 import edu.duke.bartesaghi.micromon.components.forms.setSubmitButton
 import edu.duke.bartesaghi.micromon.services.*
 import io.kvision.core.Widget
@@ -381,11 +382,24 @@ class SessionsView : View {
 			caption = "Copy session settings",
 			escape = true,
 			closeButton = true,
-			classes = setOf("dashboard-popup")
+			classes = setOf("dashboard-popup", "session-copy-form")
 		).apply modal@{
 
-			val form = formPanel<CopySessionArgs>(type = FormType.HORIZONTAL) {
-				add(CopySessionArgs::name, Text(label = "Name"), required = true)
+			val nameText = Text(
+				label = "Name",
+				value = "Copy of ${session.name}"
+			)
+
+			val folderChooser = CreateFolderChooser(
+				value = Paths.pop(session.path)
+					.let { (parent, name) ->
+						Paths.join(listOf(parent ?: ".", "copy_of_$name"))
+					}
+			).control("Folder")
+
+			val form = formPanel<CopySessionArgs>(classes = setOf("grid")) {
+				add(CopySessionArgs::name, nameText, required = true)
+				add(CopySessionArgs::path, folderChooser, required = true)
 			}
 			val errorsElem = div()
 			val copyButton = button("Copy").onClick copy@{

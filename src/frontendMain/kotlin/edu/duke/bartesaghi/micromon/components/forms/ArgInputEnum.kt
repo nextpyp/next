@@ -5,7 +5,6 @@ import edu.duke.bartesaghi.micromon.pyp.ArgType
 import edu.duke.bartesaghi.micromon.pyp.ArgValue
 import io.kvision.core.onEvent
 import io.kvision.form.select.Select
-import io.kvision.form.text.Text
 
 
 class ArgInputEnum(override val arg: Arg) : ArgInputControl, Select(
@@ -33,6 +32,10 @@ class ArgInputEnum(override val arg: Arg) : ArgInputControl, Select(
 	override var destControl : ArgInputControl? = null
 
 	override var onChange: (() -> Unit)? = null
+
+	override var enabled: Boolean
+		get() = !disabled
+		set(value) { disabled = !value }
 
 	init {
 		onEvent {

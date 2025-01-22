@@ -2,10 +2,7 @@ package edu.duke.bartesaghi.micromon.views
 
 import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.components.*
-import edu.duke.bartesaghi.micromon.components.forms.ArgsForm
-import edu.duke.bartesaghi.micromon.components.forms.addSaveResetButtons
-import edu.duke.bartesaghi.micromon.components.forms.init
-import edu.duke.bartesaghi.micromon.components.forms.lookupDefault
+import edu.duke.bartesaghi.micromon.components.forms.*
 import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.*
 import io.kvision.core.Container
@@ -201,12 +198,6 @@ class TomographySessionView(
 			// wait for the small data message from the server
 			val smallDataMsg = input.receiveMessage<RealTimeS2C.SessionSmallData>()
 			opsTab?.exportsMonitor?.setData(smallDataMsg)
-			try {
-				// TODO: anything to update here?
-			} catch (t: Throwable) {
-				t.reportError()
-				Toast.error("An error occurred while loading the session small data.")
-			}
 
 			// wait for the large data message from the server
 			val dataMsg = input.receiveMessage<RealTimeS2C.SessionLargeData>()
@@ -294,6 +285,7 @@ class TomographySessionView(
 
 			elem.addCssClass("settings")
 
+			val newSession = session == null
 			val writeable = session
 				?.let { SessionPermission.Write in it.permissions }
 				?: true
@@ -301,6 +293,21 @@ class TomographySessionView(
 			AppScope.launch {
 
 				val argsConfig = pypArgs.get()
+
+				val nameText = Text(
+					label = "Session Name"
+				).apply {
+					disabled = !writeable
+				}
+
+				val folderChooser = CreateFolderChooser()
+					.control("Folder")
+					.apply {
+						enabled = writeable
+							// The folder is only writable when creating a new session.
+							// It can't be changed after the session is created
+							&& session == null
+					}
 
 				val groupSelect = SelectRemote(
 					serviceManager = SessionsServiceManager,
@@ -314,21 +321,22 @@ class TomographySessionView(
 					}
 				}
 
-				val form = elem.formPanel<TomographySessionArgs> {
-
-					add(TomographySessionArgs::name, Text(
-						label = "Session Name",
-						value = "New Tomography Session"
-					).apply {
-						disabled = !writeable
-					}, required = true)
-
+				val form = elem.formPanel<TomographySessionArgs>(classes = setOf("grid")) {
+					add(TomographySessionArgs::name, nameText, required = true)
+					add(TomographySessionArgs::path, folderChooser, required = true)
 					add(TomographySessionArgs::groupId, groupSelect, required = true)
-
 					add(TomographySessionArgs::values, ArgsForm(argsConfig, enabled = writeable))
 				}
 
 				form.init(session?.args)
+
+				if (newSession) {
+
+					// generate form defaults
+					nameText.value = "New Session"
+					folderChooser.value = Services.sessions.pickFolder()
+				}
+
 				if (writeable) {
 					form.addSaveResetButtons(session?.args) { args ->
 

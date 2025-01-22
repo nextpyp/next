@@ -2,6 +2,8 @@ package edu.duke.bartesaghi.micromon.services
 
 import com.google.inject.Inject
 import edu.duke.bartesaghi.micromon.*
+import edu.duke.bartesaghi.micromon.auth.allowedPathOrThrow
+import edu.duke.bartesaghi.micromon.auth.allowedRoots
 import edu.duke.bartesaghi.micromon.auth.authOrThrow
 import edu.duke.bartesaghi.micromon.auth.dir
 import edu.duke.bartesaghi.micromon.cluster.slurm.TemplateEngine
@@ -21,7 +23,6 @@ import io.kvision.remote.RemoteOption
 import io.kvision.remote.ServiceException
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import java.nio.file.*
 import java.nio.file.Paths
 
 
@@ -57,18 +58,6 @@ actual class FormService : IFormService, Service {
 	@Inject
 	override lateinit var call: ApplicationCall
 
-	private fun User.allowedRoots(): List<Path> {
-
-		val out = ArrayList<Path>()
-
-		// allow all binds configured by the administrator
-		out.addAll(Config.instance.pyp.binds)
-
-		// allow the user's folder
-		out.add(dir())
-
-		return out
-	}
 
 	override suspend fun fileBrowserInit(): FileBrowserInit = sanitizeExceptions {
 
@@ -89,7 +78,7 @@ actual class FormService : IFormService, Service {
 	override suspend fun fileBrowserFolder(path: String): FileBrowserFolder = sanitizeExceptions {
 
 		val user = call.authOrThrow()
-		path.allowedOrThrow(user)
+		path.allowedPathOrThrow(user)
 
 		// query the filesystem for one folder
 		// NOTE: NFS filesystems can very VEEEERY slow!
@@ -121,7 +110,7 @@ actual class FormService : IFormService, Service {
 	override suspend fun fileBrowserFile(path: String): FileBrowserFile = sanitizeExceptions {
 
 		val user = call.authOrThrow()
-		val p = path.allowedOrThrow(user)
+		val p = path.allowedPathOrThrow(user)
 
 		return when (val stat = p.statAs(user.osUsername)) {
 			Stat.NotFound -> throw ServiceException("file not found")
@@ -149,33 +138,10 @@ actual class FormService : IFormService, Service {
 	override suspend fun globPickerCount(path: String): GlobCount = sanitizeExceptions {
 
 		val user = call.authOrThrow()
-		val p = path.allowedOrThrow(user)
+		val p = path.allowedPathOrThrow(user)
 
 		return p.globCountAs(user.osUsername).let {
 			GlobCount(it.matched, it.total)
-		}
-	}
-
-
-	private fun String.allowedOrThrow(user: User): Path {
-		val p = Paths.get(this)
-		p.allowedOrThrow(user)
-		return p
-	}
-
-	private fun Path.allowedOrThrow(user: User) {
-
-		fun bail(): Nothing =
-			throw AuthExceptionWithInternal("folder not allowed", "for user $user to path $this")
-
-		// don't allow any relative paths like ../../../ etc
-		if (contains(Paths.get(".."))) {
-			bail()
-		}
-
-		// otherwise, the path must be in one of the allowed roots
-		if (user.allowedRoots().none { startsWith(it) }) {
-			bail()
 		}
 	}
 

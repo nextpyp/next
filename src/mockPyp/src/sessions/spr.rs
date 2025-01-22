@@ -1,6 +1,5 @@
 
 use std::fs;
-use std::path::Path;
 
 use anyhow::{bail, Context, Result};
 
@@ -10,6 +9,7 @@ use crate::metadata::{Ctf, Micrograph};
 use crate::particles::sample_particle_2d;
 use crate::rand::{sample_avgrot, sample_ctf, sample_xf};
 use crate::scale::ToValueF;
+use crate::sessions::session_dir;
 use crate::single_particle;
 use crate::single_particle::images::DEFAULT_NOISE;
 use crate::single_particle::PreprocessingArgs;
@@ -25,14 +25,12 @@ pub fn run(web: &Web, args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 
 	// create subfolders
 	let session_group = args.get("stream_session_group")
-		.require()?
 		.into_str()?
 		.value();
 	let session_name = args.get("stream_session_name")
-		.require()?
 		.into_str()?
 		.value();
-	let dir = Path::new(&session_group).join(&session_name);
+	let dir = session_dir(session_group, session_name);
 	fs::create_dir_all(dir.join("mrc"))
 		.context("Failed to create mrc dir")?;
 	fs::create_dir_all(dir.join("webp"))

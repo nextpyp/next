@@ -84,6 +84,10 @@ class ArgInputClusterTemplate(override val arg: Arg) : ArgInputControl, NativeSe
 
 	override var onChange: (() -> Unit)? = null
 
+	override var enabled: Boolean
+		get() = !disabled
+		set(value) { disabled = !value }
+
 	init {
 		onEvent {
 			change = {

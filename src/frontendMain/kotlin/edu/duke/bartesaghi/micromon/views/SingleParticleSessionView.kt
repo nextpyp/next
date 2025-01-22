@@ -2,10 +2,7 @@ package edu.duke.bartesaghi.micromon.views
 
 import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.components.*
-import edu.duke.bartesaghi.micromon.components.forms.ArgsForm
-import edu.duke.bartesaghi.micromon.components.forms.addSaveResetButtons
-import edu.duke.bartesaghi.micromon.components.forms.init
-import edu.duke.bartesaghi.micromon.components.forms.lookupDefault
+import edu.duke.bartesaghi.micromon.components.forms.*
 import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.*
 import io.kvision.core.Container
@@ -212,11 +209,6 @@ class SingleParticleSessionView(
 			// wait for the small data message from the server
 			val smallDataMsg = input.receiveMessage<RealTimeS2C.SessionSmallData>()
 				opsTab?.exportsMonitor?.setData(smallDataMsg)
-			try {
-			} catch (t: Throwable) {
-				t.reportError()
-				Toast.error("An error occurred while loading the session small data.")
-			}
 
 			// wait for the large data message from the server
 			val largeDataMsg = input.receiveMessage<RealTimeS2C.SessionLargeData>()
@@ -310,6 +302,7 @@ class SingleParticleSessionView(
 
 			elem.addCssClass("settings")
 
+			val newSession = session == null
 			val writeable = session
 				?.let { SessionPermission.Write in it.permissions }
 				?: true
@@ -317,6 +310,21 @@ class SingleParticleSessionView(
 			AppScope.launch {
 
 				val argsConfig = pypArgs.get()
+
+				val nameText = Text(
+					label = "Session Name"
+				).apply {
+					disabled = !writeable
+				}
+
+				val folderChooser = CreateFolderChooser()
+					.control("Folder")
+					.apply {
+						enabled = writeable
+							// The folder is only writable when creating a new session.
+							// It can't be changed after the session is created
+							&& session == null
+					}
 
 				val groupSelect = SelectRemote(
 					serviceManager = SessionsServiceManager,
@@ -330,21 +338,22 @@ class SingleParticleSessionView(
 					}
 				}
 
-				val form = elem.formPanel<SingleParticleSessionArgs> {
-
-					add(SingleParticleSessionArgs::name, Text(
-						label = "Session Name",
-						value = "New Session"
-					).apply {
-						disabled = !writeable
-					}, required = true)
-
+				val form = elem.formPanel<SingleParticleSessionArgs>(classes = setOf("grid")) {
+					add(SingleParticleSessionArgs::name, nameText, required = true)
+					add(SingleParticleSessionArgs::path, folderChooser, required = true)
 					add(SingleParticleSessionArgs::groupId, groupSelect, required = true)
-
 					add(SingleParticleSessionArgs::values, ArgsForm(argsConfig, enabled = writeable))
 				}
 
 				form.init(session?.args)
+
+				if (newSession) {
+
+					// generate form defaults
+					nameText.value = "New Session"
+					folderChooser.value = Services.sessions.pickFolder()
+				}
+
 				if (writeable) {
 					form.addSaveResetButtons(session?.args) { args ->
 

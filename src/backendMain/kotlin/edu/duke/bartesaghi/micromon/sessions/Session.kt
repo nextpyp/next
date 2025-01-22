@@ -1,6 +1,7 @@
 package edu.duke.bartesaghi.micromon.sessions
 
 import edu.duke.bartesaghi.micromon.*
+import edu.duke.bartesaghi.micromon.auth.allowedByOrThrow
 import edu.duke.bartesaghi.micromon.auth.authOrThrow
 import edu.duke.bartesaghi.micromon.cluster.ClusterJob
 import edu.duke.bartesaghi.micromon.cluster.slurm.toSbatchArgs
@@ -15,6 +16,7 @@ import io.kvision.remote.ServiceException
 import org.bson.Document
 import org.bson.conversions.Bson
 import java.nio.file.Path
+import java.nio.file.Paths
 import java.time.Instant
 import java.util.ArrayList
 import java.util.NoSuchElementException
@@ -25,7 +27,20 @@ import kotlin.reflect.KClass
 sealed class Session(
 	val type: Type,
 	val userId: String,
+	val version: Version
 ) {
+
+	enum class Version {
+
+		/** old versions of pyp used group/name subfolders inside of the session folder */
+		Subfolders,
+		/** current versions of pyp use just one root folder now */
+		RootFolder;
+
+		companion object {
+			fun newest(): Version = RootFolder
+		}
+	}
 
 	var id: String? = null
 		protected set
@@ -50,6 +65,11 @@ sealed class Session(
 	data class PypNames(
 		val group: String,
 		val session: String
+	)
+
+	data class Header(
+		val sessionId: String,
+		val userId: String
 	)
 
 	companion object {
@@ -81,8 +101,16 @@ sealed class Session(
 			return type.fromDoc(doc)
 		}
 
-		fun dir(sessionId: String): Path =
-			Config.instance.web.sharedDir / "sessions" / sessionId
+		fun headerFromDoc(doc: Document) = Header(
+			sessionId = doc.getObjectId("_id").toStringId(),
+			userId = doc.getString("userId")
+		)
+
+		fun defaultDir(): Path =
+			Config.instance.web.sharedDir / "sessions"
+
+		fun defaultDir(sessionId: String): Path =
+			defaultDir() / sessionId
 
 		/** get the session sub-directory that pyp uses, for some reason */
 		fun pypDir(session: Session, names: PypNames): Path =
@@ -93,9 +121,6 @@ sealed class Session(
 				type.init()
 			}
 		}
-
-		fun pypParamsPath(session: Session): Path =
-			session.dir / "pyp_params.toml"
 	}
 
 	protected open fun createDoc(doc: Document) {
@@ -112,8 +137,7 @@ sealed class Session(
 		// TODO: anything that needs updating here?
 	}
 
-	protected open fun fromDoc(doc: Document) {
-		id = doc.getObjectId("_id").toStringId()
+	protected fun fromDoc(doc: Document) {
 		sessionNumber = doc.getInteger("sessionNumber")
 		created = Instant.ofEpochMilli(doc.getLong("created"))
 	}
@@ -123,9 +147,15 @@ sealed class Session(
 	 * Throws an error if this session has already been created
 	 */
 	suspend fun create() {
+		// TODO: create (and later run) the session as any specific OS user?
 
 		if (id != null) {
 			throw IllegalStateException("session has already been created")
+		}
+
+		// make sure the folder doesn't already exist
+		if (dir.exists()) {
+			throw ServiceException("Session folder already exists: $dir")
 		}
 
 		created = Instant.now()
@@ -146,13 +176,19 @@ sealed class Session(
 	fun update() {
 
 		// get the old session from the database before changing it
-		val oldArgs = fromIdOrThrow(idOrThrow).newestArgs()
+		val oldSession = fromIdOrThrow(idOrThrow)
+
+		// reject any edit that would change the path
+		if (oldSession.dir != dir) {
+			throw ServiceException("Edit rejected: path changed")
+		}
 
 		Database.instance.sessions.update(idOrThrow, ArrayList<Bson>().apply {
 			updateDoc(this)
 		})
 
 		// look for changes to the group or name
+		val oldArgs = oldSession.newestArgs()
 		val newArgs = newestArgs()
 		if (oldArgs.groupId != newArgs.groupId || oldArgs.name != newArgs.name) {
 			val oldGroup = Database.instance.groups.get(oldArgs.groupId)
@@ -199,16 +235,21 @@ sealed class Session(
 	abstract fun data(user: User?): SessionData
 
 	val dir: Path get() =
-		dir(idOrThrow)
+		Paths.get(newestArgs().path)
 
+
+	/** get the folder that pyp used to create files: varies depending on pyp version */
 	fun pypDir(names: PypNames): Path =
-		pypDir(this, names)
+		when (version) {
+			Version.Subfolders -> dir / names.group / names.session
+			Version.RootFolder -> dir
+		}
 
 	val wwwDir: WebCacheDir get() =
 		WebCacheDir(dir / "www")
 
 	fun pypParamsPath(): Path =
-		pypParamsPath(this)
+		dir / "pyp_params.toml"
 
 	abstract fun newestArgs(): SessionArgs
 	abstract fun newestArgValues(): ArgValuesToml?

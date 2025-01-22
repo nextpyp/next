@@ -1,10 +1,12 @@
 package edu.duke.bartesaghi.micromon.components.forms
 
+import edu.duke.bartesaghi.micromon.Paths
 import edu.duke.bartesaghi.micromon.Storage
 import edu.duke.bartesaghi.micromon.batch
-import edu.duke.bartesaghi.micromon.diagram.nodes.Node
+import edu.duke.bartesaghi.micromon.diagram.nodes.*
 import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.pyp.toArgValues
+import edu.duke.bartesaghi.micromon.services.PathType
 import io.kvision.core.onEvent
 import io.kvision.form.*
 import io.kvision.form.check.CheckBox
@@ -231,17 +233,62 @@ class ArgsInputs(
 
 			val control: ArgInputControl = if (arg.input != null) {
 				when (arg.input) {
-					is ArgInput.ParFile -> ArgInputParFile(arg, outNodes)
-					is ArgInput.StarFile -> ArgInputStarFile(arg, outNodes)
-					is ArgInput.ParquetFile -> ArgInputParquetFile(arg, outNodes)
-					is ArgInput.TxtFile -> ArgInputTxtFile(arg, outNodes)
-					is ArgInput.InitialModel -> ArgInputInitialModel(arg, outNodes)
-					is ArgInput.HalfMap -> ArgInputHalfMap(arg, outNodes)
-					is ArgInput.TopazTrainedModel -> ArgInputTopazTrainedModel(arg, outNodes)
-					is ArgInput.IsonetTrainedModel -> ArgInputIsonetTrainedModel(arg, outNodes)
-					is ArgInput.CryocareTrainedModel -> ArgInputCryocareTrainedModel(arg, outNodes)
-					is ArgInput.TrainedModel2D -> ArgInputTrainedModel2D(arg, outNodes)
-					is ArgInput.TrainedModel3D -> ArgInputTrainedModel3D(arg, outNodes)
+
+					is ArgInput.ParFile -> ArgInputFile(arg, "*.bz2", outNodes) { node ->
+						when (node) {
+
+							is SingleParticlePreprocessingNode,
+							is TomographyPreprocessingNode,
+							is TomographyPickingNode,
+							is TomographyParticlesEvalNode -> PathType.Project.make("${node.dir}/frealign")
+
+							is SingleParticleCoarseRefinementNode,
+							is SingleParticleFineRefinementNode,
+							is SingleParticleFlexibleRefinementNode,
+							is SingleParticlePostprocessingNode,
+							is SingleParticleMaskingNode,
+							is TomographyCoarseRefinementNode,
+							is TomographyFineRefinementNode,
+							is TomographyMovieCleaningNode,
+							is SingleParticleRelionDataNode,
+							is TomographyRelionDataNode,
+							is TomographyFlexibleRefinementNode -> PathType.Project.make("${node.dir}/frealign/maps")
+
+							else -> null
+						}
+					}
+
+					is ArgInput.StarFile -> ArgInputFile(arg, "*.star", outNodes) { node ->
+						when (node) {
+
+							is SingleParticlePreprocessingNode,
+							is TomographyPreprocessingNode,
+							is TomographyPickingNode,
+							is TomographyParticlesEvalNode,
+							is SingleParticleCoarseRefinementNode,
+							is SingleParticleFineRefinementNode,
+							is SingleParticleFlexibleRefinementNode,
+							is SingleParticlePostprocessingNode,
+							is SingleParticleMaskingNode,
+							is TomographyCoarseRefinementNode,
+							is TomographyFineRefinementNode,
+							is TomographyMovieCleaningNode,
+							is TomographyFlexibleRefinementNode -> PathType.Project.make("${node.dir}/relion")
+
+							else -> null
+						}
+					}
+
+					is ArgInput.ParquetFile -> ArgInputFile(arg, "*.parquet", outNodes) { it.dir }
+					is ArgInput.TxtFile -> ArgInputFile(arg, "*.txt", outNodes) { Paths.join(it.dir, "frealign") }
+					is ArgInput.InitialModel -> ArgInputFile(arg, "*.mrc", outNodes) { Paths.join(it.dir, "frealign/maps") }
+					is ArgInput.HalfMap -> ArgInputFile(arg, "*_half1.mrc", outNodes) { Paths.join(it.dir, "frealign/maps") }
+					is ArgInput.TopazTrainedModel -> ArgInputFile(arg, "*.sav", outNodes) { it.dir }
+					is ArgInput.IsonetTrainedModel -> ArgInputFile(arg, "*.h5", outNodes) { Paths.join(it.dir, "train") }
+					is ArgInput.CryocareTrainedModel -> ArgInputFile(arg, "*.tar.gz", outNodes) { Paths.join(it.dir, "train") }
+					is ArgInput.TrainedModel2D -> ArgInputFile(arg, "*.training", outNodes) { it.projectFolder }
+					is ArgInput.TrainedModel3D -> ArgInputFile(arg, "*.pth", outNodes) { Paths.join(it.dir, "train") }
+
 					is ArgInput.ClusterTemplate -> ArgInputClusterTemplate(arg)
 				}
 			} else {

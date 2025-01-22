@@ -36,6 +36,10 @@ class ArgInputInt(override val arg: Arg) : ArgInputControl, Spinner(
 
 	override var onChange: (() -> Unit)? = null
 
+	override var enabled: Boolean
+		get() = !disabled
+		set(value) { disabled = !value }
+
 	init {
 		onEvent {
 			change = {
