@@ -307,7 +307,8 @@ sealed class Session(
 			ownerListener = StreampypListener,
 			dir = dir,
 			args = listOf("-params_file=$paramsPath"),
-			launchArgs = argValues.toSbatchArgs()
+			launchArgs = argValues.toSbatchArgs(),
+			template = argValues.slurmTemplate
 		)
 	}
 
