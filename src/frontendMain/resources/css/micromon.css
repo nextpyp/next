@@ -630,100 +630,38 @@ label.radio-selection .radio-selection-check:checked ~ span {
 
 /* TOMOGRAPHY PREPROCESSING VIEW */
 
-div.tomography-preprocessing {
+.tomography-preprocessing {
 	position: relative;
-}
 
-div.tomography-preprocessing .live .stats {
-	margin-left: 4px;
-	margin-top: 10px;
-	margin-bottom: 6px;
-}
-
-div.tomography-preprocessing .live .stats .log-button {
-	margin-left: 20px;
-}
-
-div.tomography-preprocessing div.pyp-stats {
-	margin-top: 6px;
-    margin-bottom: 6px;
-    margin-left: 10px;
-    color: #666666;
-}
-
-div.tomography-preprocessing .websocket-control {
-	position: absolute;
-	top: 10px;
-	right: 10px;
-}
-
-div.tomography-preprocessing div.tiltseries-stats {
-	margin-top: 6px;
-    margin-bottom: 6px;
-    margin-left: 10px;
-    color: #666666;
-}
-
-div.tomography-preprocessing div.pyp-stats {
-	margin-top: 6px;
-    margin-bottom: 6px;
-    margin-left: 10px;
-    color: #666666;
-}
-
-div.tomography-preprocessing div.tomography-preprocessing-table div.filters {
-	margin-top: 20px;
-	margin-bottom: 20px;
-}
-
-div.tomography-preprocessing div.tomography-preprocessing-table div.filters div.title {
-	font-weight: bold;
-	font-size: 16px;
-}
-
-div.tomography-preprocessing div.tomography-preprocessing-table div.filters div.filter {
-	margin-bottom: 10px;
-}
-
-div.tomography-preprocessing div.tomography-preprocessing-table div.filters div.filter div.form-group {
-	float: left;
-	width: 200px;
-	margin-top: 20px;
-	margin-bottom: 0px;
-}
-
-div.tomography-preprocessing div.tomography-preprocessing-table div.filters div.filter div.slider {
-	width: 100%;
-	padding-top: 50px;
-	padding-left: 240px;
-	padding-right: 80px;
-	padding-bottom: 20px;
-}
-
-div.tomography-preprocessing div.tomography-preprocessing-table div.filters div.filter button {
-	float: right;
-	margin-top: 40px;
-}
-
-div.tomography-preprocessing div.tomography-preprocessing-table div.filter-buttons span.matched {
-	font-style: italic;
-}
-
-div.tomography-preprocessing div.tomography-preprocessing-table div.filter-buttons button {
-	margin-right: 30px;
-}
-
-div.tomography-preprocessing div.tomography-preprocessing-table div.rows {
-	margin-top: 20px;
-	margin-bottom: 10px;
-}
-
-div.tomography-preprocessing div.tomography-preprocessing-table div.rows div.form-group {
-	display: inline-block;
+	.pyp-stats,
+	.tiltseries-stats {
+		margin-top: 6px;
+		margin-bottom: 6px;
+		margin-left: 10px;
+		color: #666666;
 	}
 
-.tomography-particle-preprocessing .hyper-gallery {
-	margin-top: 10px;
+	.websocket-control {
+		position: absolute;
+		top: 10px;
+		right: 10px;
+	}
+
+	.live {
+		.stats {
+			margin-left: 4px;
+			margin-top: 10px;
+			margin-bottom: 6px;
+
+			.log-button {
+				margin-left: 20px;
+			}
+		}
+	}
+
+	.hyper-gallery {
+		margin-top: 10px;
+	}
 }
 
 
@@ -732,6 +670,7 @@ div.tomography-preprocessing div.tomography-preprocessing-table div.rows div.for
 .tomography-picking {
 	position: relative;
 
+	.pyp-stats,
 	.tiltseries-stats {
 		margin-top: 6px;
 		margin-bottom: 6px;
@@ -739,20 +678,20 @@ div.tomography-preprocessing div.tomography-preprocessing-table div.rows div.for
 		color: #666666;
 	}
 
-	.stats {
-		margin-left: 4px;
-		margin-top: 10px;
-		margin-bottom: 6px;
-	}
-
-	.log-button {
-		margin-left: 20px;
-	}
-
 	.websocket-control {
 		position: absolute;
 		top: 10px;
 		right: 10px;
+	}
+
+	.stats {
+		margin-left: 4px;
+		margin-top: 10px;
+		margin-bottom: 6px;
+
+		.log-button {
+			margin-left: 20px;
+		}
 	}
 }
 
@@ -2815,145 +2754,152 @@ div.file-browser .file-browser-bottom .file-browser-controls .file-browser-glob 
 	clear: left;
 }
 
+
 /* FILTER TABLE */
 
-.filter-table .filters-title {
-	font-weight: bold;
-	font-size: 16px;
-}
+.filter-table {
 
-.filter-table .filters {
-	margin-top: 20px;
-	margin-bottom: 20px;
-}
+	.filters-title {
+		font-weight: bold;
+		font-size: 16px;
+	}
 
-.filter-table .filters .filter {
-	margin-bottom: 10px;
-}
+	.filters {
+		margin-top: 20px;
+		margin-bottom: 20px;
 
-.filter-table .filters .filter .form-group {
-	float: left;
-	width: 200px;
-	margin-top: 20px;
-	margin-bottom: 0px;
-}
+		.filter {
+			margin-bottom: 10px;
 
-.filter-table .filters .filter .slider {
-	width: 100%;
-	padding-top: 50px;
-	padding-left: 240px;
-	padding-right: 80px;
-	padding-bottom: 20px;
-}
+			.form-group {
+				float: left;
+				width: 200px;
+				margin-top: 20px;
+				margin-bottom: 0px;
+			}
 
-.filter-table .filters .filter button {
-	float: right;
-	margin-top: 40px;
-}
+			.slider {
+				width: 100%;
+				padding-top: 50px;
+				padding-left: 240px;
+				padding-right: 80px;
+				padding-bottom: 20px;
+			}
 
-.filter-table .filters-load-save {
-	margin-top: 10px;
-}
+			button {
+				float: right;
+				margin-top: 40px;
+			}
+		}
+	}
 
-.filter-table .filters-load-save input.name {
-	display: inline-block;
-	width: 200px;
-}
+	.filters-load-save {
+		margin-top: 10px;
 
-.filter-table .filters-load-save input.name.filter-name-error {
-	border: 2px solid red;
-}
+		input.name {
+			display: inline-block;
+			width: 200px;
 
-.filter-table .filters-load-save > * {
-	margin-right: 30px;
-}
+			&.filter-name-error {
+				border: 2px solid red;
+			}
+		}
 
-.filter-table .filter-buttons .matched {
-	font-style: italic;
-}
+		> * {
+			margin-right: 30px;
+		}
+	}
 
-.filter-table .filter-buttons button {
-	margin-right: 30px;
-}
+	.filter-buttons {
 
-.filter-table .rows {
-	margin-top: 20px;
-	margin-bottom: 10px;
-}
+		.matched {
+			font-style: italic;
+		}
 
-.filter-table .rows .form-group {
-	display: inline-block;
-}
+		button {
+			margin-right: 30px;
+		}
+	}
 
-.filter-table .rows select {
-	display: inline-block;
-	width: inherit;
-	margin-left: 8px;
-}
+	.rows {
+		margin-top: 20px;
+		margin-bottom: 10px;
 
-.filter-table .rows span {
-	margin-left: 8px;
-	margin-right: 8px;
-}
+		.form-group {
+			display: inline-block;
+		}
 
-.filter-table .columns {
-	display: flex;
-	flex-direction: row;
-}
+		select {
+			display: inline-block;
+			width: inherit;
+			margin-left: 8px;
+		}
 
-.filter-table .tabulator {
-	flex-grow: 1;
-}
+		span {
+			margin-left: 8px;
+			margin-right: 8px;
+		}
+	}
 
-/* override tabulator styles to fix display issues */
-.filter-table .tabulator .tabulator-table .tabulator-cell {
-	overflow-x: clip !important;
-	/*
-		tabulator inexplicably puts an inline style with overflow:visible on the element,
-		so to override it, we need !important here
-	*/
-}
+	.columns {
+		display: flex;
+		flex-direction: row;
+	}
 
-.filter-table .viewpane {
-	vertical-align: top;
-    padding-left: 20px;
-    min-width: 550px;
-}
+	.tabulator {
+		flex-grow: 1;
+	}
 
-.filter-table .viewpane .controls {
-	display: flex;
-	flex-direction: row;
-	flex-wrap: nowrap;
-	align-items: center;
-    gap: 20px;
-}
+	/* override tabulator styles to fix display issues */
+	.tabulator .tabulator-table .tabulator-cell {
+		overflow-x: clip !important;
+		/*
+			tabulator inexplicably puts an inline style with overflow:visible on the element,
+			so to override it, we need !important here
+		*/
+	}
 
-.filter-table .viewpane .controls button {
-	display: block;
-	margin-bottom: 10px;
-}
+	.viewpane {
+		vertical-align: top;
+		padding-left: 20px;
+		min-width: 550px;
 
-.filter-table .viewpane .controls .form-check {
-	margin-bottom: 10px;
-}
+		.controls {
+			display: flex;
+			flex-direction: row;
+			flex-wrap: nowrap;
+			align-items: center;
+			gap: 20px;
 
-.filter-table .viewpane .empty {
-	text-align: center;
-	margin-top: 40px;
-}
+			button {
+				display: block;
+				margin-bottom: 10px;
+			}
 
-.filter-table .viewpane .hurray {
-	text-align: center;
-}
+			.form-check {
+				margin-bottom: 10px;
+			}
+		}
 
-.filter-table .viewpane .hurray span {
-	margin-left: 8px;
-	margin-right: 8px;
-}
+		.empty {
+			text-align: center;
+			margin-top: 40px;
+		}
 
-.filter-table .viewpane .hurray .trophy {
-	font-size: 500%;
-	color: #c5d0db;
+		.hurray {
+			text-align: center;
+
+			span {
+				margin-left: 8px;
+				margin-right: 8px;
+			}
+
+			.trophy {
+				font-size: 500%;
+				color: #c5d0db;
+			}
+		}
+	}
 }
 
 
