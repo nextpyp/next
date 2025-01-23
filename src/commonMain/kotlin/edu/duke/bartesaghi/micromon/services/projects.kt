@@ -58,15 +58,6 @@ interface IProjectsService {
 	@KVBindingRoute("projects/deleteJobs")
 	suspend fun deleteJobs(jobIds: List<String>)
 
-	@KVBindingRoute("projects/clusterJobLog")
-	suspend fun clusterJobLog(clusterJobId: String): ClusterJobLog
-
-	@KVBindingRoute("projects/clusterJobArrayLog")
-	suspend fun clusterJobArrayLog(clusterJobId: String, arrayId: Int): ClusterJobArrayLog
-
-	@KVBindingRoute("projects/waitingReason")
-	suspend fun waitingReason(clusterJobId: String): String
-
 	@KVBindingRoute("projects/renameJob")
 	suspend fun renameJob(jobId: String, name: String): String /* JobData but serialized */
 
@@ -419,35 +410,6 @@ data class JobPosition(
 	val jobId: String,
 	val x: Double,
 	val y: Double
-)
-
-@Serializable
-class ClusterJobLog(
-	val representativeCommand: String,
-	val commandParams: String?,
-	val submitFailure: String?,
-	val template: String?,
-	val launchScript: String?,
-	val launchResult: ClusterJobLaunchResultData?,
-	val resultType: ClusterJobResultType?,
-	val exitCode: Int?,
-	val log: String?,
-	val arraySize: Int?,
-	val failedArrayIds: List<Int>
-)
-
-@Serializable
-class ClusterJobLaunchResultData(
-	val command: String?,
-	val out: String,
-	val success: Boolean
-)
-
-@Serializable
-class ClusterJobArrayLog(
-	val resultType: ClusterJobResultType?,
-	val exitCode: Int?,
-	val log: String?
 )
 
 

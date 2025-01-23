@@ -4,17 +4,13 @@ import com.fasterxml.jackson.databind.node.ArrayNode
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.mongodb.client.model.Updates.set
 import edu.duke.bartesaghi.micromon.*
-import edu.duke.bartesaghi.micromon.cluster.Cluster
-import edu.duke.bartesaghi.micromon.cluster.ClusterJob
-import edu.duke.bartesaghi.micromon.cluster.CommandsGrid
-import edu.duke.bartesaghi.micromon.cluster.CommandsScript
+import edu.duke.bartesaghi.micromon.cluster.*
 import edu.duke.bartesaghi.micromon.files.*
 import edu.duke.bartesaghi.micromon.jobs.*
 import edu.duke.bartesaghi.micromon.linux.EnvVar
 import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.mongo.SavedParticles
 import edu.duke.bartesaghi.micromon.services.*
-import edu.duke.bartesaghi.micromon.sessions.Session
 import edu.duke.bartesaghi.micromon.sessions.SingleParticleSession
 import edu.duke.bartesaghi.micromon.sessions.TomographySession
 import io.ktor.features.*
@@ -167,7 +163,7 @@ object PypService {
 		// lookup the job owner
 		val clusterJob = ClusterJob.get(params.getStringOrThrow("webid"))
 			?: return JsonRpcFailure("invalid webid")
-		val owner = clusterJob.findOwner()
+		val owner = clusterJob.findOwnerOrThrow()
 
 		log.debug("writeParameters: {}", owner)
 
@@ -205,7 +201,7 @@ object PypService {
 		// notify any listening clients
 		when (owner) {
 
-			is Owner.Job -> {
+			is ClusterJobOwner.Job -> {
 				when (owner.job) {
 
 					is SingleParticlePreprocessingJob -> SingleParticlePreprocessingJob.eventListeners.sendParams(owner.job.idOrThrow, values)
@@ -223,7 +219,7 @@ object PypService {
 				}
 			}
 
-			is Owner.Session -> {
+			is ClusterJobOwner.Session -> {
 				owner.session.type.events.getListeners(owner.id)
 					.forEach { it.onParams?.invoke(values) }
 			}
@@ -237,7 +233,7 @@ object PypService {
 		// lookup the job owner
 		val clusterJob = ClusterJob.get(params.getStringOrThrow("webid"))
 			?: return JsonRpcFailure("invalid webid")
-		val owner = clusterJob.findOwner()
+		val owner = clusterJob.findOwnerOrThrow()
 
 		// parse the inputs
 		// NOTE: all these inputs are always sent by pyp
@@ -250,8 +246,8 @@ object PypService {
 
 				// pyp doesn't send size info with the particle coords, so lookup the radius (in unbinned coords) from the pyp arguments
 				val values = when (owner) {
-					is Owner.Job -> owner.job.pypParameters()
-					is Owner.Session -> owner.session.pypParameters()
+					is ClusterJobOwner.Job -> owner.job.pypParameters()
+					is ClusterJobOwner.Session -> owner.session.pypParameters()
 				} ?: return JsonRpcFailure("can't import boxx particles: no pyp parameters sent")
 				val dims = ctf.imageDims()
 				val r = values.detectRad
@@ -299,7 +295,7 @@ object PypService {
 
 		when (owner) {
 
-			is Owner.Job -> {
+			is ClusterJobOwner.Job -> {
 
 				// update the job with the newest micrograph id
 				when (val job = owner.job) {
@@ -323,7 +319,7 @@ object PypService {
 				}
 			}
 
-			is Owner.Session -> {
+			is ClusterJobOwner.Session -> {
 
 				// notify any listening clients
 				SingleParticleSession.events.getListeners(owner.id)
@@ -339,7 +335,7 @@ object PypService {
 		// lookup the job owner
 		val clusterJob = ClusterJob.get(params.getStringOrThrow("webid"))
 			?: return JsonRpcFailure("invalid webid")
-		val owner = clusterJob.findOwner()
+		val owner = clusterJob.findOwnerOrThrow()
 
 		// parse micrograph params and update the database
 		val reconstructionId = params.getStringOrThrow("reconstruction_id")
@@ -364,7 +360,7 @@ object PypService {
 
 		when (owner) {
 
-			is Owner.Job -> {
+			is ClusterJobOwner.Job -> {
 
 				// update the job with the newest reconstruction info
 				val formatter = NumberFormat.getIntegerInstance(Locale.US)
@@ -387,7 +383,7 @@ object PypService {
 				RefinementJobs.eventListeners.sendReconstruction(owner.id, reconstructionId)
 			}
 
-			is Owner.Session -> {
+			is ClusterJobOwner.Session -> {
 
 				// TODO: notify any listening clients
 				// ! Need to figure out if it's a SingleParticle or Tomography Session...
@@ -402,7 +398,7 @@ object PypService {
 		// lookup the job/session
 		val clusterJob = ClusterJob.get(params.getStringOrThrow("webid"))
 			?: return JsonRpcFailure("invalid webid")
-		val owner = clusterJob.findOwner()
+		val owner = clusterJob.findOwnerOrThrow()
 
 		// parse the inputs, everything is basically optional now
 		val ctf = params.getArray("ctf")?.let { CTF.from(it) }
@@ -489,7 +485,7 @@ object PypService {
 
 		when (owner) {
 
-			is Owner.Job -> {
+			is ClusterJobOwner.Job -> {
 
 				// update the job with the newest tilt series id
 				when (val job = owner.job) {
@@ -514,7 +510,7 @@ object PypService {
 				}
 			}
 
-			is Owner.Session -> {
+			is ClusterJobOwner.Session -> {
 
 				// notify any listening clients
 				TomographySession.events.getListeners(owner.id)
@@ -536,7 +532,7 @@ object PypService {
 		// lookup the job owner
 		val clusterJob = ClusterJob.get(params.getStringOrThrow("webid"))
 			?: return JsonRpcFailure("invalid webid")
-		val owner = clusterJob.findOwner()
+		val owner = clusterJob.findOwnerOrThrow()
 
 		// parse refinement params and update the database
 		val refinement = Refinement(
@@ -551,7 +547,7 @@ object PypService {
 
 		when (owner) {
 
-			is Owner.Job -> {
+			is ClusterJobOwner.Job -> {
 
 				// clean up old iterations, if needed
 				val mostRecentIteration = Database.instance.jobs.get(refinement.jobId)
@@ -589,7 +585,7 @@ object PypService {
 		// lookup the job owner
 		val clusterJob = ClusterJob.get(params.getStringOrThrow("webid"))
 			?: return JsonRpcFailure("invalid webid")
-		val owner = clusterJob.findOwner()
+		val owner = clusterJob.findOwnerOrThrow()
 
 		// parse params and update the database
 		val refinementBundle = RefinementBundle(
@@ -604,7 +600,7 @@ object PypService {
 
 		when (owner) {
 
-			is Owner.Job -> {
+			is ClusterJobOwner.Job -> {
 
 				// clean up old iterations, if needed
 				val mostRecentIteration = Database.instance.jobs.get(refinementBundle.jobId)
@@ -636,7 +632,7 @@ object PypService {
 		// lookup the job owner
 		val clusterJob = ClusterJob.get(params.getStringOrThrow("webid"))
 			?: return JsonRpcFailure("invalid webid")
-		val owner = clusterJob.findOwner()
+		val owner = clusterJob.findOwnerOrThrow()
 
 		// parse 2d classes params and update the database
 		val twoDClasses = TwoDClasses(
@@ -649,11 +645,11 @@ object PypService {
 
 		when (owner) {
 
-			is Owner.Job -> {
+			is ClusterJobOwner.Job -> {
 				// not used in project/job mode, yet?
 			}
 
-			is Owner.Session -> {
+			is ClusterJobOwner.Session -> {
 
 				// notify any listening clients
 				SingleParticleSession.events.getListeners(owner.id)
@@ -662,41 +658,6 @@ object PypService {
 		}
 
 		return JsonRpcSuccess()
-	}
-
-	sealed class Owner(
-		val id: String
-	) {
-		class Job(val job: edu.duke.bartesaghi.micromon.jobs.Job) : Owner(job.idOrThrow) {
-
-			override fun toString(): String =
-				"Job[${job.baseConfig.id},${job.id}]"
-		}
-
-		class Session(val session: edu.duke.bartesaghi.micromon.sessions.Session) : Owner(session.idOrThrow) {
-
-			override fun toString(): String =
-				"Session[${session.type},${session.id}]"
-		}
-	}
-
-	private fun ClusterJob.findOwner(): Owner {
-
-		if (ownerId == null) {
-			throw NoSuchElementException("cluster job has no owner")
-		}
-
-		// try jobs
-		JobOwner.fromString(ownerId)?.let { jobOwner ->
-			return Owner.Job(Job.fromIdOrThrow(jobOwner.jobId))
-		}
-
-		// try sessions
-		Session.fromId(ownerId)?.let { session ->
-			return Owner.Session(session)
-		}
-
-		throw NoSuchElementException("cluster job owner was not recognized: $ownerId")
 	}
 
 	suspend fun log(params: ObjectNode): JsonRpcResponse {

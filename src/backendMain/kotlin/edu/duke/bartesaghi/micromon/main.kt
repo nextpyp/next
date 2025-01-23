@@ -137,6 +137,7 @@ fun Application.main(config: Config.Web) {
 		applyRoutes(AdminServiceManager)
 		applyRoutes(ProjectsServiceManager)
 		applyRoutes(JobsServiceManager)
+		applyRoutes(ClusterJobsServiceManager)
 		applyRoutes(SingleParticleRawDataServiceManager)
 		applyRoutes(SingleParticleRelionDataServiceManager)
 		applyRoutes(SingleParticleImportDataServiceManager)

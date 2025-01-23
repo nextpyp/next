@@ -7,10 +7,8 @@ import com.mongodb.client.model.ReplaceOptions
 import com.mongodb.client.model.UpdateOptions
 import com.mongodb.client.model.Updates
 import edu.duke.bartesaghi.micromon.*
-import edu.duke.bartesaghi.micromon.cluster.ClusterJob
 import edu.duke.bartesaghi.micromon.projects.Project
 import edu.duke.bartesaghi.micromon.jobs.Job
-import edu.duke.bartesaghi.micromon.jobs.JobOwner
 import edu.duke.bartesaghi.micromon.services.ProjectPermission
 import edu.duke.bartesaghi.micromon.services.RunStatus
 import io.kvision.remote.ServiceException
@@ -283,19 +281,4 @@ fun User.authJobOrThrow(permission: ProjectPermission, jobId: String): Job {
 	val job = Job.fromIdOrThrow(jobId)
 	authProjectOrThrow(permission, job.userId, job.projectId)
 	return job
-}
-
-
-fun User.authClusterJobOrThrow(permission: ProjectPermission, clusterJobId: String): ClusterJob {
-
-	val clusterJob = ClusterJob.get(clusterJobId)
-		?: throw ServiceException("cluster job not found")
-
-	val jobOwner = JobOwner.fromString(clusterJob.ownerId)
-		?: throw AuthException("access to cluster job denied")
-			.withInternal("$permission requested by user $id to cluster job $clusterJobId")
-
-	authJobOrThrow(permission, jobOwner.jobId)
-
-	return clusterJob
 }

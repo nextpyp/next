@@ -12,6 +12,8 @@ import io.kvision.core.Component
 import io.kvision.core.Container
 import io.kvision.core.StringPair
 import io.kvision.core.onEvent
+import io.kvision.form.check.radio
+import io.kvision.form.check.radioGroup
 import io.kvision.form.select.Select
 import io.kvision.form.select.select
 import io.kvision.html.*
@@ -395,15 +397,16 @@ class SessionOps(val session: SessionData) {
 			closeButton = true,
 			classes = setOf("dashboard-popup", "max-height-dialog", "session-logs-popup")
 		)
-		win.show()
 
-		var logStreamer: LogStreamer? = null
-
-		win.onEvent {
-			hiddenBsModal = {
-				logStreamer?.close()
-			}
+		val showButton = Button("Show").apply {
+			enabled = false
+			win.addButton(this)
 		}
+
+		fun SessionLogData.label(): String =
+			Date(timestamp).toLocaleString()
+
+		win.show()
 
 		AppScope.launch {
 
@@ -427,10 +430,10 @@ class SessionOps(val session: SessionData) {
 			}
 
 			// show a picker for the logs
-			val picker = Select(
+			val picker = win.radioGroup(
 				options = logs
 					.map { log ->
-						StringPair(log.jobId, Date(log.timestamp).toLocaleString())
+						StringPair(log.clusterJobId, log.label())
 					},
 				label = "Started at"
 			)
@@ -438,94 +441,17 @@ class SessionOps(val session: SessionData) {
 				add(picker)
 			}
 
-			// make a place to show the log
-			val logElem = win.div(classes = setOf("logs-container"))
-
-			fun SessionLogData.showConsole() {
-
-				// cleanup the old streamer, if any
-				logStreamer?.close()
-				logStreamer = null
-
-				logElem.removeAll()
-
-				AppScope.launch log@{
-
-					// get the log from the server
-					val logLoading = logElem.loading("Loading log ...")
-					val log = try {
-						delayAtLeast(200) {
-							Services.sessions.log(session.sessionId, jobId)
-						}
-					} catch (t: Throwable) {
-						logElem.errorMessage(t)
-						return@log
-					} finally {
-						logElem.remove(logLoading)
-					}
-
-					// show the log
-					val logView = LogView()
-					logView.setLog(log.log)
-					logElem.add(logView)
-				}
-			}
-
-			fun SessionLogData.showLog() {
-
-				AppScope.launch log@{
-
-					// cleanup the old streamer, if any
-					logStreamer?.close()
-					logStreamer = null
-
-					logElem.removeAll()
-
-					// show the streampyp command
-					val logLoading = logElem.loading("Loading log ...")
-					val commands = try {
-						delayAtLeast(200) {
-							Services.sessions.commands(session.sessionId, jobId)
-						}
-					} catch (t: Throwable) {
-						logElem.errorMessage(t)
-						return@log
-					} finally {
-						logElem.remove(logLoading)
-					}
-					logElem.div {
-						content = commands.command
-					}
-					logElem.div {
-						link("Show console output", classes = setOf("link")).onEvent {
-							click = {
-								showConsole()
-							}
-						}
-					}
-					logElem.tag(TAG.HR)
-
-					// make the new log streamer
-					logStreamer = LogStreamer(RealTimeC2S.ListenToSessionStreamLog(session.sessionId, jobId))
-						.also { logElem.add(it) }
-				}
-			}
-
 			// wire up events
-			picker.onEvent {
-				change = {
-					logs
-						.find { it.jobId == picker.value }
-						?.showLog()
-				}
+			showButton.onClick e@{
+				win.hide()
+				val log = logs.find { it.clusterJobId == picker.value }
+					?: return@e
+				ClusterJobLogViewer(log.clusterJobId, "Session started at ${log.label()}")
 			}
 
-			// select the first log by default
-			val defaultLog = logs.firstOrNull()
-			if (defaultLog != null) {
-				picker.value = defaultLog.jobId
-				defaultLog.showLog()
-			}
+			// init form state
+			showButton.enabled = true
+			picker.value = logs.first().clusterJobId
 		}
 	}
 
@@ -1341,7 +1267,7 @@ class SessionExportsMonitor(val session: SessionData) : Div(classes = setOf("ses
 				logElem.tag(TAG.HR)
 
 				// make the new log streamer
-				logStreamer = LogStreamer(RealTimeC2S.ListenToSessionStreamLog(export.sessionId, clusterJobId))
+				logStreamer = LogStreamer(RealTimeC2S.ListenToStreamLog(clusterJobId))
 					.also { logElem.add(it) }
 			}
 		}

@@ -122,10 +122,12 @@ fun ReceiveChannel<String>.messages(): ReceiveChannelIterator<RealTimeS2C> =
 suspend inline fun <reified M : RealTimeS2C> ReceiveChannel<String>.receiveMessage(): M =
 	when (val msg = RealTimeS2C.fromJson(receive())) {
 		is M -> msg
-		else -> throw UnexpectedMessageException(msg)
+		is RealTimeS2C.Error -> throw IllegalArgumentException("Received error from server:\n${msg.name}\n${msg.msg}")
+		else -> throw UnexpectedMessageException(msg, M::class.simpleName)
 	}
 
-class UnexpectedMessageException(val msg: Any) : IllegalArgumentException("message type: ${msg::class.simpleName}")
+class UnexpectedMessageException(val msg: Any, val expected: String?) :
+	IllegalArgumentException("Expected message type ${expected ?: "(unknown)"}, but got: ${msg::class.simpleName ?: "(unknown)"}")
 
 
 data class ImageSizes(

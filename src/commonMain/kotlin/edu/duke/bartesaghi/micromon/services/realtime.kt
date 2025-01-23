@@ -169,7 +169,7 @@ sealed class RealTimeC2S {
 	) : RealTimeC2S()
 
 	@Serializable
-	data class ListenToJobStreamLog(
+	data class ListenToStreamLog(
 		val clusterJobId: String
 	) : RealTimeC2S()
 
@@ -180,12 +180,6 @@ sealed class RealTimeC2S {
 
 	@Serializable
 	class SessionSettingsSaved : RealTimeC2S()
-
-	@Serializable
-	data class ListenToSessionStreamLog(
-		val sessionId: String,
-		val clusterJobId: String
-	) : RealTimeC2S()
 }
 
 /**

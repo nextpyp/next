@@ -5,7 +5,6 @@ import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.projects.Project
 import edu.duke.bartesaghi.micromon.auth.authOrThrow
 import edu.duke.bartesaghi.micromon.cluster.Cluster
-import edu.duke.bartesaghi.micromon.cluster.slurm.Template
 import edu.duke.bartesaghi.micromon.jobs.Job
 import edu.duke.bartesaghi.micromon.jobs.JobRunner
 import edu.duke.bartesaghi.micromon.jobs.jobInfo
@@ -244,70 +243,6 @@ actual class ProjectsService : IProjectsService {
 			?: throw ServiceException("Job has not been run yet")
 
 		return projectRun.idOrThrow
-	}
-
-	override suspend fun clusterJobLog(clusterJobId: String): ClusterJobLog = sanitizeExceptions {
-
-		// authenticate the user for this job
-		val user = call.authOrThrow()
-		val clusterJob = user.authClusterJobOrThrow(ProjectPermission.Read, clusterJobId)
-
-		// load the main log
-		val log = clusterJob.getLog()
-
-		// load log failures
-		val failedArrayIds = Database.instance.cluster.log.findArrayIdsByResultType(clusterJobId, ClusterJobResultType.Failure)
-			.sorted()
-
-		// load the template name, if possible
-		val template = try {
-			Config.instance.slurm?.let { config ->
-				clusterJob.template?.let {
-					Template.Key(config, it)
-						.toTemplateOrThrow()
-						.readData()
-						.title
-				}
-			}
-		} catch (t: Throwable) {
-			// can't read the template metadata, so use the path
-			clusterJob.template
-		}
-
-		return ClusterJobLog(
-			clusterJob.commands.representativeCommand(),
-			clusterJob.commands.params(),
-			log?.submitFailure,
-			template,
-			log?.launchScript,
-			log?.launchResult?.toData(),
-			log?.result?.type,
-			log?.result?.exitCode,
-			log?.result?.out?.collapseProgress(),
-			clusterJob.commands.arraySize,
-			failedArrayIds
-		)
-	}
-
-	override suspend fun clusterJobArrayLog(clusterJobId: String, arrayId: Int): ClusterJobArrayLog = sanitizeExceptions {
-
-		// authenticate the user for this job
-		val user = call.authOrThrow()
-		val clusterJob = user.authClusterJobOrThrow(ProjectPermission.Read, clusterJobId)
-
-		// load the array element log
-		val log = clusterJob.getLog(arrayId)
-
-		return ClusterJobArrayLog(log?.result?.type, log?.result?.exitCode, log?.result?.out?.collapseProgress())
-	}
-
-	override suspend fun waitingReason(clusterJobId: String): String = sanitizeExceptions {
-
-		// authenticate the user for this job
-		val user = call.authOrThrow()
-		val clusterJob = user.authClusterJobOrThrow(ProjectPermission.Read, clusterJobId)
-
-		return Cluster.waitingReason(clusterJob)
 	}
 
 	override suspend fun renameJob(jobId: String, name: String): String = sanitizeExceptions {

@@ -2,7 +2,6 @@ package edu.duke.bartesaghi.micromon.services
 
 import com.google.inject.Inject
 import edu.duke.bartesaghi.micromon.*
-import edu.duke.bartesaghi.micromon.auth.allowedPathOrThrow
 import edu.duke.bartesaghi.micromon.auth.authOrThrow
 import edu.duke.bartesaghi.micromon.cluster.ClusterJob
 import edu.duke.bartesaghi.micromon.mongo.Database
@@ -243,7 +242,7 @@ actual class SessionsService : ISessionsService, Service {
 			session.findDaemonJobs(daemon)
 				.mapNotNull { job ->
 					SessionLogData(
-						jobId = job.idOrThrow,
+						clusterJobId = job.idOrThrow,
 						daemon = daemon,
 						timestamp = job.getLog()?.history
 							?.first { it.status == ClusterJob.Status.Submitted }
@@ -251,26 +250,6 @@ actual class SessionsService : ISessionsService, Service {
 							?: return@mapNotNull null
 					)
 				}
-		)
-	}
-
-	override suspend fun commands(sessionId: String, jobId: String): SessionCommands = sanitizeExceptions {
-
-		val (user, session) = auth(sessionId, SessionPermission.Read)
-		val job = user.authClusterJobOrThrow(session, jobId)
-
-		return SessionCommands(
-			command = job.commands.representativeCommand()
-		)
-	}
-
-	override suspend fun log(sessionId: String, jobId: String): SessionLog = sanitizeExceptions {
-
-		val (user, session) = auth(sessionId, SessionPermission.Read)
-		val job = user.authClusterJobOrThrow(session, jobId)
-
-		return SessionLog(
-			log = job.getLog()?.result?.out?.collapseProgress()
 		)
 	}
 
@@ -309,7 +288,7 @@ actual class SessionsService : ISessionsService, Service {
 	override suspend fun jobLogs(sessionId: String, jobId: String): SessionJobLogs = sanitizeExceptions {
 
 		val (user, session) = auth(sessionId, SessionPermission.Read)
-		val job = user.authClusterJobOrThrow(session, jobId)
+		val job = user.authSessionClusterJobOrThrow(session, jobId)
 
 		val arraySize = job.commands.arraySize
 

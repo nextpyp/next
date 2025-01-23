@@ -327,7 +327,7 @@ class JobsMonitor(
 					if (job != null) {
 						title = "Show the logs"
 						onClick {
-							ClusterJobLogViewer(job, clusterJobId, name, panelBottom)
+							ClusterJobLogViewer(clusterJobId, name, panelBottom)
 						}
 					} else {
 						title = DeletedLogsText

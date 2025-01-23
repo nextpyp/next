@@ -3,11 +3,12 @@ package edu.duke.bartesaghi.micromon.services
 import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.auth.authOrThrow
 import edu.duke.bartesaghi.micromon.cluster.ClusterJob
+import edu.duke.bartesaghi.micromon.cluster.ClusterJobPermission
+import edu.duke.bartesaghi.micromon.cluster.authClusterJobOrThrow
 import edu.duke.bartesaghi.micromon.jobs.*
 import edu.duke.bartesaghi.micromon.linux.DF
 import edu.duke.bartesaghi.micromon.linux.TransferWatcher
 import edu.duke.bartesaghi.micromon.mongo.Database
-import edu.duke.bartesaghi.micromon.mongo.authClusterJobOrThrow
 import edu.duke.bartesaghi.micromon.mongo.authJobOrThrow
 import edu.duke.bartesaghi.micromon.mongo.authProjectOrThrow
 import edu.duke.bartesaghi.micromon.projects.ProjectEventListeners
@@ -275,17 +276,10 @@ object RealTimeService {
 			var clusterJob: ClusterJob? = null
 			when (val request = incoming.receiveMessage<RealTimeC2S>(outgoing)) {
 
-				is RealTimeC2S.ListenToJobStreamLog -> {
+				is RealTimeC2S.ListenToStreamLog -> {
 
-					// authenticate the user for this job
-					clusterJob = user.authClusterJobOrThrow(ProjectPermission.Read, request.clusterJobId)
-				}
-
-				is RealTimeC2S.ListenToSessionStreamLog -> {
-
-					// authenticate the user for this session
-					val session = user.authSessionForReadOrThrow(request.sessionId)
-					clusterJob = user.authClusterJobOrThrow(session, request.clusterJobId)
+					// authenticate the user for this cluster job
+					clusterJob = user.authClusterJobOrThrow(ClusterJobPermission.Read, request.clusterJobId)
 				}
 
 				else -> Unit

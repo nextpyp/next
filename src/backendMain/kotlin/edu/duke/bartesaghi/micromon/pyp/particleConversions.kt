@@ -1,5 +1,6 @@
 package edu.duke.bartesaghi.micromon.pyp
 
+import edu.duke.bartesaghi.micromon.cluster.ClusterJobOwner
 import edu.duke.bartesaghi.micromon.jobs.Job
 import edu.duke.bartesaghi.micromon.mongo.SavedParticles
 import edu.duke.bartesaghi.micromon.services.*
@@ -33,7 +34,7 @@ enum class ParticlesVersion(val number: Int) {
 }
 
 
-fun SavedParticles<Particle2DUntyped>.toUnbinned2D(owner: PypService.Owner, list: ParticlesList): SavedParticles<Particle2D> =
+fun SavedParticles<Particle2DUntyped>.toUnbinned2D(owner: ClusterJobOwner, list: ParticlesList): SavedParticles<Particle2D> =
 	when (version) {
 
 		// particles already in unbinned coordinates: just wrap with the safe number types
@@ -52,13 +53,13 @@ fun SavedParticles<Particle2DUntyped>.toUnbinned2D(owner: PypService.Owner, list
 	}
 
 fun SavedParticles<Particle2DUntyped>.toUnbinned2D(job: Job, list: ParticlesList): SavedParticles<Particle2D> =
-	toUnbinned2D(PypService.Owner.Job(job), list)
+	toUnbinned2D(ClusterJobOwner.Job(job), list)
 
 fun SavedParticles<Particle2DUntyped>.toUnbinned2D(session: Session, list: ParticlesList): SavedParticles<Particle2D> =
-	toUnbinned2D(PypService.Owner.Session(session), list)
+	toUnbinned2D(ClusterJobOwner.Session(session), list)
 
 
-fun SavedParticles<Particle3DUntyped>.toUnbinned3D(owner: PypService.Owner, list: ParticlesList): SavedParticles<Particle3D> =
+fun SavedParticles<Particle3DUntyped>.toUnbinned3D(owner: ClusterJobOwner, list: ParticlesList): SavedParticles<Particle3D> =
 	when (version) {
 
 		/**
@@ -70,8 +71,8 @@ fun SavedParticles<Particle3DUntyped>.toUnbinned3D(owner: PypService.Owner, list
 		ParticlesVersion.Legacy -> {
 
 			val argValues = when (owner) {
-				is PypService.Owner.Job -> owner.job.pypParametersOrThrow()
-				is PypService.Owner.Session -> owner.session.pypParametersOrThrow()
+				is ClusterJobOwner.Job -> owner.job.pypParametersOrThrow()
+				is ClusterJobOwner.Session -> owner.session.pypParametersOrThrow()
 			}
 
 			val tomoBinning = argValues.tomoRecBinningOrDefault
@@ -162,7 +163,7 @@ fun SavedParticles<Particle3DUntyped>.toUnbinned3D(owner: PypService.Owner, list
 	}
 
 fun SavedParticles<Particle3DUntyped>.toUnbinned3D(job: Job, list: ParticlesList): SavedParticles<Particle3D> =
-	toUnbinned3D(PypService.Owner.Job(job), list)
+	toUnbinned3D(ClusterJobOwner.Job(job), list)
 
 fun SavedParticles<Particle3DUntyped>.toUnbinned3D(session: Session, list: ParticlesList): SavedParticles<Particle3D> =
-	toUnbinned3D(PypService.Owner.Session(session), list)
+	toUnbinned3D(ClusterJobOwner.Session(session), list)

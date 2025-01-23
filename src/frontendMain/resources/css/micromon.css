@@ -3353,26 +3353,6 @@ div.file-browser .file-browser-bottom .file-browser-controls .file-browser-glob 
 }
 
 
-/* SESSION LOGS */
-
-.session-logs-popup .modal-dialog {
-	width: 90%;
-	max-width: 9999px;
-}
-
-.session-logs-popup .modal-body {
-	display: flex;
-	flex-direction: column;
-	overflow-y: hidden;
-}
-
-.session-logs-popup .logs-container {
-	display: flex;
-	flex-direction: column;
-	overflow-y: hidden;
-}
-
-
 /** SESSION JOBS LOGS */
 
 .session-jobs-logs-popup .modal-dialog {

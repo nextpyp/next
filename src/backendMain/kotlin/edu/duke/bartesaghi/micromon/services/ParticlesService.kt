@@ -2,12 +2,12 @@ package edu.duke.bartesaghi.micromon.services
 
 import com.google.inject.Inject
 import edu.duke.bartesaghi.micromon.auth.authOrThrow
+import edu.duke.bartesaghi.micromon.cluster.ClusterJobOwner
 import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.mongo.SavedParticles
 import edu.duke.bartesaghi.micromon.mongo.authJobOrThrow
 import edu.duke.bartesaghi.micromon.parseOwnerType
 import edu.duke.bartesaghi.micromon.pyp.ParticlesVersion
-import edu.duke.bartesaghi.micromon.pyp.PypService
 import edu.duke.bartesaghi.micromon.pyp.toUnbinned2D
 import edu.duke.bartesaghi.micromon.pyp.toUnbinned3D
 import edu.duke.bartesaghi.micromon.respondExceptions
@@ -86,19 +86,19 @@ actual class ParticlesService : IParticlesService, Service {
 	@Inject
 	override lateinit var call: ApplicationCall
 
-	private fun authRead(ownerType: OwnerType, ownerId: String): PypService.Owner {
+	private fun authRead(ownerType: OwnerType, ownerId: String): ClusterJobOwner {
 		val user = call.authOrThrow()
 		return when (ownerType) {
-			OwnerType.Project -> PypService.Owner.Job(user.authJobOrThrow(ProjectPermission.Read, ownerId))
-			OwnerType.Session -> PypService.Owner.Session(user.authSessionOrThrow(ownerId, SessionPermission.Read))
+			OwnerType.Project -> ClusterJobOwner.Job(user.authJobOrThrow(ProjectPermission.Read, ownerId))
+			OwnerType.Session -> ClusterJobOwner.Session(user.authSessionOrThrow(ownerId, SessionPermission.Read))
 		}
 	}
 
-	private fun authWrite(ownerType: OwnerType, ownerId: String): PypService.Owner {
+	private fun authWrite(ownerType: OwnerType, ownerId: String): ClusterJobOwner {
 		val user = call.authOrThrow()
 		return when (ownerType) {
-			OwnerType.Project -> PypService.Owner.Job(user.authJobOrThrow(ProjectPermission.Write, ownerId))
-			OwnerType.Session -> PypService.Owner.Session(user.authSessionOrThrow(ownerId, SessionPermission.Write))
+			OwnerType.Project -> ClusterJobOwner.Job(user.authJobOrThrow(ProjectPermission.Write, ownerId))
+			OwnerType.Session -> ClusterJobOwner.Session(user.authSessionOrThrow(ownerId, SessionPermission.Write))
 		}
 	}
 

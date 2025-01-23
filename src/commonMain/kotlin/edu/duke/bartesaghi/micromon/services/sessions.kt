@@ -206,19 +206,9 @@ data class SessionLogs(
 
 @Serializable
 data class SessionLogData(
-	val jobId: String,
+	val clusterJobId: String,
 	val daemon: SessionDaemon,
 	val timestamp: Long
-)
-
-@Serializable
-data class SessionCommands(
-	val command: String
-)
-
-@Serializable
-data class SessionLog(
-	val log: String?
 )
 
 @Serializable
@@ -440,14 +430,6 @@ interface ISessionsService {
 	@ExportServiceFunction(AppPermission.SessionRead)
 	@KVBindingRoute("sessions/logs")
 	suspend fun logs(sessionId: String, daemon: SessionDaemon): SessionLogs
-
-	@ExportServiceFunction(AppPermission.SessionRead)
-	@KVBindingRoute("sessions/cmds")
-	suspend fun commands(sessionId: String, jobId: String): SessionCommands
-
-	@ExportServiceFunction(AppPermission.SessionRead)
-	@KVBindingRoute("sessions/log")
-	suspend fun log(sessionId: String, jobId: String): SessionLog
 
 	@ExportServiceFunction(AppPermission.SessionRead)
 	@KVBindingRoute("sessions/speeds")

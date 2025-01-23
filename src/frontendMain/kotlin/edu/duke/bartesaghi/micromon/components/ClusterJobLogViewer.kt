@@ -15,10 +15,9 @@ import io.kvision.modal.Modal
 
 
 class ClusterJobLogViewer(
-	val job: JobData,
 	val clusterJobId: String,
 	val name: String,
-	val panelBottom: Container
+	val panelBottom: Container? = null
 ) {
 
 	private val title = "Logs for: $name"
@@ -36,7 +35,7 @@ class ClusterJobLogViewer(
 	private val streamElem = Div(classes = setOf("stream"))
 	private val logsElem = Div(classes = setOf("logs"))
 
-	private val logStreamer = LogStreamer(RealTimeC2S.ListenToJobStreamLog(clusterJobId), true)
+	private val logStreamer = LogStreamer(RealTimeC2S.ListenToStreamLog(clusterJobId), panelBottom != null)
 		.apply {
 			onEnd = {
 				// clear the existing data so the next tab load has to refresh it
@@ -106,7 +105,7 @@ class ClusterJobLogViewer(
 		// load initial info from the server
 		val loading = win.loading("Loading logs ...")
 		try {
-			return Services.projects.clusterJobLog(clusterJobId)
+			return Services.clusterJobs.log(clusterJobId)
 		} catch (t: Throwable) {
 			win.errorMessage(t)
 			return null
@@ -176,7 +175,7 @@ class ClusterJobLogViewer(
 		AppScope.launch {
 
 			val reason = try {
-				Services.projects.waitingReason(clusterJobId)
+				Services.clusterJobs.waitingReason(clusterJobId)
 			} catch (t: Throwable) {
 				launchElem.errorMessage(t)
 				return@launch
@@ -281,7 +280,7 @@ class ClusterJobLogViewer(
 				logElem.removeAll()
 				val loadingLog = logElem.loading("Loading log ...")
 				try {
-					val arrayLog = Services.projects.clusterJobArrayLog(clusterJobId, arrayId)
+					val arrayLog = Services.clusterJobs.arrayLog(clusterJobId, arrayId)
 					setLog(arrayId, arrayLog.resultType, arrayLog.exitCode, arrayLog.log)
 				} catch (t: Throwable) {
 					logElem.errorMessage(t)
@@ -388,6 +387,9 @@ class ClusterJobLogViewer(
 
 	private fun pinStream() {
 
+		val panelBottom = panelBottom
+			?: return
+
 		pinned = true
 		win.hide()
 		logStreamer.pinButton.visible = false
@@ -433,6 +435,9 @@ class ClusterJobLogViewer(
 	}
 
 	private fun unpinStream() {
+
+		val panelBottom = panelBottom
+			?: return
 
 		pinned = false
 

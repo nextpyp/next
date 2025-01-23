@@ -2,10 +2,12 @@ package edu.duke.bartesaghi.micromon.cluster
 
 import com.mongodb.client.model.Updates.*
 import edu.duke.bartesaghi.micromon.*
+import edu.duke.bartesaghi.micromon.cluster.slurm.Template
 import edu.duke.bartesaghi.micromon.linux.EnvVar
 import edu.duke.bartesaghi.micromon.linux.Posix
 import edu.duke.bartesaghi.micromon.mongo.*
 import edu.duke.bartesaghi.micromon.services.ClusterJobLaunchResultData
+import edu.duke.bartesaghi.micromon.services.ClusterJobLog
 import edu.duke.bartesaghi.micromon.services.ClusterJobResultType
 import edu.duke.bartesaghi.micromon.services.RunStatus
 import kotlinx.coroutines.runBlocking
@@ -472,6 +474,42 @@ class ClusterJob(
 
 			Dependency(depId, launchId)
 		}
+
+	fun templateName(): String? =
+		try {
+			Config.instance.slurm?.let { config ->
+				template?.let {
+					Template.Key(config, it)
+						.toTemplateOrThrow()
+						.readData()
+						.title
+				}
+			}
+		} catch (t: Throwable) {
+			// can't read the template metadata, so use the path
+			template
+		}
+
+	fun toData(): ClusterJobLog {
+
+		// load the main log
+		val log = getLog()
+
+		return ClusterJobLog(
+			representativeCommand = commands.representativeCommand(),
+			commandParams = commands.params(),
+			submitFailure = log?.submitFailure,
+			template = templateName(),
+			launchScript = log?.launchScript,
+			launchResult = log?.launchResult?.toData(),
+			resultType = log?.result?.type,
+			exitCode = log?.result?.exitCode,
+			log = log?.result?.out?.collapseProgress(),
+			arraySize = commands.arraySize,
+			failedArrayIds = Database.instance.cluster.log.findArrayIdsByResultType(idOrThrow, ClusterJobResultType.Failure)
+				.sorted()
+		)
+	}
 
 
 	companion object {

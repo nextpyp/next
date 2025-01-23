@@ -1,7 +1,6 @@
 package edu.duke.bartesaghi.micromon.sessions
 
 import edu.duke.bartesaghi.micromon.*
-import edu.duke.bartesaghi.micromon.auth.allowedByOrThrow
 import edu.duke.bartesaghi.micromon.auth.authOrThrow
 import edu.duke.bartesaghi.micromon.cluster.ClusterJob
 import edu.duke.bartesaghi.micromon.cluster.slurm.toSbatchArgs
@@ -519,7 +518,7 @@ class WrongSessionTypeException(val session: Session, val expectedType: KClass<*
 	: IllegalArgumentException("expected session ${session.id} to be a $expectedType, not a ${session::class}")
 
 
-fun User.authClusterJobOrThrow(session: Session, clusterJobId: String): ClusterJob {
+fun User.authSessionClusterJobOrThrow(session: Session, clusterJobId: String): ClusterJob {
 
 	fun deny(msg: String): Nothing {
 		throw AuthException("cluster job not authorized")
