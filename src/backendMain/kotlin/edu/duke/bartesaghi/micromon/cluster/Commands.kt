@@ -269,7 +269,7 @@ fun apptainerWrapper(job: ClusterJob, container: Container): (String) -> String 
 	val requestedGpu = job.argsParsed
 		.firstOrNull { (name, _) -> name == "gres" }
 		?.let { (_, value) -> Gres.parseAll(value) }
-		?.any { it.name == "gpu" }
+		?.any { it.isGpu }
 		?: false
 	if (requestedGpu) {
 		apptainerArgs.add("--nv")

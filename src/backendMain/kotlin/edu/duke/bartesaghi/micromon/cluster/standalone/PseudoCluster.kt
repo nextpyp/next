@@ -77,7 +77,7 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 			args
 				.firstOrNull { (name, _) -> name == "gres" }
 				?.let { (_, value) -> Gres.parseAll(value) }
-				?.firstOrNull { it.name == "gpu" }
+				?.firstOrNull { it.isGpu }
 				?.count
 				?.expand()
 				?.let { count ->

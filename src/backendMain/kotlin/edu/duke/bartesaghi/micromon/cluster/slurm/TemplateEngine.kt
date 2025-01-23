@@ -86,7 +86,8 @@ class TemplateEngine(val config: Config.Slurm) {
 		.extension(object : AbstractExtension() {
 
 			override fun getFilters(): Map<String,Filter> = mapOf(
-				"exists" to ExistsFilter()
+				"exists" to ExistsFilter(),
+				"gresHasName" to GresHasNameFilter()
 			)
 		})
 		.build()
@@ -303,4 +304,38 @@ class ExistsFilter : DefaultFilter() {
 		lineNumber: Int
 	): Boolean =
 		input != null
+}
+
+
+class GresHasNameFilter : DefaultFilter() {
+
+	override fun getArgumentNames(): MutableList<String> =
+		mutableListOf("name")
+
+	override fun apply(
+		input: Any?,
+		args: MutableMap<String, Any>?,
+		self: PebbleTemplate?,
+		context: EvaluationContext?,
+		lineNumber: Int
+	): Boolean {
+
+		// validate the input
+		@Suppress("NAME_SHADOWING")
+		val input: String = (input as? String)
+			?: return false
+
+		// validate the argument
+		val name: String = (args?.get("name") as? String)
+			?: return false
+
+		val gres = try {
+			Gres.parseAll(input)
+		} catch (t: Throwable) {
+			// couldn't parse the gres string; assume the name was not mentioned
+			return false
+		}
+
+		return gres.any { it.name == name }
+	}
 }

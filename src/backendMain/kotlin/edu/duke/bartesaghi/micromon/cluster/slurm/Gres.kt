@@ -9,6 +9,9 @@ data class Gres(
 	val type: String? = null
 ) {
 
+	val isGpu: Boolean get() =
+		name == "gpu"
+
 	data class Count(
 		val value: Int,
 		val unit: CountUnit? = null
