@@ -727,9 +727,13 @@ class SingleParticleSessionView(
 		AppScope.launch {
 
 			val args = pypArgs.get()
-			val argsValues = session?.newestArgs?.values?.toArgValues(args)
 
 			statsElem.removeAll()
+
+			val session = session
+				?: return@launch
+
+			val argsValues = session.newestArgs?.values?.toArgValues(args)
 			statsElem.div {
 				content = listOf(
 					"Total: ${numMicrographs.formatWithDigitGroupsSeparator()} micrograph(s)",
