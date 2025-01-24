@@ -235,6 +235,8 @@ object PypService {
 			?: return JsonRpcFailure("invalid webid")
 		val owner = clusterJob.findOwnerOrThrow()
 
+		log.debug("writeMicrograph: {}", owner)
+
 		// parse the inputs
 		// NOTE: all these inputs are always sent by pyp
 		val ctf = CTF.from(params.getArrayOrThrow("ctf"))
@@ -337,6 +339,8 @@ object PypService {
 			?: return JsonRpcFailure("invalid webid")
 		val owner = clusterJob.findOwnerOrThrow()
 
+		log.debug("writeReconstruction: {}", owner)
+
 		// parse micrograph params and update the database
 		val reconstructionId = params.getStringOrThrow("reconstruction_id")
 		val classNum = params.getIntOrThrow("class_num")
@@ -399,6 +403,8 @@ object PypService {
 		val clusterJob = ClusterJob.get(params.getStringOrThrow("webid"))
 			?: return JsonRpcFailure("invalid webid")
 		val owner = clusterJob.findOwnerOrThrow()
+
+		log.debug("writeTiltSeries: {}", owner)
 
 		// parse the inputs, everything is basically optional now
 		val ctf = params.getArray("ctf")?.let { CTF.from(it) }
@@ -534,6 +540,8 @@ object PypService {
 			?: return JsonRpcFailure("invalid webid")
 		val owner = clusterJob.findOwnerOrThrow()
 
+		log.debug("writeRefinement: {}", owner)
+
 		// parse refinement params and update the database
 		val refinement = Refinement(
 			jobId = owner.id,
@@ -587,6 +595,8 @@ object PypService {
 			?: return JsonRpcFailure("invalid webid")
 		val owner = clusterJob.findOwnerOrThrow()
 
+		log.debug("writeRefinementBundle: {}", owner)
+
 		// parse params and update the database
 		val refinementBundle = RefinementBundle(
 			jobId = owner.id,
@@ -633,6 +643,8 @@ object PypService {
 		val clusterJob = ClusterJob.get(params.getStringOrThrow("webid"))
 			?: return JsonRpcFailure("invalid webid")
 		val owner = clusterJob.findOwnerOrThrow()
+
+		log.debug("writeClasses: {}", owner)
 
 		// parse 2d classes params and update the database
 		val twoDClasses = TwoDClasses(

@@ -24,7 +24,7 @@ sealed class ClusterJobOwner(
 	class Session(val session: edu.duke.bartesaghi.micromon.sessions.Session) : ClusterJobOwner(session.idOrThrow) {
 
 		override fun toString(): String =
-			"Session[${session.type},${session.id}]"
+			"Session[${session.type.id},${session.id}]"
 	}
 }
 
