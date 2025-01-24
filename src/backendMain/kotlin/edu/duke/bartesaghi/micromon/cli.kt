@@ -49,6 +49,7 @@ private fun printBinds() {
 		addAll(Config.instance.pyp.binds)
 		Config.instance.slurm?.key?.let { add(it) }
 		addAll(Config.instance.web.workflowDirs)
+		Config.instance.slurm?.templatesDir?.let { add(it) }
 	}
 	println(paths.joinToString(" ") { "--bind \"$it\"" })
 }
