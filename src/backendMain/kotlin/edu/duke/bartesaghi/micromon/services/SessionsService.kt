@@ -285,36 +285,6 @@ actual class SessionsService : ISessionsService, Service {
 		)
 	}
 
-	override suspend fun jobLogs(sessionId: String, jobId: String): SessionJobLogs = sanitizeExceptions {
-
-		val (user, session) = auth(sessionId, SessionPermission.Read)
-		val job = user.authSessionClusterJobOrThrow(session, jobId)
-
-		val arraySize = job.commands.arraySize
-
-		return SessionJobLogs(
-			representativeCommand = job.commands.representativeCommand(),
-			logs =
-				if (arraySize != null) {
-					// get the log for each array element
-					(1 .. arraySize)
-						.map { arrayId ->
-							SessionJobLog(
-								arrayId = arrayId,
-								log = job.getLog(arrayId)?.result?.out?.collapseProgress()
-							)
-						}
-				} else {
-					// not an array, just retun the one log
-					listOf(SessionJobLog(
-						arrayId = null,
-						log = job.getLog()?.result?.out?.collapseProgress()
-					))
-				}
-		)
-	}
-
-
 	suspend fun readImage(sessionId: String, dataId: String, size: ImageSize): ByteArray {
 
 		val session = auth(sessionId, SessionPermission.Read).session

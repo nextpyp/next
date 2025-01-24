@@ -12,9 +12,7 @@ import io.kvision.core.Component
 import io.kvision.core.Container
 import io.kvision.core.StringPair
 import io.kvision.core.onEvent
-import io.kvision.form.check.radio
 import io.kvision.form.check.radioGroup
-import io.kvision.form.select.Select
 import io.kvision.form.select.select
 import io.kvision.html.*
 import io.kvision.modal.Confirm
@@ -655,7 +653,13 @@ class SessionJobsMonitor(val session: SessionData) : Div(classes = setOf("sessio
 		)
 		win.show()
 
-		// TODO: make styles for sesson-jobs-logs
+		val showButton = Button("Show").apply {
+			enabled = false
+			win.addButton(this)
+		}
+
+		fun SessionJobLogData.label(): String =
+			Date(timestamp).toLocaleString()
 
 		AppScope.launch {
 
@@ -669,6 +673,11 @@ class SessionJobsMonitor(val session: SessionData) : Div(classes = setOf("sessio
 				win.remove(loading)
 			}
 
+			if (jobsLogs.jobs.isEmpty()) {
+				win.div("No logs to show", classes = setOf("empty"))
+				return@launch
+			}
+
 			// find the unique job names
 			val jobNames = jobsLogs.jobs
 				.map { it.name }
@@ -680,99 +689,47 @@ class SessionJobsMonitor(val session: SessionData) : Div(classes = setOf("sessio
 				options = jobNames.map { StringPair(it, it) },
 				label = "Job"
 			)
-			val timeSelect = win.select(
-				label = "Time"
+
+			// show a picker for the logs
+			val picker = win.radioGroup(
+				label = "Started at"
 			)
-			val arraySelect = win.select(
-				label = "Array"
-			)
-
-			val logElem = win.div(classes = setOf("log"))
-
-			fun showTimes() {
-
-				// update the time options
-				timeSelect.options = jobsLogs.jobs
-					.filter { it.name == nameSelect.value }
-					.sortedByDescending { it.timestamp }
-					.map { StringPair(it.jobId, Date(it.timestamp).toLocaleString()) }
-
-				// pick the first one
-				timeSelect.value = timeSelect.options?.firstOrNull()?.first
+			win.div {
+				add(picker)
 			}
 
-			fun showLog() {
-
-				logElem.removeAll()
-
-				val jobId = timeSelect.value
-					?: run {
-						logElem.div("No log was selected", classes = setOf("empty"))
-						return
-					}
-
-				AppScope.launch log@{
-
-					val logLoading = logElem.loading("Loading log ...")
-					val logs = try {
-						Services.sessions.jobLogs(session.sessionId, jobId)
-					} catch (t: Throwable) {
-						logElem.errorMessage(t)
-						return@log
-					} finally {
-						logElem.remove(logLoading)
-					}
-
-					arraySelect.options = logs.logs
-						.map {
-							val str = it.arrayId?.toString() ?: ""
-							StringPair(str, str)
-						}
-
-					fun showArray() {
-						logElem.removeAll()
-						logElem.add(div(logs.representativeCommand))
-						val logView = LogView()
-						logView.setLog(logs.logs
-							.find { it.arrayId == arraySelect.value?.toIntOrNull() }
-							?.log
-						)
-						logElem.add(logView)
-					}
-
-					// wire up events
-					arraySelect.onEvent {
-						change = {
-							showArray()
-						}
-					}
-
-					// start with the first array log
-					arraySelect.value = logs.logs
-						.minByOrNull { it.arrayId ?: -1 }
-						?.arrayId
-						?.toString()
-					showArray()
+			fun showOptions() {
+				val logs = jobsLogs.jobs
+					.filter { it.name == nameSelect.value }
+					.sortedByDescending { it.timestamp }
+				if (logs.isEmpty()) {
+					picker.options = emptyList()
+					return
 				}
+				picker.options = logs
+					.map { log ->
+						StringPair(log.clusterJobId, log.label())
+					}
+				picker.value = logs.first().clusterJobId
 			}
 
 			// wire up events
 			nameSelect.onEvent {
 				change = {
-					showTimes()
-					showLog()
+					showOptions()
 				}
 			}
-			timeSelect.onEvent {
-				change = {
-					showLog()
-				}
+			showButton.onClick e@{
+				win.hide()
+				val log = jobsLogs.jobs.find { it.clusterJobId == picker.value }
+					?: return@e
+				ClusterJobLogViewer(log.clusterJobId, "Session job started at ${log.label()}")
 			}
 
-			// pick a log to show by default
+			// init form state
+			showButton.enabled = true
 			nameSelect.value = jobNames.firstOrNull()
-			showTimes()
-			showLog()
+			showOptions()
 		}
 	}
 }
@@ -1152,7 +1109,7 @@ class SessionExportsMonitor(val session: SessionData) : Div(classes = setOf("ses
 				button("", icon = "far fa-file-alt").apply {
 					title = "Show logs"
 					onClick {
-						showLogs(clusterJobId)
+						ClusterJobLogViewer(clusterJobId, "Export")
 					}
 				}
 			} else {
@@ -1196,80 +1153,6 @@ class SessionExportsMonitor(val session: SessionData) : Div(classes = setOf("ses
 
 			// show the timestamp
 			span("on ${Date(export.created).toLocaleString()}")
-		}
-
-		private fun showLogs(clusterJobId: String) {
-
-			// show the logs in a popup window
-			val win = Modal(
-				caption = "Logs for Export",
-				escape = true,
-				closeButton = true,
-				classes = setOf("dashboard-popup", "max-height-dialog", "cluster-job-logs")
-			)
-			win.show()
-
-			var logStreamer: LogStreamer? = null
-
-			win.onEvent {
-				hiddenBsModal = {
-					logStreamer?.close()
-				}
-			}
-
-			AppScope.launch {
-
-				val loading = win.loading("Loading logs ...")
-				val logs = try {
-					delayAtLeast(200) {
-						Services.sessions.jobLogs(export.sessionId, clusterJobId)
-					}
-				} catch (t: Throwable) {
-					win.errorMessage(t)
-					return@launch
-				} finally {
-					win.remove(loading)
-				}
-
-				if (logs.logs.isEmpty()) {
-					win.div("No logs to show", classes = setOf("empty"))
-					return@launch
-				}
-
-				// make a place to show the log
-				val logElem = win.div(classes = setOf("logs-container"))
-
-				fun showConsole() {
-
-					// cleanup the old streamer, if any
-					logStreamer?.close()
-					logStreamer = null
-
-					logElem.removeAll()
-
-					// show the first log
-					val logView = LogView()
-					logView.setLog(logs.logs.firstOrNull()?.log)
-					logElem.add(logView)
-					// TODO: do we need to show array logs?
-				}
-
-				logElem.div {
-					content = logs.representativeCommand
-				}
-				logElem.div {
-					link("Show console output", classes = setOf("link")).onEvent {
-						click = {
-							showConsole()
-						}
-					}
-				}
-				logElem.tag(TAG.HR)
-
-				// make the new log streamer
-				logStreamer = LogStreamer(RealTimeC2S.ListenToStreamLog(clusterJobId))
-					.also { logElem.add(it) }
-			}
 		}
 
 		private fun cancel(button: Button) {

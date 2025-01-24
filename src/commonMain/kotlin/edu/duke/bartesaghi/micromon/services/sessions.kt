@@ -224,21 +224,9 @@ data class SessionJobsLogs(
 
 @Serializable
 data class SessionJobLogData(
-	val jobId: String,
+	val clusterJobId: String,
 	val name: String,
 	val timestamp: Long
-)
-
-@Serializable
-data class SessionJobLogs(
-	val representativeCommand: String,
-	val logs: List<SessionJobLog>
-)
-
-@Serializable
-data class SessionJobLog(
-	val arrayId: Int?,
-	val log: String?
 )
 
 @Serializable
@@ -438,10 +426,6 @@ interface ISessionsService {
 	@ExportServiceFunction(AppPermission.SessionRead)
 	@KVBindingRoute("sessions/jobsLogs")
 	suspend fun jobsLogs(sessionId: String): SessionJobsLogs
-
-	@ExportServiceFunction(AppPermission.SessionRead)
-	@KVBindingRoute("sessions/jobLogs")
-	suspend fun jobLogs(sessionId: String, jobId: String): SessionJobLogs
 
 	@ExportServiceFunction(AppPermission.SessionRead)
 	@KVBindingRoute("sessions/avgRot")
