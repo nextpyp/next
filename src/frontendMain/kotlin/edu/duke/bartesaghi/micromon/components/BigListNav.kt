@@ -249,6 +249,10 @@ class BigListNav private constructor(
 		core.reshow()
 	}
 
+	fun reshowLocal() {
+		core.index?.let { onShow(it) }
+	}
+
 	private fun update() {
 
 		navFirst.enabled = core.index?.let { it > 0 } ?: false
@@ -428,7 +432,7 @@ class BigListNav private constructor(
 	}
 
 	/**
-	 * Creates another instance of this control that shares the > 0same state,
+	 * Creates another instance of this control that shares the same state,
 	 * but can call a different callback function when the value changes.
 	 *
 	 * Useful for sharing the same control across different tabs with each tab showing different content.
