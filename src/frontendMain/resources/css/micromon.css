@@ -106,7 +106,8 @@ button.image-button.reconstruction-node img {
 
 /* KVISION FORMS */
 
-form {
+form,
+.sub-form {
 
 	> .form-group {
 		> label {
@@ -119,21 +120,24 @@ form {
 			}
 		}
 	}
-}
 
-form.grid {
-
-	> .form-group {
+	&.grid {
 		display: flex;
-		flex-direction: row;
+		flex-direction: column;
 		gap: 1em;
-		align-items: baseline;
 
-		> label {
-			text-align: right;
+		> .form-group {
+			display: flex;
+			flex-direction: row;
+			gap: 1em;
+			align-items: baseline;
 
-			&::after {
-				content: ": ";
+			> label {
+				text-align: right;
+
+				&::after {
+					content: ": ";
+				}
 			}
 		}
 	}
@@ -2385,75 +2389,85 @@ div.args-form div.form-group label {
 	margin-bottom: 0;
 }
 
-.args-form table {
-	overflow-x: clip;
-}
+.args-form {
 
-.args-form table tr.advanced {
-	background-color: #f0f6fa;
-}
+	table {
+		overflow-x: clip;
 
-div.args-form table td {
-	padding: 6px;
-}
+		tr.advanced {
+			background-color: #f0f6fa;
+		}
 
-.args-form table .label {
-	line-height: 37px;
-	display: flex;
-	flex-direction: row;
-	align-items: baseline;
-}
+		td {
+			padding: 6px;
 
-.args-form table .label label {
-	flex-grow: 1;
-	text-align: right;
-	margin-bottom: 0;
-}
+			&.control {
+				white-space: nowrap;
+			}
 
-div.args-form table td.control {
-	white-space: nowrap;
-}
+			&.description {
+				line-height: 37px;
+			}
+		}
 
-div.args-form table td.description {
-	line-height: 37px;
-}
+		.label {
+			line-height: 37px;
+			display: flex;
+			flex-direction: row;
+			align-items: baseline;
 
-div.args-form span.arg-icon {
-	display: inline-block;
-	text-align: center;
-	font-size: 14px;
-	width: 20px;
-	height: 20px;
-	line-height: 19px;
-	border: solid 1px;
-	border-radius: 4px;
-}
+			label {
+				flex-grow: 1;
+				text-align: right;
+				margin-bottom: 0;
+			}
+		}
+	}
 
-div.args-form span.arg-icon-default {
-	background-color: #c5deff;
-	border-color: #1d67c9;
-	color: #1658b0;
-}
+	span.arg-icon {
+		display: inline-block;
+		text-align: center;
+		font-size: 14px;
+		width: 20px;
+		height: 20px;
+		line-height: 19px;
+		border: solid 1px;
+		border-radius: 4px;
+	}
 
-div.args-form span.arg-icon-specified {
-	background-color: #d2ffcc;
-	border-color: #50be41;
-	color: #288e1a;
-}
+	span.arg-icon-default {
+		background-color: #c5deff;
+		border-color: #1d67c9;
+		color: #1658b0;
+	}
 
-div.args-form span.arg-icon-required {
-	background-color: #ffcccc;
-	border-color: #be4141;
-	color: #8e1a1a;
-}
+	span.arg-icon-specified {
+		background-color: #d2ffcc;
+		border-color: #50be41;
+		color: #288e1a;
+	}
 
-div.args-form span.description {
-	font-size: 90%;
-}
+	span.arg-icon-required {
+		background-color: #ffcccc;
+		border-color: #be4141;
+		color: #8e1a1a;
+	}
 
-.args-form .options {
-	margin-top: 10px;
-	margin-bottom: 10px;
+	span.description {
+		font-size: 90%;
+	}
+
+	.options {
+		margin-top: 10px;
+		margin-bottom: 10px;
+	}
+
+	/* long file paths in file pickers break the layout, so impose a size limit */
+	.filesystem-picker {
+		.path {
+			max-width: 400px;
+		}
+	}
 }
 
 
@@ -2488,20 +2502,18 @@ div.disclosure div.disclosure-content div.disclosure-disclosed {
 
 /* FILESYSTEM PICKER */
 
-div.filesystem-picker {
-	line-height: 40px;
-}
+.filesystem-picker {
+	display: flex;
+	flex-direction: row;
+	gap: 1em;
+	align-items: first baseline;
 
-div.filesystem-picker button {
-	margin-right: 16px;
-}
-
-.filesystem-picker .path-prefix {
-	max-width: 500px;
-	display: inline-block;
-	vertical-align: bottom;
-	text-overflow: ellipsis;
-	overflow: hidden;
+	.path {
+		display: inline-block;
+		vertical-align: bottom;
+		text-wrap-mode: wrap;
+		overflow-wrap: anywhere;
+	}
 }
 
 
@@ -3083,6 +3095,10 @@ div.file-browser .file-browser-bottom .file-browser-controls .file-browser-glob 
 	font-size: 120%;
 }
 
+.session-copy-form .modal-dialog {
+	max-width: 600px;
+}
+
 
 /* SESSION VIEW */
 
@@ -3097,28 +3113,42 @@ div.file-browser .file-browser-bottom .file-browser-controls .file-browser-glob 
 
 .session .settings {
 	margin-top: 20px;
-}
 
-.session .settings form {
+	form {
 
-	> .form-group {
-		max-width: 600px;
-
-		> label {
-			min-width: 140px;
+		.buttons {
+			display: flex;
+			flex-direction: row;
+			gap: 1em;
+			justify-content: flex-end;
 		}
-	}
 
-	.buttons {
-		display: flex;
-		flex-direction: row;
-		gap: 1em;
-		justify-content: flex-end;
-	}
+		.mainTab {
+			padding-top: 1em;
+			padding-bottom: 1em;
 
-	/* the folder chooser has nested fields, so tweak the sizes a bit */
-	.create-folder-chooser {
-		max-width: 1000px;
+			/* undo the label-hiding of the args form */
+			label {
+				display: inline-block;
+			}
+
+			> .form-group {
+				max-width: 600px;
+
+				> label {
+					min-width: 140px;
+				}
+			}
+
+			/*
+				The folder chooser has nested fields,
+				of which the path can be very long,
+				so let it use unlimited size.
+			*/
+			> .form-group:has(.create-folder-chooser) {
+				max-width: inherit;
+			}
+		}
 	}
 }
 
@@ -3916,13 +3946,14 @@ select.native {
 }
 
 
-
 /* FOLDER CHOOSER */
 /* the folder chooser has nested fields, so tweak the sizes a bit */
 .create-folder-chooser {
 	display: flex;
 	flex-direction: column;
 	gap: 0.6em;
+	/* to make room for the fixed-width labels and the text box */
+	min-width: 450px;
 
 	.form-group {
 		display: flex;
@@ -3932,6 +3963,12 @@ select.native {
 
 		> label {
 			width: 3em;
+		}
+
+		> input[type=text] {
+			/* width chosen to match the size of other elements in the session settings form */
+			/* Will this number look good anywhere else? ¯\_(ツ)_/¯ */
+			width: 380px;
 		}
 	}
 }

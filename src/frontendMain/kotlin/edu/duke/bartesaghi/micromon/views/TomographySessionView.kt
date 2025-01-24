@@ -295,7 +295,7 @@ class TomographySessionView(
 				val argsConfig = pypArgs.get()
 
 				val nameText = Text(
-					label = "Session Name"
+					label = "Name"
 				).apply {
 					disabled = !writeable
 				}
@@ -321,11 +321,21 @@ class TomographySessionView(
 					}
 				}
 
-				val form = elem.formPanel<TomographySessionArgs>(classes = setOf("grid")) {
-					add(TomographySessionArgs::name, nameText, required = true)
-					add(TomographySessionArgs::path, folderChooser, required = true)
-					add(TomographySessionArgs::groupId, groupSelect, required = true)
-					add(TomographySessionArgs::values, ArgsForm(argsConfig, enabled = writeable))
+				val extraTab = ArgsForm.ExtraTab(
+					"Session",
+					ArgsForm.ExtraTab.Position.Before,
+					classes = setOf("sub-form", "grid", "mainTab")
+				) {
+					add(nameText)
+					add(folderChooser)
+					add(groupSelect)
+				}
+
+				val form = elem.formPanel<TomographySessionArgs> {
+					add(TomographySessionArgs::name, nameText.proxy(), required = true)
+					add(TomographySessionArgs::path, folderChooser.proxy(), required = true)
+					add(TomographySessionArgs::groupId, groupSelect.proxy(), required = true)
+					add(TomographySessionArgs::values, ArgsForm(argsConfig, enabled = writeable, extraTabs = listOf(extraTab)))
 				}
 
 				form.init(session?.args)

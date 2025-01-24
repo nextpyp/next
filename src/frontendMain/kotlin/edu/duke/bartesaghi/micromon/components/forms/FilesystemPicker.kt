@@ -112,7 +112,7 @@ open class FilesystemPicker(
 		// draw the controls
 		add(removeButton)
 		add(chooseButton)
-		span {
+		span(classes = setOf("path")) {
 
 			fun String.filename(): String =
 				split('/').last()

@@ -8,7 +8,6 @@ import edu.duke.bartesaghi.micromon.components.forms.setSubmitButton
 import edu.duke.bartesaghi.micromon.services.*
 import io.kvision.core.Widget
 import io.kvision.core.onEvent
-import io.kvision.form.FormType
 import io.kvision.form.formPanel
 import io.kvision.form.select.Select
 import io.kvision.form.text.Text
@@ -402,7 +401,7 @@ class SessionsView : View {
 				add(CopySessionArgs::path, folderChooser, required = true)
 			}
 			val errorsElem = div()
-			val copyButton = button("Copy").onClick copy@{
+			val copyButton = Button("Copy").onClick copy@{
 
 				// make sure we have valid input
 				if (!form.validate()) {
@@ -435,6 +434,7 @@ class SessionsView : View {
 					}
 				}
 			}
+			addButton(copyButton)
 
 			form.setSubmitButton(copyButton)
 

@@ -7,6 +7,8 @@ import edu.duke.bartesaghi.micromon.diagram.nodes.*
 import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.pyp.toArgValues
 import edu.duke.bartesaghi.micromon.services.PathType
+import io.kvision.core.Component
+import io.kvision.core.Container
 import io.kvision.core.onEvent
 import io.kvision.form.*
 import io.kvision.form.check.CheckBox
@@ -23,7 +25,8 @@ class ArgsForm(
 	val args: Args,
 	val outNodes: List<Node> = emptyList(),
 	val enabled: Boolean = true,
-	val blockId: String? = null
+	val blockId: String? = null,
+	val extraTabs: List<ExtraTab> = emptyList()
 ) : StringFormControl, Div(classes = setOf("args-form")) {
 
 	companion object {
@@ -107,6 +110,12 @@ class ArgsForm(
 
 				// show the arg in a tab panel, one tab for each group
 				tabPanel {
+
+					// add extra before tabs
+					for (tab in form.extraTabs.filter { it.position == ExtraTab.Position.Before }) {
+						addTab(tab.name, tab.elem)
+					}
+
 					for (group in form.args.groups) {
 						val groupArgs = form.args.args(group)
 						if (groupArgs.isEmpty()) {
@@ -116,6 +125,11 @@ class ArgsForm(
 						val tab = ArgsInputs(groupArgs, values, controls, form.outNodes, form.enabled, ::showAdvanced)
 						tabs[group.groupId] = tab
 						addTab(group.name, tab)
+					}
+
+					// add extra after tabs
+					for (tab in form.extraTabs.filter { it.position == ExtraTab.Position.After }) {
+						addTab(tab.name, tab.elem)
 					}
 				}
 
@@ -154,6 +168,21 @@ class ArgsForm(
 
 	init {
 		add(input)
+	}
+
+
+	class ExtraTab(
+		val name: String,
+		val position: Position,
+		classes: Set<String> = emptySet(),
+		val initer: Container.() -> Unit
+	) {
+		val elem = Div(classes = classes).apply(initer)
+
+		enum class Position {
+			Before,
+			After
+		}
 	}
 }
 

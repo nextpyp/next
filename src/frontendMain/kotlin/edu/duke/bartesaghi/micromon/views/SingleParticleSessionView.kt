@@ -312,7 +312,7 @@ class SingleParticleSessionView(
 				val argsConfig = pypArgs.get()
 
 				val nameText = Text(
-					label = "Session Name"
+					label = "Name"
 				).apply {
 					disabled = !writeable
 				}
@@ -338,11 +338,21 @@ class SingleParticleSessionView(
 					}
 				}
 
-				val form = elem.formPanel<SingleParticleSessionArgs>(classes = setOf("grid")) {
-					add(SingleParticleSessionArgs::name, nameText, required = true)
-					add(SingleParticleSessionArgs::path, folderChooser, required = true)
-					add(SingleParticleSessionArgs::groupId, groupSelect, required = true)
-					add(SingleParticleSessionArgs::values, ArgsForm(argsConfig, enabled = writeable))
+				val extraTab = ArgsForm.ExtraTab(
+					"Session",
+					ArgsForm.ExtraTab.Position.Before,
+					classes = setOf("sub-form", "grid", "mainTab")
+				) {
+					add(nameText)
+					add(folderChooser)
+					add(groupSelect)
+				}
+
+				val form = elem.formPanel<SingleParticleSessionArgs> {
+					add(SingleParticleSessionArgs::name, nameText.proxy(), required = true)
+					add(SingleParticleSessionArgs::path, folderChooser.proxy(), required = true)
+					add(SingleParticleSessionArgs::groupId, groupSelect.proxy(), required = true)
+					add(SingleParticleSessionArgs::values, ArgsForm(argsConfig, enabled = writeable, extraTabs = listOf(extraTab)))
 				}
 
 				form.init(session?.args)
