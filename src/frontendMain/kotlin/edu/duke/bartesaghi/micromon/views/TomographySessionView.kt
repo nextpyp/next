@@ -612,6 +612,10 @@ class TomographySessionView(
 			val argsValues = session?.newestArgs?.values?.toArgValues(args)
 
 			statsElem.removeAll()
+
+			val session = session
+				?: return@launch
+
 			statsElem.add(tiltSeriesStats)
 			statsElem.add(PypStatsLine(PypStats.fromArgValues(argsValues)))
 		}
