@@ -63,6 +63,9 @@ class CreateFolderChooser(
 			?: return
 
 		path = Paths.join(parent, name)
+
+		// notify listeners
+		sendChangeEvent(value)
 	}
 
 	private fun parse() {
@@ -114,6 +117,10 @@ class CreateFolderChooser(
 
 		// make no-op implementations for stuff we don't care about
 		override fun subscribe(observer: (String?) -> Unit): () -> Unit = {}
+
+		init {
+			forwardChangeEventsFrom(input)
+		}
 	}
 
 	fun control(label: String? = null) =

@@ -1,12 +1,9 @@
 package edu.duke.bartesaghi.micromon.components.forms
 
 import edu.duke.bartesaghi.micromon.services.FileBrowserType
-import io.kvision.core.onEvent
 import io.kvision.form.StringFormControl
 import io.kvision.html.Button
 import io.kvision.html.span
-import io.kvision.utils.obj
-import org.w3c.dom.CustomEventInit
 
 
 open class FilesystemPicker(
@@ -40,7 +37,7 @@ open class FilesystemPicker(
 			update()
 
 			// notify listeners
-			dispatchEvent("change", obj<CustomEventInit> { detail = value })
+			sendChangeEvent(value)
 		}
 
 	private val chooseButton =
@@ -210,6 +207,10 @@ open class FilesystemPicker(
 				else -> emptyList()
 			}
 		}
+
+		init {
+			forwardChangeEventsFrom(input)
+		}
 	}
 
 
@@ -234,16 +235,18 @@ open class FilesystemPicker(
 
 		init {
 			add(picker)
+			forwardChangeEventsFrom(picker)
+		}
 
-			// forward change events from the inner picker control to the outer control
-			picker.onEvent {
-				change = { event ->
-					this@Single.getSnOn()?.run {
-						change?.invoke(event)
-					}
+		var value: String?
+			get() = picker.paths.firstOrNull()
+			set(value) {
+				picker.paths = if (value != null) {
+					listOf(value)
+				} else {
+					emptyList()
 				}
 			}
-		}
 
 		override var enabled
 			get() = picker.enabled
@@ -258,17 +261,15 @@ open class FilesystemPicker(
 			override val labelReferent get() = input.picker.chooseButton
 
 			override var value: String?
-				get() = input.picker.paths.firstOrNull()
-				set(value) {
-					input.picker.paths = if (value != null) {
-						listOf(value)
-					} else {
-						emptyList()
-					}
-				}
+				get() = input.value
+				set(value) { input.value = value }
 
 			// make no-op implementations for stuff we don't care about
 			override fun subscribe(observer: (String?) -> Unit): () -> Unit = {}
+
+			init {
+				forwardChangeEventsFrom(input)
+			}
 		}
 	}
 }

@@ -2,8 +2,12 @@ package edu.duke.bartesaghi.micromon.components.forms
 
 import edu.duke.bartesaghi.micromon.AppScope
 import io.kvision.core.Component
+import io.kvision.core.Widget
+import io.kvision.core.onEvent
 import io.kvision.form.*
 import io.kvision.html.Div
+import io.kvision.utils.obj
+import org.w3c.dom.CustomEventInit
 
 
 /**
@@ -59,6 +63,15 @@ abstract class BaseFormControl<T:FormInput>(
 			addInternal(input)
 		}
 	}
+
+	protected fun forwardChangeEventsFrom(src: Widget) {
+		val self = this
+		src.onEvent {
+			change = { event ->
+				self.getSnOn()?.change?.invoke(event)
+			}
+		}
+	}
 }
 
 
@@ -76,4 +89,17 @@ abstract class BaseFormInput(
 	override var disabled: Boolean
 		get() = !enabled
 		set(value) { enabled = !value }
+
+	protected fun sendChangeEvent(value: Any?) {
+		dispatchEvent("change", obj<CustomEventInit> { detail = value })
+	}
+
+	protected fun forwardChangeEventsFrom(src: Widget) {
+		val self = this
+		src.onEvent {
+			change = { event ->
+				self.getSnOn()?.change?.invoke(event)
+			}
+		}
+	}
 }
