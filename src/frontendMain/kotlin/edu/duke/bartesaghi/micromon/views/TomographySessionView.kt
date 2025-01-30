@@ -444,6 +444,10 @@ class TomographySessionView(
 		fun onTiltSeries(msg: RealTimeS2C.SessionTiltSeries) {
 			plots.update(msg.tiltSeries)
 		}
+
+		fun close() {
+			plots.close()
+		}
 	}
 
 	private inner class TableTab(val session: SessionData) : Div() {
@@ -602,6 +606,8 @@ class TomographySessionView(
 		// cleanup the websocket connection
 		connector?.disconnect()
 		sendSettingsSaved = null
+
+		plotsTab?.close()
 	}
 
 	private fun updateStatistics() {

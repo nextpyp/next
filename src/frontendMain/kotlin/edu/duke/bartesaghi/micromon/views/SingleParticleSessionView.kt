@@ -461,6 +461,10 @@ class SingleParticleSessionView(
 		fun onMicrograph(msg: RealTimeS2C.SessionMicrograph) {
 			plots.update(msg.micrograph)
 		}
+
+		fun close() {
+			plots.close()
+		}
 	}
 
 	private inner class TableTab(val session: SessionData) : Div() {
@@ -727,6 +731,8 @@ class SingleParticleSessionView(
 		// cleanup the websocket connection
 		connector?.disconnect()
 		sendSettingsSaved = null
+
+		plotsTab?.close()
 	}
 
 	private fun updateStatistics() {

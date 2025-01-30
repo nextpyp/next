@@ -203,6 +203,7 @@ class TomographyPickingClosedView(val project: ProjectData, val job: TomographyP
 	}
 
 	override fun close() {
+		plots?.close()
 		connector?.disconnect()
 	}
 

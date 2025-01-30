@@ -208,7 +208,6 @@ class TomographyParticlesEvalView(val project: ProjectData, val job: TomographyP
 		connector?.disconnect()
 	}
 
-
 	private fun showTiltSeries(index: Int, stopLive: Boolean) {
 
 		// make sure the live tab is showing

@@ -213,6 +213,7 @@ class TomographySegmentationClosedView(val project: ProjectData, val job: Tomogr
 	}
 
 	override fun close() {
+		plots?.close()
 		connector?.disconnect()
 	}
 
