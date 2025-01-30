@@ -3148,6 +3148,16 @@ div.file-browser .file-browser-bottom .file-browser-controls .file-browser-glob 
 			> .form-group:has(.create-folder-chooser) {
 				max-width: inherit;
 			}
+
+			/*
+				Also remove the width limits for filesystem picker paths
+				used in other (ie, non-main) tabs in the args form.
+			*/
+			.create-folder-chooser {
+				.filesystem-picker > .path {
+					max-width: inherit;
+				}
+			}
 		}
 	}
 }
