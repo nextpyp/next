@@ -119,6 +119,7 @@ object Storage {
 	var tomographyPickingOpenTabIndex by IntStorageItem("tomographyPickingOpenTabIndex")
 	var tomographyPickingClosedTabIndex by IntStorageItem("tomographyPickingClosedTabIndex")
 	var tomographyParticlesEvalTabIndex by IntStorageItem("tomographyParticlesEvalTabIndex")
+	var tomographyDenoisingEvalTabIndex by IntStorageItem("tomographyDenoisingEvalTabIndex")
 	var threeJsDoubleViews by BoolStorageItem("threeJsDoubleViews")
 	var showParticles by BoolStorageItem("showParticles")
 	var showVirions by BoolStorageItem("showVirions")
