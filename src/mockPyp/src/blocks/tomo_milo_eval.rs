@@ -7,8 +7,7 @@ use image::{Rgb, Rgba};
 use crate::args::{Args, ArgsConfig};
 use crate::image::{Image, ImageDrawing};
 use crate::info;
-use crate::metadata::{Ctf, TiltSeries};
-use crate::rand::sample_ctf;
+use crate::metadata::TiltSeries;
 use crate::tomography::images::DEFAULT_NOISE;
 use crate::tomography::PreprocessingArgs;
 use crate::web::Web;
@@ -85,7 +84,7 @@ pub fn run(web: &Web, args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 
 		let tilt_series = TiltSeries {
 			tilt_series_id,
-			ctf: Some(sample_ctf(Ctf::from_tomo_preprocessing(&pp_args))),
+			ctf: None,
 			xf: None,
 			avgrot: None,
 			drift: None,
