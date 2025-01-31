@@ -79,7 +79,7 @@ reconstruct_maxtilt = 50
 csp_refine_particles = true
 csp_UseImagesForRefinementMax = 10
 csp_NumberOfRandomIterations = 50000
-csp_ToleranceParticlesPhi = 10.0
+csp_ToleranceParticlesPsi = 10.0
 csp_ToleranceParticlesTheta = 10.0
 csp_ToleranceParticlesShifts = 50.0
 
@@ -172,7 +172,7 @@ parent = "region_refinement"
 
 [blocks.mask_generation.args]
 mask_model = "auto"
-mask_threshold = 0.42
+mask_threshold = 0.45
 mask_edge_width = 8
 
 [blocks.region_refinement_2]
