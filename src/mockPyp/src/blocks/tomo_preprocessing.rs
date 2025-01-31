@@ -43,6 +43,8 @@ pub fn run(web: &Web, args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 		.context("Failed to create mrc dir")?;
 	fs::create_dir_all("webp")
 		.context("Failed to create webp dir")?;
+	fs::create_dir_all("log")
+		.context("Failed to create log dir")?;
 
 	web.write_parameters(&args, &args_config)?;
 
@@ -169,6 +171,12 @@ pub fn run(web: &Web, args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 			.save(web, format!("webp/{}_2D_ctftilt.webp", &tilt_series.tilt_series_id))?;
 		tomography::images::reconstruction_montage(BLOCK_ID, &tilt_series, tilt_series_i, &pp_args, &DEFAULT_NOISE)
 			.save(web, format!("webp/{}_rec.webp", &tilt_series.tilt_series_id))?;
+
+		// write the log file
+		let log_path = format!("log/{}.log", &tilt_series.tilt_series_id);
+		fs::write(&log_path, format!("Things happened for tilt series {}", &tilt_series.tilt_series_id))
+			.context(format!("Failed to write log file: {}", &log_path))?;
+		info!(web, "Wrote log file: {}", &log_path);
 
 		// tell the website
 		web.write_tilt_series(&tilt_series)?;

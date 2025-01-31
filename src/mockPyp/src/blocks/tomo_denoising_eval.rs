@@ -3,11 +3,10 @@ use std::fs;
 
 use anyhow::{bail, Context, Result};
 
-use crate::info;
 use crate::args::{Args, ArgsConfig};
 use crate::metadata::{Ctf, TiltSeries};
 use crate::rand::{Gaussian, sample_ctf};
-use crate::tomography;
+use crate::{info, tomography};
 use crate::tomography::PreprocessingArgs;
 use crate::web::Web;
 
@@ -47,6 +46,8 @@ pub fn run(web: &Web, args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 		.context("Failed to create mrc dir")?;
 	fs::create_dir_all("webp")
 		.context("Failed to create webp dir")?;
+	fs::create_dir_all("log")
+		.context("Failed to create log dir")?;
 
 	// generate tilt series
 	for tilt_series_i in 0 .. pp_args.num_tilt_series {
@@ -76,6 +77,12 @@ pub fn run(web: &Web, args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 			.save(web, format!("webp/{}_sides.webp", &tilt_series.tilt_series_id))?;
 		tomography::images::reconstruction_montage(BLOCK_ID, &tilt_series, tilt_series_i, &pp_args, &noise)
 			.save(web, format!("webp/{}_rec.webp", &tilt_series.tilt_series_id))?;
+
+		// write the log file
+		let log_path = format!("log/{}.log", &tilt_series.tilt_series_id);
+		fs::write(&log_path, format!("Things happened for tilt series {}", &tilt_series.tilt_series_id))
+			.context(format!("Failed to write log file: {}", &log_path))?;
+		info!(web, "Wrote log file: {}", &log_path);
 
 		web.write_tilt_series(&tilt_series)?;
 	}
