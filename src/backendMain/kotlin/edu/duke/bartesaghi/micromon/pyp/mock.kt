@@ -177,7 +177,6 @@ object TomographyMiloEvalMockArgs : JobMockArgs(TomographyMiloEvalJob) {
 	val numTiltSeries = mockArg("num_tilt_series", ArgType.TInt(), ArgValue.VInt(4))
 	val tomogramWidth = mockArg("tomogram_width", ArgType.TInt(), ArgValue.VInt(8192))
 	val tomogramHeight = mockArg("tomogram_height", ArgType.TInt(), ArgValue.VInt(8192))
-	val numParticles = mockArg("num_particles", ArgType.TInt(), ArgValue.VInt(20))
 }
 
 

@@ -54,6 +54,7 @@ object RealTimeServices {
 	val tomographyPickingOpen by RealTimeService()
 	val tomographyPickingClosed by RealTimeService()
 	val tomographyParticlesEval by RealTimeService()
+	val tomographyMiloEval by RealTimeService()
 	val tomographySessionData by RealTimeService()
 	val reconstruction by RealTimeService()
 	val streamLog by RealTimeService()

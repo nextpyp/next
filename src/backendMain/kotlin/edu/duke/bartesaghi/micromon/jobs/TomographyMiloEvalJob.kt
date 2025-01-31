@@ -13,9 +13,11 @@ import org.bson.conversions.Bson
 class TomographyMiloEvalJob(
 	userId: String,
 	projectId: String
-) : Job(userId, projectId, config) {
+) : Job(userId, projectId, config), TiltSeriesesJob {
 
 	val args = JobArgs<TomographyMiloEvalArgs>()
+	override var latestTiltSeriesId: String? = null
+	override val eventListeners get() = Companion.eventListeners
 
 	var inTomograms: CommonJobData.DataId? by InputProp(config.tomograms)
 	var inModel: CommonJobData.DataId? by InputProp(config.model)

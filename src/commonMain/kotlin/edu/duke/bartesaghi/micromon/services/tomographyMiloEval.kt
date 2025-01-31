@@ -37,6 +37,9 @@ interface ITomographyMiloEvalService {
 		fun results3dPath(jobId: String, size: ImageSize): String =
 			"/kv/node/${TomographyMiloEvalNodeConfig.ID}/$jobId/results_3d/${size.id}"
 
+		fun results3dTiltSeriesPath(jobId: String, tiltSeriesId: String, size: ImageSize): String =
+			"/kv/node/${TomographyMiloEvalNodeConfig.ID}/$jobId/tilt_series/$tiltSeriesId/results_3d/${size.id}"
+
 		fun dataPath(jobId: String): String =
 			"/kv/node/${TomographyMiloEvalNodeConfig.ID}/$jobId/data"
 

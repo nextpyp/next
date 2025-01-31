@@ -26,8 +26,6 @@ actual class TomographyMiloEvalService : ITomographyMiloEvalService, Service {
 				fun PipelineContext<Unit, ApplicationCall>.parseJobId(): String =
 					call.parameters.getOrFail("jobId")
 
-
-
 				get("results_2d/{size}") {
 					call.respondExceptions {
 
@@ -75,6 +73,25 @@ actual class TomographyMiloEvalService : ITomographyMiloEvalService, Service {
 
 						val bytes = service.dataContent(jobId)
 						call.respondBytes(bytes, ContentType.Application.OctetStream)
+					}
+				}
+
+				route("tilt_series/{tiltSeriesId}") {
+
+					fun PipelineContext<Unit, ApplicationCall>.parseTiltSeriesId(): String =
+						call.parameters.getOrFail("tiltSeriesId")
+
+					get("results_3d/{size}") {
+						call.respondExceptions {
+
+							// parse agrs
+							val jobId = parseJobId()
+							val tiltSeriesId = parseTiltSeriesId()
+							val size = parseSize()
+
+							val bytes = service.getResults3d(jobId, tiltSeriesId, size)
+							call.respondBytes(bytes, ContentType.Image.WebP)
+						}
 					}
 				}
 
@@ -143,7 +160,7 @@ actual class TomographyMiloEvalService : ITomographyMiloEvalService, Service {
 		val cacheInfo = ImageCacheInfo(job.wwwDir, "milo-results-2d")
 
 		return size.readResize(imagePath, ImageType.Webp, cacheInfo)
-		// no image, return a placeholder
+			// no image, return a placeholder
 			?: Resources.placeholderJpg(size)
 	}
 
@@ -155,7 +172,7 @@ actual class TomographyMiloEvalService : ITomographyMiloEvalService, Service {
 		val cacheInfo = ImageCacheInfo(job.wwwDir, "milo-results-2d-labels")
 
 		return size.readResize(imagePath, ImageType.Webp, cacheInfo)
-		// no image, return a placeholder
+			// no image, return a placeholder
 			?: Resources.placeholderJpg(size)
 	}
 
@@ -167,13 +184,25 @@ actual class TomographyMiloEvalService : ITomographyMiloEvalService, Service {
 		val cacheInfo = ImageCacheInfo(job.wwwDir, "milo-results-3d")
 
 		return size.readResize(imagePath, ImageType.Webp, cacheInfo)
-		// no image, return a placeholder
+			// no image, return a placeholder
+			?: Resources.placeholderJpg(size)
+	}
+
+	suspend fun getResults3d(jobId: String, tiltSeriesId: String, size: ImageSize): ByteArray {
+
+		val job = jobId.authJob(ProjectPermission.Read).job
+
+		val imagePath = job.dir / "train" / "${tiltSeriesId}_3d_visualization.webp"
+		val cacheInfo = ImageCacheInfo(job.wwwDir, "milo-results-3d-$tiltSeriesId")
+
+		return size.readResize(imagePath, ImageType.Webp, cacheInfo)
+			// no image, return a placeholder
 			?: Resources.placeholderJpg(size)
 	}
 
 	override suspend fun data(jobId: String): Option<FileDownloadData> = sanitizeExceptions {
 		val job = jobId.authJob(ProjectPermission.Read).job
-		val path = job.dir / "train" / "milopyp_interactive.tbz"
+		val path = job.dir / "train" / "interactive_info_parquet.gzip"
 		path
 			.toFileDownloadData()
 			.toOption()
@@ -181,8 +210,7 @@ actual class TomographyMiloEvalService : ITomographyMiloEvalService, Service {
 
 	fun dataContent(jobId: String): ByteArray {
 		val job = jobId.authJob(ProjectPermission.Read).job
-		val path = job.dir / "train" / "milopyp_interactive.tbz"
+		val path = job.dir / "train" / "interactive_info_parquet.gzip"
 		return path.readBytes()
 	}
-
 }

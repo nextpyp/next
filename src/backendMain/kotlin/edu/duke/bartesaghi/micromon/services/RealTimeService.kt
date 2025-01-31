@@ -231,6 +231,10 @@ object RealTimeService {
 			tiltSeriesesService()
 		}
 
+		routing.webSocket(RealTimeServices.tomographyMiloEval) {
+			tiltSeriesesService()
+		}
+
 		routing.webSocket(RealTimeServices.tomographySessionData) {
 			tiltSeriesesService()
 		}

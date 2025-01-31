@@ -6,10 +6,9 @@ use image::{Rgb, Rgba};
 
 use crate::args::{Args, ArgsConfig};
 use crate::image::{Image, ImageDrawing};
+use crate::info;
 use crate::metadata::{Ctf, TiltSeries};
-use crate::particles::sample_particle_3d;
 use crate::rand::sample_ctf;
-use crate::scale::ValueA;
 use crate::tomography::images::DEFAULT_NOISE;
 use crate::tomography::PreprocessingArgs;
 use crate::web::Web;
@@ -22,15 +21,11 @@ pub fn run(web: &Web, args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 
 	let pp_args = PreprocessingArgs::from(args, args_config, BLOCK_ID)?;
 
-	// get mock args
-	let num_particles = args.get_mock(BLOCK_ID, "num_particles")
-		.into_u32()?
-		.or(20)
-		.value();
-
 	// create subfolders
 	fs::create_dir_all("train")
 		.context("Failed to create train dir")?;
+	fs::create_dir_all("log")
+		.context("Failed to create log dir")?;
 
 	const RESULTS_IMG_SIZE: u32 = 512;
 
@@ -60,6 +55,7 @@ pub fn run(web: &Web, args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 	// generate the results 2D labels image
 	let mut img = Image::new(RESULTS_IMG_SIZE, RESULTS_IMG_SIZE);
 	img.draw().fill(Rgb([255, 255, 255]));
+	sample_circles(&mut img, RESULTS_IMG_SIZE);
 	img.draw().text_lines(32, Rgb([0, 0, 0]), [
 		format!("Block: {}", BLOCK_ID),
 		"Type: 2D Results Labels".to_string()
@@ -70,36 +66,22 @@ pub fn run(web: &Web, args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 	let mut img = Image::new(RESULTS_IMG_SIZE, RESULTS_IMG_SIZE);
 	img.draw().fill(Rgb([128, 128, 128]));
 	img.draw().noise(&DEFAULT_NOISE);
-	for _ in 0 .. 20 {
-		// pick a uniformly random spot to draw a circle
-		const RADIUS: u32 = 8;
-		let x = fastrand::u32(RADIUS .. RESULTS_IMG_SIZE - RADIUS);
-		let y = fastrand::u32(RADIUS .. RESULTS_IMG_SIZE - RADIUS);
-		img.draw().fill_circle_blended(x, y, RADIUS, Rgba([255, 0, 0, 64]));
-	}
+	sample_circles(&mut img, RESULTS_IMG_SIZE);
 	img.draw().text_lines(32, Rgb([255, 255, 255]), [
 		format!("Block: {}", BLOCK_ID),
-		"Type: 3D Results".to_string()
+		"Type: 3D Visualization Out".to_string()
 	]);
 	img.save(web, "train/3d_visualization_out.webp")?;
 
 	// generate the downloadable file
-	fs::write("train/milopyp_interactive.tbz", "just TBZ things")
-		.context("Failed to write the tbz file")?;
+	fs::write("train/interactive_info_parquet.gzip", "just GZIP things")
+		.context("Failed to write the gzip file")?;
 
 	web.write_parameters(&args, &args_config)?;
 
-	// generate particles for each tilt series
+	// generate tomograms for each tilt series
 	for tilt_series_i in 0 .. pp_args.num_tilt_series {
 		let tilt_series_id = format!("tilt_series_{}", tilt_series_i);
-
-		// generate particles
-		let radius = ValueA(500.0)
-			.to_unbinned(pp_args.pixel_size);
-
-		let particles = (0 .. num_particles)
-			.map(|_| sample_particle_3d(pp_args.tomogram_dims, radius))
-			.collect::<Vec<_>>();
 
 		let tilt_series = TiltSeries {
 			tilt_series_id,
@@ -108,12 +90,42 @@ pub fn run(web: &Web, args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 			avgrot: None,
 			drift: None,
 			virions: None,
-			spikes: Some(particles)
+			spikes: None
 		};
+
+		// generate the per-tilt-series 3D visualization image
+		let mut img = Image::new(RESULTS_IMG_SIZE, RESULTS_IMG_SIZE);
+		img.draw().fill(Rgb([128, 128, 128]));
+		img.draw().noise(&DEFAULT_NOISE);
+		sample_circles(&mut img, RESULTS_IMG_SIZE);
+		img.draw().text_lines(32, Rgb([255, 255, 255]), [
+			format!("Block: {}", BLOCK_ID),
+			"Type: 3D Visualization".to_string(),
+			format!("Id: {}", &tilt_series.tilt_series_id),
+			format!("Tilt Series: {} of {}", tilt_series_i + 1, pp_args.num_tilt_series)
+		]);
+		img.save(web, format!("train/{}_3d_visualization.webp", &tilt_series.tilt_series_id))?;
+
+		// write the log file
+		let log_path = format!("log/{}.log", &tilt_series.tilt_series_id);
+		fs::write(&log_path, format!("Things happened for tilt series {}", &tilt_series.tilt_series_id))
+			.context(format!("Failed to write log file: {}", &log_path))?;
+		info!(web, "Wrote log file: {}", &log_path);
 
 		// tell the website
 		web.write_tilt_series(&tilt_series)?;
 	}
 
 	Ok(())
+}
+
+
+fn sample_circles(img: &mut Image, size: u32) {
+	for _ in 0 .. 20 {
+		// pick a uniformly random spot to draw a circle
+		const RADIUS: u32 = 8;
+		let x = fastrand::u32(RADIUS .. size - RADIUS);
+		let y = fastrand::u32(RADIUS .. size - RADIUS);
+		img.draw().fill_circle_blended(x, y, RADIUS, Rgba([255, 0, 0, 64]));
+	}
 }
