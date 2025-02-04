@@ -6,8 +6,8 @@ object TomographyDrgnTrainNodeConfig : NodeConfig {
 	const val ID = "tomo-drgn-train"
 
 	override val id = ID
-	override val configId = "tomo_drgn_train"
-	override val name = "Continuous Heterogeneity (train)"
+	override val configId = "tomo_drgn_vae"
+	override val name = "tomoDRGN (vae)"
 	override val hasFiles = true
 	// TEMP: preview status during development
 	override val status = NodeConfig.NodeStatus.Preview

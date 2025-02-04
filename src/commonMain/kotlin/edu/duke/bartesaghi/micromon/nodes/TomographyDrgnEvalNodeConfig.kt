@@ -6,8 +6,8 @@ object TomographyDrgnEvalNodeConfig : NodeConfig {
 	const val ID = "tomo-drgn-eval"
 
 	override val id = ID
-	override val configId = "tomo_drgn_eval"
-	override val name = "Continuous Heterogeneity (eval)"
+	override val configId = "tomo_drgn_analyze"
+	override val name = "tomoDRGN (analyze)"
 	override val hasFiles = true
 	// TEMP: preview status during development
 	override val status = NodeConfig.NodeStatus.Preview
