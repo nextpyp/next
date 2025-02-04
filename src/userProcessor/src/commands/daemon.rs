@@ -537,6 +537,7 @@ async fn dispatch_write_file(
 			let Some(file) = OpenOptions::new()
 				.create(true)
 				.write(true)
+				.truncate(!append)
 				.append(append)
 				.open(&path)
 				.or_respond_error(&socket, request_id, |e|

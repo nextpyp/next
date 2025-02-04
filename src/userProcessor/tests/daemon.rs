@@ -341,6 +341,73 @@ fn write_file_large() {
 
 
 #[test]
+fn write_file_rewrite() {
+	let _logging = logging::init_test();
+
+	let user_processor = UserProcessor::start();
+	let mut socket = user_processor.connect();
+
+	// create the file
+	fs::create_dir_all(SOCKET_DIR)
+		.ok();
+	let path = PathBuf::from(SOCKET_DIR).join("write_file_test");
+	let request_id = 5;
+	let response = request(&mut socket, request_id, Request::WriteFile(WriteFileRequest::Open {
+		path: path.to_string_lossy().to_string(),
+		append: false
+	}));
+	assert_that!(&response, eq(Response::WriteFile(WriteFileResponse::Opened)));
+
+	// write to it
+	let mut sequence = 1;
+	let chunk_request = Request::WriteFile(WriteFileRequest::Chunk {
+		sequence,
+		data: b"hello world".to_vec()
+	});
+	send(&mut socket, request_id, chunk_request);
+
+	sequence += 1;
+	let close_request = Request::WriteFile(WriteFileRequest::Close {
+		sequence
+	});
+	let response = request(&mut socket, request_id, close_request);
+	assert_that!(&response, eq(Response::WriteFile(WriteFileResponse::Closed)));
+
+	// open the file again
+	let response = request(&mut socket, request_id, Request::WriteFile(WriteFileRequest::Open {
+		path: path.to_string_lossy().to_string(),
+		append: false
+	}));
+	assert_that!(&response, eq(Response::WriteFile(WriteFileResponse::Opened)));
+
+	// write a smaller amount to the file this time
+	let mut sequence = 1;
+	let chunk_request = Request::WriteFile(WriteFileRequest::Chunk {
+		sequence,
+		data: b"hello".to_vec()
+	});
+	send(&mut socket, request_id, chunk_request);
+
+	sequence += 1;
+	let close_request = Request::WriteFile(WriteFileRequest::Close {
+		sequence
+	});
+	let response = request(&mut socket, request_id, close_request);
+	assert_that!(&response, eq(Response::WriteFile(WriteFileResponse::Closed)));
+
+	// check the written file
+	let content = fs::read_to_string(&path)
+		.unwrap();
+	assert_that!(&content.as_str(), eq("hello"));
+
+	user_processor.disconnect(socket);
+	user_processor.stop();
+	fs::remove_file(&path)
+		.unwrap();
+}
+
+
+#[test]
 fn chmod() {
 	let _logging = logging::init_test();
 
