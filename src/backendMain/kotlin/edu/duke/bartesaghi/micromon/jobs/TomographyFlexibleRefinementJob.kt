@@ -79,7 +79,7 @@ class TomographyFlexibleRefinementJob(
 		val project = projectOrThrow()
 
 		// clear caches
-		wwwDir.recreateAs(project.osUsername)
+		wwwDir.recreate()
 
 		// build the args for PYP
 		val pypArgs = launchArgValues()

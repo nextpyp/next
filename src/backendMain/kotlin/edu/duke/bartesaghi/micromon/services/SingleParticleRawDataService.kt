@@ -31,7 +31,7 @@ actual class SingleParticleRawDataService : ISingleParticleRawDataService, Servi
 	}
 
 	private fun String.authJob(permission: ProjectPermission): AuthInfo<SingleParticleRawDataJob> =
-		authJob(permission, this)
+		authJob(this, permission)
 
 	override suspend fun edit(jobId: String, args: SingleParticleRawDataArgs?): SingleParticleRawDataData = sanitizeExceptions {
 

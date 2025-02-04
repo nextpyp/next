@@ -4,11 +4,10 @@ import com.google.inject.Inject
 import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.auth.authOrThrow
 import edu.duke.bartesaghi.micromon.jobs.*
+import edu.duke.bartesaghi.micromon.linux.userprocessor.WebCacheDir
 import edu.duke.bartesaghi.micromon.mongo.*
 import edu.duke.bartesaghi.micromon.nodes.SingleParticleImportDataNodeConfig
 import io.ktor.application.*
-import io.ktor.http.*
-import io.ktor.response.*
 import io.ktor.routing.*
 import io.ktor.util.*
 import io.ktor.util.pipeline.*
@@ -29,16 +28,23 @@ actual class SingleParticleImportDataService : ISingleParticleImportDataService,
 
 			routing.route("kv/node/${SingleParticleImportDataNodeConfig.ID}/{jobId}") {
 
+				fun PipelineContext<Unit, ApplicationCall>.authJob(permission: ProjectPermission): AuthInfo<Job> {
+					val jobId = call.parameters.getOrFail("jobId")
+					return call.authJob(jobId, permission)
+				}
+
 				get("image/{size}") {
 					call.respondExceptions {
 
 						// parse args
-						val jobId = call.parameters.getOrFail("jobId")
+						val job = authJob(ProjectPermission.Read).job
 						val size = parseSize()
 
-						val bytes = service.getImage(jobId, size)
-
-						call.respondBytes(bytes, ContentType.Image.WebP)
+						// serve the image
+						val imagePath = job.dir / "gain_corrected.webp"
+						val imageType = ImageType.Webp
+						val cacheKey = WebCacheDir.Keys.gainCorrected
+						call.respondImageSized(imagePath, imageType, size, job.wwwDir, cacheKey)
 					}
 				}
 			}
@@ -66,7 +72,7 @@ actual class SingleParticleImportDataService : ISingleParticleImportDataService,
 	}
 
 	private fun String.authJob(permission: ProjectPermission): AuthInfo<SingleParticleImportDataJob> =
-		authJob(permission, this)
+		authJob(this, permission)
 
 	override suspend fun edit(jobId: String, args: SingleParticleImportDataArgs?): SingleParticleImportDataData = sanitizeExceptions {
 
@@ -88,17 +94,5 @@ actual class SingleParticleImportDataService : ISingleParticleImportDataService,
 
 	override suspend fun getArgs(): String = sanitizeExceptions {
 		return SingleParticleImportDataJob.args().toJson()
-	}
-
-	suspend fun getImage(jobId: String, size: ImageSize): ByteArray {
-
-		val job = jobId.authJob(ProjectPermission.Write).job
-
-		val sourcePath = job.dir / "gain_corrected.webp"
-		val cacheInfo = ImageCacheInfo(job.wwwDir, "gain-corrected")
-
-		return size.readResize(sourcePath, ImageType.Webp, cacheInfo)
-			// no image, return a placeholder
-			?: Resources.placeholderJpg(size)
 	}
 }

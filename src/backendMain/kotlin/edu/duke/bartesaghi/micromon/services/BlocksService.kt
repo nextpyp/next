@@ -19,7 +19,7 @@ actual class BlocksService : IBlocksService, Service {
 	override lateinit var call: ApplicationCall
 
 	private fun String.authJob(permission: ProjectPermission): AuthInfo<Job> =
-		authJob(permission, this)
+		authJob(this, permission)
 
 	override suspend fun listFilters(jobId: String): List<String> = sanitizeExceptions {
 

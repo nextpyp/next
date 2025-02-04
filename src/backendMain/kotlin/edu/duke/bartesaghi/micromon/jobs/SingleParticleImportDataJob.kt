@@ -77,7 +77,7 @@ class SingleParticleImportDataJob(
 		val project = projectOrThrow()
 
 		// clear caches
-		wwwDir.recreateAs(project.osUsername)
+		wwwDir.recreate()
 
 		// build the args for PYP
 		val pypArgs = launchArgValues()
@@ -110,7 +110,7 @@ class SingleParticleImportDataJob(
 		latestMicrographId?.let { micrographId ->
 			// actually wait for the image file to show up in the filesystem,
 			// since sometimes distributed filesystems (eg NFS) can be slower than pyp->website signals
-			Micrograph.pypOutputImage(this, micrographId)
+			Micrograph.outputImagePath(dir, micrographId)
 				.waitForExistence(15.seconds)
 				.orWarn()
 		}

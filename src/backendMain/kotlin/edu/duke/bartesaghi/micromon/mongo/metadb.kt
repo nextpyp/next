@@ -103,17 +103,17 @@ class DriftMetadata(db: MongoDatabase, collectionName: String) {
 		const val key = "driftMetadata"
 	}
 
-	fun get(jobId: String, dataId: String): DMD? =
-		collection.get(jobId, dataId)
+	fun get(ownerId: String, dataId: String): DMD? =
+		collection.get(ownerId, dataId)
 			?.getDocument(key)
 			?.readDMD()
 
-	fun countTilts(jobId: String, dataId: String? = null): Long {
+	fun countTilts(ownerId: String, dataId: String? = null): Long {
 
 		val filter = if (dataId != null) {
-			collection.filter(jobId, dataId)
+			collection.filter(ownerId, dataId)
 		} else {
-			collection.filterAll(jobId)
+			collection.filterAll(ownerId)
 		}
 
 		// do the aggregate query inside of the database engine, to try to get the best performance
@@ -135,14 +135,14 @@ class DriftMetadata(db: MongoDatabase, collectionName: String) {
 			?: 0
 	}
 
-	fun write(jobId: String, dataId: String, dmd: DMD) {
-		collection.write(jobId, dataId) {
+	fun write(ownerId: String, dataId: String, dmd: DMD) {
+		collection.write(ownerId, dataId) {
 			this[key] = dmd.toDoc()
 		}
 	}
 
-	fun deleteAll(jobId: String) =
-		collection.deleteAll(jobId)
+	fun deleteAll(ownerId: String) =
+		collection.deleteAll(ownerId)
 }
 
 class Parameters(db: MongoDatabase) {

@@ -30,7 +30,7 @@ actual class TomographySessionDataService : ITomographySessionDataService, Servi
 	}
 
 	private fun String.authJob(permission: ProjectPermission): AuthInfo<TomographySessionDataJob> =
-		authJob(permission, this)
+		authJob(this, permission)
 
 	override suspend fun edit(jobId: String, args: TomographySessionDataArgs?): TomographySessionDataData = sanitizeExceptions {
 

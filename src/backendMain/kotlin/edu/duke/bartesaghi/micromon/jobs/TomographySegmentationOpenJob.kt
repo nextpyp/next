@@ -79,7 +79,7 @@ class TomographySegmentationOpenJob(
 		val newestArgs = args.newestOrThrow().args
 
 		// clear caches
-		wwwDir.recreateAs(project.osUsername)
+		wwwDir.recreate()
 
 		// get the input jobs
 		val upstreamJob = inTomograms?.resolveJob<Job>()

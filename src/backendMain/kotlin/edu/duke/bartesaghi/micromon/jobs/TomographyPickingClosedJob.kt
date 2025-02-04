@@ -80,7 +80,7 @@ class TomographyPickingClosedJob(
 		val project = projectOrThrow()
 
 		// clear caches
-		wwwDir.recreateAs(project.osUsername)
+		wwwDir.recreate()
 
 		val upstreamJob = inSegmentation?.resolveJob<Job>()
 			?: throw IllegalStateException("no segmentation input configured")

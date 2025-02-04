@@ -1,8 +1,6 @@
 package edu.duke.bartesaghi.micromon.pyp
 
-import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.mongo.Database
-import edu.duke.bartesaghi.micromon.services.ImageSize
 import edu.duke.bartesaghi.micromon.services.TwoDClassesData
 import edu.duke.bartesaghi.micromon.sessions.SingleParticleSession
 import edu.duke.bartesaghi.micromon.sessions.pypNamesOrThrow
@@ -38,6 +36,8 @@ class TwoDClasses(
 					.toList()
 			}
 
+		fun imagePath(session: SingleParticleSession, twoDClassesId: String): Path =
+			session.pypDir(session.newestArgs().pypNamesOrThrow()) / "class2d" / "${twoDClassesId}_classes.webp"
 	}
 
 	fun toDoc() = Document().apply {
@@ -55,16 +55,4 @@ class TwoDClasses(
 			twoDClassesId,
 			created.toEpochMilli()
 		)
-
-	fun imagePath(session: SingleParticleSession): Path =
-		session.pypDir(session.newestArgs().pypNamesOrThrow()) / "class2d" / "${twoDClassesId}_classes.webp"
-
-	suspend fun readImage(session: SingleParticleSession, size: ImageSize): ByteArray {
-
-		val path = imagePath(session)
-		val cacheInfo = ImageCacheInfo(session.wwwDir, "two2classes.$twoDClassesId")
-
-		return size.readResize(path, ImageType.Webp, cacheInfo)
-			?: Resources.placeholderJpg(size)
-	}
 }

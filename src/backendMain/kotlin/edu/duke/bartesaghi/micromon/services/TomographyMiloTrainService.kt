@@ -7,12 +7,9 @@ import edu.duke.bartesaghi.micromon.jobs.*
 import edu.duke.bartesaghi.micromon.mongo.authProjectOrThrow
 import edu.duke.bartesaghi.micromon.nodes.TomographyMiloTrainNodeConfig
 import io.ktor.application.*
-import io.ktor.http.*
-import io.ktor.response.*
 import io.ktor.routing.*
 import io.ktor.util.*
 import io.ktor.util.pipeline.*
-import java.io.FileNotFoundException
 import kotlin.io.path.div
 
 
@@ -24,23 +21,21 @@ actual class TomographyMiloTrainService : ITomographyMiloTrainService, Service {
 
 			routing.route("kv/node/${TomographyMiloTrainNodeConfig.ID}/{jobId}") {
 
-				fun PipelineContext<Unit, ApplicationCall>.parseJobId(): String =
-					call.parameters.getOrFail("jobId")
+				fun PipelineContext<Unit, ApplicationCall>.authJob(permission: ProjectPermission): AuthInfo<Job> {
+					val jobId = call.parameters.getOrFail("jobId")
+					return call.authJob(jobId, permission)
+				}
 
 				get("results") {
 					call.respondExceptions {
 
 						// parse args
-						val jobId = parseJobId()
+						val job = authJob(ProjectPermission.Read).job
 
-						val bytes = try {
-							service.getResults(jobId)
-						} catch (ex: FileNotFoundException) {
-							Resources.placeholderSvgz()
-						}
-
-						call.response.headers.append(HttpHeaders.ContentEncoding, "gzip")
-						call.respondBytes(bytes, ContentType.Image.Svgz)
+						// serve the image
+						val imagePath = job.dir / "train" / "milo_training.svgz"
+						val imageType = ImageType.Svgz
+						call.respondImage(imagePath, imageType)
 					}
 				}
 			}
@@ -69,7 +64,7 @@ actual class TomographyMiloTrainService : ITomographyMiloTrainService, Service {
 	}
 
 	private fun String.authJob(permission: ProjectPermission): AuthInfo<TomographyMiloTrainJob> =
-		authJob(permission, this)
+		authJob(this, permission)
 
 	override suspend fun edit(jobId: String, args: TomographyMiloTrainArgs?): TomographyMiloTrainData = sanitizeExceptions {
 
@@ -91,11 +86,5 @@ actual class TomographyMiloTrainService : ITomographyMiloTrainService, Service {
 
 	override suspend fun getArgs(): String = sanitizeExceptions {
 		return TomographyMiloTrainJob.args().toJson()
-	}
-
-	fun getResults(jobId: String): ByteArray {
-		val job = jobId.authJob(ProjectPermission.Read).job
-		val path = job.dir / "train" / "milo_training.svgz"
-		return path.readBytes()
 	}
 }

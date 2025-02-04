@@ -81,7 +81,7 @@ class SingleParticleSessionDataJob(
 		val project = projectOrThrow()
 
 		// clear caches
-		wwwDir.recreateAs(project.osUsername)
+		wwwDir.recreate()
 
 		val newestArgs = args.newestOrThrow().args
 

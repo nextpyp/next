@@ -3,7 +3,6 @@ package edu.duke.bartesaghi.micromon.pyp
 import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.files.*
 import edu.duke.bartesaghi.micromon.jobs.Job
-import edu.duke.bartesaghi.micromon.linux.userprocessor.WebCacheDir
 import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.mongo.getDocument
 import edu.duke.bartesaghi.micromon.services.*
@@ -37,17 +36,62 @@ class TiltSeries(private val doc: Document) {
 				block(it.map { TiltSeries(it) })
 			}
 
-		fun pypOutputImage(dir: Path, tiltSeriesId: String): Path =
+		fun outputImagePath(dir: Path, tiltSeriesId: String): Path =
 			dir / "webp" / "$tiltSeriesId.webp"
-
-		fun pypOutputImage(job: Job, tiltSeriesId: String): Path =
-			pypOutputImage(job.dir,  tiltSeriesId)
 
 		fun recPath(dir: Path, tiltSeriesId: String): Path =
 			dir / "mrc" / "$tiltSeriesId.rec"
 
 		fun metadataPath(dir: Path, tiltSeriesId: String): Path =
 			dir / "frealign" / "artiax" / "${tiltSeriesId}_K1.star"
+
+		fun alignedMontagePath(dir: Path, tiltSeriesId: String): Path =
+			dir / "webp" / "${tiltSeriesId}_ali.webp"
+
+		fun reconstructionTiltSeriesMontagePath(dir: Path, tiltSeriesId: String): Path {
+			// try webp first, fall back to png otherwise (this is done to workaround the max size limitation of the webp format)
+			val subdir = dir / "webp"
+			val filename = "${tiltSeriesId}_rec"
+			val webp = subdir / "$filename.webp"
+			if (webp.exists()) {
+				return webp
+			}
+			return subdir / "$filename.png"
+		}
+
+		fun twodCtfTiltMontagePath(dir: Path, tiltSeriesId: String): Path =
+			dir / "webp" / "${tiltSeriesId}_2D_ctftilt.webp"
+
+		fun rawTiltSeriesMontagePath(dir: Path, tiltSeriesId: String): Path =
+			dir / "webp" / "${tiltSeriesId}_raw.webp"
+
+		fun sidesImagePath(dir: Path, tiltSeriesId: String): Path =
+			dir / "webp" / "${tiltSeriesId}_sides.webp"
+
+		fun virionThresholdsImagePath(dir: Path, tiltSeriesId: String, virionId: Int): Path {
+			val virionIndex = virionId - 1
+			// eg, tomo/tilt_series_vir0000_binned_nad.png
+			return dir / "webp" / "${tiltSeriesId}_vir${"%04d".format(virionIndex)}_binned_nad.webp"
+		}
+
+		fun montageCenterTiler(ownerId: String, tiltSeriesId: String): (BufferedImage) -> BufferedImage =
+			{ image: BufferedImage ->
+
+				// get the montage sizes
+				val numTilts = Database.instance.tiltSeriesDriftMetadata.countTilts(ownerId, tiltSeriesId).toInt()
+				val montage = MontageSizes.fromSquaredMontageImage(image.width, image.height, numTilts)
+
+				// crop the image to the center tile
+				val centerTile = numTilts/2
+				val xIndex = centerTile % montage.tilesY
+				val yIndex = centerTile / montage.tilesY
+				image.getSubimage(
+					xIndex*montage.tileWidth,
+					yIndex*montage.tileHeight,
+					montage.tileWidth,
+					montage.tileHeight
+				)
+			}
 	}
 
 	val timestamp: Instant =
@@ -98,71 +142,6 @@ class TiltSeries(private val doc: Document) {
 	fun getLogs(session: Session) =
 		getLogs(session.pypDir(session.newestArgs().pypNamesOrThrow()))
 
-
-	/**
-	 * Returns a WebP image that roughly matches the desired size.
-	 *
-	 * Resized WebP images are created from the raw pyp output image.
-	 */
-	private suspend fun readImage(dir: Path, wwwDir: WebCacheDir, size: ImageSize): ByteArray {
-
-		val rawPath = pypOutputImage(dir, tiltSeriesId)
-		val cacheInfo = ImageCacheInfo(wwwDir, "tilt-series-box.$tiltSeriesId")
-
-		return size.readResize(rawPath, ImageType.Webp, cacheInfo)
-			// no image, return a placeholder
-			?: Resources.placeholderJpg(size)
-			// TODO: we should actually return a WebP placeholder image here, not a JPG,
-			//   but most browsers seem to render the placeholder image correctly anyway
-	}
-
-	suspend fun readImage(job: Job, size: ImageSize): ByteArray =
-		readImage(job.dir, job.wwwDir, size)
-
-	suspend fun readImage(session: Session, size: ImageSize): ByteArray =
-		readImage(session.pypDir(session.newestArgs().pypNamesOrThrow()), session.wwwDir, size)
-
-
-	/**
-	 * Returns a WebP image representative of the 2D CTF fit.
-	 *
-	 * The raw 2D CTF image is a montage of the whole tilt series,
-	 * so this function returns a central tile from the montage.
-	 */
-	private suspend fun readCtffindImage(dir: Path, wwwDir: WebCacheDir, size: ImageSize): ByteArray {
-
-		val srcPath = dir / "webp" / "${tiltSeriesId}_2D_ctftilt.webp"
-		val cacheInfo = ImageCacheInfo(wwwDir, "tiltseries-2Dctffit.cropped.2.$tiltSeriesId")
-
-		val tiler = { image: BufferedImage ->
-
-			// get the montage sizes
-			val numTilts = Database.instance.tiltSeriesDriftMetadata.countTilts(jobId, tiltSeriesId).toInt()
-			val montage = MontageSizes.fromSquaredMontageImage(image.width, image.height, numTilts)
-
-			// crop the image to the center tile
-			val centerTile = numTilts/2
-			val xIndex = centerTile % montage.tilesY
-			val yIndex = centerTile / montage.tilesY
-			image.getSubimage(
-				xIndex*montage.tileWidth,
-				yIndex*montage.tileHeight,
-				montage.tileWidth,
-				montage.tileHeight
-			)
-		}
-
-		return size.readResize(srcPath, ImageType.Webp, cacheInfo, tiler)
-			// no image, return a placeholder
-			?: Resources.placeholderJpg(size)
-	}
-
-	suspend fun readCtffindImage(job: Job, size: ImageSize): ByteArray =
-		readCtffindImage(job.dir, job.wwwDir, size)
-
-	suspend fun readCtffindImage(session: Session, size: ImageSize): ByteArray =
-		readCtffindImage(session.pypDir(session.newestArgs().pypNamesOrThrow()), session.wwwDir, size)
-
 	fun getMetadata() =
 		TiltSeriesData(
 			tiltSeriesId,
@@ -204,42 +183,10 @@ class TiltSeries(private val doc: Document) {
 			)
 		}
 
-	fun getAlignedTiltSeriesMontage(dir: Path):        ByteArray = dir.resolve("webp").resolve("${tiltSeriesId}_ali.webp").readBytes()
-	fun getReconstructionTiltSeriesMontage(dir: Path): ByteArray {
-		// try webp first, fall back to png otherwise (this is done to workaround the max size limitation of the webp format)
-		if ( dir.resolve("webp").resolve("${tiltSeriesId}_rec.webp").exists() ){
-			return dir.resolve("webp").resolve("${tiltSeriesId}_rec.webp").readBytes()
-		}
-		else {
-			return dir.resolve("webp").resolve("${tiltSeriesId}_rec.png").readBytes()
-		}
-	}
-	fun get2dCtfTiltMontage(dir: Path):                ByteArray = dir.resolve("webp" ).resolve("${tiltSeriesId}_2D_ctftilt.webp").readBytes()
-	fun getRawTiltSeriesMontage(dir: Path):            ByteArray = dir.resolve("webp").resolve("${tiltSeriesId}_raw.webp").readBytes()
-	fun getSidesTiltSeriesImage(dir: Path):            ByteArray = dir.resolve("webp").resolve("${tiltSeriesId}_sides.webp").readBytes()
-
-	fun readVirionThresholdsImage(job: Job, virionId: Int): ByteArray? {
-
-		val virionIndex = virionId - 1
-
-		// eg, tomo/tilt_series_vir0000_binned_nad.png
-		val path = job.dir / "webp" / "${tiltSeriesId}_vir${"%04d".format(virionIndex)}_binned_nad.webp"
-
-		return path
-			.takeIf { it.exists() }
-			?.readBytes()
-	}
-
 	fun isInRanges(filter: PreprocessingFilter): Boolean =
 		filter.ranges.all { range ->
 			propDouble(TiltSeriesProp[range.propId]) in range.min .. range.max
 		}
-
-	fun recPath(dir: Path): Path =
-		recPath(dir, tiltSeriesId)
-
-	fun metadataPath(dir: Path): Path =
-		metadataPath(dir, tiltSeriesId)
 }
 
 

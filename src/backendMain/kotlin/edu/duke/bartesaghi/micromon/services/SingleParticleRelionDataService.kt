@@ -31,7 +31,7 @@ actual class SingleParticleRelionDataService : ISingleParticleRelionDataService,
 	}
 
 	private fun String.authJob(permission: ProjectPermission): AuthInfo<SingleParticleRelionDataJob> =
-		authJob(permission, this)
+		authJob(this, permission)
 
 	override suspend fun edit(jobId: String, args: SingleParticleRelionDataArgs?): SingleParticleRelionDataData = sanitizeExceptions {
 

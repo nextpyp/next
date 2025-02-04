@@ -4,6 +4,7 @@ package edu.duke.bartesaghi.micromon.services
 import com.google.inject.Inject
 import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.jobs.*
+import edu.duke.bartesaghi.micromon.linux.userprocessor.WebCacheDir
 import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.pyp.*
 import io.ktor.application.*
@@ -28,38 +29,74 @@ actual class JobsService : IJobsService, Service {
 		fun gainCorrectedImageUrl(jobId: String, imageSize: ImageSize): String =
 			"/kv/jobs/$jobId/gainCorrectedImage/${imageSize.id}"
 
+
+		private fun Job.hasMicrographsOrThrow() = apply {
+			if (baseConfig.jobInfo.dataType !== JobInfo.DataType.Micrograph) {
+				throw IllegalArgumentException("job ${baseConfig.id} has no micrographs")
+			}
+		}
+
+		private fun Job.hasTiltSeriesOrThrow() = apply {
+			if (baseConfig.jobInfo.dataType !== JobInfo.DataType.TiltSeries) {
+				throw IllegalArgumentException("job ${baseConfig.id} has no tilt-series")
+			}
+		}
+
+		private fun getMicrographOrThrow(job: Job, micrographId: String): Micrograph =
+			Micrograph.get(job.idOrThrow, micrographId)
+				?: throw NoSuchElementException("no micrograph with id $micrographId found in job ${job.idOrThrow}")
+
+		private fun getTiltSeriesOrThrow(job: Job, tiltSeries: String): TiltSeries =
+			TiltSeries.get(job.idOrThrow, tiltSeries)
+				?: throw NoSuchElementException("no tilt series with id $tiltSeries found in job ${job.idOrThrow}")
+
+
 		fun init(routing: Routing) {
 
 			routing.route("kv/jobs/{jobId}") {
 
-				fun PipelineContext<Unit,ApplicationCall>.parseJobId(): String =
-					call.parameters.getOrFail("jobId")
-
+				fun PipelineContext<Unit, ApplicationCall>.authJob(permission: ProjectPermission): AuthInfo<Job> {
+					val jobId = call.parameters.getOrFail("jobId")
+					return call.authJob(jobId, permission)
+				}
+				
 				get("micrographs") {
 					call.respondExceptions {
 						
-						val jobId = parseJobId()
+						val job = authJob(ProjectPermission.Read).job.hasMicrographsOrThrow()
 
 						// NOTE: this needs to handle 10s of thousands of micrographs efficiently
 						// this needs to stay simple and optimized!!
-						val json: String = service.getMicrographs(jobId)
-							.let { Json.encodeToString(it) }
-
-						call.respondText(json, ContentType.Application.Json)
+						call.respondTextWriter(ContentType.Application.Json) {
+							// TODO: stream this response?
+							//       might need to build the top layer of JSON manually though
+							val micrographs = Micrograph.getAll(job.idOrThrow) { cursor ->
+								cursor
+									.map { it.getMetadata() }
+									.toList()
+							}
+							write(Json.encodeToString(micrographs))
+						}
 					}
 				}
 
 				get("tiltSerieses") {
 					call.respondExceptions {
 
-						val jobId = parseJobId()
+						val job = authJob(ProjectPermission.Read).job.hasTiltSeriesOrThrow()
 
 						// NOTE: this needs to handle 10s of thousands of tilts efficiently
 						// this needs to stay simple and optimized!!
-						val json: String = service.getTiltSerieses(jobId)
-							.let { Json.encodeToString(it) }
-
-						call.respondText(json, ContentType.Application.Json)
+						call.respondTextWriter(ContentType.Application.Json) {
+							// TODO: stream this response?
+							//       might need to build the top layer of JSON manually though
+							val tiltSerieses = TiltSeries.getAll(job.idOrThrow) { cursor ->
+								cursor
+									.map { it.getMetadata() }
+									.toList()
+							}
+							write(Json.encodeToString(tiltSerieses))
+						}
 					}
 				}
 
@@ -67,12 +104,14 @@ actual class JobsService : IJobsService, Service {
 					call.respondExceptions {
 
 						// parse args
-						val jobId = parseJobId()
+						val job = authJob(ProjectPermission.Read).job
 						val size = parseSize()
 
-						val bytes = service.getGainCorrectedImage(jobId, size)
-
-						call.respondBytes(bytes, ContentType.Image.WebP)
+						// serve the image
+						val imagePath = GainCorrectedImage.path(job)
+						val imageType = ImageType.Webp
+						val cacheKey = WebCacheDir.Keys.gainCorrected
+						call.respondImageSized(imagePath, imageType, size, job.wwwDir, cacheKey)
 					}
 				}
 
@@ -85,13 +124,19 @@ actual class JobsService : IJobsService, Service {
 						call.respondExceptions {
 
 							// parse args
-							val jobId = parseJobId()
+							val job = authJob(ProjectPermission.Read).job
 							val dataId = parseDataId()
 							val size = parseSize()
 
-							val bytes = service.getImage(jobId, dataId, size)
-
-							call.respondBytes(bytes, ContentType.Image.WebP)
+							// serve the image
+							val imagePath = when (job.baseConfig.jobInfo.dataType) {
+								JobInfo.DataType.Micrograph -> Micrograph.outputImagePath(job.dir, dataId)
+								JobInfo.DataType.TiltSeries -> TiltSeries.outputImagePath(job.dir, dataId)
+								else -> throw NoSuchElementException("job ${job.baseConfig.id} has no data type")
+							}
+							val imageType = ImageType.Webp
+							val cacheKey = WebCacheDir.Keys.datum.parameterized(dataId)
+							call.respondImageSized(imagePath, imageType, size, job.wwwDir, cacheKey)
 						}
 					}
 
@@ -99,27 +144,35 @@ actual class JobsService : IJobsService, Service {
 						call.respondExceptions {
 
 							// parse args
-							val jobId = parseJobId()
+							val job = authJob(ProjectPermission.Read).job
 							val dataId = parseDataId()
 							val size = parseSize()
 
-							val bytes = service.getCtffindImage(jobId, dataId, size)
-
-							call.respondBytes(bytes, ContentType.Image.WebP)
+							// serve the image
+							val (imagePath, transformer) = when (job.baseConfig.jobInfo.dataType) {
+								JobInfo.DataType.Micrograph ->
+									Micrograph.ctffitImagePath(job.dir, dataId) to null
+								JobInfo.DataType.TiltSeries ->
+									TiltSeries.twodCtfTiltMontagePath(job.dir, dataId) to TiltSeries.montageCenterTiler(job.idOrThrow, dataId)
+								else -> throw NoSuchElementException("job ${job.baseConfig.id} has no data type")
+							}
+							val imageType = ImageType.Webp
+							val cacheKey = WebCacheDir.Keys.ctffit.parameterized(dataId)
+							call.respondImageSized(imagePath, imageType, size, job.wwwDir, cacheKey, transformer)
 						}
 					}
-
 
 					get("alignedTiltSeriesMontage") {
 						call.respondExceptions {
 
 							// parse args
-							val jobId = parseJobId()
+							val job = authJob(ProjectPermission.Read).job.hasTiltSeriesOrThrow()
 							val dataId = parseDataId()
 
-							val bytes = service.getAlignedTiltSeriesMontage(jobId, dataId)
-
-							call.respondBytes(bytes, ContentType.Image.WebP)
+							// serve the image
+							val imagePath = TiltSeries.alignedMontagePath(job.dir, dataId)
+							val imageType = ImageType.Webp
+							call.respondImage(imagePath, imageType)
 						}
 					}
 
@@ -127,12 +180,13 @@ actual class JobsService : IJobsService, Service {
 						call.respondExceptions {
 
 							// parse args
-							val jobId = parseJobId()
+							val job = authJob(ProjectPermission.Read).job.hasTiltSeriesOrThrow()
 							val dataId = parseDataId()
 
-							val bytes = service.getReconstructionTiltSeriesMontage(jobId, dataId)
-
-							call.respondBytes(bytes, ContentType.Image.WebP)
+							// serve the image
+							val imagePath = TiltSeries.reconstructionTiltSeriesMontagePath(job.dir, dataId)
+							val imageType = ImageType.Webp
+							call.respondImage(imagePath, imageType)
 						}
 					}
 
@@ -140,12 +194,13 @@ actual class JobsService : IJobsService, Service {
 						call.respondExceptions {
 
 							// parse args
-							val jobId = parseJobId()
+							val job = authJob(ProjectPermission.Read).job.hasTiltSeriesOrThrow()
 							val dataId = parseDataId()
 
-							val bytes = service.get2dCtfTiltMontage(jobId, dataId)
-
-							call.respondBytes(bytes, ContentType.Image.WebP)
+							// serve the image
+							val imagePath = TiltSeries.twodCtfTiltMontagePath(job.dir, dataId)
+							val imageType = ImageType.Webp
+							call.respondImage(imagePath, imageType)
 						}
 					}
 
@@ -153,12 +208,13 @@ actual class JobsService : IJobsService, Service {
 						call.respondExceptions {
 
 							// parse args
-							val jobId = parseJobId()
+							val job = authJob(ProjectPermission.Read).job.hasTiltSeriesOrThrow()
 							val dataId = parseDataId()
 
-							val bytes = service.getRawTiltSeriesMontage(jobId, dataId)
-
-							call.respondBytes(bytes, ContentType.Image.WebP)
+							// serve the image
+							val imagePath = TiltSeries.rawTiltSeriesMontagePath(job.dir, dataId)
+							val imageType = ImageType.Webp
+							call.respondImage(imagePath, imageType)
 						}
 					}
 
@@ -166,25 +222,13 @@ actual class JobsService : IJobsService, Service {
 						call.respondExceptions {
 
 							// parse args
-							val jobId = parseJobId()
+							val job = authJob(ProjectPermission.Read).job.hasTiltSeriesOrThrow()
 							val dataId = parseDataId()
 
-							val bytes = service.getSidesTiltSeriesImage(jobId, dataId)
-
-							call.respondBytes(bytes, ContentType.Image.WebP)
-						}
-					}
-
-					get("log") {
-						call.respondExceptions {
-
-							// parse args
-							val jobId = parseJobId()
-							val dataId = parseDataId()
-
-							val log = service.getLog(jobId, dataId)
-
-							call.respondText(log)
+							// serve the image
+							val imagePath = TiltSeries.sidesImagePath(job.dir, dataId)
+							val imageType = ImageType.Webp
+							call.respondImage(imagePath, imageType)
 						}
 					}
 
@@ -192,15 +236,14 @@ actual class JobsService : IJobsService, Service {
 						call.respondExceptions {
 
 							// parse args
-							val jobId = parseJobId()
+							val job = authJob(ProjectPermission.Read).job
 							val dataId = parseDataId()
 							val virionId = call.parameters.getOrFail("virionId").toIntOrNull()
 								?: throw BadRequestException("virion id must be a number")
 
-							val bytes = service.virionThresholdsImage(jobId, dataId, virionId)
-								?: throw NotFoundException()
-
-							call.respondBytes(bytes, ContentType.Image.WebP)
+							val imagePath = TiltSeries.virionThresholdsImagePath(job.dir, dataId, virionId)
+							val imageType = ImageType.Webp
+							call.respondImage(imagePath, imageType)
 						}
 					}
 
@@ -208,11 +251,11 @@ actual class JobsService : IJobsService, Service {
 						call.respondExceptions {
 
 							// parse args
-							val jobId = parseJobId()
+							val job = authJob(ProjectPermission.Read).job
 							val dataId = parseDataId()
 
-							val bytes = service.recContent(jobId, dataId)
-							call.respondBytes(bytes, ContentType.Application.OctetStream)
+							val path = TiltSeries.recPath(job.dir, dataId)
+							call.respondFile(path, ContentType.Application.OctetStream)
 						}
 					}
 
@@ -220,11 +263,11 @@ actual class JobsService : IJobsService, Service {
 						call.respondExceptions {
 
 							// parse args
-							val jobId = parseJobId()
+							val job = authJob(ProjectPermission.Read).job
 							val dataId = parseDataId()
 
-							val bytes = service.tiltSeriesMetadataContent(jobId, dataId)
-							call.respondBytes(bytes, ContentType.Application.OctetStream)
+							val path = TiltSeries.metadataPath(job.dir, dataId)
+							call.respondFile(path, ContentType.Application.OctetStream)
 						}
 					}
 				}
@@ -233,84 +276,34 @@ actual class JobsService : IJobsService, Service {
 					call.respondExceptions {
 
 						// parse args
-						val jobId = parseJobId()
+						val job = authJob(ProjectPermission.Read).job
 						val size = parseSize()
 
-						val bytes = service.getOutputImage(jobId, size)
-
-						call.respondBytes(bytes, ContentType.Image.WebP)
+						// serve the image
+						val imagePath = job.dir / "webp" / "out.webp"
+						val imageType = ImageType.Webp
+						val cacheKey = WebCacheDir.Keys.output
+						call.respondImageSized(imagePath, imageType, size, job.wwwDir, cacheKey)
 					}
 				}
 			}
 		}
-
-		private val PipelineContext<Unit,ApplicationCall>.service get() =
-			getService<JobsService>()
 	}
 
 	@Inject
 	override lateinit var call: ApplicationCall
 
 	private fun String.authJob(permission: ProjectPermission): AuthInfo<Job> =
-		authJob(permission, this)
-
-	private fun Job.hasMicrographsOrThrow() = apply {
-		if (baseConfig.jobInfo.dataType !== JobInfo.DataType.Micrograph) {
-			throw IllegalArgumentException("job ${baseConfig.id} has no micrographs")
-		}
-	}
-
-	private fun Job.hasTiltSeriesOrThrow() = apply {
-		if (baseConfig.jobInfo.dataType !== JobInfo.DataType.TiltSeries) {
-			throw IllegalArgumentException("job ${baseConfig.id} has no tilt-series")
-		}
-	}
-
-	private fun getMicrographOrThrow(jobId: String, micrographId: String): Micrograph =
-		Micrograph.get(jobId, micrographId)
-			?: throw NoSuchElementException("no micrograph with id $micrographId found in job $jobId")
-
-	private fun getTiltSeriesOrThrow(jobId: String, tiltSeries: String): TiltSeries =
-		TiltSeries.get(jobId, tiltSeries)
-			?: throw NoSuchElementException("no tilt series with id $tiltSeries found in job $jobId")
-
-	fun getMicrographs(jobId: String): List<MicrographMetadata> {
-		jobId.authJob(ProjectPermission.Read).job.hasMicrographsOrThrow()
-		return Micrograph.getAll(jobId) { cursor ->
-			cursor
-				.map { it.getMetadata() }
-				.toList()
-		}
-	}
-
-	fun getTiltSerieses(jobId: String): List<TiltSeriesData> {
-		jobId.authJob(ProjectPermission.Read).job.hasTiltSeriesOrThrow()
-		return TiltSeries.getAll(jobId) { cursor ->
-			cursor
-				.map { it.getMetadata() }
-				.toList()
-		}
-	}
+		authJob(this, permission)
 
 	override suspend fun getMicrograph(jobId: String, micrographId: String): MicrographMetadata = sanitizeExceptions {
-		jobId.authJob(ProjectPermission.Read).job.hasMicrographsOrThrow()
-		return getMicrographOrThrow(jobId, micrographId).getMetadata()
+		val job = jobId.authJob(ProjectPermission.Read).job.hasMicrographsOrThrow()
+		return getMicrographOrThrow(job, micrographId).getMetadata()
 	}
 
 	override suspend fun getTiltSeries(jobId: String, tiltSeriesId: String): TiltSeriesData = sanitizeExceptions {
-		jobId.authJob(ProjectPermission.Read).job.hasTiltSeriesOrThrow()
-		return getTiltSeriesOrThrow(jobId, tiltSeriesId).getMetadata()
-	}
-
-	suspend fun getImage(jobId: String, dataId: String, size: ImageSize): ByteArray {
-
-		val job = jobId.authJob(ProjectPermission.Read).job
-
-		return when (job.baseConfig.jobInfo.dataType) {
-			JobInfo.DataType.Micrograph -> getMicrographOrThrow(jobId, dataId).readImage(job, size)
-			JobInfo.DataType.TiltSeries -> getTiltSeriesOrThrow(jobId, dataId).readImage(job, size)
-			else -> throw NoSuchElementException("job ${job.baseConfig.id} has no data type")
-		}
+		val job = jobId.authJob(ProjectPermission.Read).job.hasTiltSeriesOrThrow()
+		return getTiltSeriesOrThrow(job, tiltSeriesId).getMetadata()
 	}
 
 	override suspend fun getAvgRot(jobId: String, dataId: String): List<AvgRotData> = sanitizeExceptions {
@@ -320,8 +313,8 @@ actual class JobsService : IJobsService, Service {
 			?: return emptyList()
 
 		return when (job.baseConfig.jobInfo.dataType) {
-			JobInfo.DataType.Micrograph -> getMicrographOrThrow(jobId, dataId).getAvgRot()
-			JobInfo.DataType.TiltSeries -> getTiltSeriesOrThrow(jobId, dataId).getAvgRot()
+			JobInfo.DataType.Micrograph -> getMicrographOrThrow(job, dataId).getAvgRot()
+			JobInfo.DataType.TiltSeries -> getTiltSeriesOrThrow(job, dataId).getAvgRot()
 			else -> throw NoSuchElementException("job ${job.baseConfig.id} has no data type")
 		}
 			.let { listOf(it.data(pypValues)) }
@@ -332,8 +325,8 @@ actual class JobsService : IJobsService, Service {
 		val job = jobId.authJob(ProjectPermission.Read).job
 
 		return when (job.baseConfig.jobInfo.dataType) {
-			JobInfo.DataType.Micrograph -> getMicrographOrThrow(jobId, dataId).xf
-			JobInfo.DataType.TiltSeries -> getTiltSeriesOrThrow(jobId, dataId).xf
+			JobInfo.DataType.Micrograph -> getMicrographOrThrow(job, dataId).xf
+			JobInfo.DataType.TiltSeries -> getTiltSeriesOrThrow(job, dataId).xf
 			else -> throw NoSuchElementException("job ${job.baseConfig.id} has no data type")
 		}
 			.let { xf ->
@@ -344,24 +337,13 @@ actual class JobsService : IJobsService, Service {
 			}
 	}
 
-	suspend fun getCtffindImage(jobId: String, dataId: String, size: ImageSize): ByteArray {
-
-		val job = jobId.authJob(ProjectPermission.Read).job
-
-		return when (job.baseConfig.jobInfo.dataType) {
-			JobInfo.DataType.Micrograph -> getMicrographOrThrow(jobId, dataId).readCtffindImage(job, size)
-			JobInfo.DataType.TiltSeries -> getTiltSeriesOrThrow(jobId, dataId).readCtffindImage(job, size)
-			else -> throw NoSuchElementException("job ${job.baseConfig.id} has no data type")
-		}
-	}
-
 	override suspend fun getLog(jobId: String, dataId: String): String = sanitizeExceptions {
 
 		val job = jobId.authJob(ProjectPermission.Read).job
 
 		return when (job.baseConfig.jobInfo.dataType) {
-			JobInfo.DataType.Micrograph -> getMicrographOrThrow(jobId, dataId).getLogs(job)
-			JobInfo.DataType.TiltSeries -> getTiltSeriesOrThrow(jobId, dataId).getLogs(job)
+			JobInfo.DataType.Micrograph -> getMicrographOrThrow(job, dataId).getLogs(job)
+			JobInfo.DataType.TiltSeries -> getTiltSeriesOrThrow(job, dataId).getLogs(job)
 			else -> throw NoSuchElementException("job ${job.baseConfig.id} has no data type")
 		}
 			.filter { it.timestamp != null && it.type == null }
@@ -370,53 +352,11 @@ actual class JobsService : IJobsService, Service {
 			?: "(no log for ${job.baseConfig.jobInfo.dataType} $dataId)"
 	}
 
-	fun getAlignedTiltSeriesMontage(jobId: String, tiltSeriesId: String): ByteArray {
-		val job = jobId.authJob(ProjectPermission.Read).job.hasTiltSeriesOrThrow()
-		return getTiltSeriesOrThrow(jobId, tiltSeriesId).getAlignedTiltSeriesMontage(job.dir)
-	}
-
-	fun getReconstructionTiltSeriesMontage(jobId: String, tiltSeriesId: String): ByteArray {
-		val job = jobId.authJob(ProjectPermission.Read).job.hasTiltSeriesOrThrow()
-		return getTiltSeriesOrThrow(jobId, tiltSeriesId).getReconstructionTiltSeriesMontage(job.dir)
-	}
-
-	fun get2dCtfTiltMontage(jobId: String, tiltSeriesId: String): ByteArray {
-		val job = jobId.authJob(ProjectPermission.Read).job.hasTiltSeriesOrThrow()
-		return getTiltSeriesOrThrow(jobId, tiltSeriesId).get2dCtfTiltMontage(job.dir)
-	}
-
-	fun getRawTiltSeriesMontage(jobId: String, tiltSeriesId: String): ByteArray {
-		val job = jobId.authJob(ProjectPermission.Read).job.hasTiltSeriesOrThrow()
-		return getTiltSeriesOrThrow(jobId, tiltSeriesId).getRawTiltSeriesMontage(job.dir)
-	}
-
-	fun getSidesTiltSeriesImage(jobId: String, tiltSeriesId: String): ByteArray {
-		val job = jobId.authJob(ProjectPermission.Read).job.hasTiltSeriesOrThrow()
-		return getTiltSeriesOrThrow(jobId, tiltSeriesId).getSidesTiltSeriesImage(job.dir)
-	}
-
-	suspend fun getGainCorrectedImage(jobId: String, size: ImageSize): ByteArray {
-
-		val job = jobId.authJob(ProjectPermission.Read).job
-
-		val imagePath = GainCorrectedImage.path(job)
-		val cacheInfo = ImageCacheInfo(job.wwwDir, "gain-corrected")
-
-		return size.readResize(imagePath, ImageType.Webp, cacheInfo)
-			// no image, return a placeholder
-			?: Resources.placeholderJpg(size)
-	}
-
 	override suspend fun getDriftMetadata(jobId: String, tiltSeriesId: String): Option<DriftMetadata> {
 		val job = jobId.authJob(ProjectPermission.Read).job.hasTiltSeriesOrThrow()
 		return job.pypParameters()
-			?.let { getTiltSeriesOrThrow(jobId, tiltSeriesId).getDriftMetadata(it) }
+			?.let { getTiltSeriesOrThrow(job, tiltSeriesId).getDriftMetadata(it) }
 			.toOption()
-	}
-
-	fun virionThresholdsImage(jobId: String, tiltSeriesId: String, virionId: Int): ByteArray? {
-		val job = jobId.authJob(ProjectPermission.Read).job
-		return getTiltSeriesOrThrow(jobId, tiltSeriesId).readVirionThresholdsImage(job, virionId)
 	}
 
 	override suspend fun getTiltExclusions(jobId: String, tiltSeriesId: String): TiltExclusions = sanitizeExceptions {
@@ -437,17 +377,9 @@ actual class JobsService : IJobsService, Service {
 
 	override suspend fun recData(jobId: String, tiltSeriesId: String): Option<FileDownloadData> = sanitizeExceptions {
 		val job = jobId.authJob(ProjectPermission.Read).job.hasTiltSeriesOrThrow()
-		getTiltSeriesOrThrow(jobId, tiltSeriesId)
-			.recPath(job.dir)
+		TiltSeries.recPath(job.dir, tiltSeriesId)
 			.toFileDownloadData()
 			.toOption()
-	}
-
-	fun recContent(jobId: String, tiltSeriesId: String): ByteArray {
-		val job = jobId.authJob(ProjectPermission.Read).job.hasTiltSeriesOrThrow()
-		return getTiltSeriesOrThrow(jobId, tiltSeriesId)
-			.recPath(job.dir)
-			.readBytes()
 	}
 
 	override suspend fun findTiltSeriesMetadataData(jobId: String, tiltSeriesId: String): Option<FileDownloadData> = sanitizeExceptions {
@@ -465,26 +397,6 @@ actual class JobsService : IJobsService, Service {
 		return TiltSeries.metadataPath(job.dir, tiltSeriesId)
 			.toFileDownloadData()
 			.toOption()
-	}
-
-	fun tiltSeriesMetadataContent(jobId: String, tiltSeriesId: String): ByteArray {
-		val job = jobId.authJob(ProjectPermission.Read).job.hasTiltSeriesOrThrow()
-		// NOTE: The tilt series won't exist in the refinement job (it's in the preprocessing job),
-		//       so don't try to look for it here. Just look for the metadata file among this job's files
-		return TiltSeries.metadataPath(job.dir, tiltSeriesId)
-			.readBytes()
-	}
-
-	suspend fun getOutputImage(jobId: String, size: ImageSize): ByteArray {
-
-		val job = jobId.authJob(ProjectPermission.Read).job
-
-		val imagePath = job.dir / "webp/out.webp"
-		val cacheInfo = ImageCacheInfo(job.wwwDir, "output")
-
-		return size.readResize(imagePath, ImageType.Webp, cacheInfo)
-			// no image, return a placeholder
-			?: Resources.placeholderJpg(size)
 	}
 
 	override suspend fun getAllArgs(): Serialized<Args> = sanitizeExceptions {

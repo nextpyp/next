@@ -99,6 +99,7 @@ fun Application.main(config: Config.Web) {
 		}
 	}
 	install(WebSockets)
+	install(ConditionalHeaders)
 
 	// allocate space for cached static resources
 	Resources.init(javaClass)

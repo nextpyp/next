@@ -5,6 +5,7 @@ import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.jobs.AuthInfo
 import edu.duke.bartesaghi.micromon.jobs.Job
 import edu.duke.bartesaghi.micromon.jobs.authJob
+import edu.duke.bartesaghi.micromon.linux.userprocessor.WebCacheDir
 import edu.duke.bartesaghi.micromon.pyp.Reconstruction
 import edu.duke.bartesaghi.micromon.pyp.Refinement
 import edu.duke.bartesaghi.micromon.pyp.RefinementBundle
@@ -15,22 +16,27 @@ import io.ktor.response.*
 import io.ktor.routing.*
 import io.ktor.util.*
 import io.ktor.util.pipeline.*
-import java.io.FileNotFoundException
 import java.nio.file.Path
 import kotlin.io.path.div
+import kotlin.io.path.fileSize
 
 
 actual class IntegratedRefinementService : IIntegratedRefinementService, Service {
 
 	companion object {
 
+		private val Job.mapsDir: Path get() =
+			dir / "frealign" / "maps"
+
 		fun mapImageUrl(jobId: String, classNum: Int, iteration: Int, size: ImageSize): String =
 			"kv/reconstructions/$jobId/$classNum/$iteration/images/map/${size.id}"
 
 		fun init(routing: Routing) {
 
-			fun PipelineContext<Unit,ApplicationCall>.parseJobId(): String =
-				call.parameters.getOrFail("JobId")
+			fun PipelineContext<Unit, ApplicationCall>.authJob(permission: ProjectPermission): AuthInfo<Job> {
+				val jobId = call.parameters.getOrFail("jobId")
+				return call.authJob(jobId, permission)
+			}
 
 			routing.route("kv/reconstructions/{jobId}/{class}/{iteration}") {
 
@@ -48,7 +54,7 @@ actual class IntegratedRefinementService : IIntegratedRefinementService, Service
 					call.respondExceptions {
 
 						// parse args
-						val jobId = parseJobId()
+						val job = authJob(ProjectPermission.Read).job
 						val classNum = parseClass()
 						val iteration = parseIteration()
 
@@ -56,15 +62,21 @@ actual class IntegratedRefinementService : IIntegratedRefinementService, Service
 							.let { MRCType[it] }
 							?: throw BadRequestException("unrecognized map type")
 
-						val (filename, bytes) = service.getMrcFile(jobId, classNum, iteration, type)
+						// get the path to the MRC file
+						val fragment = Reconstruction.filenameFragment(job, classNum, iteration.takeIf { type.usesIteration })
+						val suffix = type.filenameFragment
+							?.let { "_$it" }
+							?: ""
+						val filename = "$fragment$suffix.mrc"
+						val path = job.mapsDir / filename
 
 						// send the content length using a custom header, so we can show a progress bar
-						call.response.header("MRC-FILE-SIZE", bytes.size.toString())
+						call.response.header("MRC-FILE-SIZE", path.fileSize().toString())
 
 						// and send a suggested filename for the browser download too
 						call.response.header("Content-Disposition", "attachment; filename=\"$filename\"")
 
-						call.respondBytes(bytes, ContentType.Application.OctetStream)
+						call.respondFile(path, ContentType.Application.OctetStream)
 					}
 				}
 
@@ -73,14 +85,12 @@ actual class IntegratedRefinementService : IIntegratedRefinementService, Service
 					call.respondExceptions {
 
 						// parse args
-						val jobId = parseJobId()
+						val job = authJob(ProjectPermission.Read).job
 						val classNum = parseClass()
 						val iteration = parseIteration()
 
-						val bytes = service.getPlotData(jobId, classNum, iteration)
-
-						// TODO: can the client side read this? or is it expecting a binary payload?
-						call.respondBytes(bytes, ContentType.Application.Json)
+						val path = job.mapsDir / "${Reconstruction.filenameFragment(job, classNum, iteration)}_plots.json"
+						call.respondFile(path, ContentType.Application.Json)
 					}
 				}
 
@@ -88,12 +98,12 @@ actual class IntegratedRefinementService : IIntegratedRefinementService, Service
 					call.respondExceptions {
 
 						// parse args
-						val jobId = parseJobId()
+						val job = authJob(ProjectPermission.Read).job
 						val classNum = parseClass()
 						val iteration = parseIteration()
 
-						val bytes = service.getBildContent(jobId, classNum, iteration)
-						call.respondBytes(bytes, ContentType.Application.OctetStream)
+						val path = job.mapsDir / "${Reconstruction.filenameFragment(job, classNum, iteration)}.bild"
+						call.respondFile(path, ContentType.Application.OctetStream)
 					}
 				}
 
@@ -103,14 +113,17 @@ actual class IntegratedRefinementService : IIntegratedRefinementService, Service
 						call.respondExceptions {
 
 							// parse args
-							val jobId = parseJobId()
+							val job = authJob(ProjectPermission.Read).job
 							val classNum = parseClass()
 							val iteration = parseIteration()
 							val size = parseSize()
 
-							val bytes = service.getMapImage(jobId, classNum, iteration, size)
-
-							call.respondBytes(bytes, ContentType.Image.WebP)
+							// serve the image
+							val fragment = Reconstruction.filenameFragment(job, classNum, iteration)
+							val imagePath = job.mapsDir / "${fragment}_map.webp"
+							val imageType = ImageType.Webp
+							val cacheKey = WebCacheDir.Keys.map.parameterized(fragment)
+							call.respondImageSized(imagePath, imageType, size, job.wwwDir, cacheKey)
 						}
 					}
 
@@ -118,14 +131,17 @@ actual class IntegratedRefinementService : IIntegratedRefinementService, Service
 						call.respondExceptions {
 
 							// parse args
-							val jobId = parseJobId()
+							val job = authJob(ProjectPermission.Read).job
 							val classNum = parseClass()
 							val iteration = parseIteration()
 							val size = parseSize()
 
-							val bytes = service.getFypImage(jobId, classNum, iteration, size)
-
-							call.respondBytes(bytes, ContentType.Image.PNG)
+							// serve the image
+							val fragment = Reconstruction.filenameFragment(job, classNum, iteration)
+							val imagePath = job.mapsDir / "${fragment}_fyp.png"
+							val imageType = ImageType.Png
+							val cacheKey = WebCacheDir.Keys.fyp.parameterized(fragment)
+							call.respondImageSized(imagePath, imageType, size, job.wwwDir, cacheKey)
 						}
 					}
 
@@ -133,14 +149,15 @@ actual class IntegratedRefinementService : IIntegratedRefinementService, Service
 						call.respondExceptions {
 
 							// parse args
-							val jobId = parseJobId()
+							val job = authJob(ProjectPermission.Read).job
 							val classNum = parseClass()
 							val iteration = parseIteration()
 
-							val bytes = service.getPerParticleScoresImage(jobId, classNum, iteration)
-
-							call.response.headers.append(HttpHeaders.ContentEncoding, "gzip")
-							call.respondBytes(bytes, ContentType.Image.Svgz)
+							// serve the image
+							val fragment = Reconstruction.filenameFragment(job, classNum, iteration)
+							val imagePath = job.mapsDir / "${fragment}_scores.svgz"
+							val imageType = ImageType.Svgz
+							call.respondImage(imagePath, imageType)
 						}
 					}
 				}
@@ -157,13 +174,15 @@ actual class IntegratedRefinementService : IIntegratedRefinementService, Service
 						call.respondExceptions {
 
 							// parse args
-							val jobId = parseJobId()
+							val job = authJob(ProjectPermission.Read).job
 							val dataId = parseDataId()
 							val size = parseSize()
 
-							val bytes = service.getParticlesImage(jobId, dataId, size)
-
-							call.respondBytes(bytes, ContentType.Image.WebP)
+							// serve the image
+							val imagePath = job.dir / "csp" / "${dataId}_local.webp"
+							val imageType = ImageType.Webp
+							val cacheKey = WebCacheDir.Keys.particles.parameterized(dataId)
+							call.respondImageSized(imagePath, imageType, size, job.wwwDir, cacheKey)
 						}
 					}
 
@@ -171,13 +190,13 @@ actual class IntegratedRefinementService : IIntegratedRefinementService, Service
 						call.respondExceptions {
 
 							// parse args
-							val jobId = parseJobId()
+							val job = authJob(ProjectPermission.Read).job
 							val dataId = parseDataId()
 
-							val bytes = service.getScoresImage(jobId, dataId)
-
-							call.response.headers.append(HttpHeaders.ContentEncoding, "gzip")
-							call.respondBytes(bytes, ContentType.Image.Svgz)
+							// serve the image
+							val imagePath = job.dir / "csp" / "${dataId}_scores.svgz"
+							val imageType = ImageType.Svgz
+							call.respondImage(imagePath, imageType)
 						}
 					}
 				}
@@ -191,13 +210,13 @@ actual class IntegratedRefinementService : IIntegratedRefinementService, Service
 						call.respondExceptions {
 
 							// parse args
-							val jobId = parseJobId()
+							val job = authJob(ProjectPermission.Read).job
 							val bundleId = parseBundleId()
 
-							val bytes = service.getBundleScoresImage(jobId, bundleId)
-
-							call.response.headers.append(HttpHeaders.ContentEncoding, "gzip")
-							call.respondBytes(bytes, ContentType.Image.Svgz)
+							// serve the image
+							val imagePath = job.dir / "frealign" / "${bundleId}_scores.svgz"
+							val imageType = ImageType.Svgz
+							call.respondImage(imagePath, imageType)
 						}
 					}
 
@@ -205,28 +224,25 @@ actual class IntegratedRefinementService : IIntegratedRefinementService, Service
 						call.respondExceptions {
 
 							// parse args
-							val jobId = parseJobId()
+							val job = authJob(ProjectPermission.Read).job
 							val bundleId = parseBundleId()
 
-							val bytes = service.getBundleWeightsImage(jobId, bundleId)
-
-							call.response.headers.append(HttpHeaders.ContentEncoding, "gzip")
-							call.respondBytes(bytes, ContentType.Image.Svgz)
+							// serve the image
+							val imagePath = job.dir / "frealign" / "${bundleId}_weights.svgz"
+							val imageType = ImageType.Svgz
+							call.respondImage(imagePath, imageType)
 						}
 					}
 				}
 			}
 		}
-
-		private val PipelineContext<Unit,ApplicationCall>.service get() =
-			getService<IntegratedRefinementService>()
 	}
 
     @Inject
     override lateinit var call: ApplicationCall
 
 	private fun String.authJob(permission: ProjectPermission): AuthInfo<Job> =
-		authJob(permission, this)
+		authJob(this, permission)
 
 	private fun getReconstructionOrThrow(jobId: String, reconstructionId: String): Reconstruction =
         Reconstruction.get(jobId, reconstructionId)
@@ -257,79 +273,6 @@ actual class IntegratedRefinementService : IIntegratedRefinementService, Service
         val reconstruction = getReconstructionOrThrow(jobId, reconstructionId)
         return reconstruction.getLog(job)
     }
-
-	private val Job.mapsDir: Path get() =
-		dir / "frealign" / "maps"
-
-	suspend fun getFypImage(jobId: String, classNum: Int, iteration: Int, size: ImageSize): ByteArray {
-		val job = jobId.authJob(ProjectPermission.Read).job
-		val path = job.mapsDir / "${Reconstruction.filenameFragment(job, classNum, iteration)}_fyp.png"
-		val cacheInfo = ImageCacheInfo(job.wwwDir, "fyp-${Reconstruction.filenameFragment(job, classNum, iteration)}")
-		return size.readResize(path, ImageType.Png, cacheInfo)
-			?: throw FileNotFoundException(path.toString())
-	}
-
-	suspend fun getMapImage(jobId: String, classNum: Int, iteration: Int, size: ImageSize): ByteArray {
-		val job = jobId.authJob(ProjectPermission.Read).job
-		val path = job.mapsDir / "${Reconstruction.filenameFragment(job, classNum, iteration)}_map.webp"
-		val cacheInfo = ImageCacheInfo(job.wwwDir, "map-${Reconstruction.filenameFragment(job, classNum, iteration)}")
-		return size.readResize(path, ImageType.Webp, cacheInfo)
-			?: throw FileNotFoundException(path.toString())
-	}
-
-	fun getPerParticleScoresImage(jobId: String, classNum: Int, iteration: Int): ByteArray {
-		val job = jobId.authJob(ProjectPermission.Read).job
-		val path = job.mapsDir / "${Reconstruction.filenameFragment(job, classNum, iteration)}_scores.svgz"
-		return path.readBytes()
-	}
-
-	fun getPlotData(jobId: String, classNum: Int, iteration: Int): ByteArray {
-		val job = jobId.authJob(ProjectPermission.Read).job
-		val path = job.mapsDir / "${Reconstruction.filenameFragment(job, classNum, iteration)}_plots.json"
-		return path.readBytes()
-	}
-
-	fun getBildContent(jobId: String, classNum: Int, iteration: Int): ByteArray {
-		val job = jobId.authJob(ProjectPermission.Read).job
-		val path = job.mapsDir / "${Reconstruction.filenameFragment(job, classNum, iteration)}.bild"
-		return path.readBytes()
-	}
-
-	fun getMrcFile(jobId: String, classNum: Int, iteration: Int, type: MRCType): Pair<String,ByteArray> {
-		val job = jobId.authJob(ProjectPermission.Read).job
-		val suffix = type.filenameFragment
-			?.let { "_$it" }
-			?: ""
-		val filename = "${Reconstruction.filenameFragment(job, classNum, iteration.takeIf { type.usesIteration })}$suffix.mrc"
-		val path = job.mapsDir / filename
-		return filename to path.readBytes()
-	}
-
-	suspend fun getParticlesImage(jobId: String, dataId: String, size: ImageSize): ByteArray {
-		val job = jobId.authJob(ProjectPermission.Read).job
-		val path = job.dir / "csp" / "${dataId}_local.webp"
-		val cacheInfo = ImageCacheInfo(job.wwwDir, "particles-$dataId")
-		return size.readResize(path, ImageType.Webp, cacheInfo)
-			?: throw FileNotFoundException(path.toString())
-	}
-
-	fun getScoresImage(jobId: String, dataId: String): ByteArray {
-		val job = jobId.authJob(ProjectPermission.Read).job
-		val path = job.dir / "csp" / "${dataId}_scores.svgz"
-		return path.readBytes()
-	}
-
-	fun getBundleScoresImage(jobId: String, bundleId: String): ByteArray {
-		val job = jobId.authJob(ProjectPermission.Read).job
-		val path = job.dir / "frealign" / "${bundleId}_scores.svgz"
-		return path.readBytes()
-	}
-
-	fun getBundleWeightsImage(jobId: String, bundleId: String): ByteArray {
-		val job = jobId.authJob(ProjectPermission.Read).job
-		val path = job.dir / "frealign" / "${bundleId}_weights.svgz"
-		return path.readBytes()
-	}
 
 	override suspend fun getRefinements(jobId: String): List<RefinementData> = sanitizeExceptions {
 

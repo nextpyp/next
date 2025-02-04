@@ -11,6 +11,8 @@ import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.*
 import edu.duke.bartesaghi.micromon.sessions.SingleParticleSession.Companion.StreampypListener
+import io.ktor.application.*
+import io.ktor.util.pipeline.*
 import io.kvision.remote.ServiceException
 import org.bson.Document
 import org.bson.conversions.Bson
@@ -245,7 +247,7 @@ sealed class Session(
 		}
 
 	val wwwDir: WebCacheDir get() =
-		WebCacheDir(dir / "www")
+		WebCacheDir(dir / "www", null)
 
 	fun pypParamsPath(): Path =
 		dir / "pyp_params.toml"
@@ -487,11 +489,15 @@ data class AuthInfo<T:Session>(
 	val session: T
 )
 
-inline fun <reified T:Session> Service.auth(sessionId: String, permission: SessionPermission): AuthInfo<T> {
-	val user = call.authOrThrow()
+inline fun <reified T:Session> Service.auth(sessionId: String, permission: SessionPermission): AuthInfo<T> =
+	call.authSession(sessionId, permission)
+
+inline fun <reified T:Session> ApplicationCall.authSession(sessionId: String, permission: SessionPermission): AuthInfo<T> {
+	val user = authOrThrow()
 	val session = user.authSessionOrThrow(sessionId, permission).cast<T>()
 	return AuthInfo(user, session)
 }
+
 
 fun User?.permissions(session: Session): Set<SessionPermission> {
 

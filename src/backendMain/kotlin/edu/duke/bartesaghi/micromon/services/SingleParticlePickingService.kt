@@ -28,7 +28,7 @@ actual class SingleParticlePickingService : ISingleParticlePickingService, Servi
 	}
 
 	private fun String.authJob(permission: ProjectPermission): AuthInfo<SingleParticlePickingJob> =
-		authJob(permission, this)
+		authJob(this, permission)
 
 	override suspend fun edit(jobId: String, args: SingleParticlePickingArgs?): SingleParticlePickingData = sanitizeExceptions {
 

@@ -28,7 +28,7 @@ actual class TomographyPickingOpenService : ITomographyPickingOpenService, Servi
 	}
 
 	private fun String.authJob(permission: ProjectPermission): AuthInfo<TomographyPickingOpenJob> =
-		authJob(permission, this)
+		authJob(this, permission)
 
 	override suspend fun edit(jobId: String, args: TomographyPickingOpenArgs?): TomographyPickingOpenData = sanitizeExceptions {
 

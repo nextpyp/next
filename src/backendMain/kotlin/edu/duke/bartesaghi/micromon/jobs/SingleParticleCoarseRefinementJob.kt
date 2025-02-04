@@ -82,7 +82,7 @@ class SingleParticleCoarseRefinementJob(
 		val newestArgs = args.newestOrThrow().args
 
 		// clear caches
-		wwwDir.recreateAs(project.osUsername)
+		wwwDir.recreate()
 
 		val upstreamJob = inRefinement?.resolveJob<Job>()
 			?: throw IllegalStateException("no refinement input configured")

@@ -473,7 +473,7 @@ object DebugService {
 
 		// disable compression for this response, otherwise streaming won't work
 		// see: https://youtrack.jetbrains.com/issue/KTOR-5977/Kotlin-JS-Unable-to-stream-compressed-responses
-		attributes.put(Compression.SuppressionAttribute, true)
+		disableDefaultCompression()
 
 		respondTextWriter(ContentType.Text.Plain) { block() }
 	}

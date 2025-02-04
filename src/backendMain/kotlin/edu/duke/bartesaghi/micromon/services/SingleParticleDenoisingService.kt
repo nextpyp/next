@@ -28,7 +28,7 @@ actual class SingleParticleDenoisingService : ISingleParticleDenoisingService, S
 	}
 
 	private fun String.authJob(permission: ProjectPermission): AuthInfo<SingleParticleDenoisingJob> =
-		authJob(permission, this)
+		authJob(this, permission)
 
 	override suspend fun edit(jobId: String, args: SingleParticleDenoisingArgs?): SingleParticleDenoisingData = sanitizeExceptions {
 

@@ -83,7 +83,7 @@ class TomographyPurePreprocessingJob(
 		val project = projectOrThrow()
 
 		// clear caches
-		wwwDir.recreateAs(project.osUsername)
+		wwwDir.recreate()
 
 		// write out the tilt exclusions, if needed
 		run {

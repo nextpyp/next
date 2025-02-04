@@ -215,7 +215,7 @@ abstract class Job(
 		if (baseConfig.hasFiles) {
 			val project = projectOrThrow()
 			dir.createDirsIfNeededAs(project.osUsername)
-			wwwDir.createIfNeededAs(project.osUsername)
+			wwwDir.createIfNeeded()
 		}
 	}
 
@@ -271,10 +271,12 @@ abstract class Job(
 	}
 
 	val dir: Path get() =
-		Project.dir(userId, projectOrThrow().osUsername, projectId) / "${baseConfig.id}-$idOrThrow"
+		dir(projectOrThrow(), baseConfig, idOrThrow)
 
-	val wwwDir: WebCacheDir get() =
-		WebCacheDir(dir / "www")
+	val wwwDir: WebCacheDir get() {
+		val project = projectOrThrow()
+		return WebCacheDir(dir(project, baseConfig, idOrThrow) / "www", project.osUsername)
+	}
 
 	fun ancestry(includeThis: Boolean = true): List<Job> {
 
@@ -551,6 +553,9 @@ abstract class Job(
 			)
 		}
 
+		fun dir(project: Project, config: NodeConfig, jobId: String): Path =
+			project.dir / "${config.id}-$jobId"
+
 		fun pypParamsPath(job: Job): Path =
 			job.dir / "pyp_params.toml"
 	}
@@ -566,10 +571,10 @@ data class AuthInfo<T:Job>(
 	val job: T
 )
 
-inline fun <reified T:Job> Service.authJob(permission: ProjectPermission, jobId: String): AuthInfo<T> =
-	call.authJob(permission, jobId)
+inline fun <reified T:Job> Service.authJob(jobId: String, permission: ProjectPermission): AuthInfo<T> =
+	call.authJob(jobId, permission)
 
-inline fun <reified T:Job> ApplicationCall.authJob(permission: ProjectPermission, jobId: String): AuthInfo<T> {
+inline fun <reified T:Job> ApplicationCall.authJob(jobId: String, permission: ProjectPermission): AuthInfo<T> {
 	val user = authOrThrow()
 	val job = user.authJobOrThrow(permission, jobId).cast<T>()
 	return AuthInfo(user, job)

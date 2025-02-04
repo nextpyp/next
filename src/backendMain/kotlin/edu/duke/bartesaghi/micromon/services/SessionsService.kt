@@ -4,18 +4,16 @@ import com.google.inject.Inject
 import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.auth.authOrThrow
 import edu.duke.bartesaghi.micromon.cluster.ClusterJob
+import edu.duke.bartesaghi.micromon.linux.userprocessor.WebCacheDir
 import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.sessions.*
 import io.ktor.application.*
-import io.ktor.http.*
-import io.ktor.response.*
 import io.ktor.routing.*
 import io.ktor.util.*
 import io.ktor.util.pipeline.*
 import io.kvision.remote.RemoteOption
 import io.kvision.remote.ServiceException
-import java.io.FileNotFoundException
 import kotlin.io.path.div
 
 
@@ -23,17 +21,22 @@ actual class SessionsService : ISessionsService, Service {
 
 	companion object {
 
-		private fun getMicrographOrThrow(sessionId: String, micrographId: String): Micrograph =
-			Micrograph.get(sessionId, micrographId)
-				?: throw NoSuchElementException("no micrograph with id $micrographId found in session $sessionId")
+		private fun getMicrographOrThrow(session: Session, micrographId: String): Micrograph =
+			Micrograph.get(session.idOrThrow, micrographId)
+				?: throw NoSuchElementException("no micrograph with id $micrographId found in session ${session.idOrThrow}")
 
-		private fun getTiltSeriesOrThrow(sessionId: String, tiltSeriesId: String): TiltSeries =
-			TiltSeries.get(sessionId, tiltSeriesId)
-				?: throw NoSuchElementException("no tilt series with id $tiltSeriesId found in session $sessionId")
+		private fun getTiltSeriesOrThrow(session: Session, tiltSeriesId: String): TiltSeries =
+			TiltSeries.get(session.idOrThrow, tiltSeriesId)
+				?: throw NoSuchElementException("no tilt series with id $tiltSeriesId found in session ${session.idOrThrow}")
 
 		fun init(routing: Routing) {
 
 			routing.route("kv/sessions/{sessionId}") {
+
+				fun PipelineContext<Unit, ApplicationCall>.authSession(permission: SessionPermission): AuthInfo<Session> {
+					val sessionId = call.parameters.getOrFail("sessionId")
+					return call.authSession(sessionId, permission)
+				}
 
 				route("data/{dataId}") {
 
@@ -41,13 +44,18 @@ actual class SessionsService : ISessionsService, Service {
 						call.respondExceptions {
 
 							// parse args
-							val sessionId = call.parameters.getOrFail("sessionId")
+							val session = authSession(SessionPermission.Read).session
 							val dataId = call.parameters.getOrFail("dataId")
 							val size = parseSize()
 
-							val bytes = service.readImage(sessionId, dataId, size)
-
-							call.respondBytes(bytes, ContentType.Image.WebP)
+							// serve the image
+							val imagePath = when (session) {
+								is SingleParticleSession -> Micrograph.outputImagePath(session.dir, dataId)
+								is TomographySession -> TiltSeries.outputImagePath(session.dir, dataId)
+							}
+							val imageType = ImageType.Webp
+							val cacheKey = WebCacheDir.Keys.datum.parameterized(dataId)
+							call.respondImageSized(imagePath, imageType, size, session.wwwDir, cacheKey)
 						}
 					}
 
@@ -55,13 +63,20 @@ actual class SessionsService : ISessionsService, Service {
 						call.respondExceptions {
 
 							// parse args
-							val sessionId = call.parameters.getOrFail("sessionId")
+							val session = authSession(SessionPermission.Read).session
 							val dataId = call.parameters.getOrFail("dataId")
 							val size = parseSize()
 
-							val bytes = service.getCtffindImage(sessionId, dataId, size)
-
-							call.respondBytes(bytes, ContentType.Image.WebP)
+							// serve the image
+							val (imagePath, transformer) = when (session) {
+								is SingleParticleSession ->
+									Micrograph.ctffitImagePath(session.dir, dataId) to null
+								is TomographySession ->
+									TiltSeries.twodCtfTiltMontagePath(session.dir, dataId) to TiltSeries.montageCenterTiler(session.idOrThrow, dataId)
+							}
+							val imageType = ImageType.Webp
+							val cacheKey = WebCacheDir.Keys.ctffit.parameterized(dataId)
+							call.respondImageSized(imagePath, imageType, size, session.wwwDir, cacheKey, transformer)
 						}
 					}
 				}
@@ -72,21 +87,22 @@ actual class SessionsService : ISessionsService, Service {
 						call.respondExceptions {
 
 							// parse args
-							val sessionId = call.parameters.getOrFail("sessionId")
+							val session = authSession(SessionPermission.Read).session
 							val twoDClassesId = call.parameters.getOrFail("twoDClassesId")
 							val size = parseSize()
 
-							val bytes = service.readTwoDClassesImage(sessionId, twoDClassesId, size)
-
-							call.respondBytes(bytes, ContentType.Image.PNG)
+							val imagePath = when (session) {
+								is SingleParticleSession -> TwoDClasses.imagePath(session, twoDClassesId)
+								else -> throw IllegalArgumentException("requires a single-particle session")
+							}
+							val imageType = ImageType.Webp
+							val cacheKey = WebCacheDir.Keys.twodClasses.parameterized(twoDClassesId)
+							call.respondImageSized(imagePath, imageType, size, session.wwwDir, cacheKey)
 						}
 					}
 				}
 			}
 		}
-
-		private val PipelineContext<Unit, ApplicationCall>.service get() =
-			getService<SessionsService>()
 	}
 
 
@@ -285,24 +301,14 @@ actual class SessionsService : ISessionsService, Service {
 		)
 	}
 
-	suspend fun readImage(sessionId: String, dataId: String, size: ImageSize): ByteArray {
-
-		val session = auth(sessionId, SessionPermission.Read).session
-
-		return when (session) {
-			is SingleParticleSession -> getMicrographOrThrow(sessionId, dataId).readImage(session, size)
-			is TomographySession -> getTiltSeriesOrThrow(sessionId, dataId).readImage(session, size)
-		}
-	}
-
 	override suspend fun getAvgRot(sessionId: String, dataId: String): Option<AvgRotData> = sanitizeExceptions {
 
 		val session = auth(sessionId, SessionPermission.Read).session
 		val pypValues = session.pypParametersOrThrow()
 
 		val avgrot = when (session) {
-			is SingleParticleSession -> getMicrographOrThrow(sessionId, dataId).getAvgRot()
-			is TomographySession -> getTiltSeriesOrThrow(sessionId, dataId).getAvgRot()
+			is SingleParticleSession -> getMicrographOrThrow(session, dataId).getAvgRot()
+			is TomographySession -> getTiltSeriesOrThrow(session, dataId).getAvgRot()
 		}
 
 		return avgrot
@@ -315,8 +321,8 @@ actual class SessionsService : ISessionsService, Service {
 		val session = auth(sessionId, SessionPermission.Read).session
 
 		val xf = when (session) {
-			is SingleParticleSession -> getMicrographOrThrow(sessionId, dataId).xf
-			is TomographySession -> getTiltSeriesOrThrow(sessionId, dataId).xf
+			is SingleParticleSession -> getMicrographOrThrow(session, dataId).xf
+			is TomographySession -> getTiltSeriesOrThrow(session, dataId).xf
 		}
 
 		return xf
@@ -329,23 +335,13 @@ actual class SessionsService : ISessionsService, Service {
 			.toOption()
 	}
 
-	suspend fun getCtffindImage(sessionId: String, dataId: String, size: ImageSize): ByteArray {
-
-		val session = auth(sessionId, SessionPermission.Read).session
-
-		return when (session) {
-			is SingleParticleSession -> getMicrographOrThrow(sessionId, dataId).readCtffindImage(session, size)
-			is TomographySession -> getTiltSeriesOrThrow(sessionId, dataId).readCtffindImage(session, size)
-		}
-	}
-
 	override suspend fun dataLog(sessionId: String, dataId: String): String = sanitizeExceptions {
 
 		val session = auth(sessionId, SessionPermission.Read).session
 
 		val logs = when (session) {
-			is SingleParticleSession -> getMicrographOrThrow(sessionId, dataId).getLogs(session)
-			is TomographySession -> getTiltSeriesOrThrow(sessionId, dataId).getLogs(session)
+			is SingleParticleSession -> getMicrographOrThrow(session, dataId).getLogs(session)
+			is TomographySession -> getTiltSeriesOrThrow(session, dataId).getLogs(session)
 		}
 
 		return logs
@@ -353,16 +349,6 @@ actual class SessionsService : ISessionsService, Service {
 			.maxByOrNull { it.timestamp!! }
 			?.read()
 			?: "(no log for ${session.type} data $dataId)"
-	}
-
-	suspend fun readTwoDClassesImage(sessionId: String, twoDClassesId: String, size: ImageSize): ByteArray {
-		val session = auth(sessionId, SessionPermission.Read).session
-		return when (session) {
-			is SingleParticleSession -> TwoDClasses.get(sessionId, twoDClassesId)
-				?.readImage(session, size)
-				?: throw FileNotFoundException()
-			else -> throw IllegalArgumentException("requires a single-particle session")
-		}
 	}
 
 	override suspend fun listFilters(sessionId: String): List<String> = sanitizeExceptions {

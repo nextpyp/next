@@ -28,7 +28,7 @@ actual class SingleParticleFineRefinementService : ISingleParticleFineRefinement
 	}
 
 	private fun String.authJob(permission: ProjectPermission): AuthInfo<SingleParticleFineRefinementJob> =
-		authJob(permission, this)
+		authJob(this, permission)
 
 	override suspend fun edit(jobId: String, args: SingleParticleFineRefinementArgs?): SingleParticleFineRefinementData = sanitizeExceptions {
 

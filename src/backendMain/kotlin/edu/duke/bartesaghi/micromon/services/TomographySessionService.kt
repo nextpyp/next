@@ -8,8 +8,6 @@ import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.pyp.TiltSeries
 import edu.duke.bartesaghi.micromon.sessions.*
 import io.ktor.application.*
-import io.ktor.http.*
-import io.ktor.response.*
 import io.ktor.routing.*
 import io.ktor.util.*
 import io.ktor.util.pipeline.*
@@ -20,13 +18,18 @@ actual class TomographySessionService : ITomographySessionService, Service {
 
 	companion object {
 
-		fun getTiltSeriesOrThrow(sessionId: String, tiltSeriesId: String): TiltSeries =
-			 TiltSeries.get(sessionId, tiltSeriesId)
-				?: throw NoSuchElementException("no tilt series with id $tiltSeriesId found in session $sessionId")
+		fun getTiltSeriesOrThrow(session: Session, tiltSeriesId: String): TiltSeries =
+			 TiltSeries.get(session.idOrThrow, tiltSeriesId)
+				?: throw NoSuchElementException("no tilt series with id $tiltSeriesId found in session ${session.idOrThrow}")
 
 		fun init(routing: Routing) {
 
 			routing.route("kv/tomographySession/{sessionId}") {
+
+				fun PipelineContext<Unit, ApplicationCall>.authSession(permission: SessionPermission): AuthInfo<Session> {
+					val sessionId = call.parameters.getOrFail("sessionId")
+					return call.authSession(sessionId, permission)
+				}
 
 				route("{tiltSeriesId}") {
 
@@ -34,12 +37,13 @@ actual class TomographySessionService : ITomographySessionService, Service {
 						call.respondExceptions {
 
 							// parse args
-							val sessionId = call.parameters.getOrFail("sessionId")
+							val session = authSession(SessionPermission.Read).session
 							val tiltSeriesId = call.parameters.getOrFail("tiltSeriesId")
 
-							val bytes = service.getAlignedTiltSeriesMontage(sessionId, tiltSeriesId)
-
-							call.respondBytes(bytes, ContentType.Image.WebP)
+							// serve the image
+							val imagePath = TiltSeries.alignedMontagePath(session.dir, tiltSeriesId)
+							val imageType = ImageType.Webp
+							call.respondImage(imagePath, imageType)
 						}
 					}
 
@@ -47,12 +51,13 @@ actual class TomographySessionService : ITomographySessionService, Service {
 						call.respondExceptions {
 
 							// parse args
-							val sessionId = call.parameters.getOrFail("sessionId")
+							val session = authSession(SessionPermission.Read).session
 							val tiltSeriesId = call.parameters.getOrFail("tiltSeriesId")
 
-							val bytes = service.getReconstructionTiltSeriesMontage(sessionId, tiltSeriesId)
-
-							call.respondBytes(bytes, ContentType.Image.WebP)
+							// serve the image
+							val imagePath = TiltSeries.reconstructionTiltSeriesMontagePath(session.dir, tiltSeriesId)
+							val imageType = ImageType.Webp
+							call.respondImage(imagePath, imageType)
 						}
 					}
 
@@ -60,12 +65,14 @@ actual class TomographySessionService : ITomographySessionService, Service {
 						call.respondExceptions {
 
 							// parse args
-							val sessionId = call.parameters.getOrFail("sessionId")
+							val session = authSession(SessionPermission.Read).session
 							val tiltSeriesId = call.parameters.getOrFail("tiltSeriesId")
 
-							val bytes = service.get2dCtfTiltMontage(sessionId, tiltSeriesId)
+							// serve the image
+							val imagePath = TiltSeries.twodCtfTiltMontagePath(session.dir, tiltSeriesId)
+							val imageType = ImageType.Webp
+							call.respondImage(imagePath, imageType)
 
-							call.respondBytes(bytes, ContentType.Image.WebP)
 						}
 					}
 
@@ -73,12 +80,13 @@ actual class TomographySessionService : ITomographySessionService, Service {
 						call.respondExceptions {
 
 							// parse args
-							val sessionId = call.parameters.getOrFail("sessionId")
+							val session = authSession(SessionPermission.Read).session
 							val tiltSeriesId = call.parameters.getOrFail("tiltSeriesId")
 
-							val bytes = service.getRawTiltSeriesMontage(sessionId, tiltSeriesId)
-
-							call.respondBytes(bytes, ContentType.Image.WebP)
+							// serve the image
+							val imagePath = TiltSeries.rawTiltSeriesMontagePath(session.dir, tiltSeriesId)
+							val imageType = ImageType.Webp
+							call.respondImage(imagePath, imageType)
 						}
 					}
 
@@ -86,12 +94,13 @@ actual class TomographySessionService : ITomographySessionService, Service {
 						call.respondExceptions {
 
 							// parse args
-							val sessionId = call.parameters.getOrFail("sessionId")
+							val session = authSession(SessionPermission.Read).session
 							val tiltSeriesId = call.parameters.getOrFail("tiltSeriesId")
 
-							val bytes = service.getSidesTiltSeriesImage(sessionId, tiltSeriesId)
-
-							call.respondBytes(bytes, ContentType.Image.WebP)
+							// serve the image
+							val imagePath = TiltSeries.sidesImagePath(session.dir, tiltSeriesId)
+							val imageType = ImageType.Webp
+							call.respondImage(imagePath, imageType)
 						}
 					}
 				}
@@ -174,46 +183,6 @@ actual class TomographySessionService : ITomographySessionService, Service {
 		return TomographySession.args().toJson()
 	}
 
-	fun getAlignedTiltSeriesMontage(sessionId: String, tiltSeriesId: String): ByteArray {
-
-		val session = auth(sessionId, SessionPermission.Read).session
-		val tiltSeries = getTiltSeriesOrThrow(sessionId, tiltSeriesId)
-
-		return tiltSeries.getAlignedTiltSeriesMontage(session.pypDir(session.newestArgs().pypNamesOrThrow()))
-	}
-
-	fun getReconstructionTiltSeriesMontage(sessionId: String, tiltSeriesId: String): ByteArray {
-
-		val session = auth(sessionId, SessionPermission.Read).session
-		val tiltSeries = getTiltSeriesOrThrow(sessionId, tiltSeriesId)
-
-		return tiltSeries.getReconstructionTiltSeriesMontage(session.pypDir(session.newestArgs().pypNamesOrThrow()))
-	}
-
-	fun get2dCtfTiltMontage(sessionId: String, tiltSeriesId: String): ByteArray {
-
-		val session = auth(sessionId, SessionPermission.Read).session
-		val tiltSeries = getTiltSeriesOrThrow(sessionId, tiltSeriesId)
-
-		return tiltSeries.get2dCtfTiltMontage(session.pypDir(session.newestArgs().pypNamesOrThrow()))
-	}
-
-	fun getRawTiltSeriesMontage(sessionId: String, tiltSeriesId: String): ByteArray {
-
-		val session = auth(sessionId, SessionPermission.Read).session
-		val tiltSeries = getTiltSeriesOrThrow(sessionId, tiltSeriesId)
-
-		return tiltSeries.getRawTiltSeriesMontage(session.pypDir(session.newestArgs().pypNamesOrThrow()))
-	}
-
-	fun getSidesTiltSeriesImage(sessionId: String, tiltSeriesId: String): ByteArray {
-
-		val session = auth(sessionId, SessionPermission.Read).session
-		val tiltSeries = getTiltSeriesOrThrow(sessionId, tiltSeriesId)
-
-		return tiltSeries.getSidesTiltSeriesImage(session.pypDir(session.newestArgs().pypNamesOrThrow()))
-	}
-
 	override suspend fun copy(sessionId: String, args: CopySessionArgs): TomographySessionData = sanitizeExceptions {
 
 		val (user, session) = auth(sessionId, SessionPermission.Write)
@@ -237,7 +206,7 @@ actual class TomographySessionService : ITomographySessionService, Service {
 		val session = auth(sessionId, SessionPermission.Read).session
 		val pypValues = session.pypParameters()
 			?: return  null.toOption()
-		return getTiltSeriesOrThrow(sessionId, tiltSeriesId)
+		return getTiltSeriesOrThrow(session, tiltSeriesId)
 			.getDriftMetadata(pypValues)
 			.toOption()
 	}

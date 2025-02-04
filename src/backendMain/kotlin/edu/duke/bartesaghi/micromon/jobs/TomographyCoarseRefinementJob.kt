@@ -82,7 +82,7 @@ class TomographyCoarseRefinementJob(
 		val newestArgs = args.newestOrThrow().args
 
 		// clear caches
-		wwwDir.recreateAs(project.osUsername)
+		wwwDir.recreate()
 
 		// get the input jobs
 		val upstreamJob = inMovieRefinement?.resolveJob<Job>()

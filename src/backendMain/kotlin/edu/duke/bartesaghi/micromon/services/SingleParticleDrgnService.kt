@@ -28,7 +28,7 @@ actual class SingleParticleDrgnService : ISingleParticleDrgnService, Service {
 	}
 
 	private fun String.authJob(permission: ProjectPermission): AuthInfo<SingleParticleDrgnJob> =
-		authJob(permission, this)
+		authJob(this, permission)
 
 	override suspend fun edit(jobId: String, args: SingleParticleDrgnArgs?): SingleParticleDrgnData = sanitizeExceptions {
 

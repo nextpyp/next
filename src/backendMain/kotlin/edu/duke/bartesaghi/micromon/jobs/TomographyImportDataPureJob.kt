@@ -83,7 +83,7 @@ class TomographyImportDataPureJob(
 		val project = projectOrThrow()
 
 		// clear caches
-		wwwDir.recreateAs(project.osUsername)
+		wwwDir.recreate()
 
 		// build the args for PYP
 		val pypArgs = launchArgValues()
@@ -116,7 +116,7 @@ class TomographyImportDataPureJob(
 		latestTiltSeriesId?.let { tiltSeriesId ->
 			// actually wait for the image file to show up in the filesystem,
 			// since sometimes distributed filesystems (eg NFS) can be slower than pyp->website signals
-			TiltSeries.pypOutputImage(this, tiltSeriesId)
+			TiltSeries.outputImagePath(dir, tiltSeriesId)
 				.waitForExistence(15.seconds)
 				.orWarn()
 		}

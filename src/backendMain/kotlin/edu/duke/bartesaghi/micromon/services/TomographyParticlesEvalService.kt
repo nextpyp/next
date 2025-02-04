@@ -28,7 +28,7 @@ actual class TomographyParticlesEvalService : ITomographyParticlesEvalService, S
 	}
 
 	private fun String.authJob(permission: ProjectPermission): AuthInfo<TomographyParticlesEvalJob> =
-		authJob(permission, this)
+		authJob(this, permission)
 
 	override suspend fun edit(jobId: String, args: TomographyParticlesEvalArgs?): TomographyParticlesEvalData = sanitizeExceptions {
 

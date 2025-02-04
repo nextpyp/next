@@ -30,7 +30,7 @@ actual class SingleParticleSessionDataService : ISingleParticleSessionDataServic
 	}
 
 	private fun String.authJob(permission: ProjectPermission): AuthInfo<SingleParticleSessionDataJob> =
-		authJob(permission, this)
+		authJob(this, permission)
 
 	override suspend fun edit(jobId: String, args: SingleParticleSessionDataArgs?): SingleParticleSessionDataData = sanitizeExceptions {
 

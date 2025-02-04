@@ -1,51 +1,106 @@
 package edu.duke.bartesaghi.micromon
 
 import edu.duke.bartesaghi.micromon.linux.userprocessor.WebCacheDir
-import edu.duke.bartesaghi.micromon.services.ImageSize
+import edu.duke.bartesaghi.micromon.linux.userprocessor.writeBytesAs
+import edu.duke.bartesaghi.micromon.services.*
+import io.ktor.application.*
+import io.ktor.features.*
+import io.ktor.http.*
+import io.ktor.response.*
 import java.awt.geom.AffineTransform
 import java.awt.image.AffineTransformOp
 import java.awt.image.BufferedImage
 import java.io.ByteArrayOutputStream
+import java.io.FileNotFoundException
 import java.nio.file.Path
 import javax.imageio.ImageIO
 import javax.imageio.stream.FileImageInputStream
 import kotlin.io.path.div
-import kotlin.io.path.writeBytes
 
 
-enum class ImageType(val mimeType: String, val extension: String) {
-	Jpeg("image/jpeg", "jpg"),
-	Png("image/png", "png"),
-	Webp("image/webp", "webp")
+enum class ImageType(
+	val contentType: ContentType,
+	val extension: String,
+	val getPlaceholder: (ImageSize) -> ByteArray,
+	val extraHeaders: List<Pair<String,String>> = emptyList(),
+	val resizable: Boolean = true,
+) {
+	Jpeg(
+		ContentType.Image.JPEG,
+		"jpg",
+		getPlaceholder = Resources::placeholderJpg
+	),
+
+	Png(
+		ContentType.Image.PNG,
+		"png",
+		getPlaceholder = Resources::placeholderPng
+	),
+
+	Webp(
+		ContentType.Image.WebP,
+		"webp",
+		getPlaceholder = Resources::placeholderWebp
+	),
+
+	Svgz(
+		ContentType.Image.SVG,
+		"svgz",
+		getPlaceholder = { _ -> Resources.placeholderSvgz() },
+		extraHeaders = listOf(HttpHeaders.ContentEncoding to "gzip"),
+		resizable = false
+	);
+
+
+	val mimeType: String =
+		contentType.toString()
 }
 
 
-data class ImageCacheInfo(
-	/** where the cached image should be kept */
-	val dir: WebCacheDir,
-	/** a unique identifier for the image file, among all the images that might be cached in the same folder */
-	val key: String
+suspend fun ApplicationCall.respondImage(path: Path, type: ImageType) {
+
+	// disable Ktor's default gzip compression for this response, since images are already compressed
+	disableDefaultCompression()
+
+	val etag = path.timestampEtag()
+		?: throw FileNotFoundException(path.toString())
+
+	respondCacheControlled(etag) {
+		for ((name, value) in type.extraHeaders) {
+			response.headers.append(name, value)
+		}
+		respondFile(path, type.contentType)
+	}
+}
+
+
+suspend fun ApplicationCall.respondImagePlaceholder(type: ImageType, size: ImageSize) {
+
+	// disable Ktor's default gzip compression for this response, since images are already compressed
+	disableDefaultCompression()
+
+	respondCacheControlled("placeholder") {
+		respondBytes(type.getPlaceholder(size), type.contentType)
+	}
+}
+
+
+suspend fun ApplicationCall.respondImageSized(
+	path: Path,
+	type: ImageType,
+	size: ImageSize,
+	dir: WebCacheDir,
+	key: WebCacheDir.Key,
+	transformer: ((BufferedImage) -> BufferedImage)? = null
 ) {
 
-	inner class File(type: ImageType, size: ImageSize) {
-
-		val name = "$key.${size.id}.${type.extension}"
-		val path = dir.path / name
-
-		fun exists(): Boolean =
-			path.exists()
-
-		suspend fun read(): ByteArray =
-			slowIOs {
-				path.readBytes()
-			}
-
-		suspend fun write(content: ByteArray) =
-			slowIOs {
-				dir.createIfNeeded()
-				path.writeBytes(content)
-			}
+	if (!path.exists()) {
+		respondImagePlaceholder(type, size)
+		return
 	}
+
+	val resizedPath = dir.resizeImage(path, type, size, key, transformer)
+	respondImage(resizedPath, type)
 }
 
 
@@ -53,24 +108,31 @@ data class ImageCacheInfo(
  * Returns the image as a byte array, resizing to the desired size.
  * Can cache the resized image if required.
  */
-suspend fun ImageSize.readResize(
+suspend fun WebCacheDir.resizeImage(
 	path: Path,
 	type: ImageType,
-	cacheInfo: ImageCacheInfo? = null,
+	size: ImageSize,
+	/** a unique identifier for the image file, among all the images that might be cached in the same folder */
+	key: WebCacheDir.Key,
 	transformer: ((BufferedImage) -> BufferedImage)? = null
-): ByteArray? {
+): Path {
 
-	// if we're caching, and we already have the cached image, use that
-	val cacheFile = cacheInfo?.File(type, this)
-	if (cacheFile != null) {
-		if (cacheFile.exists()) {
-			return cacheFile.read()
-		}
+	// if the image isn't resizable, there's nothing to do
+	if (!type.resizable) {
+		return path
+	}
+
+	val cacheName = "${key.id}.${size.id}.${type.extension}"
+	val cachePath = this.path / cacheName
+
+	// if we already have the cached image, use that
+	if (cachePath.exists()) {
+		return cachePath
 	}
 
 	// cache miss, check for the source image
 	if (!path.exists()) {
-		return null
+		throw FileNotFoundException(path.toString())
 	}
 
 	// read the image, if we can
@@ -92,13 +154,14 @@ suspend fun ImageSize.readResize(
 
 	// resize the image, but keep the same aspect ratio
 	val resized = image
-		.resize(approxWidth)
+		.resize(size.approxWidth)
 		.write(type)
 
-	// if we're caching, save the file
-	cacheFile?.write(resized)
+	// finally, write the resized image to the cache
+	this.createIfNeeded()
+	cachePath.writeBytesAs(osUsername, resized)
 
-	return resized
+	return cachePath
 }
 
 
@@ -122,6 +185,11 @@ fun BufferedImage.resize(width: Int): BufferedImage {
 		// https://bugs.java.com/bugdatabase/view_bug.do?bug_id=6995195
 		// It's currently marked as "wontfix" =(
 		// So we'll have to work around it by sychronizing all image resizes.
+		// TODO: looks like this bug is finally fixed in JVM v21? can we update?
+		//       https://bugs.openjdk.org/browse/JDK-6995195
+		// TODO: but for now, we can probably make the workaround better by not blocking here
+		//       and maybe only blocking for the first image resize?
+		//       since the deadlock created by the bug only happens in static initialization
 		synchronized (resizeLock) {
 			op.filter(this, resizedImage)
 		}

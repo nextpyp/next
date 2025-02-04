@@ -28,7 +28,7 @@ actual class TomographyDenoisingEvalService : ITomographyDenoisingEvalService, S
 	}
 
 	private fun String.authJob(permission: ProjectPermission): AuthInfo<TomographyDenoisingEvalJob> =
-		authJob(permission, this)
+		authJob(this, permission)
 
 	override suspend fun edit(jobId: String, args: TomographyDenoisingEvalArgs?): TomographyDenoisingEvalData = sanitizeExceptions {
 

@@ -7,12 +7,9 @@ import edu.duke.bartesaghi.micromon.jobs.*
 import edu.duke.bartesaghi.micromon.mongo.authProjectOrThrow
 import edu.duke.bartesaghi.micromon.nodes.TomographyDenoisingTrainingNodeConfig
 import io.ktor.application.*
-import io.ktor.http.*
-import io.ktor.response.*
 import io.ktor.routing.*
 import io.ktor.util.*
 import io.ktor.util.pipeline.*
-import java.io.FileNotFoundException
 import kotlin.io.path.div
 
 
@@ -24,29 +21,24 @@ actual class TomographyDenoisingTrainingService : ITomographyDenoisingTrainingSe
 
 			routing.route("kv/node/${TomographyDenoisingTrainingNodeConfig.ID}/{jobId}") {
 
-				fun PipelineContext<Unit, ApplicationCall>.parseJobId(): String =
-					call.parameters.getOrFail("jobId")
+				fun PipelineContext<Unit, ApplicationCall>.authJob(permission: ProjectPermission): AuthInfo<Job> {
+					val jobId = call.parameters.getOrFail("jobId")
+					return call.authJob(jobId, permission)
+				}
 
 				get("train_results") {
 					call.respondExceptions {
 
-						val jobId = parseJobId()
+						val job = authJob(ProjectPermission.Read).job
 
-						val bytes = try {
-							service.getTrainResults(jobId)
-						} catch (ex: FileNotFoundException) {
-							Resources.placeholderSvgz()
-						}
-
-						call.response.headers.append(HttpHeaders.ContentEncoding, "gzip")
-						call.respondBytes(bytes, ContentType.Image.Svgz)
+						// serve the image
+						val imagePath = job.dir / "train" / "training_loss.svgz"
+						val imageType = ImageType.Svgz
+						call.respondImage(imagePath, imageType)
 					}
 				}
 			}
 		}
-
-		private val PipelineContext<Unit, ApplicationCall>.service get() =
-			getService<TomographyDenoisingTrainingService>()
 	}
 
 
@@ -68,7 +60,7 @@ actual class TomographyDenoisingTrainingService : ITomographyDenoisingTrainingSe
 	}
 
 	private fun String.authJob(permission: ProjectPermission): AuthInfo<TomographyDenoisingTrainingJob> =
-		authJob(permission, this)
+		authJob(this, permission)
 
 	override suspend fun edit(jobId: String, args: TomographyDenoisingTrainingArgs?): TomographyDenoisingTrainingData = sanitizeExceptions {
 
@@ -90,11 +82,5 @@ actual class TomographyDenoisingTrainingService : ITomographyDenoisingTrainingSe
 
 	override suspend fun getArgs(): String = sanitizeExceptions {
 		return TomographyDenoisingTrainingJob.args().toJson()
-	}
-
-	suspend fun getTrainResults(jobId: String): ByteArray {
-		val job = jobId.authJob(ProjectPermission.Read).job
-		val path = job.dir / "train" / "training_loss.svgz"
-		return path.readBytes()
 	}
 }

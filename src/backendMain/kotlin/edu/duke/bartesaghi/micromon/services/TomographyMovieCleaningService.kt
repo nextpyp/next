@@ -28,7 +28,7 @@ actual class TomographyMovieCleaningService : ITomographyMovieCleaningService, S
 	}
 
 	private fun String.authJob(permission: ProjectPermission): AuthInfo<TomographyMovieCleaningJob> =
-		authJob(permission, this)
+		authJob(this, permission)
 
 	override suspend fun edit(jobId: String, args: TomographyMovieCleaningArgs?): TomographyMovieCleaningData = sanitizeExceptions {
 

@@ -28,7 +28,7 @@ actual class TomographyDrgnTrainService : ITomographyDrgnTrainService, Service {
 	}
 
 	private fun String.authJob(permission: ProjectPermission): AuthInfo<TomographyDrgnTrainJob> =
-		authJob(permission, this)
+		authJob(this, permission)
 
 	override suspend fun edit(jobId: String, args: TomographyDrgnTrainArgs?): TomographyDrgnTrainData = sanitizeExceptions {
 

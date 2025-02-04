@@ -4,15 +4,13 @@ import com.google.inject.Inject
 import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.auth.authOrThrow
 import edu.duke.bartesaghi.micromon.jobs.*
+import edu.duke.bartesaghi.micromon.linux.userprocessor.WebCacheDir
 import edu.duke.bartesaghi.micromon.mongo.*
 import edu.duke.bartesaghi.micromon.nodes.TomographyImportDataNodeConfig
 import io.ktor.application.*
-import io.ktor.http.*
-import io.ktor.response.*
 import io.ktor.routing.*
 import io.ktor.util.*
 import io.ktor.util.pipeline.*
-import javax.imageio.ImageIO
 import kotlin.io.path.div
 
 
@@ -30,16 +28,23 @@ actual class TomographyImportDataService : ITomographyImportDataService, Service
 
 			routing.route("kv/node/${TomographyImportDataNodeConfig.ID}/{jobId}") {
 
+				fun PipelineContext<Unit, ApplicationCall>.authJob(permission: ProjectPermission): AuthInfo<Job> {
+					val jobId = call.parameters.getOrFail("jobId")
+					return call.authJob(jobId, permission)
+				}
+
 				get("image/{size}") {
 					call.respondExceptions {
 
 						// parse args
-						val jobId = call.parameters.getOrFail("jobId")
+						val job = authJob(ProjectPermission.Read).job
 						val size = parseSize()
 
-						val bytes = service.getImage(jobId, size)
-
-						call.respondBytes(bytes, ContentType.Image.WebP)
+						// serve the image
+						val imagePath = job.dir / "gain_corrected.webp"
+						val imageType = ImageType.Webp
+						val cacheKey = WebCacheDir.Keys.gainCorrected
+						call.respondImageSized(imagePath, imageType, size, job.wwwDir, cacheKey)
 					}
 				}
 			}
@@ -70,7 +75,7 @@ actual class TomographyImportDataService : ITomographyImportDataService, Service
 	}
 
 	private fun String.authJob(permission: ProjectPermission): AuthInfo<TomographyImportDataJob> =
-		authJob(permission, this)
+		authJob(this, permission)
 
 	override suspend fun edit(jobId: String, args: TomographyImportDataArgs?): TomographyImportDataData = sanitizeExceptions {
 
@@ -92,17 +97,5 @@ actual class TomographyImportDataService : ITomographyImportDataService, Service
 
 	override suspend fun getArgs(): String = sanitizeExceptions {
 		return TomographyImportDataJob.args().toJson()
-	}
-
-	suspend fun getImage(jobId: String, size: ImageSize): ByteArray {
-
-		val job = jobId.authJob(ProjectPermission.Read).job
-
-		val sourcePath = job.dir / "gain_corrected.webp"
-		val cacheInfo = ImageCacheInfo(job.wwwDir, "gain-corrected")
-
-		return size.readResize(sourcePath, ImageType.Webp, cacheInfo)
-			// no image, return a placeholder
-			?: Resources.placeholderJpg(size)
 	}
 }

@@ -4,11 +4,11 @@ import com.google.inject.Inject
 import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.auth.authOrThrow
 import edu.duke.bartesaghi.micromon.jobs.*
+import edu.duke.bartesaghi.micromon.linux.userprocessor.WebCacheDir
 import edu.duke.bartesaghi.micromon.mongo.authProjectOrThrow
 import edu.duke.bartesaghi.micromon.nodes.TomographyMiloEvalNodeConfig
 import io.ktor.application.*
 import io.ktor.http.*
-import io.ktor.response.*
 import io.ktor.routing.*
 import io.ktor.util.*
 import io.ktor.util.pipeline.*
@@ -23,19 +23,23 @@ actual class TomographyMiloEvalService : ITomographyMiloEvalService, Service {
 
 			routing.route("kv/node/${TomographyMiloEvalNodeConfig.ID}/{jobId}") {
 
-				fun PipelineContext<Unit, ApplicationCall>.parseJobId(): String =
-					call.parameters.getOrFail("jobId")
+				fun PipelineContext<Unit, ApplicationCall>.authJob(permission: ProjectPermission): AuthInfo<TomographyMiloEvalJob> {
+					val jobId = call.parameters.getOrFail("jobId")
+					return call.authJob(jobId, permission)
+				}
 
 				get("results_2d/{size}") {
 					call.respondExceptions {
 
 						// parse args
-						val jobId = parseJobId()
+						val job = authJob(ProjectPermission.Read).job
 						val size = parseSize()
 
-						val bytes = service.getResults2d(jobId, size)
-
-						call.respondBytes(bytes, ContentType.Image.WebP)
+						// serve the image
+						val imagePath = job.dir / "train" / "2d_visualization_out.webp"
+						val imageType = ImageType.Webp
+						val cacheKey = WebCacheDir.Keys.miloResults2D
+						call.respondImageSized(imagePath, imageType, size, job.wwwDir, cacheKey)
 					}
 				}
 
@@ -43,12 +47,14 @@ actual class TomographyMiloEvalService : ITomographyMiloEvalService, Service {
 					call.respondExceptions {
 
 						// parse args
-						val jobId = parseJobId()
+						val job = authJob(ProjectPermission.Read).job
 						val size = parseSize()
 
-						val bytes = service.getResults2dLabels(jobId, size)
-
-						call.respondBytes(bytes, ContentType.Image.WebP)
+						// serve the image
+						val imagePath = job.dir / "train" / "2d_visualization_labels.webp"
+						val imageType = ImageType.Webp
+						val cacheKey = WebCacheDir.Keys.miloLabels2D
+						call.respondImageSized(imagePath, imageType, size, job.wwwDir, cacheKey)
 					}
 				}
 
@@ -56,12 +62,14 @@ actual class TomographyMiloEvalService : ITomographyMiloEvalService, Service {
 					call.respondExceptions {
 
 						// parse args
-						val jobId = parseJobId()
+						val job = authJob(ProjectPermission.Read).job
 						val size = parseSize()
 
-						val bytes = service.getResults3d(jobId, size)
-
-						call.respondBytes(bytes, ContentType.Image.WebP)
+						// serve the image
+						val imagePath = job.dir / "train" / "3d_visualization_out.webp"
+						val imageType = ImageType.Webp
+						val cacheKey = WebCacheDir.Keys.miloResults3D
+						call.respondImageSized(imagePath, imageType, size, job.wwwDir, cacheKey)
 					}
 				}
 
@@ -69,10 +77,10 @@ actual class TomographyMiloEvalService : ITomographyMiloEvalService, Service {
 					call.respondExceptions {
 
 						// parse args
-						val jobId = parseJobId()
+						val job = authJob(ProjectPermission.Read).job
 
-						val bytes = service.dataContent(jobId)
-						call.respondBytes(bytes, ContentType.Application.OctetStream)
+						val path = job.dir / "train" / "interactive_info_parquet.gzip"
+						call.respondFile(path, ContentType.Application.OctetStream)
 					}
 				}
 
@@ -85,20 +93,23 @@ actual class TomographyMiloEvalService : ITomographyMiloEvalService, Service {
 						call.respondExceptions {
 
 							// parse agrs
-							val jobId = parseJobId()
+							val job = authJob(ProjectPermission.Read).job
 							val tiltSeriesId = parseTiltSeriesId()
 							val size = parseSize()
 
-							val bytes = service.getResults3d(jobId, tiltSeriesId, size)
-							call.respondBytes(bytes, ContentType.Image.WebP)
+							//"train/{}_3d_visualization.webp"
+
+							// serve the image
+							val imagePath = job.dir / "train" / "${tiltSeriesId}_3d_visualization.webp"
+							val imageType = ImageType.Webp
+							val cacheKey = WebCacheDir.Keys.miloResults3D.parameterized(tiltSeriesId)
+							call.respondImageSized(imagePath, imageType, size, job.wwwDir, cacheKey)
 						}
 					}
 				}
 
 				route("upload_particles", FileUpload.routeHandler { permission ->
-					val job = service.run {
-						parseJobId().authJob(permission).job
-					}
+					val job = authJob(permission).job
 					val project = job.projectOrThrow()
 					FileUpload(job.dir / "particles.parquet", project.osUsername)
 				})
@@ -128,7 +139,7 @@ actual class TomographyMiloEvalService : ITomographyMiloEvalService, Service {
 	}
 
 	private fun String.authJob(permission: ProjectPermission): AuthInfo<TomographyMiloEvalJob> =
-		authJob(permission, this)
+		authJob(this, permission)
 
 	override suspend fun edit(jobId: String, args: TomographyMiloEvalArgs?): TomographyMiloEvalData = sanitizeExceptions {
 
@@ -152,65 +163,11 @@ actual class TomographyMiloEvalService : ITomographyMiloEvalService, Service {
 		return TomographyMiloEvalJob.args().toJson()
 	}
 
-	suspend fun getResults2d(jobId: String, size: ImageSize): ByteArray {
-
-		val job = jobId.authJob(ProjectPermission.Read).job
-
-		val imagePath = job.dir / "train" / "2d_visualization_out.webp"
-		val cacheInfo = ImageCacheInfo(job.wwwDir, "milo-results-2d")
-
-		return size.readResize(imagePath, ImageType.Webp, cacheInfo)
-			// no image, return a placeholder
-			?: Resources.placeholderJpg(size)
-	}
-
-	suspend fun getResults2dLabels(jobId: String, size: ImageSize): ByteArray {
-
-		val job = jobId.authJob(ProjectPermission.Read).job
-
-		val imagePath = job.dir / "train" / "2d_visualization_labels.webp"
-		val cacheInfo = ImageCacheInfo(job.wwwDir, "milo-results-2d-labels")
-
-		return size.readResize(imagePath, ImageType.Webp, cacheInfo)
-			// no image, return a placeholder
-			?: Resources.placeholderJpg(size)
-	}
-
-	suspend fun getResults3d(jobId: String, size: ImageSize): ByteArray {
-
-		val job = jobId.authJob(ProjectPermission.Read).job
-
-		val imagePath = job.dir / "train" / "3d_visualization_out.webp"
-		val cacheInfo = ImageCacheInfo(job.wwwDir, "milo-results-3d")
-
-		return size.readResize(imagePath, ImageType.Webp, cacheInfo)
-			// no image, return a placeholder
-			?: Resources.placeholderJpg(size)
-	}
-
-	suspend fun getResults3d(jobId: String, tiltSeriesId: String, size: ImageSize): ByteArray {
-
-		val job = jobId.authJob(ProjectPermission.Read).job
-
-		val imagePath = job.dir / "train" / "${tiltSeriesId}_3d_visualization.webp"
-		val cacheInfo = ImageCacheInfo(job.wwwDir, "milo-results-3d-$tiltSeriesId")
-
-		return size.readResize(imagePath, ImageType.Webp, cacheInfo)
-			// no image, return a placeholder
-			?: Resources.placeholderJpg(size)
-	}
-
 	override suspend fun data(jobId: String): Option<FileDownloadData> = sanitizeExceptions {
 		val job = jobId.authJob(ProjectPermission.Read).job
 		val path = job.dir / "train" / "interactive_info_parquet.gzip"
 		path
 			.toFileDownloadData()
 			.toOption()
-	}
-
-	fun dataContent(jobId: String): ByteArray {
-		val job = jobId.authJob(ProjectPermission.Read).job
-		val path = job.dir / "train" / "interactive_info_parquet.gzip"
-		return path.readBytes()
 	}
 }

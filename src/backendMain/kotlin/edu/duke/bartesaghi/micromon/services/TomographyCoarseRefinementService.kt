@@ -28,7 +28,7 @@ actual class TomographyCoarseRefinementService : ITomographyCoarseRefinementServ
 	}
 
 	private fun String.authJob(permission: ProjectPermission): AuthInfo<TomographyCoarseRefinementJob> =
-		authJob(permission, this)
+		authJob(this, permission)
 
 	override suspend fun edit(jobId: String, args: TomographyCoarseRefinementArgs?): TomographyCoarseRefinementData = sanitizeExceptions {
 

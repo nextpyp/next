@@ -28,7 +28,7 @@ actual class SingleParticlePostprocessingService : ISingleParticlePostprocessing
 	}
 
 	private fun String.authJob(permission: ProjectPermission): AuthInfo<SingleParticlePostprocessingJob> =
-		authJob(permission, this)
+		authJob(this, permission)
 
 	override suspend fun edit(jobId: String, args: SingleParticlePostprocessingArgs?): SingleParticlePostprocessingData = sanitizeExceptions {
 

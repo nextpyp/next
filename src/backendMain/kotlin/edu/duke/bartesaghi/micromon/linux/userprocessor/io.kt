@@ -311,42 +311,70 @@ suspend fun Path.writerAs(username: String?, append: Boolean = false): UserProce
 	}
 
 
-class WebCacheDir(val path: Path) {
+class WebCacheDir(val path: Path, val osUsername: String?) {
 
 	fun exists(): Boolean =
 		path.exists()
 
-	suspend fun createIfNeededAs(username: String?): Path {
+	suspend fun createIfNeeded() {
 		if (!exists()) {
-			createAs(username)
+			create()
 		}
-		return path
 	}
 
-	suspend fun createIfNeeded() =
-		createIfNeededAs(null)
-
-	suspend fun createAs(username: String?) {
-		path.createDirsIfNeededAs(username)
-		path.editPermissionsAs(username) {
+	suspend fun create() {
+		path.createDirsIfNeededAs(osUsername)
+		path.editPermissionsAs(osUsername) {
 			add(PosixFilePermission.GROUP_READ)
 			add(PosixFilePermission.GROUP_WRITE)
 			add(PosixFilePermission.GROUP_EXECUTE)
 		}
 	}
 
-	suspend fun create() =
-		createAs(null)
-
-	suspend fun recreateAs(username: String?) {
+	suspend fun recreate() {
 		if (exists()) {
-			path.deleteDirRecursivelyAs(username)
+			path.deleteDirRecursivelyAs(osUsername)
 		}
-		if (!exists()) {
-			createAs(username)
-		}
+		create()
 	}
 
-	suspend fun recreate() =
-		recreateAs(null)
+
+	@JvmInline
+	value class Key private constructor(val id: String) {
+
+		companion object {
+
+			private val ids = HashSet<String>()
+
+			fun reserve(id: String): Key {
+
+				// make sure the key is unique
+				if (id in ids) {
+					throw IllegalArgumentException("web cache key used multiple times: $id")
+				}
+				ids.add(id)
+
+				return Key(id)
+			}
+		}
+
+		fun parameterized(param: String): Key =
+			Key("$id-$param")
+	}
+
+
+	object Keys {
+
+		val fyp = Key.reserve("fyp")
+		val map = Key.reserve("map")
+		val particles = Key.reserve("particles")
+		val gainCorrected = Key.reserve("gain-corrected")
+		val datum = Key.reserve("datum")
+		val ctffit = Key.reserve("ctffit")
+		val output = Key.reserve("output")
+		val twodClasses = Key.reserve("two2classes")
+		val miloResults2D = Key.reserve("milo-results-2d")
+		val miloLabels2D = Key.reserve("milo-results-2d-labels")
+		val miloResults3D = Key.reserve("milo-results-3d")
+	}
 }

@@ -28,7 +28,7 @@ actual class TomographySegmentationClosedService : ITomographySegmentationClosed
 	}
 
 	private fun String.authJob(permission: ProjectPermission): AuthInfo<TomographySegmentationClosedJob> =
-		authJob(permission, this)
+		authJob(this, permission)
 
 	override suspend fun edit(jobId: String, args: TomographySegmentationClosedArgs?): TomographySegmentationClosedData = sanitizeExceptions {
 
