@@ -117,23 +117,23 @@ suspend fun WebCacheDir.resizeImage(
 	transformer: ((BufferedImage) -> BufferedImage)? = null
 ): Path {
 
-	// if the image isn't resizable, there's nothing to do
+	// if the image isn't resizable, there's nothing to do, so just return the source image path
 	if (!type.resizable) {
 		return path
 	}
 
-	val cacheName = "${key.id}.${size.id}.${type.extension}"
-	val cachePath = this.path / cacheName
+	// make sure the soucre image exists, regardless of the cache
+	val srcMtime = path.mtime()
+		?: throw FileNotFoundException(path.toString())
 
-	// if we already have the cached image, use that
-	if (cachePath.exists()) {
+	// if we already have the cached image that's newer than the source image, use that
+	val cachePath = this.path / "${key.id}.${size.id}.${type.extension}"
+	val cacheMtime = cachePath.mtime()
+	if (cacheMtime != null && cacheMtime > srcMtime) {
 		return cachePath
 	}
 
-	// cache miss, check for the source image
-	if (!path.exists()) {
-		throw FileNotFoundException(path.toString())
-	}
+	// cache miss! resize the source image
 
 	// read the image, if we can
 	val reader = ImageIO.getImageReadersByMIMEType(type.mimeType)

@@ -342,6 +342,13 @@ fun Path.editPermissions(editor: PosixPermissionsEditor.() -> Unit) {
 	Files.setPosixFilePermissions(this, permissions)
 }
 
+fun Path.mtime(): FileTime? =
+	try {
+		getLastModifiedTime()
+	} catch (t: Throwable) {
+		// probably the file doesn't exist
+		null
+	}
 
 fun Path.ctime(): Instant? =
 	takeIf { exists() }
