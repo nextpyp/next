@@ -2,6 +2,7 @@ package edu.duke.bartesaghi.micromon.jobs
 
 import edu.duke.bartesaghi.micromon.pyp.ArgValues
 import edu.duke.bartesaghi.micromon.pyp.Reconstruction
+import edu.duke.bartesaghi.micromon.pyp.DrgnMap
 import edu.duke.bartesaghi.micromon.pyp.Refinement
 import edu.duke.bartesaghi.micromon.pyp.RefinementBundle
 import org.slf4j.LoggerFactory
@@ -23,6 +24,7 @@ object RefinementJobs {
 
 			var onParams: (suspend (ArgValues) -> Unit)? = null
 			var onReconstruction: (suspend (Reconstruction) -> Unit)? = null
+			var onDrgnMap: (suspend (DrgnMap) -> Unit)? = null
 			var onRefinement: (suspend (Refinement) -> Unit)? = null
 			var onRefinementBundle: (suspend (RefinementBundle) -> Unit)? = null
 
@@ -55,6 +57,17 @@ object RefinementJobs {
 					listener.onReconstruction?.invoke(micrograph)
 				} catch (ex: Throwable) {
 					log.error("micrograph listener failed", ex)
+				}
+			}
+		}
+
+		suspend fun sendDrgnMap(jobId: String, drgnMapId: String) {
+			val micrograph = DrgnMap.get(jobId, drgnMapId) ?: return
+			listenersByJob[jobId]?.forEach { listener ->
+				try {
+					listener.onDrgnMap?.invoke(micrograph)
+				} catch (ex: Throwable) {
+					log.error("drgnMap listener failed", ex)
 				}
 			}
 		}
