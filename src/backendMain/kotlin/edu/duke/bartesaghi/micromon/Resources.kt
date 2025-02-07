@@ -38,10 +38,10 @@ object Resources {
 		readBytes("/images/placeholder.${size.id}.jpg")
 
 	fun placeholderPng(size: ImageSize): ByteArray =
-		placeholderJpg(size) // TODO: convert the images to PNG
+		readBytes("/images/placeholder.${size.id}.png")
 
 	fun placeholderWebp(size: ImageSize): ByteArray =
-		placeholderJpg(size) // TODO: convert the images to WebP
+		readBytes("/images/placeholder.${size.id}.webp")
 
 	fun placeholderSvgz() =
 		readBytes("/images/placeholder.svgz")

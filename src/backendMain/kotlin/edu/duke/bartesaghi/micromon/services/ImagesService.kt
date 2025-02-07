@@ -20,7 +20,7 @@ object ImagesService {
 
 				val size = parseSize()
 
-				call.respondBytes(Resources.placeholderJpg(size), ContentType.Image.JPEG)
+				call.respondBytes(Resources.placeholderWebp(size), ContentType.Image.WebP)
 			}
 		}
 	}

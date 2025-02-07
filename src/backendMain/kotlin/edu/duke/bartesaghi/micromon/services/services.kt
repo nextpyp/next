@@ -89,14 +89,9 @@ suspend fun ApplicationCall.respondCacheControlled(etag: String, responder: susp
 
 
 fun Path.timestampEtag(): String? =
-	try {
-		getLastModifiedTime()
-			.toMillis()
-			.toString()
-	} catch (t: Throwable) {
-		// probably the file doesn't exist
-		null
-	}
+	mtime()
+		?.toMillis()
+		?.toString()
 
 
 fun ApplicationCall.disableDefaultCompression() {

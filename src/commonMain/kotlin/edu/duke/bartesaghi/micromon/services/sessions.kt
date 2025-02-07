@@ -539,4 +539,7 @@ interface ITomographySessionService {
 	@ExportServiceFunction(AppPermission.SessionRead)
 	@KVBindingRoute("session/${TomographySessionData.ID}/driftMetadata")
 	suspend fun getDriftMetadata(sessionId: String, tiltSeriesId: String): Option<DriftMetadata>
+
+	@KVBindingRoute("session/${TomographySessionData.ID}/rec")
+	suspend fun recData(sessionId: String, tiltSeriesId: String): Option<FileDownloadData>
 }
