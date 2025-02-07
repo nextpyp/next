@@ -8,6 +8,7 @@ import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.pyp.TiltSeries
 import edu.duke.bartesaghi.micromon.sessions.*
 import io.ktor.application.*
+import io.ktor.http.*
 import io.ktor.routing.*
 import io.ktor.util.*
 import io.ktor.util.pipeline.*
@@ -101,6 +102,18 @@ actual class TomographySessionService : ITomographySessionService, Service {
 							val imagePath = TiltSeries.sidesImagePath(session.dir, tiltSeriesId)
 							val imageType = ImageType.Webp
 							call.respondImage(imagePath, imageType)
+						}
+					}
+
+					get("rec") {
+						call.respondExceptions {
+
+							// parse args
+							val session = authSession(SessionPermission.Read).session
+							val tiltSeriesId = call.parameters.getOrFail("tiltSeriesId")
+
+							val path = TiltSeries.recPath(session.dir, tiltSeriesId)
+							call.respondFile(path, ContentType.Application.OctetStream)
 						}
 					}
 				}
@@ -208,6 +221,13 @@ actual class TomographySessionService : ITomographySessionService, Service {
 			?: return  null.toOption()
 		return getTiltSeriesOrThrow(session, tiltSeriesId)
 			.getDriftMetadata(pypValues)
+			.toOption()
+	}
+
+	override suspend fun recData(sessionId: String, tiltSeriesId: String): Option<FileDownloadData> = sanitizeExceptions {
+		val session = auth(sessionId, SessionPermission.Read).session
+		TiltSeries.recPath(session.dir, tiltSeriesId)
+			.toFileDownloadData()
 			.toOption()
 	}
 }
