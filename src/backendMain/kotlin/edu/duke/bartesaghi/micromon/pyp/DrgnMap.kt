@@ -66,13 +66,6 @@ class DrgnMap(doc: Document) {
     val fsc by lazy { doc.getListOfListsOfDoubles("fsc") }
     val plots by lazy { doc.getDocument("plots").readReconstructionPlotData() }
 
-	fun toData() = DrgnMapData(
-        drgnMapId,
-        timestamp.toEpochMilli(),
-        classNum,
-        iteration
-    )
-
 	fun toPlotsData() = ReconstructionPlotsData(
 		plots,
 		metadata,
