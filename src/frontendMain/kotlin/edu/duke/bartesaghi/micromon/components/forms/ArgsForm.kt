@@ -269,7 +269,7 @@ class ArgsInputs(
 							is SingleParticlePreprocessingNode,
 							is TomographyPreprocessingNode,
 							is TomographyPickingNode,
-							is TomographyParticlesEvalNode -> PathType.Project.make("${node.dir}/frealign")
+							is TomographyParticlesEvalNode -> Paths.join(node.dir, "frealign")
 
 							is SingleParticleCoarseRefinementNode,
 							is SingleParticleFineRefinementNode,
@@ -281,33 +281,13 @@ class ArgsInputs(
 							is TomographyMovieCleaningNode,
 							is SingleParticleRelionDataNode,
 							is TomographyRelionDataNode,
-							is TomographyFlexibleRefinementNode -> PathType.Project.make("${node.dir}/frealign/maps")
+							is TomographyFlexibleRefinementNode -> Paths.join(node.dir, "frealign/maps")
 
-							else -> null
+							else -> node.dir
 						}
 					}
-
-					is ArgInput.StarFile -> ArgInputFile(arg, "*.star", outNodes) { node ->
-						when (node) {
-
-							is SingleParticlePreprocessingNode,
-							is TomographyPreprocessingNode,
-							is TomographyPickingNode,
-							is TomographyParticlesEvalNode,
-							is SingleParticleCoarseRefinementNode,
-							is SingleParticleFineRefinementNode,
-							is SingleParticleFlexibleRefinementNode,
-							is SingleParticlePostprocessingNode,
-							is SingleParticleMaskingNode,
-							is TomographyCoarseRefinementNode,
-							is TomographyFineRefinementNode,
-							is TomographyMovieCleaningNode,
-							is TomographyFlexibleRefinementNode -> PathType.Project.make("${node.dir}/relion")
-
-							else -> null
-						}
-					}
-
+				
+					is ArgInput.StarFile -> ArgInputFile(arg, "*.star", outNodes) { Paths.join(it.dir, "relion") }
 					is ArgInput.ParquetFile -> ArgInputFile(arg, "*.parquet", outNodes) { it.dir }
 					is ArgInput.TxtFile -> ArgInputFile(arg, "*.txt", outNodes) { Paths.join(it.dir, "frealign") }
 					is ArgInput.InitialModel -> ArgInputFile(arg, "*.mrc", outNodes) { Paths.join(it.dir, "frealign/maps") }
