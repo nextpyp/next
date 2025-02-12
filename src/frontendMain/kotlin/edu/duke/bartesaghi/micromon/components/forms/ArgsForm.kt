@@ -6,8 +6,6 @@ import edu.duke.bartesaghi.micromon.batch
 import edu.duke.bartesaghi.micromon.diagram.nodes.*
 import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.pyp.toArgValues
-import edu.duke.bartesaghi.micromon.services.PathType
-import io.kvision.core.Component
 import io.kvision.core.Container
 import io.kvision.core.onEvent
 import io.kvision.form.*
@@ -263,13 +261,13 @@ class ArgsInputs(
 			val control: ArgInputControl = if (arg.input != null) {
 				when (arg.input) {
 
-					is ArgInput.ParFile -> ArgInputFile(arg, "*.bz2", outNodes) { node ->
-						when (node) {
+					is ArgInput.ParFile -> ArgInputFile(arg, "*.bz2", outNodes) {
+						when (it) {
 
 							is SingleParticlePreprocessingNode,
 							is TomographyPreprocessingNode,
 							is TomographyPickingNode,
-							is TomographyParticlesEvalNode -> Paths.join(node.dir, "frealign")
+							is TomographyParticlesEvalNode -> Paths.join(it.jobDir, "frealign")
 
 							is SingleParticleCoarseRefinementNode,
 							is SingleParticleFineRefinementNode,
@@ -281,22 +279,22 @@ class ArgsInputs(
 							is TomographyMovieCleaningNode,
 							is SingleParticleRelionDataNode,
 							is TomographyRelionDataNode,
-							is TomographyFlexibleRefinementNode -> Paths.join(node.dir, "frealign/maps")
+							is TomographyFlexibleRefinementNode -> Paths.join(it.jobDir, "frealign/maps")
 
-							else -> node.dir
+							else -> it.jobDir
 						}
 					}
 				
-					is ArgInput.StarFile -> ArgInputFile(arg, "*.star", outNodes) { Paths.join(it.dir, "relion") }
-					is ArgInput.ParquetFile -> ArgInputFile(arg, "*.parquet", outNodes) { it.dir }
-					is ArgInput.TxtFile -> ArgInputFile(arg, "*.txt", outNodes) { Paths.join(it.dir, "frealign") }
-					is ArgInput.InitialModel -> ArgInputFile(arg, "*.mrc", outNodes) { Paths.join(it.dir, "frealign/maps") }
-					is ArgInput.HalfMap -> ArgInputFile(arg, "*_half1.mrc", outNodes) { Paths.join(it.dir, "frealign/maps") }
-					is ArgInput.TopazTrainedModel -> ArgInputFile(arg, "*.sav", outNodes) { it.dir }
-					is ArgInput.IsonetTrainedModel -> ArgInputFile(arg, "*.h5", outNodes) { Paths.join(it.dir, "train") }
-					is ArgInput.CryocareTrainedModel -> ArgInputFile(arg, "*.tar.gz", outNodes) { Paths.join(it.dir, "train") }
-					is ArgInput.TrainedModel2D -> ArgInputFile(arg, "*.training", outNodes) { it.projectFolder }
-					is ArgInput.TrainedModel3D -> ArgInputFile(arg, "*.pth", outNodes) { Paths.join(it.dir, "train") }
+					is ArgInput.StarFile -> ArgInputFile(arg, "*.star", outNodes) { Paths.join(it.jobDir, "relion") }
+					is ArgInput.ParquetFile -> ArgInputFile(arg, "*.parquet", outNodes) { it.jobDir }
+					is ArgInput.TxtFile -> ArgInputFile(arg, "*.txt", outNodes) { Paths.join(it.jobDir, "frealign") }
+					is ArgInput.InitialModel -> ArgInputFile(arg, "*.mrc", outNodes) { Paths.join(it.jobDir, "frealign/maps") }
+					is ArgInput.HalfMap -> ArgInputFile(arg, "*_half1.mrc", outNodes) { Paths.join(it.jobDir, "frealign/maps") }
+					is ArgInput.TopazTrainedModel -> ArgInputFile(arg, "*.sav", outNodes) { it.jobDir }
+					is ArgInput.IsonetTrainedModel -> ArgInputFile(arg, "*.h5", outNodes) { Paths.join(it.jobDir, "train") }
+					is ArgInput.CryocareTrainedModel -> ArgInputFile(arg, "*.tar.gz", outNodes) { Paths.join(it.jobDir, "train") }
+					is ArgInput.TrainedModel2D -> ArgInputFile(arg, "*.training", outNodes) { it.projectDir }
+					is ArgInput.TrainedModel3D -> ArgInputFile(arg, "*.pth", outNodes) { Paths.join(it.jobDir, "train") }
 
 					is ArgInput.ClusterTemplate -> ArgInputClusterTemplate(arg)
 				}

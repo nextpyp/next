@@ -94,29 +94,6 @@ enum class FileBrowserType {
 }
 
 
-enum class PathType(val id: String) {
-
-	Project("project");
-
-	private val prefix: String get() =
-		"$id:/"
-
-	fun make(path: String): String =
-		prefix + path
-
-	fun matches(path: String): Boolean =
-		path.startsWith(prefix)
-
-	fun absolutize(folder: String, path: String): String {
-
-		// strip the type from the path
-		val relPath = path.substring(prefix.length)
-
-		return folder / relPath
-	}
-}
-
-
 @Serializable
 data class TemplateData(
 	val path: String,

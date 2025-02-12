@@ -190,12 +190,8 @@ open class FileBrowser(
 			// load the init info
 			AppScope.launch {
 
-				// absolutize paths
-				val absPath = when {
-					path.startsWith('/') -> path
-					PathType.Project.matches(path) -> PathType.Project.absolutize(init.projectsDir(), path)
-					else -> throw IllegalArgumentException("don't know how to absolutize path: $path")
-				}
+				// NOTE: all job/project paths are absolute now
+				val absPath = path
 
 				// load the next folder
 				val loading = content.loading("Loading folder ...")

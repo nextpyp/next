@@ -4,7 +4,6 @@ import edu.duke.bartesaghi.micromon.diagram.nodes.Node
 import edu.duke.bartesaghi.micromon.pyp.Arg
 import edu.duke.bartesaghi.micromon.pyp.ArgValue
 import edu.duke.bartesaghi.micromon.services.FileBrowserType
-import edu.duke.bartesaghi.micromon.services.PathType
 import io.kvision.core.onEvent
 
 
@@ -34,7 +33,6 @@ open class ArgInputFile(
 		fun folderFromFirstNode(nodes: List<Node>, folderer: (node: Node) -> String?): String? =
 			nodes.firstOrNull()
 				?.let(folderer)
-				?.let { PathType.Project.make(it) }
 	}
 
 

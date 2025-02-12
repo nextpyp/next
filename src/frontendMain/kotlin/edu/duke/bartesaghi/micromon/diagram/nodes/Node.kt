@@ -1,6 +1,7 @@
 package edu.duke.bartesaghi.micromon.diagram.nodes
 
 import edu.duke.bartesaghi.micromon.AppScope
+import edu.duke.bartesaghi.micromon.Paths
 import edu.duke.bartesaghi.micromon.canWrite
 import edu.duke.bartesaghi.micromon.components.PathPopup
 import edu.duke.bartesaghi.micromon.components.forms.focusASAP
@@ -27,7 +28,6 @@ import js.reactdiagrams.ReactDiagrams
 import js.values
 import kotlinx.browser.document
 import org.w3c.dom.HTMLElement
-import org.w3c.dom.HTMLInputElement
 
 
 abstract class Node(
@@ -508,14 +508,11 @@ abstract class Node(
 		renderContent(refreshImages)
 	}
 
-	val projectFolder: String get() =
-		project.projectId
+	val projectDir: String get() =
+		project.path
 
-	val jobFolder: String get() =
-		"${config.id}-$jobId"
-
-	val dir: String get() =
-		"$projectFolder/$jobFolder"
+	val jobDir: String get() =
+		Paths.join(projectDir, "${config.id}-$jobId")
 
 	fun newestArgValues(): ArgValuesToml? =
 		baseJob.newestArgValues()
