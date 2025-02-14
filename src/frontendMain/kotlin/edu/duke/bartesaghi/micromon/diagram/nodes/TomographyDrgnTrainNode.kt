@@ -9,6 +9,7 @@ import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
 import edu.duke.bartesaghi.micromon.pyp.Args
 import edu.duke.bartesaghi.micromon.revalidateDynamicImages
 import edu.duke.bartesaghi.micromon.services.*
+import edu.duke.bartesaghi.micromon.views.TomographyDrgnTrainView
 import edu.duke.bartesaghi.micromon.views.Viewport
 import io.kvision.form.formPanel
 import io.kvision.modal.Modal
@@ -98,8 +99,7 @@ class TomographyDrgnTrainNode(
 
 		content {
 			button(className = "image-button", onClick = {
-				// TODO: make a view
-				//TomographyDrgnTrainView.go(viewport, project, job)
+				TomographyDrgnTrainView.go(viewport, project, job)
 			}) {
 				img(job.imageUrl, className = dynamicImageClassName)
 			}

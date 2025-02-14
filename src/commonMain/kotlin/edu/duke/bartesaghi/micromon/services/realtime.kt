@@ -56,6 +56,7 @@ object RealTimeServices {
 	val tomographyParticlesEval by RealTimeService()
 	val tomographyMiloEval by RealTimeService()
 	val tomographySessionData by RealTimeService()
+	val tomographyDrgnTrain by RealTimeService()
 	val reconstruction by RealTimeService()
 	val streamLog by RealTimeService()
 
@@ -177,6 +178,11 @@ sealed class RealTimeC2S {
 	@Serializable
 	data class ListenToSession(
 		val sessionId: String
+	) : RealTimeC2S()
+
+	@Serializable
+	data class ListenToTomographyDrgnTrain(
+		val jobId: String
 	) : RealTimeC2S()
 
 	@Serializable
@@ -525,6 +531,14 @@ sealed class RealTimeS2C {
 	@Serializable
 	data class SessionExport(
 		val export: SessionExportData
+	) : RealTimeS2C()
+
+
+	// TomoDrgn messages
+
+	@Serializable
+	data class TomographyDrgnTrainConvergence(
+		val convergence: TomoDrgnConvergence
 	) : RealTimeS2C()
 }
 

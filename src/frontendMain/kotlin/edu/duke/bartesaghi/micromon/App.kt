@@ -55,6 +55,7 @@ class App : Application() {
 				TomographySegmentationOpenView.Companion,
 				TomographySessionDataView.Companion,
 				TomographySessionView.Companion,
+				TomographyDrgnTrainView.Companion,
 				YourAccountView.Companion
 			)
 

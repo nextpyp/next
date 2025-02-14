@@ -437,6 +437,18 @@ impl Web {
 		Ok(())
 	}
 
+	pub fn write_tomo_drgn_convergence(&self, iteration: u32) -> Result<()> {
+
+		let mut args = Map::<String,Value>::new();
+		args.ins("webid", self.id.as_str());
+
+		args.ins("iteration", iteration);
+
+		self.json_rpc("write_tomo_drgn_convergence", Value::Object(args))?;
+
+		Ok(())
+	}
+
 	pub fn log(&self, timestamp: SystemTime, level: i32, path: &str, line: u32, msg: String) -> Result<()> {
 
 		// convert the system time to a millisecond-precision timestamp

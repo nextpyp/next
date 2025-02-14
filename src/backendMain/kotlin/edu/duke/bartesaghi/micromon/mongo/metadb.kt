@@ -509,62 +509,6 @@ class Reconstructions(db: MongoDatabase) {
 }
 
 
-class DrgnMaps(db: MongoDatabase) {
-
-	private val collection = db.getCollection("drgnMaps")
-
-	init {
-		// create indices to speed up common but slow operations
-		// don't worry though, mongo will only actually create the index if it doesn't already exist
-		collection.createIndex(Document().apply {
-			this["jobId"] = 1
-		})
-	}
-
-	fun clear() =
-		collection.deleteMany(Document())
-
-	fun filter(jobId: String, drgnMapId: String) =
-		Filters.eq("_id", "$jobId/$drgnMapId")
-
-	fun get(jobId: String, drgnMapId: String) =
-		collection.find(filter(jobId, drgnMapId)).useCursor { cursor ->
-			cursor.firstOrNull()
-		}
-
-	fun <R> getAll(jobId: String, block: (Sequence<Document>) -> R): R =
-		collection.find(Filters.eq("jobId", jobId)).useCursor {
-			block(it)
-		}
-
-	/**
-	 * Creates or completely overwrites a map document.
-	 */
-	fun write(jobId: String, drgnMapId: String, doccer: Document.() -> Unit) {
-		collection.replaceOne(
-			filter(jobId, drgnMapId),
-			Document().apply { doccer() },
-			ReplaceOptions().upsert(true)
-		)
-	}
-
-	/**
-	 * Appends to or overwrites part of a map document.
-	 */
-	fun update(jobId: String, drgnMapId: String, vararg updates: Bson) {
-		collection.updateOne(
-			filter(jobId, drgnMapId),
-			Updates.combine(updates.toList())
-		)
-	}
-
-	fun deleteAll(jobId: String) {
-		collection.deleteMany(
-			Filters.eq("jobId", jobId)
-		)
-	}
-}
-
 class Refinements(db: MongoDatabase) {
 
 	private val collection = db.getCollection("refinements")
@@ -812,4 +756,54 @@ class TiltExclusions(db: MongoDatabase) {
 				}
 			}
 		)
+}
+
+
+class TomoDrgnConvergence(db: MongoDatabase) {
+
+	private val collection = db.getCollection("tomoDrgnConvergence")
+
+	init {
+		// create indices to speed up common but slow operations
+		// don't worry though, mongo will only actually create the index if it doesn't already exist
+		collection.createIndex(Document().apply {
+			this["jobId"] = 1
+		})
+	}
+
+	private fun filter(jobId: String) =
+		Filters.eq("jobId", jobId)
+
+	private fun <R> getAll(jobId: String, block: (Sequence<Document>) -> R): R =
+		collection.find(filter(jobId)).useCursor {
+			block(it)
+		}
+
+	fun getAll(jobId: String): List<edu.duke.bartesaghi.micromon.services.TomoDrgnConvergence.Iteration> =
+		getAll(jobId) { cursor ->
+			cursor
+				.map { doc ->
+					edu.duke.bartesaghi.micromon.services.TomoDrgnConvergence.Iteration(
+						number = doc.getInteger("iteration"),
+						timestamp = doc.getLong("timestamp")
+					)
+				}
+				.toList()
+		}
+
+	fun add(jobId: String, iteration: Int) {
+		collection.insertOne(
+			Document().apply {
+				this["jobId"] = jobId
+				this["iteration"] = iteration
+				this["timestamp"] = Instant.now().toEpochMilli()
+			}
+		)
+	}
+
+	fun deleteAll(jobId: String) {
+		collection.deleteMany(
+			filter(jobId)
+		)
+	}
 }

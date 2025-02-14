@@ -14,6 +14,7 @@ import edu.duke.bartesaghi.micromon.mongo.authProjectOrThrow
 import edu.duke.bartesaghi.micromon.projects.ProjectEventListeners
 import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.sessions.*
+import io.ktor.features.*
 import io.ktor.http.cio.websocket.*
 import io.ktor.routing.*
 import io.ktor.util.cio.*
@@ -475,6 +476,30 @@ object RealTimeService {
 					attempt { transfers.stopAndWait() }
 				}
 			}
+		}
+
+		routing.webSocket(RealTimeServices.tomographyDrgnTrain) handler@{
+
+			val user = call.authOrThrow()
+
+			// wait to hear which job the user wants
+			val msg = incoming.receiveMessage<RealTimeC2S.ListenToTomographyDrgnTrain>(outgoing)
+				?: return@handler
+
+			// authenticate the user for this job
+			val job = user.authJobOrThrow(ProjectPermission.Read, msg.jobId)
+
+			// route messages to the client
+			val listener = TomographyDrgnTrainJob.eventListeners.add(job.idOrThrow)
+			listener.onConvergence = { convergence ->
+				outgoing.trySendMessage(RealTimeS2C.TomographyDrgnTrainConvergence(
+					convergence = convergence
+				))
+			}
+
+			// wait for the connection to close, then cleanup the listeners
+			incoming.waitForClose(outgoing)
+			listener.close()
 		}
 	}
 

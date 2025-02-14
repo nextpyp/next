@@ -17,6 +17,7 @@ mod tomo_particles_train;
 mod tomo_coarse_refinement;
 mod tomo_import;
 mod tomo_reliondata;
+mod tomo_drgn_train;
 mod tomo_session;
 mod spa_rawdata;
 mod spa_preprocessing;
@@ -34,6 +35,7 @@ use crate::web::Web;
 
 pub fn run(web: &Web, block_id: &str, args: &mut Args, args_config: &ArgsConfig, array_element: Option<u32>) -> Result<()> {
 	// NOTE: can't match on constants, so use if-else here
+
 	if block_id == tomo_rawdata::BLOCK_ID {
 		tomo_rawdata::run(web, args, args_config)
 	} else if block_id == tomo_preprocessing::BLOCK_ID {
@@ -70,8 +72,12 @@ pub fn run(web: &Web, block_id: &str, args: &mut Args, args_config: &ArgsConfig,
 		tomo_import::run(web, args, args_config)
 	} else if block_id == tomo_reliondata::BLOCK_ID {
 		tomo_reliondata::run(web, args, args_config)
+	} else if block_id == tomo_drgn_train::BLOCK_ID {
+		tomo_drgn_train::run(web, args, args_config)
+
 	} else if block_id == tomo_session::BLOCK_ID {
 		tomo_session::run(web, args, args_config)
+
 	} else if block_id == spa_rawdata::BLOCK_ID {
 		spa_rawdata::run(web, args, args_config)
 	} else if block_id == spa_preprocessing::BLOCK_ID {
@@ -82,8 +88,10 @@ pub fn run(web: &Web, block_id: &str, args: &mut Args, args_config: &ArgsConfig,
 		spa_picking::run(web, args, args_config)
 	} else if block_id == spa_coarse_refinement::BLOCK_ID {
 		spa_coarse_refinement::run(web, args, args_config)
+
 	} else if block_id == spa_session::BLOCK_ID {
 		spa_session::run(web, args, args_config)
+
 	} else {
 		Err(anyhow!("unrecognized block id: {}", block_id))
 	}

@@ -129,6 +129,11 @@ fun Application.main(config: Config.Web) {
 			}
 		}
 
+		// the SVGZ resources need extra headers
+		get("/images/placeholder.svgz") {
+			ImageType.Svgz.respondPlaceholder(call)
+		}
+
 		// serve static resources out of KVison's magic `assets` package
 		static("/") {
 			resources("assets")
@@ -201,6 +206,7 @@ fun Application.main(config: Config.Web) {
 		TomographyParticlesTrainService.init(this)
 		TomographyMiloTrainService.init(this)
 		TomographyMiloEvalService.init(this)
+		TomographyDrgnTrainService.init(this)
 
 		// only enable the debug service in debug mode
 		if (config.debug) {

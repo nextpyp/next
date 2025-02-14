@@ -364,6 +364,12 @@ enum class TomoSrfMethod(val id: String, val particlesList: (ownerId: String) ->
 }
 
 
+val Args.tomodrgnVaeConvergenceFinalMaxima: Arg
+	get() = argOrThrow("tomodrgn_vae_convergence", "final_maxima")
+val ArgValues.tomodrgnVaeConvergenceFinalMaxima: Int
+	get() = (getOrDefault(args.tomodrgnVaeConvergenceFinalMaxima) as Long).toInt()
+
+
 /**
  * arguments for micromon itself and not pyp
  */

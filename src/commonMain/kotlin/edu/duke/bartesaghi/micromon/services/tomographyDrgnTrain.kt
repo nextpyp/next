@@ -21,6 +21,19 @@ interface ITomographyDrgnTrainService {
 
 	@KVBindingRoute("node/${TomographyDrgnTrainNodeConfig.ID}/getArgs")
 	suspend fun getArgs(): String /* Args but serialized */
+
+	@KVBindingRoute("node/${TomographyDrgnTrainNodeConfig.ID}/convergence")
+	suspend fun getConvergence(jobId: String): Option<TomoDrgnConvergence>
+
+
+	companion object {
+
+		fun plotPath(jobId: String, number: Int): String =
+			"/kv/node/${TomographyDrgnTrainNodeConfig.ID}/$jobId/plot/$number"
+
+		fun pairwiseCCMatrixPath(jobId: String, epoch: Int): String =
+			"/kv/node/${TomographyDrgnTrainNodeConfig.ID}/$jobId/pairwiseCCMatrix/$epoch"
+	}
 }
 
 
@@ -38,4 +51,23 @@ data class TomographyDrgnTrainData(
 	override fun isChanged() = args.hasNext()
 	override fun finishedArgValues() = args.finished?.values
 	override fun nextArgValues() = args.next?.values
+}
+
+
+@Serializable
+data class TomoDrgnConvergence(
+	val numClasses: Int,
+	val iterations: List<Iteration>
+) {
+
+	@Serializable
+	data class Iteration(
+		val number: Int,
+		val timestamp: Long
+	)
+
+	fun iterationNumbers(): Set<Int> =
+		iterations
+			.map { it.number }
+			.toSet()
 }

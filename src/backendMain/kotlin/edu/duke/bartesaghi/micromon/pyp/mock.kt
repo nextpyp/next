@@ -64,6 +64,7 @@ object MockPyp {
 				+ TomographySessionDataMockArgs.all
 				+ TomographyImportDataMockArgs.all
 				+ TomographyRelionDataMockArgs.all
+				+ TomographyDrgnTrainMockArgs.all
 				+ SingleParticleRawDataMockArgs.all
 				+ SingleParticlePreprocessingMockArgs.all
 				+ SingleParticlePurePreprocessingMockArgs.all
@@ -204,6 +205,11 @@ object TomographyImportDataMockArgs : JobMockArgs(TomographyImportDataJob) {
 
 object TomographyRelionDataMockArgs : JobMockArgs(TomographyRelionDataJob) {
 	val imageSize = mockArg("image_size", ArgType.TInt(), ArgValue.VInt(512))
+}
+
+
+object TomographyDrgnTrainMockArgs : JobMockArgs(TomographyDrgnTrainJob) {
+	// TODO: need any mock args here?
 }
 
 

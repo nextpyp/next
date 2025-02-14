@@ -200,7 +200,7 @@ interface ImageType {
 		override val extension = "svgz"
 		override val resizable = false
 
-		private val extraHeaders = listOf(HttpHeaders.ContentEncoding to "gzip")
+		val extraHeaders = listOf(HttpHeaders.ContentEncoding to "gzip")
 
 		suspend fun respond(call: ApplicationCall, path: Path): Svgz? =
 			respondPath(this, call, path, extraHeaders)

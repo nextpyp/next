@@ -1,0 +1,90 @@
+
+use std::fs;
+use std::path::{Path, PathBuf};
+
+use anyhow::{Context, Result};
+
+use crate::info;
+use crate::args::{Args, ArgsConfig, ArgValue};
+use crate::svg::{Rgb, SvgImage};
+use crate::web::Web;
+
+
+pub const BLOCK_ID: &'static str = "tomo-drgn-train";
+
+const GROUP_CONVERGENCE: &'static str = "tomodrgn_vae_convergence";
+
+
+pub fn run(web: &Web, args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
+
+	// get args
+	let final_maxima = args.get_from_group(GROUP_CONVERGENCE, "final_maxima")
+		.into_u32()?
+		.or(3)
+		.value();
+	let epoch_index = args.get_from_group(GROUP_CONVERGENCE, "epoch_index")
+		.into_str()?
+		.try_map(|v| {
+			v.map(|v| {
+				v.parse::<u32>()
+					.context(format!("not an int: {v}"))
+			}).transpose()
+		})?
+		.or(15)
+		.value();
+	let epoch_interval = args.get_from_group(GROUP_CONVERGENCE, "epoch_interval")
+		.into_u32()?
+		.or(5)
+		.value();
+
+	// send parameters to the website
+	args.set_from_group(GROUP_CONVERGENCE, "final_maximum", ArgValue::Str(format!("{}", final_maxima)));
+	web.write_parameters(&args, &args_config)?;
+
+	// create subfolders
+	let dir_plots = PathBuf::from("train/convergence/plots");
+	fs::create_dir_all(&dir_plots)
+		.context("Failed to create plots dir")?;
+
+	// do the iterations based on the epochs
+	let mut iter = 0;
+	for epoch in 0 ..= epoch_index {
+		if epoch % epoch_interval != 0 {
+			continue;
+		}
+
+		info!(web, "epoch {epoch}, iteration {iter}");
+
+		plot_img(web, &dir_plots, format!("09_pairwise_CC_matrix_epoch-{}.svgz", epoch))?;
+
+		// TODO: maps?
+
+		web.write_tomo_drgn_convergence(iter)?;
+		iter += 1;
+	}
+
+	// create the summary plots
+	plot_img(web, &dir_plots, "00_total_loss")?;
+	plot_img(web, &dir_plots, "01_encoder_pcs")?;
+	plot_img(web, &dir_plots, "02_encoder_umaps")?;
+	plot_img(web, &dir_plots, "03_encoder_latent_vector_shifts")?;
+	plot_img(web, &dir_plots, "04_decoder_UMAP-sketching")?;
+	plot_img(web, &dir_plots, "05_decoder_maxima-sketch-consistency")?;
+	plot_img(web, &dir_plots, "06_decoder_CC")?;
+	plot_img(web, &dir_plots, "07_decoder_FSC")?;
+	plot_img(web, &dir_plots, "08_decoder_FSC-nyquist")?;
+
+	Ok(())
+}
+
+
+fn plot_img(web: &Web, dir: &Path, name: impl AsRef<str>) -> Result<()> {
+	let name = name.as_ref();
+	let mut img = SvgImage::new(512, 512);
+	img.draw().fill_rect(0, 0, 512, 512, Rgb(128, 128, 128));
+	img.draw().text_lines(32, Rgb(255, 255, 255), [
+		format!("Block: {}", BLOCK_ID),
+		format!("Type: {}", name)
+	]);
+	img.save(web, dir.join(format!("{}.svgz", name)))
+}

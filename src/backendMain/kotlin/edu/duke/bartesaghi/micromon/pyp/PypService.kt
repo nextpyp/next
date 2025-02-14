@@ -44,7 +44,7 @@ object PypService {
 				"write_reconstruction" to ::writeReconstruction,
 				"write_tiltseries" to ::writeTiltSeries,
 				"write_refinement" to ::writeRefinement,
-				"write_drgn_map" to ::writeDrgnMap,
+				"write_tomo_drgn_convergence" to ::writeTomoDrgnConvergence,
 				"write_refinement_bundle" to ::writeRefinementBundle,
 				"write_classes" to ::writeClasses,
 				"log" to ::log
@@ -398,71 +398,6 @@ object PypService {
 		return JsonRpcSuccess()
 	}
 
-	suspend fun writeDrgnMap(params: ObjectNode): JsonRpcResponse {
-
-		// lookup the job owner
-		val clusterJob = ClusterJob.get(params.getStringOrThrow("webid"))
-			?: return JsonRpcFailure("invalid webid")
-		val owner = clusterJob.findOwnerOrThrow()
-
-		log.debug("writeDrgnMap: {}", owner)
-
-		// parse micrograph params and update the database
-		val drgnMapId = params.getStringOrThrow("drgn_map_id")
-		val classNum = params.getIntOrThrow("class_num")
-		val iteration = params.getIntOrThrow("iteration")
-		val fsc = params.getArrayOrThrow("fsc")
-		val metadata = ReconstructionMetaData.fromJson(params.getObjectOrThrow("metadata"))
-		val plots = ReconstructionPlots.fromJson(params.getObjectOrThrow("plots"))
-
-		Database.instance.drgnMaps.write(owner.id, drgnMapId) {
-			set("jobId", owner.id)
-			set("drgnMapId", drgnMapId)
-			set("timestamp", Instant.now().toEpochMilli())
-			set("classNum", classNum)
-			set("iteration", iteration)
-			set("metadata", metadata.toDoc())
-			set("fsc", fsc.toListOfListOfDoubles())
-			set("plots", plots.toDoc())
-		}
-
-		log.debug("writeDrgnMap: {}: id={}, iter={}, class={}", owner, drgnMapId, iteration, classNum)
-
-		when (owner) {
-
-			is ClusterJobOwner.Job -> {
-
-				// update the job with the newest reconstruction info
-				val formatter = NumberFormat.getIntegerInstance(Locale.US)
-				val particlesUsed = formatter.format(metadata.particlesUsed.toInt())
-				val particlesTotal = formatter.format(metadata.particlesTotal.toInt())
-				Database.instance.jobs.update(owner.id,
-					set("latestMapId", drgnMapId),
-					// TODO: we should store structured data in the database, and do presentation formatting in the UI
-					set("jobInfoString", "Iteration $iteration: $particlesUsed from $particlesTotal projections")
-				)
-
-				// update the job on the client
-				// (reload the job so it gets the latest reconstruction we just wrote)
-				val job = Job.fromIdOrThrow(owner.job.idOrThrow)
-				val jobData = job.data()
-				Backend.instance.projectEventListeners.getAll(job.userId, job.projectId)
-					.forEach { it.onJobUpdate(jobData) }
-
-				// notify any listening clients
-				RefinementJobs.eventListeners.sendDrgnMap(owner.id, drgnMapId)
-			}
-
-			is ClusterJobOwner.Session -> {
-
-				// TODO: notify any listening clients
-				// ! Need to figure out if it's a SingleParticle or Tomography Session...
-			}
-		}
-
-		return JsonRpcSuccess()
-	}
-
 	suspend fun writeTiltSeries(params: ObjectNode): JsonRpcResponse {
 
 		// lookup the job/session
@@ -753,6 +688,43 @@ object PypService {
 			msg = params.getStringOrThrow("msg")
 		)
 		StreamLog.add(clusterJob.idOrThrow, msg)
+
+		return JsonRpcSuccess()
+	}
+
+	suspend fun writeTomoDrgnConvergence(params: ObjectNode): JsonRpcResponse {
+
+		// lookup the job owner
+		val clusterJob = ClusterJob.get(params.getStringOrThrow("webid"))
+			?: return JsonRpcFailure("invalid webid")
+		val owner = clusterJob.findOwnerOrThrow()
+
+		val iteration = params.getIntOrThrow("iteration")
+		log.debug("writeTomoDrgnConvergence: {}: iter={}", owner, iteration)
+
+		// only valid on one kind of job
+		val job = when (owner) {
+			is ClusterJobOwner.Job -> owner.job as? TomographyDrgnTrainJob
+			else -> null
+		} ?: return JsonRpcFailure("TomoDrgnConvergence only applies to ${TomographyDrgnTrainJob.config.configId} jobs")
+
+		// check for the number of classes parameter
+		val numClasses = job.numClasses()
+			?: return JsonRpcFailure(run {
+				val fullId = Backend.pypArgsFromConfig.tomodrgnVaeConvergenceFinalMaxima.fullId
+				"Write parameters containing the $fullId parameter before writing any convergences"
+			})
+
+		// save the iteration to the database
+		Database.instance.tomoDrgnConvergence.add(job.idOrThrow, iteration)
+
+		// notify any listening clients
+		val convergence = job.convergence(numClasses)
+		job.eventListeners.sendConvergence(job.idOrThrow, convergence)
+		if (convergence.iterations.size == 1) {
+			Backend.instance.projectEventListeners.getAll(job.userId, job.projectId)
+				.forEach { it.onJobUpdate(job.data()) }
+		}
 
 		return JsonRpcSuccess()
 	}

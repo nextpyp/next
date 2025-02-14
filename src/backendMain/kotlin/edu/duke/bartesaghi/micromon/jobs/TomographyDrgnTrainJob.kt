@@ -1,12 +1,14 @@
 package edu.duke.bartesaghi.micromon.jobs
 
 import com.mongodb.client.model.Updates
+import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.mongo.getDocument
 import edu.duke.bartesaghi.micromon.nodes.TomographyDrgnTrainNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.*
 import org.bson.Document
 import org.bson.conversions.Bson
+import org.slf4j.LoggerFactory
 
 
 class TomographyDrgnTrainJob(
@@ -42,7 +44,37 @@ class TomographyDrgnTrainJob(
 				doc.getString("values")
 			)
 
-		val eventListeners = TiltSeriesEventListeners(this)
+		class EventListeners {
+
+			private val log = LoggerFactory.getLogger("EventListeners[${config.id}]")
+
+			inner class Listener(val jobId: String) : AutoCloseable {
+
+				var onConvergence: (suspend (TomoDrgnConvergence) -> Unit)? = null
+
+				override fun close() {
+					listenersByJob[jobId]?.remove(this)
+				}
+			}
+
+			private val listenersByJob = HashMap<String,MutableList<Listener>>()
+
+			fun add(jobId: String) =
+				Listener(jobId).also {
+					listenersByJob.getOrPut(jobId) { ArrayList() }.add(it)
+				}
+
+			suspend fun sendConvergence(jobId: String, convergence: TomoDrgnConvergence) {
+				listenersByJob[jobId]?.forEach { listener ->
+					try {
+						listener.onConvergence?.invoke(convergence)
+					} catch (ex: Throwable) {
+						log.error("convergence listener failed", ex)
+					}
+				}
+			}
+		}
+		val eventListeners = EventListeners()
 	}
 
 	override fun createDoc(doc: Document) {
@@ -66,12 +98,24 @@ class TomographyDrgnTrainJob(
 			diagramImageURL()
 		)
 
+	fun numClasses(): Int? =
+		pypParameters()?.tomodrgnVaeConvergenceFinalMaxima
+
+	fun convergence(numClasses: Int) = TomoDrgnConvergence(
+		numClasses = numClasses,
+		iterations = Database.instance.tomoDrgnConvergence.getAll(idOrThrow)
+			.sortedBy { it.number }
+	)
+
+	val eventListeners get() = Companion.eventListeners
+
 	override suspend fun launch(runId: Int) {
 
 		val project = projectOrThrow()
 
 		// clear caches
 		wwwDir.recreate()
+		Database.instance.tomoDrgnConvergence.deleteAll(idOrThrow)
 
 		// build the args for PYP
 		val pypArgs = launchArgValues()
@@ -95,7 +139,7 @@ class TomographyDrgnTrainJob(
 	override fun wipeData() {
 
 		// also delete any associated data
-		// TODO: what metadata should be deleted?
+		Database.instance.tomoDrgnConvergence.deleteAll(idOrThrow)
 
 		// also reset the finished args
 		args.unrun()

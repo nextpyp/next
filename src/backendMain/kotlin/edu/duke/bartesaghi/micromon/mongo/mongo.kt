@@ -158,7 +158,7 @@ class DatabaseConnection(val client: MongoClient) : AutoCloseable {
 	val jobPreprocessingFilters = PreprocessingFilters(db, "preprocessing-filters")
 	val sessionPreprocessingFilters = PreprocessingFilters(db, "preprocessing-filters-session")
 	val reconstructions = Reconstructions(db)
-	val drgnMaps = DrgnMaps(db)
+	val tomoDrgnConvergence = TomoDrgnConvergence(db)
 	val twoDClasses = TwoDClasses(db)
 	val tiltSeries = TiltSerieses(db)
 	val tiltSeriesAvgRot = AvgRot(db, "tiltSeries-avgrot")
