@@ -31,13 +31,17 @@ class TestForwardedGroups : FunSpec({
 	val argIntSNoCopy = sharedGroup.arg("argIntNoCopy", ArgType.TInt(), copyToNewBlock=false)
 	val argBoolSNoCopy = sharedGroup.arg("argBoolNoCopy", ArgType.TBool(), copyToNewBlock=false, default=ArgValue.VBool(true))
 	val argIntSDefaulted = sharedGroup.arg("argIntDefaulted", ArgType.TInt(), default = ArgValue.VInt(42))
-	argExtensions.extendBlock(SingleParticleRawDataNodeConfig, upstreamGroup, sharedGroup)
+	val sharedSkipGroup = argExtensions.group("shared-skip")
+	val argIntSK = sharedSkipGroup.arg("argInt", ArgType.TInt(), default = ArgValue.VInt(7))
+	argExtensions.extendBlock(SingleParticleRawDataNodeConfig, upstreamGroup, sharedGroup, sharedSkipGroup)
 	argExtensions.extendBlock(SingleParticlePurePreprocessingNodeConfig, downstreamGroup, sharedGroup)
-	argExtensions.extendBlock(SingleParticlePickingNodeConfig, sharedGroup)
+	argExtensions.extendBlock(SingleParticlePickingNodeConfig, sharedGroup, sharedSkipGroup)
 
 	// start one website for all of these tests
 	val econfig = autoClose(EphemeralConfig {
+		println("blocks? ${pypArgs.blocks.map { it.blockId }}") // TEMP
 		pypArgs = argExtensions.apply(pypArgs)
+		println("blocks? ${pypArgs.blocks.map { it.blockId }}") // TEMP
 	})
 	autoClose(econfig.install())
 	val website = autoClose(EphemeralWebsite())
@@ -203,6 +207,28 @@ class TestForwardedGroups : FunSpec({
 
 			println("new args values: $newArgValues")
 			newArgValues[argIntSDefaulted] shouldBe null
+		}
+	}
+
+	test("can copy shared args from ancestor blocks") {
+		website.createProjectAndListen { project, _ ->
+
+			// make a raw data block, with a non-default shared-skip arg value
+			val rawDataArgs = SingleParticleRawDataArgs(econfig.argsToml {
+				this[argIntSK] = 5
+			})
+			val rawDataJob = website.importBlock(project, ISingleParticleRawDataService::import, rawDataArgs)
+
+			// make a downstream preprocessing block, with only default values
+			val preprocessingArgs = SingleParticlePurePreprocessingArgs("")
+			val preprocessingJob = website.addBlock(project, rawDataJob, ISingleParticlePurePreprocessingService::addNode, preprocessingArgs)
+
+			// any new blocks downstream of that should see the non-defaulted value
+			val newArgValues = website.services.rpc(IProjectsService::newArgValues, website.getUserId(), project.projectId, preprocessingJob.link(), SingleParticlePickingNodeConfig.ID)
+				.toArgValues(econfig.pypArgs)
+
+			println("new args values: $newArgValues")
+			newArgValues[argIntSK] shouldBe 5
 		}
 	}
 
