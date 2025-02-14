@@ -1,6 +1,9 @@
 package edu.duke.bartesaghi.micromon
 
+import js.FinalizationRegistry
+import js.WeakRef
 import js.stacktrace.StackTrace
+import kotlinext.js.Object
 import kotlinext.js.jsObject
 import kotlinx.browser.window
 import kotlinx.coroutines.CoroutineScope
@@ -86,4 +89,60 @@ data class Quad<out A, out B, out C, out D>(
 ) {
 
 	override fun toString(): String = "($first, $second, $third, $fourth)"
+}
+
+
+
+class GarbageNotifier {
+
+	private var nextId = 1
+	private val registrations = HashMap<Int,Registration<*>>()
+	private val registry = FinalizationRegistry { heldValue ->
+		val id = heldValue as Int
+		registrations.remove(id)
+			?.callback?.invoke()
+	}
+
+	/**
+	 * !!!WARNING!!!
+	 * Do not capture the garbage target in this callback's closure!
+	 * If you do, it will never be garbage collected!
+	 */
+	fun <T:Any> register(target: T, callback: (() -> Unit)? = null): Registration<T> {
+
+		// make the id
+		val id = nextId
+		nextId += 1
+
+		// regsiter it
+		val unregisterToken = jsObject<Object>()
+		registry.register(target, id, unregisterToken)
+
+		val reg = object : Registration<T> {
+
+			override val target = WeakRef(target)
+
+			override var callback = callback
+
+			override fun unregister() {
+				registry.unregister(unregisterToken)
+			}
+		}
+		registrations[id] = reg
+		return reg
+	}
+
+	interface Registration<T> {
+
+		val target: WeakRef<T>
+
+		/**
+		 * !!!WARNING!!!
+		 * Do not capture the garbage target in this callback's closure!
+		 * If you do, it will never be garbage collected!
+		 */
+		var callback: (() -> Unit)?
+
+		fun unregister()
+	}
 }

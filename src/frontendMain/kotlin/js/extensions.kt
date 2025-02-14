@@ -4,6 +4,7 @@ import com.github.snabbdom.VNode
 import org.w3c.dom.HTMLElement
 import io.kvision.core.Component
 import io.kvision.core.Widget
+import kotlinext.js.Object
 import kotlinext.js.getOwnPropertyNames
 import kotlinext.js.jsObject
 import kotlinx.browser.document
@@ -306,4 +307,17 @@ object ResizeObserverBox {
 	const val CONTENT_BOX = "content-box"
 	const val BORDER_BOX = "border-box"
 	const val DEVICE_PIXEL_CONTENT_BOX = "device-pixel-content-box"
+}
+
+
+// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WeakRef
+external class WeakRef<T>(target: T) {
+	fun deref(): T?
+}
+
+
+// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/FinalizationRegistry
+external class FinalizationRegistry(callback: (heldValue: Any) -> Unit) {
+	fun register(target: Any, heldValue: Any, unregisterToken: Object? = definedExternally)
+	fun unregister(unregisterToken: Object): Boolean
 }
