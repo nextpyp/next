@@ -49,6 +49,7 @@ class TomographyDrgnTrainView(val project: ProjectData, val job: TomographyDrgnT
 	private var tabs: LazyTabPanel? = null
 	private var convergenceTab: ConvergenceTab? = null
 	private var fscTab: FscTab? = null
+	private var ccMatrixTab: CcMatrixTab? = null
 
 	private var connector: WebsocketConnector? = null
 
@@ -88,20 +89,27 @@ class TomographyDrgnTrainView(val project: ProjectData, val job: TomographyDrgnT
 				persistence = Storage::tomographyDrgnTrainTabIndex
 
 				addTab("Convergence", "fas fa-desktop") { lazyTab ->
-					convergenceTab = ConvergenceTab().apply {
-						lazyTab.elem.add(this)
-						reset()
+					convergenceTab = ConvergenceTab().also {
+						lazyTab.elem.add(it)
+						lazyTab.onActivate = { it.revalidate() }
 					}
 				}
 
 				addTab("FSC", "fas fa-image") { lazyTab ->
-					fscTab = FscTab().apply {
-						lazyTab.elem.add(this)
-						reset()
+					fscTab = FscTab().also {
+						lazyTab.elem.add(it)
+						lazyTab.onActivate = { it.revalidate() }
 					}
 				}
 
-				// TODO: pairwise CC matrix tab?
+				addTab("CC Matrix", "fas fa-image") { lazyTab ->
+					ccMatrixTab = CcMatrixTab().also {
+						lazyTab.elem.add(it)
+						lazyTab.onActivate = { it.revalidate() }
+						it.reset()
+					}
+				}
+
 				// TODO: reconstruction tab
 				// TODO: 3D view tab
 				// TODO: class movies tab
@@ -147,7 +155,7 @@ class TomographyDrgnTrainView(val project: ProjectData, val job: TomographyDrgnT
 		}
 
 		// if the number of classes changed, reset
-		if (old.numClasses != convergence.numClasses) {
+		if (old.parameters.numClasses != convergence.parameters.numClasses) {
 			return reset()
 		}
 
@@ -161,39 +169,41 @@ class TomographyDrgnTrainView(val project: ProjectData, val job: TomographyDrgnT
 		// show the new iterations
 		convergence.iterations
 			.filter { it.number !in oldNumbers }
-			.let { addIterations(it) }
+			.let { addIterations(convergence, it) }
 	}
 
 	private fun reset() {
 		convergenceTab?.revalidate()
 		fscTab?.revalidate()
+		ccMatrixTab?.reset()
 	}
 
-	private fun addIterations(iterations: List<TomoDrgnConvergence.Iteration>) {
+	private fun addIterations(convergence: TomoDrgnConvergence, newIterations: List<TomoDrgnConvergence.Iteration>) {
 		convergenceTab?.revalidate()
 		fscTab?.revalidate()
+		ccMatrixTab?.addIterations(convergence, newIterations)
 	}
 
 
 	private inner class ConvergenceTab : Div() {
 
-		val plot0 = ImagePanel("Total Loss", Storage::tomographyDrgnTrainPlot0Size, ImageSize.Medium) {
+		val plot0 = FetchImagePanel("Total Loss", Storage::tomographyDrgnTrainPlot0Size, ImageSize.Medium) {
 			ITomographyDrgnTrainService.plotPath(job.jobId, 0)
 		}
 
-		val plot1 = ImagePanel("Particle density", Storage::tomographyDrgnTrainPlot1Size, ImageSize.Medium) {
+		val plot1 = FetchImagePanel("Particle density", Storage::tomographyDrgnTrainPlot1Size, ImageSize.Medium) {
 			ITomographyDrgnTrainService.plotPath(job.jobId, 1)
 		}
 
-		val plot2 = ImagePanel("Encoder (UMAPs)", Storage::tomographyDrgnTrainPlot2Size, ImageSize.Medium) {
+		val plot2 = FetchImagePanel("Encoder (UMAPs)", Storage::tomographyDrgnTrainPlot2Size, ImageSize.Medium) {
 			ITomographyDrgnTrainService.plotPath(job.jobId, 2)
 		}
 
-		val plot3 = ImagePanel("Encoder (vector shifts)", Storage::tomographyDrgnTrainPlot3Size, ImageSize.Medium) {
+		val plot3 = FetchImagePanel("Encoder (vector shifts)", Storage::tomographyDrgnTrainPlot3Size, ImageSize.Medium) {
 			ITomographyDrgnTrainService.plotPath(job.jobId, 3)
 		}
 
-		val numTiltsPlot = ImagePanel("TODO: where is this image?") {
+		val numTiltsPlot = FetchImagePanel("TODO: where is this image?") {
 			"/images/placeholder.svgz"
 		}
 
@@ -218,11 +228,11 @@ class TomographyDrgnTrainView(val project: ProjectData, val job: TomographyDrgnT
 
 	private inner class FscTab : Div() {
 
-		val plot7 = ImagePanel("Decoder (FSC)", Storage::tomographyDrgnTrainPlot7Size, ImageSize.Medium) {
+		val plot7 = FetchImagePanel("Decoder (FSC)", Storage::tomographyDrgnTrainPlot7Size, ImageSize.Medium) {
 			ITomographyDrgnTrainService.plotPath(job.jobId, 7)
 		}
 
-		val plot8 = ImagePanel("Decoder (FSC-Nyquist)", Storage::tomographyDrgnTrainPlot8Size, ImageSize.Medium) {
+		val plot8 = FetchImagePanel("Decoder (FSC-Nyquist)", Storage::tomographyDrgnTrainPlot8Size, ImageSize.Medium) {
 			ITomographyDrgnTrainService.plotPath(job.jobId, 8)
 		}
 
@@ -235,6 +245,50 @@ class TomographyDrgnTrainView(val project: ProjectData, val job: TomographyDrgnT
 		fun revalidate() {
 			plot7.img.revalidate()
 			plot8.img.revalidate()
+		}
+	}
+
+
+	private inner class CcMatrixTab : Div() {
+
+		val plots = ArrayList<Pair<TomoDrgnConvergence.Iteration,FetchImagePanel>>()
+
+		fun reset() {
+
+			plots.clear()
+			removeAll()
+
+			val convergence = convergence
+				?: run {
+					div("Run not finished yet", classes = setOf("empty", "spaced"))
+					return
+				}
+
+			val iters = convergence.iterations
+				.takeIf { it.isNotEmpty() }
+				?: run {
+					div("No iterations to show", classes = setOf("empty", "spaced"))
+					return
+				}
+
+			addIterations(convergence, iters)
+		}
+
+		fun addIterations(convergence: TomoDrgnConvergence, newIterations: List<TomoDrgnConvergence.Iteration>) {
+			for (iter in newIterations) {
+				val epoch = convergence.epoch(iter)
+				val panel = FetchImagePanel("Epoch $epoch", null, ImageSize.Medium) {
+					ITomographyDrgnTrainService.pairwiseCCMatrixPath(job.jobId, epoch)
+				}
+				plots.add(iter to panel)
+				add(panel)
+			}
+		}
+
+		fun revalidate() {
+			for ((_, panel) in plots) {
+				panel.img.revalidate()
+			}
 		}
 	}
 }

@@ -98,11 +98,18 @@ class TomographyDrgnTrainJob(
 			diagramImageURL()
 		)
 
-	fun numClasses(): Int? =
-		pypParameters()?.tomodrgnVaeConvergenceFinalMaxima
+	fun convergenceParameters(): TomoDrgnConvergence.Parameters? =
+		pypParameters()?.let {
+			TomoDrgnConvergence.Parameters(
+				epochs = it.tomodrgnVaeTrainEpochs,
+				finalMaxima = it.tomodrgnVaeConvergenceFinalMaxima,
+				epochIndex = it.tomodrgnVaeConvergenceEpochIndex,
+				epochInterval = it.tomodrgnVaeConvergenceEpochInterval
+			)
+		}
 
-	fun convergence(numClasses: Int) = TomoDrgnConvergence(
-		numClasses = numClasses,
+	fun convergence(params: TomoDrgnConvergence.Parameters) = TomoDrgnConvergence(
+		parameters = params,
 		iterations = Database.instance.tomoDrgnConvergence.getAll(idOrThrow)
 			.sortedBy { it.number }
 	)

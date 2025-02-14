@@ -55,7 +55,7 @@ pub fn run(web: &Web, args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 
 		info!(web, "epoch {epoch}, iteration {iter}");
 
-		plot_img(web, &dir_plots, format!("09_pairwise_CC_matrix_epoch-{}.svgz", epoch))?;
+		plot_img(web, &dir_plots, format!("09_pairwise_CC_matrix_epoch-{}", epoch))?;
 
 		// TODO: maps?
 

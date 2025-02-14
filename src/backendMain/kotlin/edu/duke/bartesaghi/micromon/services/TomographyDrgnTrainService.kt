@@ -137,7 +137,7 @@ actual class TomographyDrgnTrainService : ITomographyDrgnTrainService, Service {
 
 		val job = jobId.authJob(ProjectPermission.Read).job
 
-		job.numClasses()
+		job.convergenceParameters()
 			?.let { job.convergence(it) }
 			.toOption()
 	}

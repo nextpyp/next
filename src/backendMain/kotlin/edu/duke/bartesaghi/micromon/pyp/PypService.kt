@@ -709,17 +709,14 @@ object PypService {
 		} ?: return JsonRpcFailure("TomoDrgnConvergence only applies to ${TomographyDrgnTrainJob.config.configId} jobs")
 
 		// check for the number of classes parameter
-		val numClasses = job.numClasses()
-			?: return JsonRpcFailure(run {
-				val fullId = Backend.pypArgsFromConfig.tomodrgnVaeConvergenceFinalMaxima.fullId
-				"Write parameters containing the $fullId parameter before writing any convergences"
-			})
+		val convergenceParams = job.convergenceParameters()
+			?: return JsonRpcFailure("Write parameters containing before writing any convergences")
 
 		// save the iteration to the database
 		Database.instance.tomoDrgnConvergence.add(job.idOrThrow, iteration)
 
 		// notify any listening clients
-		val convergence = job.convergence(numClasses)
+		val convergence = job.convergence(convergenceParams)
 		job.eventListeners.sendConvergence(job.idOrThrow, convergence)
 		if (convergence.iterations.size == 1) {
 			Backend.instance.projectEventListeners.getAll(job.userId, job.projectId)

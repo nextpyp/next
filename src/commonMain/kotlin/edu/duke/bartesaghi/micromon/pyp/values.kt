@@ -364,10 +364,22 @@ enum class TomoSrfMethod(val id: String, val particlesList: (ownerId: String) ->
 }
 
 
+val Args.tomodrgnVaeTrainEpochs: Arg
+	get() = argOrThrow("tomodrgn_vae_train", "epochs")
+val ArgValues.tomodrgnVaeTrainEpochs: Int
+	get() = (getOrDefault(args.tomodrgnVaeTrainEpochs) as Long).toInt()
 val Args.tomodrgnVaeConvergenceFinalMaxima: Arg
 	get() = argOrThrow("tomodrgn_vae_convergence", "final_maxima")
 val ArgValues.tomodrgnVaeConvergenceFinalMaxima: Int
 	get() = (getOrDefault(args.tomodrgnVaeConvergenceFinalMaxima) as Long).toInt()
+val Args.tomodrgnVaeConvergenceEpochIndex: Arg
+	get() = argOrThrow("tomodrgn_vae_convergence", "epoch_index")
+val ArgValues.tomodrgnVaeConvergenceEpochIndex: String
+	get() = getOrDefault(args.tomodrgnVaeConvergenceEpochIndex) as String
+val Args.tomodrgnVaeConvergenceEpochInterval: Arg
+	get() = argOrThrow("tomodrgn_vae_convergence", "epoch_interval")
+val ArgValues.tomodrgnVaeConvergenceEpochInterval: Int
+	get() = (getOrDefault(args.tomodrgnVaeConvergenceEpochInterval) as Long).toInt()
 
 
 /**
