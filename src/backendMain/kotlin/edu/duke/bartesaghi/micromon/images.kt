@@ -4,13 +4,13 @@ import edu.duke.bartesaghi.micromon.linux.userprocessor.WebCacheDir
 import edu.duke.bartesaghi.micromon.linux.userprocessor.writeBytesAs
 import edu.duke.bartesaghi.micromon.services.*
 import io.ktor.application.*
+import io.ktor.features.*
 import io.ktor.http.*
 import io.ktor.response.*
 import java.awt.geom.AffineTransform
 import java.awt.image.AffineTransformOp
 import java.awt.image.BufferedImage
 import java.io.ByteArrayOutputStream
-import java.io.FileNotFoundException
 import java.nio.file.Path
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.imageio.ImageIO
@@ -18,151 +18,204 @@ import javax.imageio.stream.FileImageInputStream
 import kotlin.io.path.div
 
 
-enum class ImageType(
-	val contentType: ContentType,
-	val extension: String,
-	val getPlaceholder: (ImageSize) -> ByteArray,
-	val extraHeaders: List<Pair<String,String>> = emptyList(),
-	val resizable: Boolean = true,
-) {
-	Jpeg(
-		ContentType.Image.JPEG,
-		"jpg",
-		getPlaceholder = Resources::placeholderJpg
-	),
+interface ImageType {
 
-	Png(
-		ContentType.Image.PNG,
-		"png",
-		getPlaceholder = Resources::placeholderPng
-	),
+	val contentType: ContentType
+	val extension: String
+	val resizable: Boolean
 
-	Webp(
-		ContentType.Image.WebP,
-		"webp",
-		getPlaceholder = Resources::placeholderWebp
-	),
-
-	Svgz(
-		ContentType.Image.SVG,
-		"svgz",
-		getPlaceholder = { _ -> Resources.placeholderSvgz() },
-		extraHeaders = listOf(HttpHeaders.ContentEncoding to "gzip"),
-		resizable = false
-	);
-
-
-	val mimeType: String =
+	fun mimeType(): String =
 		contentType.toString()
-}
+
+	suspend fun respondNotFound(call: ApplicationCall): Nothing =
+		throw NotFoundException()
 
 
-suspend fun ApplicationCall.respondImage(path: Path, type: ImageType) {
+	data class SizeInfo(
+		val size: ImageSize,
+		val dir: WebCacheDir,
+		val key: WebCacheDir.Key,
+		val transformer: ((BufferedImage) -> BufferedImage)? = null
+	)
 
-	// disable Ktor's default gzip compression for this response, since images are already compressed
-	disableDefaultCompression()
 
-	val etag = path.timestampEtag()
-		?: throw FileNotFoundException(path.toString())
+	companion object {
 
-	respondCacheControlled(etag) {
-		for ((name, value) in type.extraHeaders) {
-			response.headers.append(name, value)
+		suspend fun <T:ImageType> respondPath(
+			type: T,
+			call: ApplicationCall,
+			path: Path,
+			extraHeaders: List<Pair<String,String>> = emptyList()
+		): T? {
+
+			val etag = path.timestampEtag()
+				?: return type
+
+			call.respondCacheControlled(etag) {
+
+				// disable Ktor's default gzip compression for this response, since images are already compressed
+				call.disableDefaultCompression()
+
+				for ((name, value) in extraHeaders) {
+					call.response.headers.append(name, value)
+				}
+
+				call.respondFile(path, type.contentType)
+			}
+
+			return null
 		}
-		respondFile(path, type.contentType)
+
+		suspend fun <T:ImageType> respondSized(
+			type: T,
+			call: ApplicationCall,
+			path: Path,
+			sizeInfo: SizeInfo,
+			extraHeaders: List<Pair<String,String>> = emptyList()
+		): T? {
+
+			if (!type.resizable) {
+				throw IllegalArgumentException("image type $type is not resizable")
+			}
+
+			// make sure the source image exists, regardless of the cache
+			val srcMtime = path.mtime()
+				?: return type
+
+			// build the path of the cached image
+			val cachePath = sizeInfo.dir.path / "${sizeInfo.key.id}.${sizeInfo.size.id}.${type.extension}"
+
+			// if we already have the cached image that's newer than the source image, use that
+			val cacheMtime = cachePath.mtime()
+			if (cacheMtime != null && cacheMtime > srcMtime) {
+				return respondPath(type, call, cachePath, extraHeaders)
+			}
+
+			// cache miss! resize the source image
+
+			// read the image, if we can
+			val reader = ImageIO.getImageReadersByMIMEType(type.mimeType())
+				.takeIf { it.hasNext() }
+				?.next()
+				?: throw UnsupportedOperationException("ImageIO doesn't know how to read $type image at $path")
+			var image = slowIOs {
+				FileImageInputStream(path.toFile()).use {
+					reader.input = it
+					reader.read(0)
+				}
+			}
+
+			// apply the image transformer before resizing if needed
+			sizeInfo.transformer?.let { f ->
+				image = f(image)
+			}
+
+			// resize the image, but keep the same aspect ratio
+			val resized = image
+				.resize(sizeInfo.size.approxWidth)
+				.write(type)
+
+			// finally, write the resized image to the cache file
+			sizeInfo.dir.createIfNeeded()
+			cachePath.writeBytesAs(sizeInfo.dir.osUsername, resized)
+
+			return respondPath(type, call, cachePath, extraHeaders)
+				?: throw IllegalStateException("resized image was not found")
+				// NOTE: this should be an internal 500 error, not a 404 not found
+		}
+
+		suspend fun <T:ImageType> respondBytes(
+			type: T,
+			call: ApplicationCall,
+			bytes: ByteArray,
+			etag: String,
+			extraHeaders: List<Pair<String,String>> = emptyList()
+		) {
+			call.respondCacheControlled(etag) {
+
+				// disable Ktor's default gzip compression for this response, since images are already compressed
+				call.disableDefaultCompression()
+
+				for ((name, value) in extraHeaders) {
+					call.response.headers.append(name, value)
+				}
+
+				call.respondBytes(bytes, type.contentType)
+			}
+		}
+	}
+
+
+	object Jpeg : ImageType {
+
+		override val contentType = ContentType.Image.JPEG
+		override val extension = "jpg"
+		override val resizable = true
+
+		suspend fun respond(call: ApplicationCall, path: Path): Jpeg? =
+			respondPath(this, call, path)
+
+		suspend fun respondSized(call: ApplicationCall, path: Path, sizeInfo: SizeInfo): Jpeg? =
+			respondSized(this, call, path, sizeInfo)
+
+		suspend fun respondPlaceholder(call: ApplicationCall, size: ImageSize) =
+			respondBytes(this, call, Resources.placeholderJpg(size), "placeholder")
+	}
+
+	object Png : ImageType {
+
+		override val contentType = ContentType.Image.PNG
+		override val extension = "png"
+		override val resizable = true
+
+		suspend fun respond(call: ApplicationCall, path: Path): Png? =
+			respondPath(this, call, path)
+
+		suspend fun respondSized(call: ApplicationCall, path: Path, sizeInfo: SizeInfo): Png? =
+			respondSized(this, call, path, sizeInfo)
+
+		suspend fun respondPlaceholder(call: ApplicationCall, size: ImageSize) =
+			respondBytes(this, call, Resources.placeholderPng(size), "placeholder")
+	}
+
+	object Webp : ImageType {
+
+		override val contentType = ContentType.Image.WebP
+		override val extension = "webp"
+		override val resizable = true
+
+		suspend fun respond(call: ApplicationCall, path: Path): Webp? =
+			respondPath(this, call, path)
+
+		suspend fun respondSized(call: ApplicationCall, path: Path, sizeInfo: SizeInfo): Webp? =
+			respondSized(this, call, path, sizeInfo)
+
+		suspend fun respondPlaceholder(call: ApplicationCall, size: ImageSize) =
+			respondBytes(this, call, Resources.placeholderWebp(size), "placeholder")
+	}
+
+	object Svgz : ImageType {
+
+		override val contentType = ContentType.Image.SVG
+		override val extension = "svgz"
+		override val resizable = false
+
+		private val extraHeaders = listOf(HttpHeaders.ContentEncoding to "gzip")
+
+		suspend fun respond(call: ApplicationCall, path: Path): Svgz? =
+			respondPath(this, call, path, extraHeaders)
+
+		suspend fun respondPlaceholder(call: ApplicationCall) =
+			respondBytes(this, call, Resources.placeholderSvgz(), "placeholder", extraHeaders)
 	}
 }
 
 
-suspend fun ApplicationCall.respondImagePlaceholder(type: ImageType, size: ImageSize) {
-
-	// disable Ktor's default gzip compression for this response, since images are already compressed
-	disableDefaultCompression()
-
-	respondCacheControlled("placeholder") {
-		respondBytes(type.getPlaceholder(size), type.contentType)
-	}
-}
-
-
-suspend fun ApplicationCall.respondImageSized(
-	path: Path,
-	type: ImageType,
-	size: ImageSize,
+fun ImageSize.info(
 	dir: WebCacheDir,
 	key: WebCacheDir.Key,
 	transformer: ((BufferedImage) -> BufferedImage)? = null
-) {
-
-	if (!path.exists()) {
-		respondImagePlaceholder(type, size)
-		return
-	}
-
-	val resizedPath = dir.resizeImage(path, type, size, key, transformer)
-	respondImage(resizedPath, type)
-}
-
-
-/**
- * Returns the image as a byte array, resizing to the desired size.
- * Can cache the resized image if required.
- */
-suspend fun WebCacheDir.resizeImage(
-	path: Path,
-	type: ImageType,
-	size: ImageSize,
-	/** a unique identifier for the image file, among all the images that might be cached in the same folder */
-	key: WebCacheDir.Key,
-	transformer: ((BufferedImage) -> BufferedImage)? = null
-): Path {
-
-	// if the image isn't resizable, there's nothing to do, so just return the source image path
-	if (!type.resizable) {
-		return path
-	}
-
-	// make sure the soucre image exists, regardless of the cache
-	val srcMtime = path.mtime()
-		?: throw FileNotFoundException(path.toString())
-
-	// if we already have the cached image that's newer than the source image, use that
-	val cachePath = this.path / "${key.id}.${size.id}.${type.extension}"
-	val cacheMtime = cachePath.mtime()
-	if (cacheMtime != null && cacheMtime > srcMtime) {
-		return cachePath
-	}
-
-	// cache miss! resize the source image
-
-	// read the image, if we can
-	val reader = ImageIO.getImageReadersByMIMEType(type.mimeType)
-		.takeIf { it.hasNext() }
-		?.next()
-		?: throw UnsupportedOperationException("ImageIO doesn't know how to read $type image at $path")
-	var image = slowIOs {
-		FileImageInputStream(path.toFile()).use {
-			reader.input = it
-			reader.read(0)
-		}
-	}
-
-	// apply the image transformer if needed
-	if (transformer != null) {
-		image = transformer(image)
-	}
-
-	// resize the image, but keep the same aspect ratio
-	val resized = image
-		.resize(size.approxWidth)
-		.write(type)
-
-	// finally, write the resized image to the cache
-	this.createIfNeeded()
-	cachePath.writeBytesAs(osUsername, resized)
-
-	return cachePath
-}
+) = ImageType.SizeInfo(this, dir, key, transformer)
 
 
 private val resizeLock = Object()
@@ -207,10 +260,10 @@ fun BufferedImage.resize(width: Int): BufferedImage {
 fun BufferedImage.write(imageType: ImageType): ByteArray {
 
 	// get the writer for this image format
-	val writer = ImageIO.getImageWritersByMIMEType(imageType.mimeType)
+	val writer = ImageIO.getImageWritersByMIMEType(imageType.mimeType())
 		.takeIf { it.hasNext() }
 		?.next()
-		?: throw NoSuchElementException("no image writer found for mime type: ${imageType.mimeType}")
+		?: throw NoSuchElementException("no image writer found for mime type: ${imageType.mimeType()}")
 
 	// write to a byte buffer
 	val out = ByteArrayOutputStream()

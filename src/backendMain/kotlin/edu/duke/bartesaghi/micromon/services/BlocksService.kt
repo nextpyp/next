@@ -6,6 +6,7 @@ import edu.duke.bartesaghi.micromon.jobs.AuthInfo
 import edu.duke.bartesaghi.micromon.jobs.Job
 import edu.duke.bartesaghi.micromon.jobs.authJob
 import io.ktor.application.*
+import io.ktor.features.*
 import io.kvision.remote.RemoteOption
 import io.kvision.remote.ServiceException
 
@@ -54,7 +55,7 @@ actual class BlocksService : IBlocksService, Service {
 	override suspend fun filterOptions(search: String?, initial: String?, state: String?): List<RemoteOption> = sanitizeExceptions {
 
 		val jobId = state
-			?: throw IllegalArgumentException("no job given")
+			?: throw BadRequestException("no job given")
 
 		jobId.authJob(ProjectPermission.Read)
 

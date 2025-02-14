@@ -135,7 +135,7 @@ class SingleParticleRawDataNode(
 			}
 
 			if (refreshImages) {
-				getHTMLElement()?.refreshDynamicImages()
+				getHTMLElement()?.revalidateDynamicImages()
 			}
 		}
 	}
@@ -170,7 +170,7 @@ class SingleParticleRawDataNode(
 		win.show()
 
 		if (refreshImages) {
-			win.getHTMLElement()?.refreshDynamicImages()
+			win.getHTMLElement()?.revalidateDynamicImages()
 		}
 	}
 }

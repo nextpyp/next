@@ -8,7 +8,7 @@ import edu.duke.bartesaghi.micromon.dynamicImageClassName
 import edu.duke.bartesaghi.micromon.nodes.TomographyPreprocessingNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
 import edu.duke.bartesaghi.micromon.pyp.Args
-import edu.duke.bartesaghi.micromon.refreshDynamicImages
+import edu.duke.bartesaghi.micromon.revalidateDynamicImages
 import edu.duke.bartesaghi.micromon.services.*
 import edu.duke.bartesaghi.micromon.views.TomographyPreprocessingView
 import edu.duke.bartesaghi.micromon.views.Viewport
@@ -151,7 +151,7 @@ class TomographyPreprocessingNode(
 		}
 
 		if (refreshImages) {
-			getHTMLElement()?.refreshDynamicImages()
+			getHTMLElement()?.revalidateDynamicImages()
 		}
 	}
 

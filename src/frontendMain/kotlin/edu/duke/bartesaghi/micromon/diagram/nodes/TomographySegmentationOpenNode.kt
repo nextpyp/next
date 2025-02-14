@@ -7,7 +7,7 @@ import edu.duke.bartesaghi.micromon.dynamicImageClassName
 import edu.duke.bartesaghi.micromon.nodes.TomographySegmentationOpenNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
 import edu.duke.bartesaghi.micromon.pyp.Args
-import edu.duke.bartesaghi.micromon.refreshDynamicImages
+import edu.duke.bartesaghi.micromon.revalidateDynamicImages
 import edu.duke.bartesaghi.micromon.services.*
 import edu.duke.bartesaghi.micromon.views.TomographySegmentationOpenView
 import edu.duke.bartesaghi.micromon.views.Viewport
@@ -150,7 +150,7 @@ class TomographySegmentationOpenNode(
 		}
 
 		if (refreshImages) {
-			getHTMLElement()?.refreshDynamicImages()
+			getHTMLElement()?.revalidateDynamicImages()
 		}
 	}
 

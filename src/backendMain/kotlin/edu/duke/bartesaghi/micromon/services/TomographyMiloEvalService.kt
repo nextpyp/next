@@ -37,9 +37,9 @@ actual class TomographyMiloEvalService : ITomographyMiloEvalService, Service {
 
 						// serve the image
 						val imagePath = job.dir / "train" / "2d_visualization_out.webp"
-						val imageType = ImageType.Webp
 						val cacheKey = WebCacheDir.Keys.miloResults2D
-						call.respondImageSized(imagePath, imageType, size, job.wwwDir, cacheKey)
+						ImageType.Webp.respondSized(call, imagePath, size.info(job.wwwDir, cacheKey))
+							?.respondPlaceholder(call, size)
 					}
 				}
 
@@ -52,9 +52,9 @@ actual class TomographyMiloEvalService : ITomographyMiloEvalService, Service {
 
 						// serve the image
 						val imagePath = job.dir / "train" / "2d_visualization_labels.webp"
-						val imageType = ImageType.Webp
 						val cacheKey = WebCacheDir.Keys.miloLabels2D
-						call.respondImageSized(imagePath, imageType, size, job.wwwDir, cacheKey)
+						ImageType.Webp.respondSized(call, imagePath, size.info(job.wwwDir, cacheKey))
+							?.respondPlaceholder(call, size)
 					}
 				}
 
@@ -67,9 +67,9 @@ actual class TomographyMiloEvalService : ITomographyMiloEvalService, Service {
 
 						// serve the image
 						val imagePath = job.dir / "train" / "3d_visualization_out.webp"
-						val imageType = ImageType.Webp
 						val cacheKey = WebCacheDir.Keys.miloResults3D
-						call.respondImageSized(imagePath, imageType, size, job.wwwDir, cacheKey)
+						ImageType.Webp.respondSized(call, imagePath, size.info(job.wwwDir, cacheKey))
+							?.respondPlaceholder(call, size)
 					}
 				}
 
@@ -101,9 +101,9 @@ actual class TomographyMiloEvalService : ITomographyMiloEvalService, Service {
 
 							// serve the image
 							val imagePath = job.dir / "train" / "${tiltSeriesId}_3d_visualization.webp"
-							val imageType = ImageType.Webp
 							val cacheKey = WebCacheDir.Keys.miloResults3D.parameterized(tiltSeriesId)
-							call.respondImageSized(imagePath, imageType, size, job.wwwDir, cacheKey)
+							ImageType.Webp.respondSized(call, imagePath, size.info(job.wwwDir, cacheKey))
+								?.respondPlaceholder(call, size)
 						}
 					}
 				}
@@ -115,9 +115,6 @@ actual class TomographyMiloEvalService : ITomographyMiloEvalService, Service {
 				})
 			}
 		}
-
-		private val PipelineContext<Unit, ApplicationCall>.service get() =
-			getService<TomographyMiloEvalService>()
 	}
 
 

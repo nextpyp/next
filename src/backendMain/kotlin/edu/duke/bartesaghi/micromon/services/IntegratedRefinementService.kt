@@ -121,9 +121,9 @@ actual class IntegratedRefinementService : IIntegratedRefinementService, Service
 							// serve the image
 							val fragment = Reconstruction.filenameFragment(job, classNum, iteration)
 							val imagePath = job.mapsDir / "${fragment}_map.webp"
-							val imageType = ImageType.Webp
 							val cacheKey = WebCacheDir.Keys.map.parameterized(fragment)
-							call.respondImageSized(imagePath, imageType, size, job.wwwDir, cacheKey)
+							ImageType.Webp.respondSized(call, imagePath, size.info(job.wwwDir, cacheKey))
+								?.respondPlaceholder(call, size)
 						}
 					}
 
@@ -139,9 +139,9 @@ actual class IntegratedRefinementService : IIntegratedRefinementService, Service
 							// serve the image
 							val fragment = Reconstruction.filenameFragment(job, classNum, iteration)
 							val imagePath = job.mapsDir / "${fragment}_fyp.png"
-							val imageType = ImageType.Png
 							val cacheKey = WebCacheDir.Keys.fyp.parameterized(fragment)
-							call.respondImageSized(imagePath, imageType, size, job.wwwDir, cacheKey)
+							ImageType.Png.respondSized(call, imagePath, size.info(job.wwwDir, cacheKey))
+								?.respondPlaceholder(call, size)
 						}
 					}
 
@@ -156,8 +156,8 @@ actual class IntegratedRefinementService : IIntegratedRefinementService, Service
 							// serve the image
 							val fragment = Reconstruction.filenameFragment(job, classNum, iteration)
 							val imagePath = job.mapsDir / "${fragment}_scores.svgz"
-							val imageType = ImageType.Svgz
-							call.respondImage(imagePath, imageType)
+							ImageType.Svgz.respond(call, imagePath)
+								?.respondPlaceholder(call)
 						}
 					}
 				}
@@ -180,9 +180,9 @@ actual class IntegratedRefinementService : IIntegratedRefinementService, Service
 
 							// serve the image
 							val imagePath = job.dir / "csp" / "${dataId}_local.webp"
-							val imageType = ImageType.Webp
 							val cacheKey = WebCacheDir.Keys.particles.parameterized(dataId)
-							call.respondImageSized(imagePath, imageType, size, job.wwwDir, cacheKey)
+							ImageType.Webp.respondSized(call, imagePath, size.info(job.wwwDir, cacheKey))
+								?.respondPlaceholder(call, size)
 						}
 					}
 
@@ -195,8 +195,8 @@ actual class IntegratedRefinementService : IIntegratedRefinementService, Service
 
 							// serve the image
 							val imagePath = job.dir / "csp" / "${dataId}_scores.svgz"
-							val imageType = ImageType.Svgz
-							call.respondImage(imagePath, imageType)
+							ImageType.Svgz.respond(call, imagePath)
+								?.respondPlaceholder(call)
 						}
 					}
 				}
@@ -215,8 +215,8 @@ actual class IntegratedRefinementService : IIntegratedRefinementService, Service
 
 							// serve the image
 							val imagePath = job.dir / "frealign" / "${bundleId}_scores.svgz"
-							val imageType = ImageType.Svgz
-							call.respondImage(imagePath, imageType)
+							ImageType.Svgz.respond(call, imagePath)
+								?.respondPlaceholder(call)
 						}
 					}
 
@@ -229,8 +229,8 @@ actual class IntegratedRefinementService : IIntegratedRefinementService, Service
 
 							// serve the image
 							val imagePath = job.dir / "frealign" / "${bundleId}_weights.svgz"
-							val imageType = ImageType.Svgz
-							call.respondImage(imagePath, imageType)
+							ImageType.Svgz.respond(call, imagePath)
+								?.respondPlaceholder(call)
 						}
 					}
 				}

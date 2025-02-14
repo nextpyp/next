@@ -7,7 +7,7 @@ import edu.duke.bartesaghi.micromon.dynamicImageClassName
 import edu.duke.bartesaghi.micromon.formatWithDigitGroupsSeparator
 import edu.duke.bartesaghi.micromon.nodes.TomographyPickingNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.*
-import edu.duke.bartesaghi.micromon.refreshDynamicImages
+import edu.duke.bartesaghi.micromon.revalidateDynamicImages
 import edu.duke.bartesaghi.micromon.services.*
 import edu.duke.bartesaghi.micromon.views.TomographyPickingView
 import edu.duke.bartesaghi.micromon.views.Viewport
@@ -267,7 +267,7 @@ class TomographyPickingNode(
 		}
 
 		if (refreshImages) {
-			getHTMLElement()?.refreshDynamicImages()
+			getHTMLElement()?.revalidateDynamicImages()
 		}
 	}
 

@@ -134,7 +134,7 @@ class TomographyRelionDataNode(
 			}
 
 			if (refreshImages) {
-				getHTMLElement()?.refreshDynamicImages()
+				getHTMLElement()?.revalidateDynamicImages()
 			}
 		}
 	}
@@ -169,7 +169,7 @@ class TomographyRelionDataNode(
 		win.show()
 
 		if (refreshImages) {
-			win.getHTMLElement()?.refreshDynamicImages()
+			win.getHTMLElement()?.revalidateDynamicImages()
 		}
 	}
 }

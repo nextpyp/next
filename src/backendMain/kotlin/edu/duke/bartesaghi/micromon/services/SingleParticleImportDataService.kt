@@ -42,9 +42,9 @@ actual class SingleParticleImportDataService : ISingleParticleImportDataService,
 
 						// serve the image
 						val imagePath = job.dir / "gain_corrected.webp"
-						val imageType = ImageType.Webp
 						val cacheKey = WebCacheDir.Keys.gainCorrected
-						call.respondImageSized(imagePath, imageType, size, job.wwwDir, cacheKey)
+						ImageType.Webp.respondSized(call, imagePath, size.info(job.wwwDir, cacheKey))
+							?.respondPlaceholder(call, size)
 					}
 				}
 			}

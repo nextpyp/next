@@ -8,7 +8,7 @@ import edu.duke.bartesaghi.micromon.dynamicImageClassName
 import edu.duke.bartesaghi.micromon.nodes.SingleParticleImportDataNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
 import edu.duke.bartesaghi.micromon.pyp.Args
-import edu.duke.bartesaghi.micromon.refreshDynamicImages
+import edu.duke.bartesaghi.micromon.revalidateDynamicImages
 import edu.duke.bartesaghi.micromon.services.*
 import edu.duke.bartesaghi.micromon.views.SingleParticleImportDataView
 import edu.duke.bartesaghi.micromon.views.Viewport
@@ -112,7 +112,7 @@ class SingleParticleImportDataNode(
 		}
 
 		if (refreshImages) {
-			getHTMLElement()?.refreshDynamicImages()
+			getHTMLElement()?.revalidateDynamicImages()
 		}
 	}
 

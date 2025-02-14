@@ -14,6 +14,7 @@ import edu.duke.bartesaghi.micromon.respondExceptions
 import edu.duke.bartesaghi.micromon.sanitizeExceptions
 import edu.duke.bartesaghi.micromon.sessions.authSessionOrThrow
 import io.ktor.application.*
+import io.ktor.features.*
 import io.ktor.http.*
 import io.ktor.request.*
 import io.ktor.response.*
@@ -123,7 +124,7 @@ actual class ParticlesService : IParticlesService, Service {
 						ownerType to ownerId
 					}
 			}
-			?: throw IllegalArgumentException("bad state")
+			?: throw BadRequestException("bad state")
 
 		authRead(ownerType, ownerId)
 

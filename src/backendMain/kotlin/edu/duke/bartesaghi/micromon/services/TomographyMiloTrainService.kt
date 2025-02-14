@@ -34,15 +34,12 @@ actual class TomographyMiloTrainService : ITomographyMiloTrainService, Service {
 
 						// serve the image
 						val imagePath = job.dir / "train" / "milo_training.svgz"
-						val imageType = ImageType.Svgz
-						call.respondImage(imagePath, imageType)
+						ImageType.Svgz.respond(call, imagePath)
+							?.respondPlaceholder(call)
 					}
 				}
 			}
 		}
-
-		private val PipelineContext<Unit, ApplicationCall>.service get() =
-			getService<TomographyMiloTrainService>()
 	}
 
 

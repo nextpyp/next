@@ -32,13 +32,13 @@ actual class JobsService : IJobsService, Service {
 
 		private fun Job.hasMicrographsOrThrow() = apply {
 			if (baseConfig.jobInfo.dataType !== JobInfo.DataType.Micrograph) {
-				throw IllegalArgumentException("job ${baseConfig.id} has no micrographs")
+				throw BadRequestException("job ${baseConfig.id} has no micrographs")
 			}
 		}
 
 		private fun Job.hasTiltSeriesOrThrow() = apply {
 			if (baseConfig.jobInfo.dataType !== JobInfo.DataType.TiltSeries) {
-				throw IllegalArgumentException("job ${baseConfig.id} has no tilt-series")
+				throw BadRequestException("job ${baseConfig.id} has no tilt-series")
 			}
 		}
 
@@ -109,9 +109,9 @@ actual class JobsService : IJobsService, Service {
 
 						// serve the image
 						val imagePath = GainCorrectedImage.path(job)
-						val imageType = ImageType.Webp
 						val cacheKey = WebCacheDir.Keys.gainCorrected
-						call.respondImageSized(imagePath, imageType, size, job.wwwDir, cacheKey)
+						ImageType.Webp.respondSized(call, imagePath, size.info(job.wwwDir, cacheKey))
+							?.respondPlaceholder(call, size)
 					}
 				}
 
@@ -134,9 +134,9 @@ actual class JobsService : IJobsService, Service {
 								JobInfo.DataType.TiltSeries -> TiltSeries.outputImagePath(job.dir, dataId)
 								else -> throw NoSuchElementException("job ${job.baseConfig.id} has no data type")
 							}
-							val imageType = ImageType.Webp
 							val cacheKey = WebCacheDir.Keys.datum.parameterized(dataId)
-							call.respondImageSized(imagePath, imageType, size, job.wwwDir, cacheKey)
+							ImageType.Webp.respondSized(call, imagePath, size.info(job.wwwDir, cacheKey))
+								?.respondPlaceholder(call, size)
 						}
 					}
 
@@ -156,9 +156,9 @@ actual class JobsService : IJobsService, Service {
 									TiltSeries.twodCtfTiltMontagePath(job.dir, dataId) to TiltSeries.montageCenterTiler(job.idOrThrow, dataId)
 								else -> throw NoSuchElementException("job ${job.baseConfig.id} has no data type")
 							}
-							val imageType = ImageType.Webp
 							val cacheKey = WebCacheDir.Keys.ctffit.parameterized(dataId)
-							call.respondImageSized(imagePath, imageType, size, job.wwwDir, cacheKey, transformer)
+							ImageType.Webp.respondSized(call, imagePath, size.info(job.wwwDir, cacheKey, transformer))
+								?.respondPlaceholder(call, size)
 						}
 					}
 
@@ -171,8 +171,8 @@ actual class JobsService : IJobsService, Service {
 
 							// serve the image
 							val imagePath = TiltSeries.alignedMontagePath(job.dir, dataId)
-							val imageType = ImageType.Webp
-							call.respondImage(imagePath, imageType)
+							ImageType.Webp.respond(call, imagePath)
+								?.respondNotFound(call)
 						}
 					}
 
@@ -185,8 +185,8 @@ actual class JobsService : IJobsService, Service {
 
 							// serve the image
 							val imagePath = TiltSeries.reconstructionTiltSeriesMontagePath(job.dir, dataId)
-							val imageType = ImageType.Webp
-							call.respondImage(imagePath, imageType)
+							ImageType.Webp.respond(call, imagePath)
+								?.respondNotFound(call)
 						}
 					}
 
@@ -199,8 +199,8 @@ actual class JobsService : IJobsService, Service {
 
 							// serve the image
 							val imagePath = TiltSeries.twodCtfTiltMontagePath(job.dir, dataId)
-							val imageType = ImageType.Webp
-							call.respondImage(imagePath, imageType)
+							ImageType.Webp.respond(call, imagePath)
+								?.respondNotFound(call)
 						}
 					}
 
@@ -213,8 +213,8 @@ actual class JobsService : IJobsService, Service {
 
 							// serve the image
 							val imagePath = TiltSeries.rawTiltSeriesMontagePath(job.dir, dataId)
-							val imageType = ImageType.Webp
-							call.respondImage(imagePath, imageType)
+							ImageType.Webp.respond(call, imagePath)
+								?.respondNotFound(call)
 						}
 					}
 
@@ -227,8 +227,8 @@ actual class JobsService : IJobsService, Service {
 
 							// serve the image
 							val imagePath = TiltSeries.sidesImagePath(job.dir, dataId)
-							val imageType = ImageType.Webp
-							call.respondImage(imagePath, imageType)
+							ImageType.Webp.respond(call, imagePath)
+								?.respondPlaceholder(call, ImageSize.Medium)
 						}
 					}
 
@@ -242,8 +242,8 @@ actual class JobsService : IJobsService, Service {
 								?: throw BadRequestException("virion id must be a number")
 
 							val imagePath = TiltSeries.virionThresholdsImagePath(job.dir, dataId, virionId)
-							val imageType = ImageType.Webp
-							call.respondImage(imagePath, imageType)
+							ImageType.Webp.respond(call, imagePath)
+								?.respondPlaceholder(call, ImageSize.Medium)
 						}
 					}
 
@@ -281,9 +281,9 @@ actual class JobsService : IJobsService, Service {
 
 						// serve the image
 						val imagePath = job.dir / "webp" / "out.webp"
-						val imageType = ImageType.Webp
 						val cacheKey = WebCacheDir.Keys.output
-						call.respondImageSized(imagePath, imageType, size, job.wwwDir, cacheKey)
+						ImageType.Webp.respondSized(call, imagePath, size.info(job.wwwDir, cacheKey))
+							?.respondPlaceholder(call, size)
 					}
 				}
 			}

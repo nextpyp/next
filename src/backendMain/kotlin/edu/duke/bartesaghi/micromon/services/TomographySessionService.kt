@@ -43,8 +43,8 @@ actual class TomographySessionService : ITomographySessionService, Service {
 
 							// serve the image
 							val imagePath = TiltSeries.alignedMontagePath(session.dir, tiltSeriesId)
-							val imageType = ImageType.Webp
-							call.respondImage(imagePath, imageType)
+							ImageType.Webp.respond(call, imagePath)
+								?.respondNotFound(call)
 						}
 					}
 
@@ -57,8 +57,8 @@ actual class TomographySessionService : ITomographySessionService, Service {
 
 							// serve the image
 							val imagePath = TiltSeries.reconstructionTiltSeriesMontagePath(session.dir, tiltSeriesId)
-							val imageType = ImageType.Webp
-							call.respondImage(imagePath, imageType)
+							ImageType.Webp.respond(call, imagePath)
+								?.respondNotFound(call)
 						}
 					}
 
@@ -71,9 +71,8 @@ actual class TomographySessionService : ITomographySessionService, Service {
 
 							// serve the image
 							val imagePath = TiltSeries.twodCtfTiltMontagePath(session.dir, tiltSeriesId)
-							val imageType = ImageType.Webp
-							call.respondImage(imagePath, imageType)
-
+							ImageType.Webp.respond(call, imagePath)
+								?.respondNotFound(call)
 						}
 					}
 
@@ -86,8 +85,8 @@ actual class TomographySessionService : ITomographySessionService, Service {
 
 							// serve the image
 							val imagePath = TiltSeries.rawTiltSeriesMontagePath(session.dir, tiltSeriesId)
-							val imageType = ImageType.Webp
-							call.respondImage(imagePath, imageType)
+							ImageType.Webp.respond(call, imagePath)
+								?.respondNotFound(call)
 						}
 					}
 
@@ -100,8 +99,8 @@ actual class TomographySessionService : ITomographySessionService, Service {
 
 							// serve the image
 							val imagePath = TiltSeries.sidesImagePath(session.dir, tiltSeriesId)
-							val imageType = ImageType.Webp
-							call.respondImage(imagePath, imageType)
+							ImageType.Webp.respond(call, imagePath)
+								?.respondPlaceholder(call, ImageSize.Medium)
 						}
 					}
 
@@ -119,9 +118,6 @@ actual class TomographySessionService : ITomographySessionService, Service {
 				}
 			}
 		}
-
-		private val PipelineContext<Unit, ApplicationCall>.service get() =
-			getService<TomographySessionService>()
 	}
 
 

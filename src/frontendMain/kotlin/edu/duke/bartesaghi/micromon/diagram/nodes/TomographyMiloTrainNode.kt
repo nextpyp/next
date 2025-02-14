@@ -7,7 +7,7 @@ import edu.duke.bartesaghi.micromon.dynamicImageClassName
 import edu.duke.bartesaghi.micromon.nodes.TomographyMiloTrainNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
 import edu.duke.bartesaghi.micromon.pyp.Args
-import edu.duke.bartesaghi.micromon.refreshDynamicImages
+import edu.duke.bartesaghi.micromon.revalidateDynamicImages
 import edu.duke.bartesaghi.micromon.services.*
 import edu.duke.bartesaghi.micromon.views.TomographyMiloTrainView
 import edu.duke.bartesaghi.micromon.views.Viewport
@@ -151,7 +151,7 @@ class TomographyMiloTrainNode(
 		}
 
 		if (refreshImages) {
-			getHTMLElement()?.refreshDynamicImages()
+			getHTMLElement()?.revalidateDynamicImages()
 		}
 	}
 

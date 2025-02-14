@@ -9,6 +9,7 @@ import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.sessions.*
 import io.ktor.application.*
+import io.ktor.features.*
 import io.ktor.routing.*
 import io.ktor.util.*
 import io.ktor.util.pipeline.*
@@ -53,9 +54,9 @@ actual class SessionsService : ISessionsService, Service {
 								is SingleParticleSession -> Micrograph.outputImagePath(session.dir, dataId)
 								is TomographySession -> TiltSeries.outputImagePath(session.dir, dataId)
 							}
-							val imageType = ImageType.Webp
 							val cacheKey = WebCacheDir.Keys.datum.parameterized(dataId)
-							call.respondImageSized(imagePath, imageType, size, session.wwwDir, cacheKey)
+							ImageType.Webp.respondSized(call, imagePath, size.info(session.wwwDir, cacheKey))
+								?.respondPlaceholder(call, size)
 						}
 					}
 
@@ -74,9 +75,9 @@ actual class SessionsService : ISessionsService, Service {
 								is TomographySession ->
 									TiltSeries.twodCtfTiltMontagePath(session.dir, dataId) to TiltSeries.montageCenterTiler(session.idOrThrow, dataId)
 							}
-							val imageType = ImageType.Webp
 							val cacheKey = WebCacheDir.Keys.ctffit.parameterized(dataId)
-							call.respondImageSized(imagePath, imageType, size, session.wwwDir, cacheKey, transformer)
+							ImageType.Webp.respondSized(call, imagePath, size.info(session.wwwDir, cacheKey, transformer))
+								?.respondPlaceholder(call, size)
 						}
 					}
 				}
@@ -93,11 +94,11 @@ actual class SessionsService : ISessionsService, Service {
 
 							val imagePath = when (session) {
 								is SingleParticleSession -> TwoDClasses.imagePath(session, twoDClassesId)
-								else -> throw IllegalArgumentException("requires a single-particle session")
+								else -> throw BadRequestException("requires a single-particle session")
 							}
-							val imageType = ImageType.Webp
 							val cacheKey = WebCacheDir.Keys.twodClasses.parameterized(twoDClassesId)
-							call.respondImageSized(imagePath, imageType, size, session.wwwDir, cacheKey)
+							ImageType.Webp.respondSized(call, imagePath, size.info(session.wwwDir, cacheKey))
+								?.respondPlaceholder(call, size)
 						}
 					}
 				}
@@ -384,7 +385,7 @@ actual class SessionsService : ISessionsService, Service {
 	override suspend fun filterOptions(search: String?, initial: String?, state: String?): List<RemoteOption> = sanitizeExceptions {
 
 		val sessionId = state
-			?: throw IllegalArgumentException("no session given")
+			?: throw BadRequestException("no session given")
 
 		auth(sessionId, SessionPermission.Read)
 

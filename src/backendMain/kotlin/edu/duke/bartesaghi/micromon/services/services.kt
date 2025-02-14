@@ -14,7 +14,6 @@ import io.kvision.remote.DummyWsSessionModule
 import io.kvision.remote.injector
 import java.nio.file.Path
 import kotlin.io.path.fileSize
-import kotlin.io.path.getLastModifiedTime
 
 
 interface Service {

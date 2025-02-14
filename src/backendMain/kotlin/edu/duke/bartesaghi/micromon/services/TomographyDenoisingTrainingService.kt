@@ -33,8 +33,8 @@ actual class TomographyDenoisingTrainingService : ITomographyDenoisingTrainingSe
 
 						// serve the image
 						val imagePath = job.dir / "train" / "training_loss.svgz"
-						val imageType = ImageType.Svgz
-						call.respondImage(imagePath, imageType)
+						ImageType.Svgz.respond(call, imagePath)
+							?.respondPlaceholder(call)
 					}
 				}
 			}

@@ -135,7 +135,7 @@ class SingleParticleRelionDataNode(
 
 			// refresh the images if needed
 			if (refreshImages) {
-				getHTMLElement()?.refreshDynamicImages()
+				getHTMLElement()?.revalidateDynamicImages()
 			}
 		}
 	}
@@ -170,7 +170,7 @@ class SingleParticleRelionDataNode(
 		win.show()
 
 		if (refreshImages) {
-			win.getHTMLElement()?.refreshDynamicImages()
+			win.getHTMLElement()?.revalidateDynamicImages()
 		}
 	}
 }

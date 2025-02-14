@@ -138,7 +138,7 @@ class TomographyRawDataNode(
 			}
 
 			if (refreshImages) {
-				getHTMLElement()?.refreshDynamicImages()
+				getHTMLElement()?.revalidateDynamicImages()
 			}
 		}
 	}
@@ -173,7 +173,7 @@ class TomographyRawDataNode(
 		win.show()
 
 		if (refreshImages) {
-			win.getHTMLElement()?.refreshDynamicImages()
+			win.getHTMLElement()?.revalidateDynamicImages()
 		}
 	}
 }

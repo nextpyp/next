@@ -14,16 +14,13 @@ import io.kvision.toast.Toast
 import io.kvision.utils.perc
 import js.getHTMLElement
 import kotlinext.js.jsObject
-import kotlinx.browser.window
-import kotlinx.coroutines.await
+import kotlinx.browser.document
 import kotlinx.coroutines.delay
+import kotlinx.html.dom.create
+import kotlinx.html.js.iframe
 import org.w3c.dom.*
 import org.w3c.dom.events.Event
 import org.w3c.dom.events.MouseEvent
-import org.w3c.dom.url.URL
-import org.w3c.fetch.RELOAD
-import org.w3c.fetch.RequestCache
-import org.w3c.fetch.Response
 import kotlin.reflect.KProperty
 
 
@@ -468,49 +465,99 @@ inline fun <reified T:Widget> T.closePopover() {
 }
 
 
-/**
- * Force the browser to download an image and update its cache.
- * Although, in practice, relying on the browser cache to have a certain state is Very unreliable!
- * Use HTMLImageElement.refresh() instead.
- */
-suspend fun refreshImage(url: String): Response =
-	window.fetch(url, jsObject {
-		cache = RequestCache.RELOAD
-	}).await()
+inline fun <reified E> NodeList.elements(): List<E> =
+	(0 until length)
+		.map { get(it) }
+		.filterIsInstance<E>()
+
+fun NodeList.elements(): List<HTMLElement> =
+	elements<HTMLElement>()
 
 
 /**
- * Forces the browser to download a new image and display it.
+ * Asks the browser to "revalidate" the image,
+ * which means asking the server if there is a new version of the image,
+ * and if there is, downloading it and displaying it
  */
-suspend fun HTMLImageElement.refresh() {
-
-	// the URL we want to reload is the image's current src attribute
+fun HTMLImageElement.revalidate() {
+	// All dynamic images use cache-control headers now,
+	// so we just need to get the browser to send a revalidation request.
+	// HOWEVER: browsers seem to have some kind of extra in-memory cache,
+	//          so if the browser thinks the image url is already in memory,
+	//          it will *never* revalidate the image.
+	//          So we need to bypass the in-memory cache using fancy hacks.
+	// This hack works by using a nested iframe to force a revalidation.
+	// Somehow having a different document context evokes different behavior from the in-memory cache.
+	// The only downside to this approach is the iframe image makes one request,
+	// and the outer document image makes another request. So that's two requests: one more than we need. =(
+	// The silver lining here is if the image never actually changed,
+	// the server will return 304 not modified for both responses.
+	// If the image did change, the server will return 200 (with the image body) only for the
+	// first iframe image request, but the second outer document image request will return a 304 without an image in the body.
+	// So the new image, if there is one, is still only downloaded once.
+	// At least in Firefox. Who knows what all the other browsers do ...
 	val url = src
+	AppScope.launch {
 
-	// fetch the image url out-of-band and force the browser to update its cache
-	val response = refreshImage(url)
+		// get the body. if there's no body, then there's also no image to reload, so we're done here
+		val body = document.body
+			?: return@launch
 
-	// NOTE: this does not work!
-	//src = url
-	// even though the browser cache has supposedly been updated,
-	// the browser will *still* not display the new image!
+		// make a hidden iframe so we can have a separate document context,
+		// and hence, a different way to poke the in-memory cache
+		val iframe = document.create.iframe {} as? HTMLIFrameElement
+			?: throw Error("not an iframe")
+		iframe.style.display = "none"
+		body.appendChild(iframe)
 
-	// update the element with the image obtained directly from the response
-	src = URL.createObjectURL(response.blob().await())
+		// load a blank HTML page into the iframe
+		iframe.srcdoc = """
+			|<!DOCTYPE html>
+			|<html>
+			|	<body></body>
+			|</html>
+			|""".trimMargin()
+		val subdoc = iframe.contentDocument
+			?: throw Error("no sub doc")
+
+		// load the image into the iframe
+		// NOTE: need raw JS here: can't use Kotlin multiplatform inside the iframe doc for some reason
+		val subimg = subdoc.createElement("img")
+		subimg.addEventListener("load", {
+
+			body.removeChild(iframe)
+
+			// finally, update the original image
+			// NOTE: this will generate an extra (and unecessary) revalidation request,
+			// but the server should return 304, so it should at least be fast
+			src = url
+		})
+		subimg.setAttribute("src", url)
+	}
+}
+
+fun Image.revalidate() {
+	val elem = getHTMLElement()
+		?: return // not in the DOM yet, nothing to revalidate
+	(elem as HTMLImageElement).revalidate()
 }
 
 
 const val dynamicImageClassName = "dynamic-image"
 
 /**
- * Refreshes all subtree images tagged with the dynamic image CSS class
+ * Revalidates all subtree images tagged with the dynamic image CSS class
  */
-fun HTMLElement.refreshDynamicImages() {
-	AppScope.launch {
-		val img = querySelector(".$dynamicImageClassName")
-			as? HTMLImageElement
-		img?.refresh()
-	}
+fun HTMLElement.revalidateDynamicImages() {
+	querySelectorAll(".$dynamicImageClassName")
+		.elements<HTMLImageElement>()
+		.forEach { it.revalidate() }
+}
+
+fun Component.revalidateDynamicImages() {
+	val elem = getHTMLElement()
+		?: return // not in the DOM yet, nothing to revalidate
+	elem.revalidateDynamicImages()
 }
 
 

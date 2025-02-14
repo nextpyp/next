@@ -123,7 +123,7 @@ object RealTimeService {
 			// route messages to the client
 			val eventListeners = (job as? MicrographsJob)
 				?.eventListeners
-				?: throw IllegalArgumentException("job ${job::class.simpleName} was not a MicrographsJob")
+				?: throw BadRequestException("job ${job::class.simpleName} was not a MicrographsJob")
 			eventListeners.add(job.idOrThrow)
 				.apply {
 
@@ -173,7 +173,7 @@ object RealTimeService {
 			// route messages to the client via the listener
 			val eventListeners = (job as? TiltSeriesesJob)
 				?.eventListeners
-				?: throw IllegalArgumentException("job ${job::class.simpleName} was not a TiltSeriesesJob")
+				?: throw BadRequestException("job ${job::class.simpleName} was not a TiltSeriesesJob")
 			eventListeners.add(job.idOrThrow)
 				.apply {
 
