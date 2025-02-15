@@ -88,21 +88,21 @@ class TomographyDrgnTrainView(val project: ProjectData, val job: TomographyDrgnT
 
 				persistence = Storage::tomographyDrgnTrainTabIndex
 
-				addTab("Convergence", "fas fa-desktop") { lazyTab ->
+				addTab("Encoder", "far fa-caret-square-right") { lazyTab ->
 					convergenceTab = ConvergenceTab().also {
 						lazyTab.elem.add(it)
 						lazyTab.onActivate = { it.revalidate() }
 					}
 				}
 
-				addTab("FSC", "fas fa-image") { lazyTab ->
+				addTab("Decoder", "far fa-caret-square-left") { lazyTab ->
 					fscTab = FscTab().also {
 						lazyTab.elem.add(it)
 						lazyTab.onActivate = { it.revalidate() }
 					}
 				}
 
-				addTab("CC Matrix", "fas fa-image") { lazyTab ->
+				addTab("Volume correlation", "fas fa-ruler-combined") { lazyTab ->
 					ccMatrixTab = CcMatrixTab().also {
 						lazyTab.elem.add(it)
 						lazyTab.onActivate = { it.revalidate() }
@@ -187,23 +187,23 @@ class TomographyDrgnTrainView(val project: ProjectData, val job: TomographyDrgnT
 
 	private inner class ConvergenceTab : Div() {
 
-		val plot0 = FetchImagePanel("Total Loss", Storage::tomographyDrgnTrainPlot0Size, ImageSize.Medium) {
+		val plot0 = FetchImagePanel("Model loss", Storage::tomographyDrgnTrainPlot0Size, ImageSize.Medium) {
 			ITomographyDrgnTrainService.plotPath(job.jobId, 0)
 		}
 
-		val plot1 = FetchImagePanel("Particle density", Storage::tomographyDrgnTrainPlot1Size, ImageSize.Medium) {
+		val plot1 = FetchImagePanel("PCA embedding", Storage::tomographyDrgnTrainPlot1Size, ImageSize.Medium) {
 			ITomographyDrgnTrainService.plotPath(job.jobId, 1)
 		}
 
-		val plot2 = FetchImagePanel("Encoder (UMAPs)", Storage::tomographyDrgnTrainPlot2Size, ImageSize.Medium) {
+		val plot2 = FetchImagePanel("UMAP embedding", Storage::tomographyDrgnTrainPlot2Size, ImageSize.Medium) {
 			ITomographyDrgnTrainService.plotPath(job.jobId, 2)
 		}
 
-		val plot3 = FetchImagePanel("Encoder (vector shifts)", Storage::tomographyDrgnTrainPlot3Size, ImageSize.Medium) {
+		val plot3 = FetchImagePanel("Embedding metrics", Storage::tomographyDrgnTrainPlot3Size, ImageSize.Medium) {
 			ITomographyDrgnTrainService.plotPath(job.jobId, 3)
 		}
 
-		val numTiltsPlot = FetchImagePanel("Number of tilts per particle") {
+		val numTiltsPlot = FetchImagePanel("Tilts per particle") {
 			ITomographyDrgnTrainService.distributionPath(job.jobId)
 		}
 
@@ -212,9 +212,9 @@ class TomographyDrgnTrainView(val project: ProjectData, val job: TomographyDrgnT
 			// NOTE: these plots are not displayed in numerical order
 			add(plot1)
 			add(plot2)
-			add(numTiltsPlot)
 			add(plot3)
 			add(plot0)
+			add(numTiltsPlot)
 		}
 
 		fun revalidate() {
@@ -228,11 +228,11 @@ class TomographyDrgnTrainView(val project: ProjectData, val job: TomographyDrgnT
 
 	private inner class FscTab : Div() {
 
-		val plot7 = FetchImagePanel("Decoder (FSC)", Storage::tomographyDrgnTrainPlot7Size, ImageSize.Medium) {
+		val plot7 = FetchImagePanel("FSC", Storage::tomographyDrgnTrainPlot7Size, ImageSize.Medium) {
 			ITomographyDrgnTrainService.plotPath(job.jobId, 7)
 		}
 
-		val plot8 = FetchImagePanel("Decoder (FSC-Nyquist)", Storage::tomographyDrgnTrainPlot8Size, ImageSize.Medium) {
+		val plot8 = FetchImagePanel("FSC at Nyquist", Storage::tomographyDrgnTrainPlot8Size, ImageSize.Medium) {
 			ITomographyDrgnTrainService.plotPath(job.jobId, 8)
 		}
 
