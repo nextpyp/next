@@ -31,6 +31,9 @@ interface ITomographyDrgnTrainService {
 		fun plotPath(jobId: String, number: Int): String =
 			"/kv/node/${TomographyDrgnTrainNodeConfig.ID}/$jobId/plot/$number"
 
+		fun distributionPath(jobId: String): String =
+			"/kv/node/${TomographyDrgnTrainNodeConfig.ID}/$jobId/distribution"
+
 		fun pairwiseCCMatrixPath(jobId: String, epoch: Int): String =
 			"/kv/node/${TomographyDrgnTrainNodeConfig.ID}/$jobId/pairwiseCCMatrix/$epoch"
 	}

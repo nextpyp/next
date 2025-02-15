@@ -71,6 +71,20 @@ actual class TomographyDrgnTrainService : ITomographyDrgnTrainService, Service {
 					}
 				}
 
+				get("distribution") {
+					call.respondExceptions {
+
+						// parse args
+						val job = authJob(ProjectPermission.Read).job
+						val dir = job.dir
+						val name = dir.fileName
+
+						// serve the image
+						ImageType.Svgz.respond(call, dir / "train" / "${name}_particles.star_particle_uid_ntilt_distribution.svgz")
+							?.respondPlaceholder(call)
+					}
+				}
+
 				get("pairwiseCCMatrix/{epoch}") {
 					call.respondExceptions {
 

@@ -203,8 +203,8 @@ class TomographyDrgnTrainView(val project: ProjectData, val job: TomographyDrgnT
 			ITomographyDrgnTrainService.plotPath(job.jobId, 3)
 		}
 
-		val numTiltsPlot = FetchImagePanel("TODO: where is this image?") {
-			"/images/placeholder.svgz"
+		val numTiltsPlot = FetchImagePanel("Number of tilts per particle") {
+			ITomographyDrgnTrainService.distributionPath(job.jobId)
 		}
 
 		init {
