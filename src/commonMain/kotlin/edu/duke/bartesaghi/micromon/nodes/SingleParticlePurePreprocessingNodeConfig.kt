@@ -7,7 +7,7 @@ object SingleParticlePurePreprocessingNodeConfig : NodeConfig {
 
 	override val id = ID
 	override val configId = "spr_pure_preprocess"
-	override val name = "Pre-processing"
+	override val name = "Pre-processing (preview)"
 	override val hasFiles = true
 	// TEMP: preview status during development
 	override val status = NodeConfig.NodeStatus.Preview
