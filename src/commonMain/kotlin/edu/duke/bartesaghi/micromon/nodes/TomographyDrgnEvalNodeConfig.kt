@@ -12,9 +12,8 @@ object TomographyDrgnEvalNodeConfig : NodeConfig {
 	// TEMP: preview status during development
 	override val status = NodeConfig.NodeStatus.Preview
 
-	val model = NodeConfig.Data("model", NodeConfig.Data.Type.DrgnModel)
-	val inMovieRefinements = NodeConfig.Data("inMovieRefinements", NodeConfig.Data.Type.MovieRefinements)
+	val inModel = NodeConfig.Data("model", NodeConfig.Data.Type.DrgnModel)
 
-	override val inputs = listOf(model,inMovieRefinements)
+	override val inputs = listOf(inModel)
 	override val outputs = emptyList<NodeConfig.Data>()
 }

@@ -21,7 +21,7 @@ actual class TomographyDrgnEvalService : ITomographyDrgnEvalService, Service {
 		// make the job
 		val job = TomographyDrgnEvalJob(userId, projectId)
 		job.args.next = args
-		job.inMovieRefinements = inData
+		job.inModel = inData
 		job.create()
 
 		return job.data()

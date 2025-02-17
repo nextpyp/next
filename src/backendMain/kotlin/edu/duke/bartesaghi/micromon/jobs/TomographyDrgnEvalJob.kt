@@ -16,7 +16,7 @@ class TomographyDrgnEvalJob(
 
 	val args = JobArgs<TomographyDrgnEvalArgs>()
 
-	var inMovieRefinements: CommonJobData.DataId? by InputProp(config.inMovieRefinements)
+	var inModel: CommonJobData.DataId? by InputProp(config.inModel)
 
 	companion object : JobInfo {
 
