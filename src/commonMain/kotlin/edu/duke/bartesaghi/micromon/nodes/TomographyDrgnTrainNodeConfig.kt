@@ -7,10 +7,11 @@ object TomographyDrgnTrainNodeConfig : NodeConfig {
 
 	override val id = ID
 	override val configId = "tomo_drgn_vae"
-	override val name = "tomoDRGN (vae)"
+	override val name = "tomoDRGN (train)"
 	override val hasFiles = true
+
 	// TEMP: preview status during development
-	override val status = NodeConfig.NodeStatus.Preview
+	// override val status = NodeConfig.NodeStatus.Preview
 
 	val inMovieRefinements = NodeConfig.Data("inMovieRefinements", NodeConfig.Data.Type.MovieRefinements)
 	val model = NodeConfig.Data("model", NodeConfig.Data.Type.DrgnModel)
