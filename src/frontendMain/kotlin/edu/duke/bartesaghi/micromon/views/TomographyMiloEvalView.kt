@@ -98,7 +98,7 @@ class TomographyMiloEvalView(val project: ProjectData, val job: TomographyMiloEv
 
 				persistence = Storage::tomographyMiloEvalTabIndex
 
-				addTab("Plots", "far fa-chart-bar") { lazyTab ->
+				addTab("Mapping", "far fa-chart-bar") { lazyTab ->
 					PlotsTab(lazyTab.elem)
 				}
 
@@ -117,7 +117,7 @@ class TomographyMiloEvalView(val project: ProjectData, val job: TomographyMiloEv
 				}
 
 				liveTab = LiveTab(data)
-				liveTabId = addTab("Tilt-Series", "fas fa-desktop") { lazyTab ->
+				liveTabId = addTab("Tomograms", "fas fa-desktop") { lazyTab ->
 					liveTab?.show(lazyTab.elem)
 				}.id
 			}
@@ -204,7 +204,7 @@ class TomographyMiloEvalView(val project: ProjectData, val job: TomographyMiloEv
 				add(fileUpload)
 			}
 
-			elem.add(SizedPanel("Class Labels", Storage.miloResults2dSize).apply {
+			elem.add(SizedPanel("Class labels", Storage.miloResults2dSize).apply {
 				val img = image(ITomographyMiloEvalService.results2dLabelsPath(job.jobId, size), classes = setOf("full-width-image"))
 
 				// set the panel resize handler
@@ -214,7 +214,7 @@ class TomographyMiloEvalView(val project: ProjectData, val job: TomographyMiloEv
 				}
 			})
 
-			elem.add(SizedPanel("UMAP Embedding", Storage.miloResults2dSize).apply {
+			elem.add(SizedPanel("UMAP embedding", Storage.miloResults2dSize).apply {
 				val img = image(ITomographyMiloEvalService.results2dPath(job.jobId, size), classes = setOf("full-width-image"))
 
 				// set the panel resize handler
@@ -257,7 +257,7 @@ class TomographyMiloEvalView(val project: ProjectData, val job: TomographyMiloEv
 				}
 			}
 
-			tiltSeriesesElem.add(SizedPanel("Tomogram visualization", Storage.miloResults3dTiltSeriesSize).apply {
+			tiltSeriesesElem.add(SizedPanel("Tomogram slice", Storage.miloResults3dTiltSeriesSize).apply {
 				val img = image(ITomographyMiloEvalService.results3dTiltSeriesPath(job.jobId, tiltSeries.id, size), classes = setOf("full-width-image"))
 
 				// set the panel resize handler

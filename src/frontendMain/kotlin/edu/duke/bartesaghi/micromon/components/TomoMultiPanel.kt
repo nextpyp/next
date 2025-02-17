@@ -119,7 +119,7 @@ class TomoMultiPanel(
 			self.ctfMultiTiltPlot.replot()
 		}
 
-		addTab("Reconstruction") { lazyTab ->
+		addTab("Tomogram") { lazyTab ->
 			self.pickingControls?.let { lazyTab.elem.add(it) }
 			lazyTab.elem.add(self.recDownloadBadge)
 			lazyTab.elem.add(self.particlesImage)

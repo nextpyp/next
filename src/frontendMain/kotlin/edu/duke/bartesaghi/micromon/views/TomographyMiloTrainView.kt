@@ -64,7 +64,7 @@ class TomographyMiloTrainView(val project: ProjectData, val job: TomographyMiloT
 			elem.h1("MiLoPYP Training Results")
 
 			// show the 2D results
-			elem.add(SizedPanel("Loss Functions", Storage.miloResults2dSize).apply {
+			elem.add(SizedPanel("Model loss", Storage.miloResults2dSize).apply {
 				val img = image(ITomographyMiloTrainService.resultsPath(job.jobId), classes = setOf("full-width-image"))
 				img?.refresh()
 				// set the panel resize handler

@@ -160,7 +160,7 @@ class TomographyDenoisingEvalView(val project: ProjectData, val job: TomographyD
 				}
 
 				liveTab = LiveTab(data)
-				liveTabId = addTab("Tilt Series", "fas fa-crosshairs") {
+				liveTabId = addTab("Tomograms", "fas fa-crosshairs") {
 					liveTab?.show(it.elem)
 				}.id
 			}

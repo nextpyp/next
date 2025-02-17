@@ -188,7 +188,7 @@ class TomographyPreprocessingView(val project: ProjectData, val job: TomographyP
 				}
 
 				liveTab = LiveTab(job, data)
-				liveTabId = addTab("Tilt Series", "fas fa-desktop") {
+				liveTabId = addTab("Tomograms", "fas fa-desktop") {
 					liveTab?.show(it.elem)
 				}.id
 			}

@@ -163,7 +163,7 @@ class TomographyParticlesEvalView(val project: ProjectData, val job: TomographyP
 				}
 
 				liveTab = LiveTab(data, tiltSeriesStats)
-				liveTabId = addTab("Tilt Series", "fas fa-crosshairs") {
+				liveTabId = addTab("Tomograms", "fas fa-crosshairs") {
 					liveTab?.show(it.elem)
 				}.id
 			}

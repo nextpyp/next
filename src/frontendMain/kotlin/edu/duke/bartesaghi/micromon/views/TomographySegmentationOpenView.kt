@@ -157,7 +157,7 @@ class TomographySegmentationOpenView(val project: ProjectData, val job: Tomograp
 				}
 
 				liveTab = LiveTab(data, tiltSeriesStats)
-				liveTabId = addTab("Reconstruction", "fas fa-desktop") {
+				liveTabId = addTab("Tomograms", "fas fa-desktop") {
 					liveTab?.show(it.elem)
 				}.id
 			}
