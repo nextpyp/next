@@ -30,6 +30,9 @@ interface ImageType {
 	suspend fun respondNotFound(call: ApplicationCall): Nothing =
 		throw NotFoundException()
 
+	suspend fun respond500(internalMessage: String): Nothing =
+		throw IllegalStateException(internalMessage)
+
 
 	data class SizeInfo(
 		val size: ImageSize,
@@ -40,6 +43,8 @@ interface ImageType {
 
 
 	companion object {
+
+		fun <T:ImageType> responseFinished(): T? = null
 
 		suspend fun <T:ImageType> respondPath(
 			type: T,
@@ -63,7 +68,7 @@ interface ImageType {
 				call.respondFile(path, type.contentType)
 			}
 
-			return null
+			return responseFinished()
 		}
 
 		suspend fun <T:ImageType> respondSized(
@@ -120,8 +125,7 @@ interface ImageType {
 			cachePath.writeBytesAs(sizeInfo.dir.osUsername, resized)
 
 			return respondPath(type, call, cachePath, extraHeaders)
-				?: throw IllegalStateException("resized image was not found")
-				// NOTE: this should be an internal 500 error, not a 404 not found
+				?.respond500("resized image was not found at: $cachePath")
 		}
 
 		suspend fun <T:ImageType> respondBytes(
