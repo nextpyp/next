@@ -42,7 +42,10 @@ pub fn run(web: &Web, args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 	web.write_parameters(&args, &args_config)?;
 
 	// create subfolders
-	let dir_plots = PathBuf::from("train/convergence/plots");
+	let dir_train = PathBuf::from("train");
+	fs::create_dir_all(&dir_train)
+		.context("Failed to create train dir")?;
+	let dir_plots = dir_train.join("convergence/plots");
 	fs::create_dir_all(&dir_plots)
 		.context("Failed to create plots dir")?;
 
@@ -62,6 +65,14 @@ pub fn run(web: &Web, args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 		web.write_tomo_drgn_convergence(iter)?;
 		iter += 1;
 	}
+
+	// create the distribution plot, which copies the parent folder name for some reason
+	let cwd = std::env::current_dir()
+		.context("Failed to get current folder")?;
+	let name = cwd.file_name()
+		.context("Current folder has no filename")?
+		.to_string_lossy();
+	plot_img(web, &dir_train, format!("{name}_particles.star_particle_uid_ntilt_distribution"))?;
 
 	// create the summary plots
 	plot_img(web, &dir_plots, "00_total_loss")?;
