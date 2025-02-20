@@ -126,7 +126,6 @@ open class FetchImage(
 
 			suspend fun make(url: String, response: Response): FetchedUrl {
 
-				console.log("FetchedUrl.make() ", url) // TEMP
 				val blobUrl = URL.createObjectURL(response.blob().await())
 
 				val fetchedUrl = FetchedUrl(
@@ -135,7 +134,6 @@ open class FetchImage(
 					blobUrl = blobUrl
 				)
 				val reg = garbage.register(fetchedUrl) {
-					console.log("FetchedUrl CLEAN ", url) // TEMP
 					URL.revokeObjectURL(blobUrl)
 					cache.remove(url)
 				}
