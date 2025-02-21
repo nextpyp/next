@@ -52,6 +52,7 @@ class TomographyDrgnTrainView(val project: ProjectData, val job: TomographyDrgnT
 	private var fscTab: FscTab? = null
 	private var ccMatrixTab: CcMatrixTab? = null
 	private var reconstructionTab: ReconstructionTab? = null
+	private var threeDeeTab: ThreeDeeTab? = null
 
 	private val iterations = ArrayList<TomoDrgnConvergence.Iteration>()
 	private val iterationsNav = BigListNav(
@@ -135,7 +136,13 @@ class TomographyDrgnTrainView(val project: ProjectData, val job: TomographyDrgnT
 					}
 				}
 
-				// TODO: 3D view tab
+				addTab("3D View", "fas fa-question-circle") { lazyTab ->
+					threeDeeTab = ThreeDeeTab().also {
+						lazyTab.elem.add(it)
+						it.reset()
+					}
+				}
+
 				// TODO: class movies tab
 			}
 
@@ -208,6 +215,7 @@ class TomographyDrgnTrainView(val project: ProjectData, val job: TomographyDrgnT
 		fscTab?.revalidate()
 		ccMatrixTab?.reset()
 		reconstructionTab?.reset()
+		threeDeeTab?.reset()
 	}
 
 	private fun addIterations(convergence: TomoDrgnConvergence, newIterations: List<TomoDrgnConvergence.Iteration>) {
@@ -220,6 +228,7 @@ class TomographyDrgnTrainView(val project: ProjectData, val job: TomographyDrgnT
 		convergenceTab?.revalidate()
 		fscTab?.revalidate()
 		ccMatrixTab?.addIterations(convergence, newIterations)
+		threeDeeTab?.addIterations(convergence, newIterations)
 	}
 
 
@@ -456,6 +465,49 @@ class TomographyDrgnTrainView(val project: ProjectData, val job: TomographyDrgnT
 			}
 
 			plot4.img.revalidate()
+		}
+	}
+
+
+	private inner class ThreeDeeTab : Div() {
+
+		private val viewer = ThreeDeeViewer()
+
+		init {
+			// layout
+			add(viewer)
+		}
+
+		private fun volumeData(iter: TomoDrgnConvergence.Iteration, classNum: Int): ThreeDeeViewer.VolumeData =
+			ThreeDeeViewer.VolumeData(
+				name = "Iter ${iter.number}, Class $classNum",
+				url = ITomographyDrgnTrainService.classMrcPath(job.jobId, iter.number, classNum)
+			)
+
+		fun reset() {
+
+			val convergence = convergence
+				?: run {
+					viewer.volumes = emptyList()
+					return
+				}
+
+			// set the currently known volumes
+			viewer.volumes = convergence.iterations.flatMap { iter ->
+				(1 .. convergence.parameters.numClasses).map { classNum ->
+					volumeData(iter, classNum)
+				}
+			}
+		}
+
+		fun addIterations(convergence: TomoDrgnConvergence, newIterations: List<TomoDrgnConvergence.Iteration>) {
+
+			// add the new volumrs
+			for (iter in newIterations) {
+				for (classNum in 1 .. convergence.parameters.numClasses) {
+					viewer.addVolume(volumeData(iter, classNum))
+				}
+			}
 		}
 	}
 }

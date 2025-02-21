@@ -42,14 +42,27 @@ fun Throwable.reportError(msg: String? = null) {
 		"(unknown)"
 	}
 
+	reportJsError(jsObject {
+		this.name = type
+		this.message = message
+		this.stack = this@reportError.asDynamic().stack
+		this.cause = cause
+	})
+
+	// report causes too
+	cause?.reportError("Caused By")
+}
+
+
+fun reportJsError(err: dynamic) {
+
 	console.error("""
 		|NextPYP had an error:
-		|     Type:  $type
-		|  Message:  $message
+		|     Type:  ${err.name}
+		|  Message:  ${err.message}
 	""".trimMargin())
-	console.log("Collecting stack trace, please wait ...")
 
-	val stack = this@reportError.asDynamic().stack
+	console.log("Collecting stack trace, please wait ...")
 
 	// NOTE: can't use the regular AppScope.launch here, becuase it might have already been broken by an exception
 	//       so start a new coroutine scope to handle the stack processing
@@ -59,10 +72,7 @@ fun Throwable.reportError(msg: String? = null) {
 			// use a library to parse the stack trace, since doing this correctly requires reading the source maps
 			// NOTE: Kotlin multiplatform's errors aren't quite the same as native JS errors,
 			//       so make an error-like plain JS object that should hopefully be good enough for the stack parsing
-			StackTrace.fromError(jsObject {
-				this.message = message
-				this.stack = stack
-			})
+			StackTrace.fromError(err)
 				.await()
 				.joinToString("\n") { frame ->
 					"${frame.functionName} @ ${frame.fileName}:${frame.lineNumber}:${frame.columnNumber}"
@@ -72,10 +82,6 @@ fun Throwable.reportError(msg: String? = null) {
 		} catch (err: dynamic) {
 			console.error(this)
 			console.error("Also, error processing failed", err)
-		} finally {
-
-			// report causes too
-			cause?.reportError("Caused By")
 		}
 	}
 }
