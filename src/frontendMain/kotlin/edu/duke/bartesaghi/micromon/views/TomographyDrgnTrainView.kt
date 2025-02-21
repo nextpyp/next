@@ -7,6 +7,7 @@ import edu.duke.bartesaghi.micromon.services.*
 import io.kvision.core.Widget
 import io.kvision.html.*
 import io.kvision.navbar.navLink
+import io.kvision.utils.px
 
 
 fun Widget.onGoToTomographyDrgnTrain(viewport: Viewport, project: ProjectData, job: TomographyDrgnTrainData) {
@@ -50,6 +51,22 @@ class TomographyDrgnTrainView(val project: ProjectData, val job: TomographyDrgnT
 	private var convergenceTab: ConvergenceTab? = null
 	private var fscTab: FscTab? = null
 	private var ccMatrixTab: CcMatrixTab? = null
+	private var reconstructionTab: ReconstructionTab? = null
+
+	private val iterations = ArrayList<TomoDrgnConvergence.Iteration>()
+	private val iterationsNav = BigListNav(
+		iterations,
+		initialIndex = null,
+		initialLive = true,
+		has100 = false
+	).apply {
+		// don't label the nav with the indices, use the iteration numbers themselves
+		labeler = { i -> iterations[i].number.toString() }
+	}
+
+	private val currentIteration: TomoDrgnConvergence.Iteration? get() =
+		iterationsNav.currentIndex
+			?.let { iterations[it] }
 
 	private var connector: WebsocketConnector? = null
 
@@ -69,7 +86,7 @@ class TomographyDrgnTrainView(val project: ProjectData, val job: TomographyDrgnT
 
 		AppScope.launch {
 
-			// load all the tilt series
+			// load all the converenge, if any
 			val loadingElem = elem.loading("Fetching convergence information ...")
 			convergence = try {
 				delayAtLeast(200) {
@@ -110,7 +127,14 @@ class TomographyDrgnTrainView(val project: ProjectData, val job: TomographyDrgnT
 					}
 				}
 
-				// TODO: reconstruction tab
+				addTab("Reconstruction", "fas fa-question-circle") { lazyTab ->
+					reconstructionTab = ReconstructionTab(iterationsNav.clone()).also {
+						lazyTab.elem.add(it)
+						lazyTab.onActivate = { it.revalidate() }
+						it.reset()
+					}
+				}
+
 				// TODO: 3D view tab
 				// TODO: class movies tab
 			}
@@ -173,12 +197,26 @@ class TomographyDrgnTrainView(val project: ProjectData, val job: TomographyDrgnT
 	}
 
 	private fun reset() {
+
+		iterations.clear()
+		convergence?.let { iterations.addAll(it.iterations) }
+		iterations.indices
+			.lastOrNull()
+			?.let { iterationsNav.showItem(it, false) }
+
 		convergenceTab?.revalidate()
 		fscTab?.revalidate()
 		ccMatrixTab?.reset()
+		reconstructionTab?.reset()
 	}
 
 	private fun addIterations(convergence: TomoDrgnConvergence, newIterations: List<TomoDrgnConvergence.Iteration>) {
+
+		for (iter in newIterations) {
+			iterations.add(iter)
+			iterationsNav.newItem()
+		}
+
 		convergenceTab?.revalidate()
 		fscTab?.revalidate()
 		ccMatrixTab?.addIterations(convergence, newIterations)
@@ -260,14 +298,14 @@ class TomographyDrgnTrainView(val project: ProjectData, val job: TomographyDrgnT
 
 			val convergence = convergence
 				?: run {
-					div("Run not finished yet", classes = setOf("empty", "spaced"))
+					emptyMessage("Run not finished yet")
 					return
 				}
 
 			val iters = convergence.iterations
 				.takeIf { it.isNotEmpty() }
 				?: run {
-					div("No iterations to show", classes = setOf("empty", "spaced"))
+					emptyMessage("No iterations to show")
 					return
 				}
 
@@ -289,6 +327,135 @@ class TomographyDrgnTrainView(val project: ProjectData, val job: TomographyDrgnT
 			for ((_, panel) in plots) {
 				panel.img.revalidate()
 			}
+		}
+	}
+
+
+	private inner class ReconstructionTab(
+		iterationsNav: BigListNav
+	): Div(classes = setOf("reconstruction-tab")) {
+
+		private val classesRadio = ClassesRadio("Class")
+
+		private val classesPanel = ContentSizedPanel(
+			"Projections/Slices",
+			ImageSize.values().map { it.approxWidth },
+			(Storage.tomographyDrgnTrainClassSize ?: ImageSize.Small).ordinal
+		)
+		private val classesElem = Div(classes = setOf("classes"))
+			.also { classesPanel.add(it) }
+
+		private val plot4 = FetchImagePanel("Resolution", Storage::tomographyDrgnTrainPlot4Size, ImageSize.Medium) {
+			ITomographyDrgnTrainService.plotPath(job.jobId, 4)
+		}
+
+		private val classImages = ArrayList<FetchImage>()
+		private val classMrcDownloads = ArrayList<FileDownloadBadge>()
+
+
+		init {
+
+			val self = this // Kotlin DSLs are dumb ...
+
+			// layout the tab
+			div(classes = setOf("nav")) {
+				add(iterationsNav)
+				add(self.classesRadio)
+			}
+			add(classesPanel)
+			add(plot4)
+
+			// wire up events
+			iterationsNav.onShow = {
+				currentIteration?.let { showIteration(it) }
+			}
+			classesPanel.onResize = { index ->
+				Storage.tomographyDrgnTrainClassSize = ImageSize.values()[index]
+				currentIteration?.let { showIteration(it) }
+			}
+			classesRadio.onUpdate = {
+				currentIteration?.let { showIteration(it) }
+			}
+		}
+
+		fun reset() {
+
+			classesRadio.count = 0
+
+			fun abort(msg: String) {
+				clearClasses()
+				classesElem.emptyMessage(msg)
+			}
+
+			val convergence = convergence
+				?: return abort("(No iterations to show)")
+
+			val iter = currentIteration
+				?: return abort("(No current iteration to show)")
+
+			classesRadio.count = convergence.parameters.numClasses
+			classesRadio.checkedClasses = classesRadio.allClasses()
+			showIteration(iter)
+		}
+
+		fun clearClasses() {
+			classesElem.removeAll()
+			classImages.clear()
+			classMrcDownloads.clear()
+		}
+
+		fun showIteration(iteration: TomoDrgnConvergence.Iteration) {
+
+			val self = this // Kotlin DSLs are dumb ...
+
+			clearClasses()
+
+			if (classesRadio.checkedClasses.isEmpty()) {
+				classesElem.emptyMessage("No classes to show")
+				return
+			}
+
+			// show images for the classes
+			val imageSize = ImageSize.values()[classesPanel.index]
+			for (classNum in classesRadio.checkedClasses) {
+
+				classesElem.div(classes = setOf("class")) {
+
+					div(classes = setOf("frame")) {
+
+						val img = fetchImage {
+							width = imageSize.approxWidth.px
+							fetch(ITomographyDrgnTrainService.classImagePath(job.jobId, iteration.number, classNum, imageSize))
+						}
+						self.classImages.add(img)
+
+						div("Class $classNum", classes = setOf("label"))
+					}
+
+					val mrcDownload = FileDownloadBadge(
+						filetype = ".mrc file",
+						url = ITomographyDrgnTrainService.classMrcPath(job.jobId, iteration.number, classNum),
+						filename = "reconstruction_${job.shortNumberedName}_iter_${iteration.number}_cls_${classNum}.mrc",
+						loader = { Services.tomographyDrgnTrain.classMrcData(job.jobId, iteration.number, classNum) }
+					)
+					mrcDownload.load()
+					self.classMrcDownloads.add(mrcDownload)
+					add(mrcDownload)
+				}
+			}
+		}
+
+		fun revalidate() {
+
+			for (img in classImages) {
+				img.revalidate()
+			}
+
+			for (download in classMrcDownloads) {
+				download.load()
+			}
+
+			plot4.img.revalidate()
 		}
 	}
 }

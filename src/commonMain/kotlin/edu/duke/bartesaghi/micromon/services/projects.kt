@@ -334,6 +334,8 @@ interface JobData {
 		common.jobNumber
 			?.let { number -> "B$number-$name" }
 			?: name
+	val shortNumberedName: String get() =
+		"B" + (common.jobNumber?.toString() ?: "??")
 	val jobId: String get() = common.jobId
 
 

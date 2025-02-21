@@ -2,12 +2,17 @@ package edu.duke.bartesaghi.micromon.components
 
 import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.services.FileDownloadData
+import edu.duke.bartesaghi.micromon.services.Option
+import edu.duke.bartesaghi.micromon.services.unwrap
 import io.kvision.html.Div
 import io.kvision.html.span
 
 
 class FileDownloadBadge(
-	filetype: String
+	filetype: String,
+	var url: String? = null,
+	var filename: String? = null,
+	var loader: (suspend () -> Option<FileDownloadData>)? = null
 ) : Div() {
 
 	data class Info(
@@ -27,15 +32,22 @@ class FileDownloadBadge(
 		showEmpty()
 	}
 
-	fun load(loader: suspend () -> Info?) {
+	fun load() {
 
 		link.rightElem.removeAll()
 		link.rightElem.loading()
 
+		val loader = loader
+			?: run {
+				showEmpty()
+				return
+			}
+
 		AppScope.launch {
 			try {
-				val info = loader()
-				show(info)
+				val data = loader()
+					.unwrap()
+				show(data)
 			} catch (t: Throwable) {
 				t.reportError("Failed to get file download data")
 				link.rightElem.content = "error"
@@ -44,13 +56,13 @@ class FileDownloadBadge(
 		}
 	}
 
-	fun show(info: Info?) {
+	fun show(data: FileDownloadData?) {
 		link.rightElem.removeAll()
-		if (info != null) {
-			link.rightElem.content = info.data.bytes.toBytesString()
+		if (data != null) {
+			link.rightElem.content = data.bytes.toBytesString()
 			link.rightColor = LinkBadge.Color.Green
-			link.href = info.href
-			link.download = info.filename
+			link.href = url
+			filename?.let { link.download = it }
 		} else {
 			link.rightElem.content = "none"
 			link.rightColor = LinkBadge.Color.Grey

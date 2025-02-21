@@ -40,7 +40,7 @@ class BigListNav private constructor(
 	) {
 		val instances = ArrayList<BigListNav>()
 
-		var labeler: ((Any) -> String)? = null
+		var labeler: ((Int) -> String)? = null
 
 		fun showItem(index: Int, stopLive: Boolean) {
 
@@ -98,7 +98,7 @@ class BigListNav private constructor(
 		}
 	}
 
-	var labeler: ((Any) -> String)?
+	var labeler: ((Int) -> String)?
 		get() = core.labeler
 		set(value) { core.labeler = value }
 
@@ -275,7 +275,7 @@ class BigListNav private constructor(
 
 	private fun indexLabel(index: Int): String =
 		// look for a label from the labeler first
-		labeler?.invoke(core.items[index])
+		labeler?.invoke(index)
 			// otherwise, just use the index as the label
 			?: "${index + 1}"
 

@@ -52,9 +52,7 @@ class MapsTab(
 	override var isActiveTab = false
 
 	private val iterationNav = state.iterationNav.clone()
-	private val classRadio = RadioSelection(
-		labelText = "Class: "
-	)
+	private val classRadio = ClassesRadio("Class")
 	private val contentElem = Div()
 
 
@@ -65,7 +63,7 @@ class MapsTab(
 			?.let { state.reconstructions.withIteration(it) }
 			?.classes
 			?: emptyList()
-		classRadio.setCount(allClasses.size)
+		classRadio.count = allClasses.size
 
 		// apply the URL params, if any
 		if (urlParams != null) {
@@ -74,11 +72,9 @@ class MapsTab(
 
 			// otherwise, leave the iteration alone (it's shared with other tabs),
 			// but start by showing the first class (only used by this tab), if any
-			val selectedClasses =
-				allClasses.firstOrNull()
-					?.let { listOf(it) }
-					?: emptyList()
-			classRadio.setCheckedIndices(selectedClasses.map { it.classNumToIndex() })
+			classRadio.checkedClasses = allClasses.firstOrNull()
+				?.let { listOf(it) }
+				?: emptyList()
 		}
 
 		// build the UI
@@ -126,14 +122,13 @@ class MapsTab(
 			.toIntOrNull()
 			?.takeIf { it >= classes.first() && it <= classes.last() }
 			?: return
-		classRadio.setCheckedIndices(listOf(classNum.classNumToIndex()))
+		classRadio.checkedClasses = listOf(classNum)
 	}
 
 	override fun path(): String {
 		val iteration = state.currentIteration
-		val classNum = classRadio.getCheckedIndices()
+		val classNum = classRadio.checkedClasses
 			.firstOrNull()
-			?.indexToClassNum()
 		return path(iteration, classNum)
 	}
 
@@ -149,11 +144,10 @@ class MapsTab(
 			}
 
 		// update the classes radio
-		classRadio.setCount(state.reconstructions.withIteration(iteration)?.classes?.size ?: 0)
+		classRadio.count = state.reconstructions.withIteration(iteration)?.classes?.size ?: 0
 
-		val classNum = classRadio.getCheckedIndices()
+		val classNum = classRadio.checkedClasses
 			.firstOrNull()
-			?.indexToClassNum()
 			?: run {
 				contentElem.emptyMessage("No class selected")
 				return
@@ -176,8 +170,8 @@ class MapsTab(
 		contentElem.removeAll()
 
 		// update the classes radio
-		classRadio.setCount(state.reconstructions.withIteration(reconstruction.iteration)?.classes?.size ?: 0)
-		classRadio.setCheckedIndices(listOf(reconstruction.classNum.classNumToIndex()))
+		classRadio.count = state.reconstructions.withIteration(reconstruction.iteration)?.classes?.size ?: 0
+		classRadio.checkedClasses = listOf(reconstruction.classNum)
 
 		showReconstruction(reconstruction)
 	}
@@ -272,7 +266,7 @@ class MapsTab(
 	}
 
 	fun showClass(classNum: Int) {
-		classRadio.setCheckedIndices(listOf(classNum.classNumToIndex()))
+		classRadio.checkedClasses = listOf(classNum)
 		update()
 	}
 }

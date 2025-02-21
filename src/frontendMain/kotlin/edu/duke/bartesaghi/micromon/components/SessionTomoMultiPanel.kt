@@ -68,7 +68,12 @@ class SessionTomoMultiPanel(
 		"Select a bar or hover over chart to view micrograph"
 	)
 
-	private val recDownloadBadge = FileDownloadBadge(".rec file")
+	private val recDownloadBadge = FileDownloadBadge(
+		filetype = ".rec file",
+		url = "kv/tomographySession/${session.sessionId}/${tiltSeries.id}/rec",
+		filename = "${session.sessionId}_${tiltSeries.id}.rec",
+		loader = { Services.tomographySessions.recData(session.sessionId, tiltSeries.id) }
+	)
 
 	val tabs = flatLazyTabPanel {
 
@@ -171,17 +176,7 @@ class SessionTomoMultiPanel(
 			driftBarPlot.myOnClick(initialIndexToShow)
 		}
 
-		recDownloadBadge.load {
-			Services.tomographySessions.recData(session.sessionId, tiltSeries.id)
-				.unwrap()
-				?.let { recData ->
-					FileDownloadBadge.Info(
-						recData,
-						"kv/tomographySession/${session.sessionId}/${tiltSeries.id}/rec",
-						"${session.sessionId}_${tiltSeries.id}.rec"
-					)
-				}
-		}
+		recDownloadBadge.load()
 
 		// load the particles image
 		particlesImage.load()

@@ -25,6 +25,9 @@ interface ITomographyDrgnTrainService {
 	@KVBindingRoute("node/${TomographyDrgnTrainNodeConfig.ID}/convergence")
 	suspend fun getConvergence(jobId: String): Option<TomoDrgnConvergence>
 
+	@KVBindingRoute("node/${TomographyDrgnTrainNodeConfig.ID}/classMrcData")
+	suspend fun classMrcData(jobId: String, iterNum: Int, classNum: Int): Option<FileDownloadData>
+
 
 	companion object {
 
@@ -36,6 +39,12 @@ interface ITomographyDrgnTrainService {
 
 		fun pairwiseCCMatrixPath(jobId: String, epoch: Int): String =
 			"/kv/node/${TomographyDrgnTrainNodeConfig.ID}/$jobId/pairwiseCCMatrix/$epoch"
+
+		fun classImagePath(jobId: String, iterNum: Int, classNum: Int, size: ImageSize) =
+			"/kv/node/${TomographyDrgnTrainNodeConfig.ID}/$jobId/iter/$iterNum/class/$classNum/image/${size.id}"
+
+		fun classMrcPath(jobId: String, iterNum: Int, classNum: Int) =
+			"/kv/node/${TomographyDrgnTrainNodeConfig.ID}/$jobId/iter/$iterNum/class/$classNum/mrc"
 	}
 }
 

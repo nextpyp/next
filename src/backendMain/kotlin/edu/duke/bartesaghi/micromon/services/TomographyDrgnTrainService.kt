@@ -4,6 +4,7 @@ import com.google.inject.Inject
 import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.auth.authOrThrow
 import edu.duke.bartesaghi.micromon.jobs.*
+import edu.duke.bartesaghi.micromon.linux.userprocessor.WebCacheDir
 import edu.duke.bartesaghi.micromon.mongo.authProjectOrThrow
 import edu.duke.bartesaghi.micromon.nodes.TomographyDrgnTrainNodeConfig
 import io.ktor.application.*
@@ -11,6 +12,7 @@ import io.ktor.features.*
 import io.ktor.routing.*
 import io.ktor.util.*
 import io.ktor.util.pipeline.*
+import java.nio.file.Path
 import kotlin.io.path.div
 
 
@@ -76,11 +78,11 @@ actual class TomographyDrgnTrainService : ITomographyDrgnTrainService, Service {
 
 						// parse args
 						val job = authJob(ProjectPermission.Read).job
-						val dir = job.dir
-						val name = dir.fileName
+
+						val dir = job.dir / "train"
 
 						// serve the image
-						ImageType.Svgz.respond(call, dir / "train" / "${name}_particles.star_particle_uid_ntilt_distribution.svgz")
+						ImageType.Svgz.respond(call, dir / "${job.dir.fileName}_particles.star_particle_uid_ntilt_distribution.svgz")
 							?.respondPlaceholder(call)
 					}
 				}
@@ -100,8 +102,54 @@ actual class TomographyDrgnTrainService : ITomographyDrgnTrainService, Service {
 							?.respondPlaceholder(call)
 					}
 				}
+
+				route("iter/{iterNum}/class/{classNum}") {
+
+					fun PipelineContext<Unit,ApplicationCall>.parseIterNum(): Int =
+						call.parameters.getOrFail("iterNum").toIntOrNull()
+							?: throw BadRequestException("iterNum must be an integer")
+
+					fun PipelineContext<Unit,ApplicationCall>.parseClassNum(): Int =
+						call.parameters.getOrFail("classNum").toIntOrNull()
+							?: throw BadRequestException("classNum must be an integer")
+
+					get("image/{size}") {
+						call.respondExceptions {
+
+							// parse args
+							val job = authJob(ProjectPermission.Read).job
+							val iterNum = parseIterNum()
+							val classNum = parseClassNum()
+							val size = parseSize()
+
+							// serve the image
+							val imagePath = job.iterDir(iterNum) / "vol_${classNum.formatCls()}.webp"
+							val cacheKey = WebCacheDir.Keys.tomoDrgnVolume.parameterized("$iterNum-$classNum")
+							ImageType.Webp.respondSized(call, imagePath, size.info(job.wwwDir, cacheKey))
+								?.respondPlaceholder(call, size)
+						}
+					}
+
+					get("mrc") {
+						call.respondExceptions {
+
+							// parse args
+							val job = authJob(ProjectPermission.Read).job
+							val iterNum = parseIterNum()
+							val classNum = parseClassNum()
+
+							call.respondFileMrc(job.iterDir(iterNum) / "vol_${classNum.formatCls()}.mrc")
+						}
+					}
+				}
 			}
 		}
+
+		fun Job.iterDir(iterNum: Int): Path =
+			dir / "train" / "convergence" / "vols.$iterNum"
+
+		fun Int.formatCls(): String =
+			"%03d".format(this)
 	}
 
 
@@ -149,10 +197,22 @@ actual class TomographyDrgnTrainService : ITomographyDrgnTrainService, Service {
 
 	override suspend fun getConvergence(jobId: String): Option<TomoDrgnConvergence> = sanitizeExceptions {
 
+		println("*** getConvergence($jobId)") // TEMP
+
 		val job = jobId.authJob(ProjectPermission.Read).job
 
 		job.convergenceParameters()
 			?.let { job.convergence(it) }
+			.toOption()
+	}
+
+	override suspend fun classMrcData(jobId: String, iterNum: Int, classNum: Int): Option<FileDownloadData> = sanitizeExceptions {
+
+		val job = jobId.authJob(ProjectPermission.Read).job
+
+		val path = job.iterDir(iterNum) / "vol_${classNum.formatCls()}.mrc"
+		return path
+			.toFileDownloadData()
 			.toOption()
 	}
 }

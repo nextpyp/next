@@ -376,5 +376,6 @@ class WebCacheDir(val path: Path, val osUsername: String?) {
 		val miloResults2D = Key.reserve("milo-results-2d")
 		val miloLabels2D = Key.reserve("milo-results-2d-labels")
 		val miloResults3D = Key.reserve("milo-results-3d")
+		val tomoDrgnVolume = Key.reserve("tomodrgn-vol")
 	}
 }

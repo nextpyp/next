@@ -3999,3 +3999,51 @@ select.native {
 		}
 	}
 }
+
+
+/* TOMOGRAPHY DRGN TRAIN VIEW */
+
+.tomography-drgn-train {
+	position: relative;
+
+	.websocket-control {
+		position: absolute;
+		top: 10px;
+		right: 10px;
+	}
+
+	.reconstruction-tab {
+		display: flex;
+		flex-direction: column;
+		gap: 1em;
+
+		.nav {
+			display: flex;
+			flex-direction: row;
+			gap: 1em;
+			align-items: baseline;
+		}
+
+		.classes {
+			.class {
+				display: inline-block;
+				margin: 1em;
+				text-align: center;
+
+				.frame {
+					background-color: #5e656e;
+					border: solid #5e656e 3px;
+					border-radius: 4px;
+					margin-bottom: 0.2em;
+
+					.label {
+						overflow: hidden;
+						background-color: #505050;
+						color: #ffffff;
+						font-size: 70%;
+					}
+				}
+			}
+		}
+	}
+}

@@ -173,7 +173,12 @@ class TomographyMiloEvalView(val project: ProjectData, val job: TomographyMiloEv
 	) {
 
 		// show the file download
-		val fileDownload = FileDownloadBadge(".gzip file")
+		val fileDownload = FileDownloadBadge(
+			filetype = ".gzip file",
+			url = ITomographyMiloEvalService.dataPath(job.jobId),
+			filename = "${job.jobId}_milo.gzip",
+			loader = { Services.tomographyMiloEval.data(job.jobId) }
+		)
 
 		// show the file uplaod
 		val fileUpload = FileUpload(
@@ -185,17 +190,7 @@ class TomographyMiloEvalView(val project: ProjectData, val job: TomographyMiloEv
 
 		init {
 
-			AppScope.launch {
-				Services.tomographyMiloEval.data(job.jobId)
-					.unwrap()
-					?.let {
-						fileDownload.show(FileDownloadBadge.Info(
-							it,
-							ITomographyMiloEvalService.dataPath(job.jobId),
-							"${job.jobId}_milo.gzip"
-						))
-					}
-			}
+			fileDownload.load()
 
 			elem.div(classes = setOf("files")) {
 				span("Download:")

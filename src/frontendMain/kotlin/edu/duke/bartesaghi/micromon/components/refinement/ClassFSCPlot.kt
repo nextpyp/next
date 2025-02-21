@@ -2,6 +2,7 @@ package edu.duke.bartesaghi.micromon.components.refinement
 
 import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.components.SizedPanel
+import edu.duke.bartesaghi.micromon.components.indexToClassNum
 import edu.duke.bartesaghi.micromon.services.*
 import js.plotly.plot
 import kotlinext.js.jsObject

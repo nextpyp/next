@@ -14,3 +14,4 @@ mod particles;
 mod tomography;
 mod single_particle;
 mod progress;
+mod mrc;

@@ -70,13 +70,7 @@ actual class IntegratedRefinementService : IIntegratedRefinementService, Service
 						val filename = "$fragment$suffix.mrc"
 						val path = job.mapsDir / filename
 
-						// send the content length using a custom header, so we can show a progress bar
-						call.response.header("MRC-FILE-SIZE", path.fileSize().toString())
-
-						// and send a suggested filename for the browser download too
-						call.response.header("Content-Disposition", "attachment; filename=\"$filename\"")
-
-						call.respondFile(path, ContentType.Application.OctetStream)
+						call.respondFileMrc(path, filename)
 					}
 				}
 

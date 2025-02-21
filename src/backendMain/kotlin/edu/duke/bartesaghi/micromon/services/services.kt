@@ -68,6 +68,25 @@ suspend fun ApplicationCall.respondFile(path: Path, contentType: ContentType) =
 	})
 
 
+/**
+ * Responds with the MRC file as bytes, but adds an extra custom header so the client 3D viewer
+ * can show a progess bar while downloading the (sometimes large) file
+ */
+suspend fun ApplicationCall.respondFileMrc(path: Path, downloadFilename: String? = null) {
+
+	// send the (uncompressed) content length using a custom header, so we can show a progress bar, see:
+	// https://stackoverflow.com/questions/15097712/how-can-i-use-deflated-gzipped-content-with-an-xhr-onprogress-function/32799706
+	response.header("MRC-FILE-SIZE", path.fileSize().toString())
+
+	if (downloadFilename != null) {
+		// and send a suggested filename for the browser download too
+		response.header("Content-Disposition", "attachment; filename=\"$downloadFilename\"")
+	}
+
+	respondFile(path, ContentType.Application.OctetStream)
+}
+
+
 suspend fun ApplicationCall.respondCacheControlled(etag: String, responder: suspend () -> Unit) {
 
 	// check the etag

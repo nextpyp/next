@@ -63,17 +63,10 @@ open class OrientationDefocusPlots : SizedPanel("Orientation/Defocus Distributio
         plotCaption.content = "$particlesUsed from $particlesTotal projections"
 
 		// set the bild link
-		bildLink.load {
-			Services.integratedRefinement.getBildData(data.job.jobId, data.reconstruction.id)
-				.unwrap()
-				?.let { bildData ->
-					FileDownloadBadge.Info(
-						bildData,
-						"kv/reconstructions/${data.job.jobId}/${data.reconstruction.classNum}/${data.reconstruction.iteration}/bild",
-						"${data.job.jobId}_${data.reconstruction.classNum}_${data.reconstruction.iteration}.bild"
-					)
-				}
-		}
+		bildLink.url = "kv/reconstructions/${data.job.jobId}/${data.reconstruction.classNum}/${data.reconstruction.iteration}/bild"
+		bildLink.filename = "${data.job.jobId}_${data.reconstruction.classNum}_${data.reconstruction.iteration}.bild"
+		bildLink.loader = { Services.integratedRefinement.getBildData(data.job.jobId, data.reconstruction.id) }
+		bildLink.load()
 
 		val plotHeight = when (size) {
 			ImageSize.Small -> 150

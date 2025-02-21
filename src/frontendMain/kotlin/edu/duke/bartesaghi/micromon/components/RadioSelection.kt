@@ -5,15 +5,15 @@ import js.UnshadowedCheck
 import kotlinx.html.InputType
 
 
-class RadioSelection(
+open class RadioSelection(
 	val labelText: String,
-	var count: Int = 0,
+	initialCount: Int = 0,
 	val canMultiSelect: Boolean = false,
 	initiallyChecked: List<Int> = emptyList()
 ): Div(classes  = setOf("radio-selection-nav")) {
 
 	companion object {
-		var nextUniqueId: Int = 1
+		private var nextUniqueId: Int = 1
 		fun makeUniqueId(): Int {
 			val id = nextUniqueId
 			nextUniqueId += 1
@@ -22,6 +22,18 @@ class RadioSelection(
 	}
 
 	private val uid = makeUniqueId()
+
+	var count: Int = initialCount
+		set(value) {
+
+			if (field == value) {
+				return
+			}
+			field = value
+
+			initializeCheckboxes(checkedIndices)
+		}
+
 
 	var onUpdate: () -> Unit = {}
 
@@ -95,28 +107,43 @@ class RadioSelection(
         }
     }
 
-    fun getCheckedIndices(): List<Int> =
-		elements
+	var checkedIndices: List<Int>
+		get() = elements
 			.withIndex()
 			.mapNotNull { (index, check) ->
 				index.takeIf { check.elem.checked }
 			}
-
-    fun setCheckedIndices(checked: List<Int>) {
-        elements.forEachIndexed { index, check ->
-            check.elem.checked = index in checked
-        }
-    }
-
-    fun setCount(count: Int) {
-
-		if (count == this.count) {
-			return
+		set(checked) {
+			elements.forEachIndexed { index, check ->
+				check.elem.checked = index in checked
+			}
 		}
 
-		val checkedIndices = getCheckedIndices()
-		this.count = count
-		this.removeAll()
-		initializeCheckboxes(checkedIndices)
-    }
+	fun toggleIndex(index: Int) {
+
+		// toggle the class on or off
+		val indices = checkedIndices
+			.toMutableList()
+		if (index in indices) {
+			indices.remove(index)
+		} else {
+			indices.add(index)
+		}
+
+		checkedIndices = indices
+	}
+
+	fun allIndices(): List<Int> =
+		(0 until count).toList()
+
+	fun toggleFocusIndex(index: Int) {
+
+		// toggle focus on one index, or show all indices
+		checkedIndices =
+			if (checkedIndices == listOf(index)) {
+				allIndices()
+			} else {
+				listOf(index)
+			}
+	}
 }

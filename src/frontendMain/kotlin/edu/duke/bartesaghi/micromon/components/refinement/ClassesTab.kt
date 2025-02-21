@@ -1,19 +1,14 @@
 package edu.duke.bartesaghi.micromon.components.refinement
 
 import edu.duke.bartesaghi.micromon.*
+import edu.duke.bartesaghi.micromon.components.ClassesRadio
 import edu.duke.bartesaghi.micromon.components.ContentSizedPanel
-import edu.duke.bartesaghi.micromon.components.RadioSelection
 import edu.duke.bartesaghi.micromon.services.ImageSize
 import edu.duke.bartesaghi.micromon.services.JobData
 import edu.duke.bartesaghi.micromon.services.ReconstructionData
 import edu.duke.bartesaghi.micromon.services.Services
 import edu.duke.bartesaghi.micromon.views.*
 import io.kvision.html.*
-
-
-// the radio buttons and plots use a zero-based index, but the class number is one-based
-fun Int.indexToClassNum() = this + 1
-fun Int.classNumToIndex() = this - 1
 
 
 class ClassesTab(
@@ -60,10 +55,7 @@ class ClassesTab(
 
 	private val iterationNav = state.iterationNav.clone()
 
-	private val classRadio = RadioSelection(
-		labelText = "Classes: ",
-		canMultiSelect = true
-	)
+	private val classRadio = ClassesRadio("Classes")
 
 	private val thumbsPanel = ContentSizedPanel(
 		"Projections/Slices",
@@ -91,7 +83,7 @@ class ClassesTab(
 			?.let { state.reconstructions.withIteration(it) }
 			?.classes
 			?: emptyList()
-		classRadio.setCount(classes.size)
+		classRadio.count = classes.size
 
 		// apply the URL params, if any
 		if (urlParams != null) {
@@ -100,7 +92,7 @@ class ClassesTab(
 
 			// otherwise, leave the iteration alone (it's shared with other tabs),
 			// but start by showing all classes
-			classRadio.setCheckedIndices(classes.map { it.classNumToIndex() })
+			classRadio.checkedClasses = classes
 		}
 
 		// layout the UI
@@ -160,13 +152,12 @@ class ClassesTab(
 			.split(',')
 			.mapNotNull { it.toIntOrNull() }
 			.filter { it in allClasses }
-		classRadio.setCheckedIndices(selectedClasses.map { it.classNumToIndex() })
+		classRadio.checkedClasses = selectedClasses
 	}
 
 	override fun path(): String {
 		val iteration = state.currentIteration
-		val classNums = classRadio.getCheckedIndices()
-			.map { it.indexToClassNum() }
+		val classNums = classRadio.checkedClasses
 		return pathFragment + if (iteration != null) {
 			"/it$iteration/cls${classNums.joinToString(",")}"
 		} else {
@@ -192,10 +183,9 @@ class ClassesTab(
 			}
 
 		// update the classes radio
-		classRadio.setCount(state.reconstructions.withIteration(iteration)?.classes?.size ?: 0)
+		classRadio.count = state.reconstructions.withIteration(iteration)?.classes?.size ?: 0
 
-		val classes = classRadio.getCheckedIndices()
-			.map { it.indexToClassNum() }
+		val classes = classRadio.checkedClasses
 			.takeIf { it.isNotEmpty() }
 			?: run {
 				thumbsElem.emptyMessage("No classes selected")
@@ -242,34 +232,11 @@ class ClassesTab(
 
 			// wire up events
 			fun onClassClick(classNum: Int) {
-
-				val index = classNum.classNumToIndex()
-
-				// toggle the class on or off
-				val indices = classRadio.getCheckedIndices()
-					.toMutableList()
-				if (index in indices) {
-					indices.remove(index)
-				} else {
-					indices.add(index)
-				}
-
-				classRadio.setCheckedIndices(indices)
+				classRadio.toggleClass(classNum)
 			}
 
 			fun onClassDoubleClick(classNum: Int) {
-
-				val index = classNum.classNumToIndex()
-
-				// toggle focus on one class, or show all classes
-				val indices =
-					if (classRadio.getCheckedIndices() == listOf(index)) {
-						reconstructions.indices.toList()
-					} else {
-						listOf(index)
-					}
-
-				classRadio.setCheckedIndices(indices)
+				classRadio.toggleFocusClass(classNum)
 			}
 
 			fscPlot.onClick = ::onClassClick

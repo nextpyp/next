@@ -252,7 +252,12 @@ class TomographyDenoisingEvalView(val project: ProjectData, val job: TomographyD
 			}
 
 			// show the download badge
-			val recDownloadBadge = FileDownloadBadge(".rec file")
+			val recDownloadBadge = FileDownloadBadge(
+				filetype = ".rec file",
+				url = "kv/jobs/${job.jobId}/data/${tiltSeries.id}/rec",
+				filename = "${job.jobId}_${tiltSeries.id}.rec",
+				loader = { Services.jobs.recData(job.jobId, tiltSeries.id) }
+			)
 			tiltSeriesesElem.add(recDownloadBadge)
 
 			// show the reconstruction
@@ -265,17 +270,7 @@ class TomographyDenoisingEvalView(val project: ProjectData, val job: TomographyD
 			AppScope.launch {
 
 				// load the download info
-				recDownloadBadge.load {
-					Services.jobs.recData(job.jobId, tiltSeries.id)
-						.unwrap()
-						?.let { recData ->
-							FileDownloadBadge.Info(
-								recData,
-								"kv/jobs/${job.jobId}/data/${tiltSeries.id}/rec",
-								"${job.jobId}_${tiltSeries.id}.rec"
-							)
-						}
-				}
+				recDownloadBadge.load()
 
 				// load the particles image
 				particlesImage.load()

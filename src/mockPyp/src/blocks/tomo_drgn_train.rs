@@ -6,7 +6,10 @@ use anyhow::{Context, Result};
 
 use crate::info;
 use crate::args::{Args, ArgsConfig, ArgValue};
-use crate::svg::{Rgb, SvgImage};
+use crate::image::{Image, ImageDrawing};
+use crate::mrc::Mrc;
+use crate::svg::SvgImage;
+use crate::tomography::images::DEFAULT_NOISE;
 use crate::web::Web;
 
 
@@ -38,14 +41,17 @@ pub fn run(web: &Web, args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 		.value();
 
 	// send parameters to the website
-	args.set_from_group(GROUP_CONVERGENCE, "final_maximum", ArgValue::Str(format!("{}", final_maxima)));
+	args.set_from_group(GROUP_CONVERGENCE, "final_maxima", ArgValue::Int(final_maxima as i64));
 	web.write_parameters(&args, &args_config)?;
 
 	// create subfolders
 	let dir_train = PathBuf::from("train");
 	fs::create_dir_all(&dir_train)
 		.context("Failed to create train dir")?;
-	let dir_plots = dir_train.join("convergence/plots");
+	let dir_convergence = dir_train.join("convergence");
+	fs::create_dir_all(&dir_convergence)
+		.context("Failed to create convergence dir")?;
+	let dir_plots = dir_convergence.join("plots");
 	fs::create_dir_all(&dir_plots)
 		.context("Failed to create plots dir")?;
 
@@ -60,7 +66,38 @@ pub fn run(web: &Web, args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 
 		plot_img(web, &dir_plots, format!("09_pairwise_CC_matrix_epoch-{}", epoch))?;
 
-		// TODO: maps?
+		let dir_iter = dir_convergence.join(format!("vols.{}", iter));
+		fs::create_dir_all(&dir_iter)
+			.context("Failed to create iteration dir")?;
+
+		// generate class files
+		for class_num in 1 ..= final_maxima {
+
+			let filename = format!("vol_{class_num:03}");
+
+			// generate the volume itself
+			let mut mrc = Mrc::new(16, 16, 16);
+			mrc.cube(iter, class_num, 8);
+			let vol_path = dir_iter.join(format!("{filename}.mrc"));
+			info!(web, "Saved Volume: {}", vol_path.to_string_lossy());
+			mrc.save(vol_path)?;
+
+			// generate the volume image
+			{
+				use image::Rgb;
+
+				let mut img = Image::new(512, 512);
+				img.draw().fill(Rgb([128, 128, 128]));
+				img.draw().noise(&DEFAULT_NOISE);
+				img.draw().text_lines(32, Rgb([255, 255, 255]), [
+					format!("Block: {}", BLOCK_ID),
+					"Type: Volum".to_string(),
+					format!("Iteration: {}", iter),
+					format!("Class: {}", class_num)
+				]);
+				img.save(web, dir_iter.join(format!("{filename}.webp")))?;
+			}
+		}
 
 		web.write_tomo_drgn_convergence(iter)?;
 		iter += 1;
@@ -90,6 +127,9 @@ pub fn run(web: &Web, args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 
 
 fn plot_img(web: &Web, dir: &Path, name: impl AsRef<str>) -> Result<()> {
+
+	use crate::svg::Rgb;
+
 	let name = name.as_ref();
 	let mut img = SvgImage::new(512, 512);
 	img.draw().fill_rect(0, 0, 512, 512, Rgb(128, 128, 128));

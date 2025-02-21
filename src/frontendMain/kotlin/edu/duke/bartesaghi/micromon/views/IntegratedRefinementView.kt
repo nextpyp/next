@@ -145,7 +145,7 @@ class IntegratedRefinementView(
 			has100 = false
 		).apply {
 			// don't label the nav with the indices, use the iteration numbers themselves
-			labeler = { iteration -> iteration.toString() }
+			labeler = { i -> reconstructions.iterations[i].toString() }
 		}
 
 		var currentIteration: Int?

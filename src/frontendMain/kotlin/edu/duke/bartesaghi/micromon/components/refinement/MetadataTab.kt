@@ -113,12 +113,12 @@ class MetadataTab(
 
 	private fun showResult(tiltSeriesId: String, data: FileDownloadData) {
 		resultsElem.removeAll()
-		val badge = FileDownloadBadge(".star file")
-		badge.show(FileDownloadBadge.Info(
-			data,
-			"kv/jobs/${job.jobId}/data/$tiltSeriesId/tiltSeriesMetadata",
-			"${job.jobId}_$tiltSeriesId.star"
-		))
+		val badge = FileDownloadBadge(
+			filetype = ".star file",
+			url = "kv/jobs/${job.jobId}/data/$tiltSeriesId/tiltSeriesMetadata",
+			filename = "${job.jobId}_$tiltSeriesId.star"
+		)
+		badge.show(data)
 		resultsElem.add(badge)
 	}
 }

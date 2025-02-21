@@ -245,7 +245,12 @@ class TomographySegmentationOpenView(val project: ProjectData, val job: Tomograp
 			}
 
 			// show the download badge
-			val recDownloadBadge = FileDownloadBadge(".rec file")
+			val recDownloadBadge = FileDownloadBadge(
+				filetype = ".rec file",
+				url = "kv/jobs/${job.jobId}/data/${tiltSeries.id}/rec",
+				filename = "${job.jobId}_${tiltSeries.id}.rec",
+				loader = { Services.jobs.recData(job.jobId, tiltSeries.id) }
+			)
 			tiltSeriesesElem.div(classes = setOf("spaced")) {
 				add(recDownloadBadge)
 			}
@@ -259,17 +264,7 @@ class TomographySegmentationOpenView(val project: ProjectData, val job: Tomograp
 
 			AppScope.launch {
 
-				recDownloadBadge.load {
-					Services.jobs.recData(job.jobId, tiltSeries.id)
-						.unwrap()
-						?.let { recData ->
-							FileDownloadBadge.Info(
-								recData,
-								"kv/jobs/${job.jobId}/data/${tiltSeries.id}/rec",
-								"${job.jobId}_${tiltSeries.id}.rec"
-							)
-						}
-				}
+				recDownloadBadge.load()
 
 				particlesImage.load()
 			}
