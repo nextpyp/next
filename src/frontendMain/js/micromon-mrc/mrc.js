@@ -16,9 +16,6 @@
  * 
  */
 
-const intbyteorder = {0x11110000: "big", 0x44440000: "little"}
-const byteorderint = {"big": 0x11110000, "little": 0x44440000}
-
 class Complex64Array {
     constructor () {
         console.error("Complex64Array not yet supported.")
@@ -88,46 +85,33 @@ const header_fields = [
 * @param {Uint8Array} headerbytes
 */
 function isSwapped(headerbytes) {
-	
-    // check for a valid machine stamp in header, with or without byteswap
-    let stampswapped = undefined
-    let machstampSlice = headerbytes.slice(212, 216)
-    let machstamp = bytesToData(machstampSlice, Uint32Array) // Count = 1
-    let machstampint = machstamp[0]
-    if (intbyteorder.hasOwnProperty(machstampint))
-        stampswapped = false;
-    else {
-        machstamp = bytesToData(machstampSlice, Uint32Array, true) // Count = 1
-        machstampint = machstamp[0]
-        if (intbyteorder.hasOwnProperty(machstampint))
-            stampswapped = true;
+
+	const BIG_ENDIAN = 0x11110000;
+	const LITTLE_ENDIAN = 0x44440000;
+
+    // try to read the machine stamp
+    let machstamp = headerbytes.slice(212, 216);
+    if (machstamp[0] === LITTLE_ENDIAN) {
+        return false;
+    } else if (machstamp[0] === BIG_ENDIAN) {
+		throw new Error("Big-endian MRC files aren't supported yet");
     }
 
-    // check for valid mode, with or without byteswap
-    let modeSlice = headerbytes.slice(12, 16)
-    let mode = bytesToData(modeSlice, Uint32Array) // Count = 1
-    let modeint = mode[0]
-    let modeswapped = undefined
-    if (mrc2arraytype.hasOwnProperty(modeint))
-        modeswapped = false
-    else {
-        mode = bytesToData(modeSlice, Uint32Array, true) // Count = 1
-        modeint = mode[0]
-        if (mrc2arraytype.hasOwnProperty(modeint))
-            modeswapped = true
-    }
+	// check for valid mode, with or without byteswap
+	let modeSlice = headerbytes.slice(12, 16)
+	let mode = bytesToData(modeSlice, Uint32Array) // Count = 1
+	if (mrc2arraytype.hasOwnProperty(mode[0]))
+		return false
+	else {
+		mode = bytesToData(modeSlice, Uint32Array, true) // Count = 1
+		if (mrc2arraytype.hasOwnProperty(mode[0])) {
+			throw new Error("Big-endian MRC files aren't supported yet");
+		}
+	}
 
-    // final verdict on whether it is swapped
-    let swapped;
-    if (stampswapped == undefined)
-        swapped = modeswapped
-    else if (modeswapped == undefined)
-        swapped = stampswapped
-    else if (modeswapped == stampswapped)
-        swapped = modeswapped
-    else
-        swapped = undefined
-    return swapped
+	// don't know: just pick the one order we actually support
+	console.warn("Can't detect endianness for MRC file, assuming little-endian");
+	return false;
 }
 
 /**
@@ -224,7 +208,6 @@ function readMrc(data, includeHeaderAsData = true) {
     //     image = numpy.reshape(numpy.fromfile(f, dt, y * x), [y, x]).astype(
     //         numpy.float32
     //     )
-    
 
     // console.log(filename, dt, x, y, z, int(headerdict['nsymbt']))
 
@@ -238,15 +221,25 @@ function readMrc(data, includeHeaderAsData = true) {
  * @param {TypedArray} dataType
  */
 function bytesToData(bytes, dataType, swap = false) {
-    return new dataType(swap ? bytes.reverse().buffer : bytes.buffer);
+
+	if (swap !== true) {
+		return new dataType(bytes.buffer);
+	}
+
+	// NOTE: this function only works on 4-byte buffers
+	if (bytes.length != 4) {
+		throw new Error(`reverse() won't change byte-order for buffers whose length isn't 4 (len=${bytes.length})`);
+	}
+
+	return new dataType(bytes.reverse().buffer);
 }
 
 /**
  * Rescale all elements in an array to be between 0 and 1.
- * @param {Array<Number>} data
+ * @param {Array<Number> | TypedArray} data
  */
 function rescale(data) {
-    const newData = data.slice()
+    const newData = [];
     let max = data[0], min = data[0];
     for (let i = 0; i < data.length; i++) {
        if (data[i] > max) max = data[i];
@@ -254,7 +247,7 @@ function rescale(data) {
     }
     const scale = max - min;
     for (let i = 0; i < data.length; i++)
-        newData[i] = (newData[i] - min) / scale
+        newData[i] = (data[i] - min) / scale
     return newData
 }
 
