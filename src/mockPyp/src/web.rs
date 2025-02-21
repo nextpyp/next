@@ -437,12 +437,12 @@ impl Web {
 		Ok(())
 	}
 
-	pub fn write_tomo_drgn_convergence(&self, iteration: u32) -> Result<()> {
+	pub fn write_tomo_drgn_convergence(&self, epoch: u32) -> Result<()> {
 
 		let mut args = Map::<String,Value>::new();
 		args.ins("webid", self.id.as_str());
 
-		args.ins("iteration", iteration);
+		args.ins("epoch", epoch);
 
 		self.json_rpc("write_tomo_drgn_convergence", Value::Object(args))?;
 

@@ -66,7 +66,7 @@ pub fn run(web: &Web, args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 
 		plot_img(web, &dir_plots, format!("09_pairwise_CC_matrix_epoch-{}", epoch))?;
 
-		let dir_iter = dir_convergence.join(format!("vols.{}", iter));
+		let dir_iter = dir_convergence.join(format!("vols.{}", epoch));
 		fs::create_dir_all(&dir_iter)
 			.context("Failed to create iteration dir")?;
 
@@ -93,13 +93,14 @@ pub fn run(web: &Web, args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 					format!("Block: {}", BLOCK_ID),
 					"Type: Volum".to_string(),
 					format!("Iteration: {}", iter),
+					format!("Epoch: {}", epoch),
 					format!("Class: {}", class_num)
 				]);
 				img.save(web, dir_iter.join(format!("{filename}.webp")))?;
 			}
 		}
 
-		web.write_tomo_drgn_convergence(iter)?;
+		web.write_tomo_drgn_convergence(epoch)?;
 		iter += 1;
 	}
 

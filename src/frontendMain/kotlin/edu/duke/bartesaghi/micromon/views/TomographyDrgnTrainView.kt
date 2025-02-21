@@ -62,7 +62,11 @@ class TomographyDrgnTrainView(val project: ProjectData, val job: TomographyDrgnT
 		has100 = false
 	).apply {
 		// don't label the nav with the indices, use the iteration numbers themselves
-		labeler = { i -> iterations[i].number.toString() }
+		labeler = l@{ i ->
+			val convergence = convergence
+				?: return@l "?"
+			iterations[i].number(convergence.parameters).toString()
+		}
 	}
 
 	private val currentIteration: TomoDrgnConvergence.Iteration? get() =
@@ -190,16 +194,16 @@ class TomographyDrgnTrainView(val project: ProjectData, val job: TomographyDrgnT
 			return reset()
 		}
 
-		// if we're missing any iterations, reset
-		val newNumbers = convergence.iterationNumbers()
-		val oldNumbers = old.iterationNumbers()
-		if (oldNumbers.any { it !in newNumbers }) {
+		// if we're missing any epochs, reset
+		val newEpochs = convergence.epochs()
+		val oldEpochs = old.epochs()
+		if (oldEpochs.any { it !in newEpochs }) {
 			return reset()
 		}
 
 		// show the new iterations
 		convergence.iterations
-			.filter { it.number !in oldNumbers }
+			.filter { it.epoch !in oldEpochs }
 			.let { addIterations(convergence, it) }
 	}
 
@@ -227,7 +231,7 @@ class TomographyDrgnTrainView(val project: ProjectData, val job: TomographyDrgnT
 
 		convergenceTab?.revalidate()
 		fscTab?.revalidate()
-		ccMatrixTab?.addIterations(convergence, newIterations)
+		ccMatrixTab?.addIterations(newIterations)
 		threeDeeTab?.addIterations(convergence, newIterations)
 	}
 
@@ -318,14 +322,13 @@ class TomographyDrgnTrainView(val project: ProjectData, val job: TomographyDrgnT
 					return
 				}
 
-			addIterations(convergence, iters)
+			addIterations(iters)
 		}
 
-		fun addIterations(convergence: TomoDrgnConvergence, newIterations: List<TomoDrgnConvergence.Iteration>) {
+		fun addIterations(newIterations: List<TomoDrgnConvergence.Iteration>) {
 			for (iter in newIterations) {
-				val epoch = convergence.epoch(iter)
-				val panel = FetchImagePanel("Epoch $epoch", null, ImageSize.Medium) {
-					ITomographyDrgnTrainService.pairwiseCCMatrixPath(job.jobId, epoch)
+				val panel = FetchImagePanel("Epoch ${iter.epoch}", null, ImageSize.Medium) {
+					ITomographyDrgnTrainService.pairwiseCCMatrixPath(job.jobId, iter.epoch)
 				}
 				plots.add(iter to panel)
 				add(panel)
@@ -343,6 +346,8 @@ class TomographyDrgnTrainView(val project: ProjectData, val job: TomographyDrgnT
 	private inner class ReconstructionTab(
 		iterationsNav: BigListNav
 	): Div(classes = setOf("reconstruction-tab")) {
+
+		private val epochElem = Span()
 
 		private val classesRadio = ClassesRadio("Class")
 
@@ -368,8 +373,13 @@ class TomographyDrgnTrainView(val project: ProjectData, val job: TomographyDrgnT
 
 			// layout the tab
 			div(classes = setOf("nav")) {
+				span("Iteration:")
 				add(iterationsNav)
 				add(self.classesRadio)
+			}
+			div {
+				span("Epoch: ")
+				add(self.epochElem)
 			}
 			add(classesPanel)
 			add(plot4)
@@ -413,10 +423,11 @@ class TomographyDrgnTrainView(val project: ProjectData, val job: TomographyDrgnT
 			classMrcDownloads.clear()
 		}
 
-		fun showIteration(iteration: TomoDrgnConvergence.Iteration) {
+		fun showIteration(iter: TomoDrgnConvergence.Iteration) {
 
 			val self = this // Kotlin DSLs are dumb ...
 
+			epochElem.content = "${iter.epoch}"
 			clearClasses()
 
 			if (classesRadio.checkedClasses.isEmpty()) {
@@ -434,7 +445,7 @@ class TomographyDrgnTrainView(val project: ProjectData, val job: TomographyDrgnT
 
 						val img = fetchImage {
 							width = imageSize.approxWidth.px
-							fetch(ITomographyDrgnTrainService.classImagePath(job.jobId, iteration.number, classNum, imageSize))
+							fetch(ITomographyDrgnTrainService.classImagePath(job.jobId, iter.epoch, classNum, imageSize))
 						}
 						self.classImages.add(img)
 
@@ -443,9 +454,9 @@ class TomographyDrgnTrainView(val project: ProjectData, val job: TomographyDrgnT
 
 					val mrcDownload = FileDownloadBadge(
 						filetype = ".mrc file",
-						url = ITomographyDrgnTrainService.classMrcPath(job.jobId, iteration.number, classNum),
-						filename = "reconstruction_${job.shortNumberedName}_iter_${iteration.number}_cls_${classNum}.mrc",
-						loader = { Services.tomographyDrgnTrain.classMrcData(job.jobId, iteration.number, classNum) }
+						url = ITomographyDrgnTrainService.classMrcPath(job.jobId, iter.epoch, classNum),
+						filename = "reconstruction_${job.shortNumberedName}_epoch_${iter.epoch}_cls_${classNum}.mrc",
+						loader = { Services.tomographyDrgnTrain.classMrcData(job.jobId, iter.epoch, classNum) }
 					)
 					mrcDownload.load()
 					self.classMrcDownloads.add(mrcDownload)
@@ -480,8 +491,8 @@ class TomographyDrgnTrainView(val project: ProjectData, val job: TomographyDrgnT
 
 		private fun volumeData(iter: TomoDrgnConvergence.Iteration, classNum: Int): ThreeDeeViewer.VolumeData =
 			ThreeDeeViewer.VolumeData(
-				name = "Iter ${iter.number}, Class $classNum",
-				url = ITomographyDrgnTrainService.classMrcPath(job.jobId, iter.number, classNum)
+				name = "Epoch ${iter.epoch}, Class $classNum",
+				url = ITomographyDrgnTrainService.classMrcPath(job.jobId, iter.epoch, classNum)
 			)
 
 		fun reset() {

@@ -784,18 +784,18 @@ class TomoDrgnConvergence(db: MongoDatabase) {
 			cursor
 				.map { doc ->
 					edu.duke.bartesaghi.micromon.services.TomoDrgnConvergence.Iteration(
-						number = doc.getInteger("iteration"),
+						epoch = doc.getInteger("epoch"),
 						timestamp = doc.getLong("timestamp")
 					)
 				}
 				.toList()
 		}
 
-	fun add(jobId: String, iteration: Int) {
+	fun add(jobId: String, epoch: Int) {
 		collection.insertOne(
 			Document().apply {
 				this["jobId"] = jobId
-				this["iteration"] = iteration
+				this["epoch"] = epoch
 				this["timestamp"] = Instant.now().toEpochMilli()
 			}
 		)

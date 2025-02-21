@@ -26,7 +26,7 @@ interface ITomographyDrgnTrainService {
 	suspend fun getConvergence(jobId: String): Option<TomoDrgnConvergence>
 
 	@KVBindingRoute("node/${TomographyDrgnTrainNodeConfig.ID}/classMrcData")
-	suspend fun classMrcData(jobId: String, iterNum: Int, classNum: Int): Option<FileDownloadData>
+	suspend fun classMrcData(jobId: String, epoch: Int, classNum: Int): Option<FileDownloadData>
 
 
 	companion object {
@@ -38,13 +38,13 @@ interface ITomographyDrgnTrainService {
 			"/kv/node/${TomographyDrgnTrainNodeConfig.ID}/$jobId/distribution"
 
 		fun pairwiseCCMatrixPath(jobId: String, epoch: Int): String =
-			"/kv/node/${TomographyDrgnTrainNodeConfig.ID}/$jobId/pairwiseCCMatrix/$epoch"
+			"/kv/node/${TomographyDrgnTrainNodeConfig.ID}/$jobId/epoch/$epoch/pairwiseCCMatrix"
 
-		fun classImagePath(jobId: String, iterNum: Int, classNum: Int, size: ImageSize) =
-			"/kv/node/${TomographyDrgnTrainNodeConfig.ID}/$jobId/iter/$iterNum/class/$classNum/image/${size.id}"
+		fun classImagePath(jobId: String, epoch: Int, classNum: Int, size: ImageSize) =
+			"/kv/node/${TomographyDrgnTrainNodeConfig.ID}/$jobId/epoch/$epoch/class/$classNum/image/${size.id}"
 
-		fun classMrcPath(jobId: String, iterNum: Int, classNum: Int) =
-			"/kv/node/${TomographyDrgnTrainNodeConfig.ID}/$jobId/iter/$iterNum/class/$classNum/mrc"
+		fun classMrcPath(jobId: String, epoch: Int, classNum: Int) =
+			"/kv/node/${TomographyDrgnTrainNodeConfig.ID}/$jobId/epoch/$epoch/class/$classNum/mrc"
 	}
 }
 
@@ -95,17 +95,16 @@ data class TomoDrgnConvergence(
 
 	@Serializable
 	data class Iteration(
-		val number: Int,
+		val epoch: Int,
 		val timestamp: Long
-	)
+	) {
 
-	fun iterationNumbers(): Set<Int> =
+		fun number(params: Parameters): Int =
+			epoch/params.epochInterval
+	}
+
+	fun epochs(): Set<Int> =
 		iterations
-			.map { it.number }
+			.map { it.epoch }
 			.toSet()
-
-	fun epoch(iter: Iteration): Int =
-		epoch(iter.number)
-	fun epoch(iter: Int): Int =
-		iter*parameters.epochInterval
 }

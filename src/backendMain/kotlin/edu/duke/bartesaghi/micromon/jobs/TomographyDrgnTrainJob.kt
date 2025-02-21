@@ -111,7 +111,7 @@ class TomographyDrgnTrainJob(
 	fun convergence(params: TomoDrgnConvergence.Parameters) = TomoDrgnConvergence(
 		parameters = params,
 		iterations = Database.instance.tomoDrgnConvergence.getAll(idOrThrow)
-			.sortedBy { it.number }
+			.sortedBy { it.epoch }
 	)
 
 	val eventListeners get() = Companion.eventListeners

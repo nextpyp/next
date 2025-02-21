@@ -699,8 +699,8 @@ object PypService {
 			?: return JsonRpcFailure("invalid webid")
 		val owner = clusterJob.findOwnerOrThrow()
 
-		val iteration = params.getIntOrThrow("iteration")
-		log.debug("writeTomoDrgnConvergence: {}: iter={}", owner, iteration)
+		val epoch = params.getIntOrThrow("epoch")
+		log.debug("writeTomoDrgnConvergence: {}: epoch={}", owner, epoch)
 
 		// only valid on one kind of job
 		val job = when (owner) {
@@ -713,7 +713,7 @@ object PypService {
 			?: return JsonRpcFailure("Write parameters containing before writing any convergences")
 
 		// save the iteration to the database
-		Database.instance.tomoDrgnConvergence.add(job.idOrThrow, iteration)
+		Database.instance.tomoDrgnConvergence.add(job.idOrThrow, epoch)
 
 		// notify any listening clients
 		val convergence = job.convergence(convergenceParams)

@@ -87,66 +87,68 @@ actual class TomographyDrgnTrainService : ITomographyDrgnTrainService, Service {
 					}
 				}
 
-				get("pairwiseCCMatrix/{epoch}") {
-					call.respondExceptions {
+				route("epoch/{epoch}") {
 
-						// parse args
-						val job = authJob(ProjectPermission.Read).job
-						val epoch = call.parameters.getOrFail("epoch").toIntOrNull()
-							?: throw BadRequestException("bad epoch")
+					fun PipelineContext<Unit,ApplicationCall>.parseEpoch(): Int =
+						call.parameters.getOrFail("epoch").toIntOrNull()
+							?: throw BadRequestException("epoch must be an integer")
 
-						val dir = job.dir / "train" / "convergence" / "plots"
-
-						// serve the image
-						ImageType.Svgz.respond(call, dir / "09_pairwise_CC_matrix_epoch-$epoch.svgz")
-							?.respondPlaceholder(call)
-					}
-				}
-
-				route("iter/{iterNum}/class/{classNum}") {
-
-					fun PipelineContext<Unit,ApplicationCall>.parseIterNum(): Int =
-						call.parameters.getOrFail("iterNum").toIntOrNull()
-							?: throw BadRequestException("iterNum must be an integer")
-
-					fun PipelineContext<Unit,ApplicationCall>.parseClassNum(): Int =
-						call.parameters.getOrFail("classNum").toIntOrNull()
-							?: throw BadRequestException("classNum must be an integer")
-
-					get("image/{size}") {
+					get("pairwiseCCMatrix") {
 						call.respondExceptions {
 
 							// parse args
 							val job = authJob(ProjectPermission.Read).job
-							val iterNum = parseIterNum()
-							val classNum = parseClassNum()
-							val size = parseSize()
+							val epoch = parseEpoch()
+
+							val dir = job.dir / "train" / "convergence" / "plots"
 
 							// serve the image
-							val imagePath = job.iterDir(iterNum) / "vol_${classNum.formatCls()}.webp"
-							val cacheKey = WebCacheDir.Keys.tomoDrgnVolume.parameterized("$iterNum-$classNum")
-							ImageType.Webp.respondSized(call, imagePath, size.info(job.wwwDir, cacheKey))
-								?.respondPlaceholder(call, size)
+							ImageType.Svgz.respond(call, dir / "09_pairwise_CC_matrix_epoch-$epoch.svgz")
+								?.respondPlaceholder(call)
 						}
 					}
 
-					get("mrc") {
-						call.respondExceptions {
+					route("class/{classNum}") {
 
-							// parse args
-							val job = authJob(ProjectPermission.Read).job
-							val iterNum = parseIterNum()
-							val classNum = parseClassNum()
+						fun PipelineContext<Unit,ApplicationCall>.parseClassNum(): Int =
+							call.parameters.getOrFail("classNum").toIntOrNull()
+								?: throw BadRequestException("classNum must be an integer")
 
-							call.respondFileMrc(job.iterDir(iterNum) / "vol_${classNum.formatCls()}.mrc")
+						get("image/{size}") {
+							call.respondExceptions {
+
+								// parse args
+								val job = authJob(ProjectPermission.Read).job
+								val epoch = parseEpoch()
+								val classNum = parseClassNum()
+								val size = parseSize()
+
+								// serve the image
+								val imagePath = job.epochDir(epoch) / "vol_${classNum.formatCls()}.webp"
+								val cacheKey = WebCacheDir.Keys.tomoDrgnVolume.parameterized("$epoch-$classNum")
+								ImageType.Webp.respondSized(call, imagePath, size.info(job.wwwDir, cacheKey))
+									?.respondPlaceholder(call, size)
+							}
+						}
+
+						get("mrc") {
+							call.respondExceptions {
+
+								// parse args
+								val job = authJob(ProjectPermission.Read).job
+								val epoch = parseEpoch()
+								val classNum = parseClassNum()
+
+								call.respondFileMrc(job.epochDir(epoch) / "vol_${classNum.formatCls()}.mrc")
+							}
 						}
 					}
 				}
 			}
 		}
 
-		fun Job.iterDir(iterNum: Int): Path =
-			dir / "train" / "convergence" / "vols.$iterNum"
+		fun Job.epochDir(epoch: Int): Path =
+			dir / "train" / "convergence" / "vols.$epoch"
 
 		fun Int.formatCls(): String =
 			"%03d".format(this)
@@ -197,8 +199,6 @@ actual class TomographyDrgnTrainService : ITomographyDrgnTrainService, Service {
 
 	override suspend fun getConvergence(jobId: String): Option<TomoDrgnConvergence> = sanitizeExceptions {
 
-		println("*** getConvergence($jobId)") // TEMP
-
 		val job = jobId.authJob(ProjectPermission.Read).job
 
 		job.convergenceParameters()
@@ -206,11 +206,11 @@ actual class TomographyDrgnTrainService : ITomographyDrgnTrainService, Service {
 			.toOption()
 	}
 
-	override suspend fun classMrcData(jobId: String, iterNum: Int, classNum: Int): Option<FileDownloadData> = sanitizeExceptions {
+	override suspend fun classMrcData(jobId: String, epoch: Int, classNum: Int): Option<FileDownloadData> = sanitizeExceptions {
 
 		val job = jobId.authJob(ProjectPermission.Read).job
 
-		val path = job.iterDir(iterNum) / "vol_${classNum.formatCls()}.mrc"
+		val path = job.epochDir(epoch) / "vol_${classNum.formatCls()}.mrc"
 		return path
 			.toFileDownloadData()
 			.toOption()
