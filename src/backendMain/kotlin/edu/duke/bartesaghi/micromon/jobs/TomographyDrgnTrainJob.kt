@@ -103,7 +103,6 @@ class TomographyDrgnTrainJob(
 			TomoDrgnConvergence.Parameters(
 				epochs = it.tomodrgnVaeTrainEpochs,
 				finalMaxima = it.tomodrgnVaeConvergenceFinalMaxima,
-				epochIndex = it.tomodrgnVaeConvergenceEpochIndex,
 				epochInterval = it.tomodrgnVaeConvergenceEpochInterval
 			)
 		}

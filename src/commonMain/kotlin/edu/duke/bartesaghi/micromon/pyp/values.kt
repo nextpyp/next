@@ -373,10 +373,6 @@ val Args.tomodrgnVaeConvergenceFinalMaxima: Arg
 	get() = argOrThrow("tomodrgn_vae_convergence", "final_maxima")
 val ArgValues.tomodrgnVaeConvergenceFinalMaxima: Int
 	get() = (getOrDefault(args.tomodrgnVaeConvergenceFinalMaxima) as Long).toInt()
-val Args.tomodrgnVaeConvergenceEpochIndex: Arg
-	get() = argOrThrow("tomodrgn_vae_convergence", "epoch_index")
-val ArgValues.tomodrgnVaeConvergenceEpochIndex: String
-	get() = getOrDefault(args.tomodrgnVaeConvergenceEpochIndex) as String
 val Args.tomodrgnVaeConvergenceEpochInterval: Arg
 	get() = argOrThrow("tomodrgn_vae_convergence", "epoch_interval")
 val ArgValues.tomodrgnVaeConvergenceEpochInterval: Int

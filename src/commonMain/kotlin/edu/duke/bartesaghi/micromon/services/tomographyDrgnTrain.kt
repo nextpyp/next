@@ -75,22 +75,12 @@ data class TomoDrgnConvergence(
 	@Serializable
 	data class Parameters(
 		val epochs: Int,
-		val epochIndex: String,
 		val epochInterval: Int,
 		val finalMaxima: Int,
 	) {
 
 		// alias some pyp parameter names so they make more sense in the website context
 		val numClasses: Int get() = finalMaxima
-
-		fun epochRange(): IntRange =
-			if (epochIndex == "latest") {
-				0 until epochs
-			} else {
-				val i = epochIndex.toIntOrNull()
-					?: throw IllegalArgumentException("invalid epoch index: $epochIndex")
-				0 .. i
-			}
 	}
 
 	@Serializable
