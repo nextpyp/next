@@ -53,6 +53,7 @@ class TomographyDrgnTrainView(val project: ProjectData, val job: TomographyDrgnT
 	private var ccMatrixTab: CcMatrixTab? = null
 	private var reconstructionTab: ReconstructionTab? = null
 	private var threeDeeTab: ThreeDeeTab? = null
+	private var classesMovieTab: ClassesMovieTab? = null
 
 	private val iterations = ArrayList<TomoDrgnConvergence.Iteration>()
 	private val iterationsNav = BigListNav(
@@ -147,7 +148,12 @@ class TomographyDrgnTrainView(val project: ProjectData, val job: TomographyDrgnT
 					}
 				}
 
-				// TODO: class movies tab
+				addTab("Classes Movie", "fas fa-question-circle") { lazyTab ->
+					classesMovieTab = ClassesMovieTab(iterationsNav.clone()).also {
+						lazyTab.elem.add(it)
+						it.reset()
+					}
+				}
 			}
 
 			reset()
@@ -220,6 +226,7 @@ class TomographyDrgnTrainView(val project: ProjectData, val job: TomographyDrgnT
 		ccMatrixTab?.reset()
 		reconstructionTab?.reset()
 		threeDeeTab?.reset()
+		classesMovieTab?.reset()
 	}
 
 	private fun addIterations(convergence: TomoDrgnConvergence, newIterations: List<TomoDrgnConvergence.Iteration>) {
@@ -520,5 +527,36 @@ class TomographyDrgnTrainView(val project: ProjectData, val job: TomographyDrgnT
 				}
 			}
 		}
+	}
+
+
+	private inner class ClassesMovieTab(
+		val iterationsNav: BigListNav
+	): Div() {
+
+		private val movie = ClassesMovie<TomoDrgnConvergence.Iteration>(
+			job,
+			imagePather = { iteration, classNum, size ->
+				ITomographyDrgnTrainService.classImagePath(job.jobId, iteration.epoch, classNum, size)
+			}
+		)
+
+		init {
+
+			// layout
+			add(iterationsNav)
+			add(movie)
+
+			// wire up events
+			iterationsNav.onShow = {
+				reset()
+			}
+		}
+
+		fun reset() {
+			movie.update(currentIteration, convergence?.parameters?.numClasses)
+		}
+
+		// TODO: revalidate?
 	}
 }

@@ -946,26 +946,6 @@ label.radio-selection .radio-selection-check:checked ~ span {
     border-color: #c52030 !important; */ /* UNCOMMENT FOR RED */
 }
 
-.refinements-view .classes-movie-tab .content {
-	display: flex;
-	flex-direction: row;
-	gap: 20px;
-}
-
-.refinements-view .classes-movie-tab .content .classes {
-	width: 180px;
-}
-
-.refinements-view .classes-movie-tab .content .classes .class-item {
-	display: flex;
-	flex-direction: row;
-	gap: 20px;
-}
-
-.refinements-view .classes-movie-tab .content .classes .class-item .label {
-	flex-grow: 1;
-}
-
 .refinements-view .metadata-tab .search-bar {
 	display: flex;
 	flex-direction: row;
@@ -4042,6 +4022,32 @@ select.native {
 						color: #ffffff;
 						font-size: 70%;
 					}
+				}
+			}
+		}
+	}
+}
+
+
+/* CLASSES MOVIE */
+
+.classes-movie {
+
+	.content {
+		display: flex;
+		flex-direction: row;
+		gap: 20px;
+
+		.classes {
+			width: 180px;
+
+			.class-item {
+				display: flex;
+				flex-direction: row;
+				gap: 20px;
+
+				.label {
+					flex-grow: 1;
 				}
 			}
 		}
