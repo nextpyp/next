@@ -80,11 +80,13 @@ class ReactBuilder {
 			it.title = title
 		}
 
-	fun img(src: String, className: String? = null, title: String? = null) =
+	fun img(src: String, className: String? = null, title: String? = null, width: Int? = null, height: Int? = null) =
 		tag("img") {
 			it.src = src
 			it.className = className
 			it.title = title
+			it.width = width?.toString()
+			it.height = height?.toString()
 		}
 
 	fun dropdownButton(className: String? = null, onMouseDown: ((MouseEvent) -> Unit)? = null, enabled: Boolean = true, title: String? = null, buttonBlock: (ReactBuilder.() -> Unit)? = null, menuBlock: (ReactBuilder.() -> Unit)? = null) =

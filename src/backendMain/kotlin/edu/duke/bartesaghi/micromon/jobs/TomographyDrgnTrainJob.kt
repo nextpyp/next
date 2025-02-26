@@ -135,13 +135,8 @@ class TomographyDrgnTrainJob(
 		update()
 	}
 
-	fun diagramImageURL(): String {
-
-		val size = ImageSize.Small
-
-		// TEMP: placeholder for now
-		return "/img/placeholder/${size.id}"
-	}
+	fun diagramImageURL(): String =
+		ITomographyDrgnTrainService.plotPath(idOrThrow, 2)
 
 	override fun wipeData() {
 

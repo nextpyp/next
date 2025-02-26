@@ -101,7 +101,8 @@ class TomographyDrgnTrainNode(
 			button(className = "image-button", onClick = {
 				TomographyDrgnTrainView.go(viewport, project, job)
 			}) {
-				img(job.imageUrl, className = dynamicImageClassName)
+				img(job.imageUrl, className = dynamicImageClassName, width = 256)
+				// NOTE: this image is SVG, so it needs an explicit size
 			}
 		}
 
