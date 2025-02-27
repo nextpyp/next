@@ -74,6 +74,11 @@ suspend fun ApplicationCall.respondFile(path: Path, contentType: ContentType) =
  */
 suspend fun ApplicationCall.respondFileMrc(path: Path, downloadFilename: String? = null) {
 
+	// make sure the MRC file exists before we check the filesize
+	if (!path.exists()) {
+		throw NotFoundException()
+	}
+
 	// send the (uncompressed) content length using a custom header, so we can show a progress bar, see:
 	// https://stackoverflow.com/questions/15097712/how-can-i-use-deflated-gzipped-content-with-an-xhr-onprogress-function/32799706
 	response.header("MRC-FILE-SIZE", path.fileSize().toString())
