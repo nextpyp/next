@@ -149,14 +149,23 @@ class ThreeDeeViewer : Div() {
 
 						onload = {
 							if (response != null) {
-								statusDiv.removeAll()
-								val bytes = (response as? ArrayBuffer)
-									?.byteLength
-									?.toLong()
-									?.toBytesString()
-									?: "?? B"
-								statusDiv.content = "Model $number loaded ($bytes)."
-								update(viewer, response)
+
+								// check the HTTP status code before trying to show the MRC file
+								when (val status = status) {
+
+									200.toShort() -> {
+										statusDiv.removeAll()
+										val bytes = (response as? ArrayBuffer)
+											?.byteLength
+											?.toLong()
+											?.toBytesString()
+											?: "?? B"
+										statusDiv.content = "Model $number loaded ($bytes)."
+										update(viewer, response)
+									}
+
+									else -> Toast.error("Failed to load MRC file: $status $statusText")
+								}
 							}
 						}
 
