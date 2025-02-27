@@ -27,7 +27,7 @@ actual class TomographyDrgnEvalService : ITomographyDrgnEvalService, Service {
 
 			routing.route("kv/node/${TomographyDrgnEvalNodeConfig.ID}/{jobId}") {
 
-				fun PipelineContext<Unit, ApplicationCall>.authJob(permission: ProjectPermission): AuthInfo<Job> {
+				fun PipelineContext<Unit, ApplicationCall>.authJob(permission: ProjectPermission): AuthInfo<TomographyDrgnEvalJob> {
 					val jobId = call.parameters.getOrFail("jobId")
 					return call.authJob(jobId, permission)
 				}
@@ -48,10 +48,14 @@ actual class TomographyDrgnEvalService : ITomographyDrgnEvalService, Service {
 								val classNum = parseClassNum()
 								val size = parseSize()
 
+								val imageType = ImageType.Webp
+								val params = job.params()
+									?: return@respondExceptions imageType.respondPlaceholder(call, size)
+
 								// serve the image
-								val imagePath = job.kmeansDir() / "vol_${classNum.formatCls()}.webp"
+								val imagePath = job.kmeansDir(params) / "vol_${classNum.formatCls()}.webp"
 								val cacheKey = WebCacheDir.Keys.tomoDrgnVolume.parameterized("$classNum")
-								ImageType.Webp.respondSized(call, imagePath, size.info(job.wwwDir, cacheKey))
+								imageType.respondSized(call, imagePath, size.info(job.wwwDir, cacheKey))
 									?.respondPlaceholder(call, size)
 							}
 						}
@@ -63,7 +67,10 @@ actual class TomographyDrgnEvalService : ITomographyDrgnEvalService, Service {
 								val job = authJob(ProjectPermission.Read).job
 								val classNum = parseClassNum()
 
-								call.respondFileMrc(job.kmeansDir() / "vol_${classNum.formatCls()}.mrc")
+								val params = job.params()
+									?: throw NotFoundException()
+
+								call.respondFileMrc(job.kmeansDir(params) / "vol_${classNum.formatCls()}.mrc")
 							}
 						}
 					}
@@ -74,8 +81,12 @@ actual class TomographyDrgnEvalService : ITomographyDrgnEvalService, Service {
 							// parse args
 							val job = authJob(ProjectPermission.Read).job
 
+							val imageType = ImageType.Svgz
+							val params = job.params()
+								?: return@respondExceptions imageType.respondPlaceholder(call)
+
 							// serve the image
-							ImageType.Svgz.respond(call, job.kmeansDir() / "z_umap_scatter_subplotkmeanslabel.svgz")
+							imageType.respond(call, job.kmeansDir(params) / "z_umap_scatter_subplotkmeanslabel.svgz")
 								?.respondPlaceholder(call)
 						}
 					}
@@ -86,8 +97,12 @@ actual class TomographyDrgnEvalService : ITomographyDrgnEvalService, Service {
 							// parse args
 							val job = authJob(ProjectPermission.Read).job
 
+							val imageType = ImageType.Svgz
+							val params = job.params()
+								?: return@respondExceptions imageType.respondPlaceholder(call)
+
 							// serve the image
-							ImageType.Svgz.respond(call, job.kmeansDir() / "z_umap_scatter_colorkmeanslabel.svgz")
+							imageType.respond(call, job.kmeansDir(params) / "z_umap_scatter_colorkmeanslabel.svgz")
 								?.respondPlaceholder(call)
 						}
 					}
@@ -137,8 +152,12 @@ actual class TomographyDrgnEvalService : ITomographyDrgnEvalService, Service {
 							// parse args
 							val job = authJob(ProjectPermission.Read).job
 
+							val imageType = ImageType.Svgz
+							val params = job.params()
+								?: return@respondExceptions imageType.respondPlaceholder(call)
+
 							// serve the image
-							ImageType.Svgz.respond(call, job.kmeansDir() / "z_pca_scatter_subplotkmeanslabel.svgz")
+							imageType.respond(call, job.kmeansDir(params) / "z_pca_scatter_subplotkmeanslabel.svgz")
 								?.respondPlaceholder(call)
 						}
 					}
@@ -149,8 +168,12 @@ actual class TomographyDrgnEvalService : ITomographyDrgnEvalService, Service {
 							// parse args
 							val job = authJob(ProjectPermission.Read).job
 
+							val imageType = ImageType.Svgz
+							val params = job.params()
+								?: return@respondExceptions imageType.respondPlaceholder(call)
+
 							// serve the image
-							ImageType.Svgz.respond(call, job.kmeansDir() / "z_pca_scatter_colorkmeanslabel.svgz")
+							imageType.respond(call, job.kmeansDir(params) / "z_pca_scatter_colorkmeanslabel.svgz")
 								?.respondPlaceholder(call)
 						}
 					}
@@ -158,11 +181,11 @@ actual class TomographyDrgnEvalService : ITomographyDrgnEvalService, Service {
 			}
 		}
 
-		fun Job.kmeansDir(): Path =
-			dir / "train" / "kmeans"
+		fun Job.kmeansDir(params: TomographyDrgnEvalParams): Path =
+			dir / "train" / "kmeans${params.ksample}"
 
 		fun Job.dimDir(dim: Int): Path =
-			kmeansDir() / "dims.$dim"
+			dir / "train" / "pc$dim"
 
 		fun Int.formatCls(): String =
 			"%03d".format(this)
@@ -230,7 +253,10 @@ actual class TomographyDrgnEvalService : ITomographyDrgnEvalService, Service {
 
 		val job = jobId.authJob(ProjectPermission.Read).job
 
-		val path = job.kmeansDir() / "vol_${classNum.formatCls()}.mrc"
+		val params = job.params()
+			?: return null.toOption()
+
+		val path = job.kmeansDir(params) / "vol_${classNum.formatCls()}.mrc"
 		return path
 			.toFileDownloadData()
 			.toOption()

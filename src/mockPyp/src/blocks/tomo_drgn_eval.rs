@@ -44,7 +44,7 @@ pub fn run(web: &Web, args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 	let dir_train = PathBuf::from("train");
 	fs::create_dir_all(&dir_train)
 		.context("Failed to create train dir")?;
-	let dir_kmeans = dir_train.join("kmeans");
+	let dir_kmeans = dir_train.join(format!("kmeans{ksample}"));
 	fs::create_dir_all(&dir_kmeans)
 		.context("Failed to create kmeans dir")?;
 
@@ -74,7 +74,7 @@ pub fn run(web: &Web, args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 			plot_img(web, &dir_kmeans, "Occupancy", mode.name(), "z_pca_scatter_colorkmeanslabel".to_string())?;
 			for dim in 1 ..= num_dimensions {
 
-				let dir_dim = dir_kmeans.join(format!("dims.{dim}"));
+				let dir_dim = dir_train.join(format!("pc{dim}"));
 				fs::create_dir_all(&dir_dim)
 					.context("Failed to create dimension dir")?;
 
