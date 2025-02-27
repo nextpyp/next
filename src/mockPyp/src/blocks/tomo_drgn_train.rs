@@ -91,7 +91,7 @@ pub fn run(web: &Web, args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 				img.draw().noise(&DEFAULT_NOISE);
 				img.draw().text_lines(32, Rgb([255, 255, 255]), [
 					format!("Block: {}", BLOCK_ID),
-					"Type: Volum".to_string(),
+					"Type: Volume".to_string(),
 					format!("Iteration: {}", iter),
 					format!("Epoch: {}", epoch),
 					format!("Class: {}", class_num)

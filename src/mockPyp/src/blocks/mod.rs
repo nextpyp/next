@@ -18,6 +18,7 @@ mod tomo_coarse_refinement;
 mod tomo_import;
 mod tomo_reliondata;
 mod tomo_drgn_train;
+mod tomo_drgn_eval;
 mod tomo_session;
 mod spa_rawdata;
 mod spa_preprocessing;
@@ -74,6 +75,8 @@ pub fn run(web: &Web, block_id: &str, args: &mut Args, args_config: &ArgsConfig,
 		tomo_reliondata::run(web, args, args_config)
 	} else if block_id == tomo_drgn_train::BLOCK_ID {
 		tomo_drgn_train::run(web, args, args_config)
+	} else if block_id == tomo_drgn_eval::BLOCK_ID {
+		tomo_drgn_eval::run(web, args, args_config)
 
 	} else if block_id == tomo_session::BLOCK_ID {
 		tomo_session::run(web, args, args_config)

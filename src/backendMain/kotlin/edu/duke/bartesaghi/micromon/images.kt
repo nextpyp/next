@@ -164,6 +164,9 @@ interface ImageType {
 
 		suspend fun respondPlaceholder(call: ApplicationCall, size: ImageSize) =
 			respondBytes(this, call, Resources.placeholderJpg(size), "placeholder")
+
+		fun placeholderUrl(size: ImageSize): String =
+			"/images/placeholder.${size.id}.jpg"
 	}
 
 	object Png : ImageType {
@@ -180,6 +183,9 @@ interface ImageType {
 
 		suspend fun respondPlaceholder(call: ApplicationCall, size: ImageSize) =
 			respondBytes(this, call, Resources.placeholderPng(size), "placeholder")
+
+		fun placeholderUrl(size: ImageSize): String =
+			"/images/placeholder.${size.id}.png"
 	}
 
 	object Webp : ImageType {
@@ -196,6 +202,9 @@ interface ImageType {
 
 		suspend fun respondPlaceholder(call: ApplicationCall, size: ImageSize) =
 			respondBytes(this, call, Resources.placeholderWebp(size), "placeholder")
+
+		fun placeholderUrl(size: ImageSize): String =
+			"/images/placeholder.${size.id}.webp"
 	}
 
 	object Svgz : ImageType {
@@ -211,6 +220,9 @@ interface ImageType {
 
 		suspend fun respondPlaceholder(call: ApplicationCall) =
 			respondBytes(this, call, Resources.placeholderSvgz(), "placeholder", extraHeaders)
+
+		fun placeholderUrl(): String =
+			"/images/placeholder.svgz"
 	}
 }
 

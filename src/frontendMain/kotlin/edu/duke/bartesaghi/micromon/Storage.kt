@@ -122,6 +122,7 @@ object Storage {
 	var tomographyDenoisingEvalTabIndex by IntStorageItem("tomographyDenoisingEvalTabIndex")
 	var tomographyMiloEvalTabIndex by IntStorageItem("tomographyMiloEvalTabIndex")
 	var tomographyDrgnTrainTabIndex by IntStorageItem("tomographyDrgnTrainTabIndex")
+	var tomographyDrgnEvalTabIndex by IntStorageItem("tomographyDrgnEvalTabIndex")
 	var threeJsDoubleViews by BoolStorageItem("threeJsDoubleViews")
 	var showParticles by BoolStorageItem("showParticles")
 	var showVirions by BoolStorageItem("showVirions")
@@ -153,4 +154,7 @@ object Storage {
 	var tomographyDrgnTrainPlot8Size by ImageSizeStorageItem("tomographyDrgnTrainPlot8Size")
 	var tomographyDrgnTrainPlot9Size by ImageSizeStorageItem("tomographyDrgnTrainPlot9Size")
 	var tomographyDrgnTrainClassSize by ImageSizeStorageItem("tomographyDrgnTrainClassSize")
+	var tomographyDrgnEvalPlotResolutionSize by ImageSizeStorageItem("tomographyDrgnEvalPlotResolutionSize")
+	var tomographyDrgnEvalPlotOccupancySize by ImageSizeStorageItem("tomographyDrgnEvalPlotOccupancySize")
+	var tomographyDrgnEvalClassSize by ImageSizeStorageItem("tomographyDrgnEvalClassSize")
 }

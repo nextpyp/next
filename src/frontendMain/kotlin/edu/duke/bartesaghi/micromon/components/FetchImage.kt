@@ -93,6 +93,7 @@ open class FetchImage(
 		} else {
 			val fetchedUrl = fetchedUrl
 				?: return
+			img.setAttribute("fetched-src", fetchedUrl.url)
 			img.src = fetchedUrl.blobUrl
 		}
 	}

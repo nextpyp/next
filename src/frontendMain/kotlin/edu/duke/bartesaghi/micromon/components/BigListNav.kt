@@ -5,7 +5,7 @@ import edu.duke.bartesaghi.micromon.components.forms.enabled
 import edu.duke.bartesaghi.micromon.components.forms.focusASAP
 import edu.duke.bartesaghi.micromon.onClick
 import io.kvision.core.onEvent
-import io.kvision.form.check.checkBox
+import io.kvision.form.check.CheckBox
 import io.kvision.form.check.CheckBoxStyle
 import io.kvision.form.text.TextInput
 import io.kvision.form.text.text
@@ -26,7 +26,7 @@ class BigListNav private constructor(
 		items: List<Any>,
 		initialIndex: Int? = items.indices.lastOrNull(),
 		// NOTE: don't use if-like constructs in the above expression or it will trigger a compiler bug! =(
-		initialLive: Boolean = true,
+		initialLive: Boolean? = true,
 		has100: Boolean = true,
 		onSearch: BigListNavSearchFn? = null,
 		onShow: (Int) -> Unit = {}
@@ -35,10 +35,18 @@ class BigListNav private constructor(
 	class Core(
 		val items: List<Any>,
 		var index: Int?,
-		var live: Boolean,
+		initialLive: Boolean?,
 		val has100: Boolean
 	) {
 		val instances = ArrayList<BigListNav>()
+
+		val hasLive: Boolean = initialLive != null
+		var live: Boolean = initialLive ?: false
+			set(value) {
+				if (hasLive) {
+					field = value
+				}
+			}
 
 		var labeler: ((Int) -> String)? = null
 
@@ -75,7 +83,7 @@ class BigListNav private constructor(
 		}
 
 		fun newItem() {
-			if (live) {
+			if (hasLive && live) {
 				val index = (items.size - 1)
 					.takeIf { it >= 0 }
 					?: return
@@ -208,12 +216,15 @@ class BigListNav private constructor(
 		enabled = false
 	}
 
-	private val navLive = checkBox(true, label = "Watch").apply {
+	private val navLive = CheckBox(true, label = "Watch").apply {
 		style = CheckBoxStyle.PRIMARY
 		onEvent {
 			change = {
 				core.setLive(value)
 			}
+		}
+		if (core.hasLive) {
+			this@BigListNav.add(this)
 		}
 	}
 

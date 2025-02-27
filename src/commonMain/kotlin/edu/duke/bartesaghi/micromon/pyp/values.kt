@@ -379,6 +379,20 @@ val ArgValues.tomodrgnVaeConvergenceEpochInterval: Int
 	get() = (getOrDefault(args.tomodrgnVaeConvergenceEpochInterval) as Long).toInt()
 
 
+val Args.tomodrgnAnalyzeSkipumap: Arg
+	get() = argOrThrow("tomodrgn_analyze", "skipumap")
+val ArgValues.tomodrgnAnalyzeSkipumap: Boolean
+	get() = getOrDefault(args.tomodrgnAnalyzeSkipumap) as Boolean
+val Args.tomodrgnAnalyzePc: Arg
+	get() = argOrThrow("tomodrgn_analyze", "pc")
+val ArgValues.tomodrgnAnalyzePc: Int
+	get() = (getOrDefault(args.tomodrgnAnalyzePc) as Long).toInt()
+val Args.tomodrgnAnalyzeKsample: Arg
+	get() = argOrThrow("tomodrgn_analyze", "ksample")
+val ArgValues.tomodrgnAnalyzeKsample: Int
+	get() = (getOrDefault(args.tomodrgnAnalyzeKsample) as Long).toInt()
+
+
 /**
  * arguments for micromon itself and not pyp
  */

@@ -130,7 +130,7 @@ fun Application.main(config: Config.Web) {
 		}
 
 		// the SVGZ resources need extra headers
-		get("/images/placeholder.svgz") {
+		get(ImageType.Svgz.placeholderUrl()) {
 			ImageType.Svgz.respondPlaceholder(call)
 		}
 
@@ -207,6 +207,7 @@ fun Application.main(config: Config.Web) {
 		TomographyMiloTrainService.init(this)
 		TomographyMiloEvalService.init(this)
 		TomographyDrgnTrainService.init(this)
+		TomographyDrgnEvalService.init(this)
 
 		// only enable the debug service in debug mode
 		if (config.debug) {

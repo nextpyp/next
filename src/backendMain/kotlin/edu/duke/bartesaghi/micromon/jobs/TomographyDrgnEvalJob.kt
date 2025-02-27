@@ -1,6 +1,7 @@
 package edu.duke.bartesaghi.micromon.jobs
 
 import com.mongodb.client.model.Updates
+import edu.duke.bartesaghi.micromon.ImageType
 import edu.duke.bartesaghi.micromon.mongo.getDocument
 import edu.duke.bartesaghi.micromon.nodes.TomographyDrgnEvalNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.*
@@ -84,13 +85,14 @@ class TomographyDrgnEvalJob(
 		update()
 	}
 
-	fun diagramImageURL(): String {
-
-		val size = ImageSize.Small
-
-		// TEMP: placeholder for now
-		return "/img/placeholder/${size.id}"
-	}
+	fun diagramImageURL(): String =
+		when (val mode = params()?.mode()) {
+			is TomographyDrgnEvalMode.UMAP ->
+				ITomographyDrgnEvalService.plotOccupancyPathUmap(idOrThrow)
+			is TomographyDrgnEvalMode.PCA ->
+				ITomographyDrgnEvalService.plotOccupancyPathPca(idOrThrow)
+			else -> ImageType.Svgz.placeholderUrl()
+		}
 
 	override fun wipeData() {
 
@@ -107,4 +109,13 @@ class TomographyDrgnEvalJob(
 
 	override fun finishedArgValues(): ArgValuesToml? =
 		args.finished?.values
+
+	fun params(): TomographyDrgnEvalParams? =
+		pypParameters()?.let {
+			TomographyDrgnEvalParams(
+				skipumap = it.tomodrgnAnalyzeSkipumap,
+				pc = it.tomodrgnAnalyzePc,
+				ksample = it.tomodrgnAnalyzeKsample
+			)
+		}
 }

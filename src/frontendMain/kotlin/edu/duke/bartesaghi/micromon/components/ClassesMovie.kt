@@ -13,9 +13,9 @@ import kotlinx.browser.document
 import org.w3c.dom.Image
 
 
-class ClassesMovie<IT>(
+class ClassesMovie(
 	val job: JobData,
-	val imagePather: (IT, Int, ImageSize) -> String
+	val imagePather: (Int, ImageSize) -> String
 ) : Div(classes = setOf("classes-movie")) {
 
 	data class ClassItem(val classNum: Int) : Div(classes = setOf("class-item")), SortableList.Item {
@@ -37,7 +37,6 @@ class ClassesMovie<IT>(
 	private val movie = Movie()
 	private val contentElem = Div()
 
-	private var currentIteration: IT? = null
 	private var currentNumClasses: Int? = null
 
 	init {
@@ -51,14 +50,13 @@ class ClassesMovie<IT>(
 		}
 		movie.onResize = { newSize ->
 			Storage.classesMovieSize = newSize
-			movie.populate(currentIteration)
+			movie.populate()
 			movie.update()
 		}
 	}
 
-	fun update(iteration: IT?, numClasses: Int?) {
+	fun update(numClasses: Int?) {
 
-		currentIteration = iteration
 		currentNumClasses = numClasses
 
 		contentElem.removeAll()
@@ -93,7 +91,7 @@ class ClassesMovie<IT>(
 		}
 
 		sortable.update()
-		movie.populate(iteration)
+		movie.populate()
 		movie.update()
 	}
 
@@ -122,16 +120,14 @@ class ClassesMovie<IT>(
 			add(contentElem)
 		}
 
-		fun populate(iteration: IT?) {
+		fun populate() {
 
 			imageElems.clear()
-
-			iteration ?: return
 
 			for (classItem in self.classItems) {
 				val img = Image()
 				img.alt = "Class ${classItem.classNum}"
-				img.src = self.imagePather(iteration, classItem.classNum, size)
+				img.src = self.imagePather(classItem.classNum, size)
 				imageElems[classItem.classNum] = img
 
 				// add the images to the real DOM so they can preload

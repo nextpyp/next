@@ -9,6 +9,7 @@ import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
 import edu.duke.bartesaghi.micromon.pyp.Args
 import edu.duke.bartesaghi.micromon.revalidateDynamicImages
 import edu.duke.bartesaghi.micromon.services.*
+import edu.duke.bartesaghi.micromon.views.TomographyDrgnEvalView
 import edu.duke.bartesaghi.micromon.views.Viewport
 import io.kvision.form.formPanel
 import io.kvision.modal.Modal
@@ -98,10 +99,10 @@ class TomographyDrgnEvalNode(
 
 		content {
 			button(className = "image-button", onClick = {
-				// TODO: make a view
-				//TomographyDrgnEvalView.go(viewport, project, job)
+				TomographyDrgnEvalView.go(viewport, project, job)
 			}) {
-				img(job.imageUrl, className = dynamicImageClassName)
+				img(job.imageUrl, className = dynamicImageClassName, width = 256)
+				// NOTE: this image is SVG, so it needs an explicit size
 			}
 		}
 

@@ -531,13 +531,17 @@ class TomographyDrgnTrainView(val project: ProjectData, val job: TomographyDrgnT
 
 
 	private inner class ClassesMovieTab(
-		val iterationsNav: BigListNav
+		iterationsNav: BigListNav
 	): Div() {
 
-		private val movie = ClassesMovie<TomoDrgnConvergence.Iteration>(
+		private val movie = ClassesMovie(
 			job,
-			imagePather = { iteration, classNum, size ->
-				ITomographyDrgnTrainService.classImagePath(job.jobId, iteration.epoch, classNum, size)
+			imagePather = { classNum, size ->
+				currentIteration?.epoch
+					?.let { epoch ->
+						ITomographyDrgnTrainService.classImagePath(job.jobId, epoch, classNum, size)
+					}
+					?: ""
 			}
 		)
 
@@ -554,7 +558,7 @@ class TomographyDrgnTrainView(val project: ProjectData, val job: TomographyDrgnT
 		}
 
 		fun reset() {
-			movie.update(currentIteration, convergence?.parameters?.numClasses)
+			movie.update(convergence?.parameters?.numClasses)
 		}
 
 		// TODO: revalidate?

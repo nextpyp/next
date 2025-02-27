@@ -30,10 +30,14 @@ class ClassesMovieTab(
 
 	private val iterationsNav = state.iterationNav.clone()
 
-	private val movie = ClassesMovie<Int>(
+	private val movie = ClassesMovie(
 		job,
-		imagePather = { iteration, classNum, size ->
-			"/kv/reconstructions/${job.jobId}/$classNum/$iteration/images/map/${size.id}"
+		imagePather = { classNum, size ->
+			state.currentIteration
+				?.let { iteration ->
+					"/kv/reconstructions/${job.jobId}/$classNum/$iteration/images/map/${size.id}"
+				}
+				?: ""
 		}
 	)
 
@@ -48,12 +52,11 @@ class ClassesMovieTab(
 
 		// wire up events
 		iterationsNav.onShow = {
-			val iteration = state.currentIteration
 			val numClasses = state.currentIteration
 				?.let { state.reconstructions.withIteration(it) }
 				?.classes
 				?.size
-			movie.update(iteration, numClasses)
+			movie.update(numClasses)
 		}
 	}
 }
