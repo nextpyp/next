@@ -172,7 +172,7 @@ enum class SessionDaemon(
 
 	Streampyp("File transfer", "pyp_sess_dta", "streampyp", false),
 	Pypd("Data pre-processing", "pyp_sess_pre", "pypd", true),
-	Fypd("2D/3D refinement", "pyp_sess_ref", "fypd", true);
+	Fypd("2D classification", "pyp_sess_ref", "fypd", true);
 
 	companion object {
 

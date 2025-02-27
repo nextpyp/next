@@ -133,7 +133,7 @@ class TomographyDrgnTrainView(val project: ProjectData, val job: TomographyDrgnT
 					}
 				}
 
-				addTab("Reconstruction", "fas fa-question-circle") { lazyTab ->
+				addTab("Reconstruction", "fas fa-desktop") { lazyTab ->
 					reconstructionTab = ReconstructionTab(iterationsNav.clone()).also {
 						lazyTab.elem.add(it)
 						lazyTab.onActivate = { it.revalidate() }
@@ -141,7 +141,7 @@ class TomographyDrgnTrainView(val project: ProjectData, val job: TomographyDrgnT
 					}
 				}
 
-				addTab("3D View", "fas fa-question-circle") { lazyTab ->
+				addTab("3D View", "fas fa-cube") { lazyTab ->
 					threeDeeTab = ThreeDeeTab().also {
 						lazyTab.elem.add(it)
 						it.reset()
