@@ -151,7 +151,7 @@ actual class TomographyDrgnTrainService : ITomographyDrgnTrainService, Service {
 			dir / "train" / "convergence" / "vols.$epoch"
 
 		fun Int.formatCls(): String =
-			"%03d".format(this)
+			"%03d".format(this - 1)
 	}
 
 

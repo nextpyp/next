@@ -73,7 +73,7 @@ pub fn run(web: &Web, args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 		// generate class files
 		for class_num in 1 ..= final_maxima {
 
-			let filename = format!("vol_{class_num:03}");
+			let filename = format!("vol_{:03}", class_num - 1);
 
 			// generate the volume itself
 			let mut mrc = Mrc::new(16, 16, 16);

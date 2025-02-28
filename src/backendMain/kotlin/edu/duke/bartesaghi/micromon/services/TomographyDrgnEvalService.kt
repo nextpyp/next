@@ -188,7 +188,7 @@ actual class TomographyDrgnEvalService : ITomographyDrgnEvalService, Service {
 			dir / "train" / "pc$dim"
 
 		fun Int.formatCls(): String =
-			"%03d".format(this)
+			"%03d".format(this - 1)
 	}
 
 
