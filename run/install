@@ -111,9 +111,26 @@ if [ "$whoami" = "root" ]; then
   fi
 
   mkdirheresrv() { #(path, chmod ops)
-    mkdirdo "$heredo" "$1" "$2"
-    # folder will be owned by root/admin: need to chown to service account
-    chown "$username:$groupname" "$1"
+
+    if [ -d "$1" ]; then
+      echo "Using existing folder $1"
+    else
+
+      # In a normal universe, we'd create the folder as the admin account and then chown to the service account.
+      # But some networked filesystems won't allow chown, so we need to do something else:
+      # like temporarily allowing the service account to write to the parent folder.
+
+      # first, backup the parent folder permissions and allow write access to others
+      parentdir=$(dirname "$1")
+      backup=$(stat --format '%a' "$parentdir")
+      chmod go+wx "$parentdir"
+
+      # then, create the folder as the service account
+      mkdirdo "$srvdo" "$1" "$2"
+
+      # restore the original permissions
+      chmod "$backup" "$parentdir"
+    fi
   }
 
   mkdirherenotsrv() { #(path, chmod ops)
@@ -206,9 +223,19 @@ if [ -n "$PYP_LOCAL" ]; then
   $heredo ln -s "$localDir" "$here/local"
 
 else
-  # no folder given, make a new one here
+
+  # no folder given, use a folder inside the installation folder
   localDir="$here/local"
   mkdirheresrv "$localDir" g+s
+
+  # check ownership
+  localOwner="$(stat -c '%U' "$localDir")"
+  if [ "$localOwner" != "$username" ]; then
+    echo "ERROR: Local folder should be owned by service account $username"
+    echo "       Instead it's owned by $localOwner"
+    echo "       Path: $localDir"
+    exit 1
+  fi
 fi
 
 
@@ -241,9 +268,19 @@ if [ -n "$PYP_SHARED_DATA" ]; then
   $heredo ln -s "$sharedDataDir" "$here/shared"
 
 else
-  # no folder given, make a new one here
+
+  # no folder given, use a folder inside the installation folder
   sharedDataDir="$here/shared"
   mkdirheresrv "$sharedDataDir" ugo+rx,g+s
+
+  # check ownership
+  sharedOwner="$(stat -c '%U' "$sharedDataDir")"
+  if [ "$localOwner" != "$username" ]; then
+    echo "ERROR: Shared data folder should be owned by service account $username"
+    echo "       Instead it's owned by $sharedOwner"
+    echo "       Path: $sharedDataDir"
+    exit 1
+  fi
 fi
 
 
@@ -257,13 +294,15 @@ if [ -n "$PYP_SHARED_EXEC" ]; then
     exit 1
   fi
 
-  # check ownership
-  sharedExecOwner="$(stat -c '%U' "$PYP_SHARED_EXEC")"
-  if [ "$sharedExecOwner" != "root" ] && [ "$sharedExecOwner" != "$admin" ]; then
-    echo "ERROR: Shared exec folder given by PYP_SHARED_EXEC should be owned by root or $admin"
-    echo "       Instead, it is owned by $sharedExecOwner"
-    echo "       PYP_SHARED_EXEC=$PYP_SHARED_EXEC"
-    exit 1
+  # check ownership, if useful (can't enforce admin ownership when there's no admin, ie in unprivileged user mode)
+  if [ "$oscaps" = "root" ]; then
+    sharedExecOwner="$(stat -c '%U' "$PYP_SHARED_EXEC")"
+    if [ "$sharedExecOwner" != "root" ] && [ "$sharedExecOwner" != "$admin" ]; then
+      echo "ERROR: Shared exec folder given by PYP_SHARED_EXEC should be owned by root or $admin"
+      echo "       Instead, it is owned by $sharedExecOwner"
+      echo "       PYP_SHARED_EXEC=$PYP_SHARED_EXEC"
+      exit 1
+    fi
   fi
 
   sharedExecDir="$PYP_SHARED_EXEC"
@@ -278,9 +317,21 @@ if [ -n "$PYP_SHARED_EXEC" ]; then
   $heredo ln -s "$sharedExecDir" "$here/sharedExec"
 
 else
-  # no folder given, make a new one here
+
+  # no folder given, use a folder in the installation folder
   sharedExecDir="$here/sharedExec"
   mkdirherenotsrv "$sharedExecDir" ugo+rx,g+s
+
+  # check ownership, if useful (can't enforce admin ownership when there's no admin, ie in unprivileged user mode)
+  if [ "$oscaps" = "root" ]; then
+    sharedExecOwner="$(stat -c '%U' "$sharedExecDir")"
+    if [ "$sharedExecOwner" != "root" ] && [ "$sharedExecOwner" != "$admin" ]; then
+      echo "ERROR: Shared exec folder should be owned by root or $admin"
+      echo "       Instead, it is owned by $sharedExecOwner"
+      echo "       Path: $sharedExecDir"
+      exit 1
+    fi
+  fi
 
   sharedexecdo=$heredo
 fi
@@ -383,10 +434,15 @@ install "host-processor" "nextpyp-host-processor"
 
 # create the home configuration folder, if needed (apptainer needs it)
 if [ "$oscaps" = "root" ]; then
-  mkdirdo "" "$home" u+rwx,go+rx,go-w
-  chown "$username:$groupname" "$home"
-  mkdirdo "" "$home/.config" u+rwx,go+rx,go-w
-  chown "$username:$groupname" "$home/.config"
+  if [ ! -d "$home" ]; then
+    echo "Service account has no home folder, attempting to create automatically ..."
+    echo "If automatic home folder creation fails, create the home folder manually and try installing again."
+    mkdirdo "" "$home" u+rwx,go+rx,go-w
+    chown "$username:$groupname" "$home"
+  else
+    echo "Home folder for service account already exists: $home"
+  fi
+  mkdirdo "$srvdo" "$home/.config" u+rwx,go+rx,go-w
 fi
 
 
