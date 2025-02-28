@@ -3,7 +3,7 @@ import   WEBGL                        from 'three/examples/jsm/capabilities/WebG
 import { OrbitControls }              from 'three/examples/jsm/controls/OrbitControls'
 import { VolumeRenderShader1 }        from 'three/examples/jsm/shaders/VolumeShader'
 import { GUI, GUIController }         from 'dat.gui' /* So that we can use JSDoc with out a warning about importing GUIController --> */ // eslint-disable-line
-import { readMrc, rescale }           from './mrc'
+import { readMrc }                    from './mrc'
 import { hexToRgb }                   from './three_help'
 import * as DEFAULT                   from './three_defaults'
 import {fragmentShader, vertexShader, fragmentShader2} from './three_shaders'
@@ -79,7 +79,7 @@ const cmtextures = {
 
 function makeIsoTextureFromFloatData(rImage, lX, lY, lZ) {
     const imageData = new Uint8Array(rImage.map(v => Math.round(256 * v))) // Scale values up from (0, 1) to (0, 256)
-        
+
     // Texture to hold the volume. We have scalars, so we put our data in the red channel.
     const isoTexture = new THREE.Data3DTexture(imageData, lX, lY, lZ);
     isoTexture.format = THREE.RedFormat;
@@ -293,11 +293,40 @@ export function createMesh2fromData(data) {
     render2Needed = true
 }
 
+/**
+ * @param {ArrayBuffer} data
+ * @returns {[Float32Array, number, number, number]}
+ */
 function processArrayBufferResponse(data) {
-    let { image, headerdict } = readMrc(new Uint8Array(data))
-    const rImage = rescale(image)
-    const [ lX, lY, lZ ] = [ headerdict["nx"], headerdict["ny"], headerdict["nz"] ]
-    return [rImage, lX, lY, lZ]
+
+    let { image, headerdict } = readMrc(new Uint8Array(data));
+
+    // convert the image data to Float32 format if needed
+    if (!(image instanceof Float32Array)) {
+    	const floatImage = new Float32Array(image.length);
+    	for (let i=0; i<image.length; i++) {
+    		floatImage[i] = image[i];
+    	}
+    	image = floatImage;
+    }
+
+    // normalize to the range [0,1]
+	let max = image[0];
+	let min = image[0];
+	for (let i=0; i<image.length; i++) {
+		if (image[i] > max) {
+			max = image[i];
+		}
+		if (image[i] < min) {
+			min = image[i];
+		}
+	}
+	const f = max - min;
+	for (let i=0; i<image.length; i++) {
+		image[i] = (image[i] - min)/f;
+	}
+
+    return [image, headerdict["nx"], headerdict["ny"], headerdict["nz"]];
 }
 
 function moveCamera1(event) {

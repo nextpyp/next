@@ -180,7 +180,13 @@ function parseHeader(headerbytes) {
  * Note: Some issues with the test image prompted the possibility of using the 
  * header data as voxels itself. While this seems counterintuitive, I can prove
  * that the python script did this.
- * @param {array} data
+ *
+ * @param {ArrayBuffer} data
+ * @param {bool} [includeHeaderAsData]
+ * @returns {{
+ *   image: TypedArray,
+ *   headerDict: Object.<any>
+ * }}
  */
 function readMrc(data, includeHeaderAsData = true) {
     let headerbytes = data.slice(0, 1024)
@@ -235,23 +241,6 @@ function bytesToData(bytes, dataType, swap = false) {
 }
 
 /**
- * Rescale all elements in an array to be between 0 and 1.
- * @param {Array<Number> | TypedArray} data
- */
-function rescale(data) {
-    const newData = [];
-    let max = data[0], min = data[0];
-    for (let i = 0; i < data.length; i++) {
-       if (data[i] > max) max = data[i];
-       if (data[i] < min) min = data[i];
-    }
-    const scale = max - min;
-    for (let i = 0; i < data.length; i++)
-        newData[i] = (data[i] - min) / scale
-    return newData
-}
-
-/**
  * Retrieve the bytes from a string using the .charCodeAt() function.
  * FOR TESTING ONLY.
  * @param {string} str
@@ -277,4 +266,4 @@ function unitTest() {
     if (allTestsPassed) console.log("Tests passed successfully.")
 }
 
-export { readMrc, rescale }
+export { readMrc }
