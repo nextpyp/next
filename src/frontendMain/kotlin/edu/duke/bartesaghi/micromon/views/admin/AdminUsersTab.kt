@@ -607,7 +607,7 @@ class RunasInfo : Div(classes = setOf("runas-info")) {
 					elem.div(classes = setOf("error-message")) {
 						div {
 							iconStyled("fas fa-exclamation-triangle", classes = setOf("icon"))
-							span("host processor executable not available:")
+							span("user processor executable not available:")
 						}
 						ul {
 							for (problem in check.problems) {

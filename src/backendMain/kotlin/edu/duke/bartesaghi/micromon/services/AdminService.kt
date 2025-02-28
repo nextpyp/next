@@ -10,6 +10,7 @@ import edu.duke.bartesaghi.micromon.auth.lookupName
 import edu.duke.bartesaghi.micromon.cluster.Cluster
 import edu.duke.bartesaghi.micromon.cluster.ClusterJob
 import edu.duke.bartesaghi.micromon.cluster.standalone.PseudoCluster
+import edu.duke.bartesaghi.micromon.linux.userprocessor.UserProcessor
 import edu.duke.bartesaghi.micromon.linux.userprocessor.UserProcessorException
 import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.projects.Project
@@ -360,12 +361,24 @@ actual class AdminService : IAdminService {
 		// authenticate the user as an admin
 		call.authOrThrow().adminOrThrow()
 
+		// explicitly (re)run the user-processor checks, even if a user processor is already running,
+		// in case changes were made to the user-processor executable while it's running
+		try {
+			slowIOs {
+				UserProcessor.find(Backend.instance.hostProcessor, osUsername)
+			}
+		} catch (ex: UserProcessorException) {
+			return UserProcessorCheck.failure(ex.path.toString(), ex.problems)
+		}
+
+		// get (or start) a user-processor for this user
 		val userProcessor = try {
 			Backend.instance.userProcessors.get(osUsername)
 		} catch (ex: UserProcessorException) {
 			return UserProcessorCheck.failure(ex.path.toString(), ex.problems)
 		}
 
+		// try using the user processor
 		val uids = try {
 			userProcessor.uids()
 		} catch (t: Throwable) {
