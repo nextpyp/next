@@ -93,20 +93,20 @@ class TomographyDrgnEvalView(val project: ProjectData, val job: TomographyDrgnEv
 
 				persistence = Storage::tomographyDrgnEvalTabIndex
 
-				addTab("Reconstruction", "fas fa-question-circle") { lazyTab ->
+				addTab("Reconstruction", "fas fa-desktop") { lazyTab ->
 					reconstructionTab = ReconstructionTab(modeHandler).also {
 						lazyTab.elem.add(it)
 						lazyTab.onActivate = { it.revalidate() }
 					}
 				}
 
-				addTab("Classes Movie", "fas fa-question-circle") { lazyTab ->
+				addTab("Classes Movie", "fas fa-film") { lazyTab ->
 					classesMovieTab = ClassesMovieTab(modeHandler).also {
 						lazyTab.elem.add(it)
 					}
 				}
 
-				addTab("3D View", "fas fa-question-circle") { lazyTab ->
+				addTab("3D View", "fas fa-cube") { lazyTab ->
 					threeDeeTab = ThreeDeeTab(modeHandler).also {
 						lazyTab.elem.add(it)
 					}
@@ -154,7 +154,7 @@ class TomographyDrgnEvalView(val project: ProjectData, val job: TomographyDrgnEv
 		private val classesRadio = ClassesRadio("Class")
 
 		private val classesPanel = ContentSizedPanel(
-			"Projections/Slices",
+			"Classes",
 			ImageSize.values().map { it.approxWidth },
 			(Storage.tomographyDrgnEvalClassSize ?: ImageSize.Small).ordinal
 		)
@@ -164,7 +164,7 @@ class TomographyDrgnEvalView(val project: ProjectData, val job: TomographyDrgnEv
 		private val classImages = ArrayList<FetchImage>()
 		private val classMrcDownloads = ArrayList<FileDownloadBadge>()
 
-		private val plotResolution = FetchImagePanel("Resolution", Storage::tomographyDrgnEvalPlotResolutionSize, ImageSize.Medium) {
+		private val plotResolution = FetchImagePanel("K-means (sublots)", Storage::tomographyDrgnEvalPlotResolutionSize, ImageSize.Medium) {
 			when (modeHandler) {
 				is ModeHandler.UMAP -> ITomographyDrgnEvalService.plotResolutionPathUmap(job.jobId)
 				is ModeHandler.PCA -> ITomographyDrgnEvalService.plotResolutionPathPca(job.jobId)
@@ -172,7 +172,7 @@ class TomographyDrgnEvalView(val project: ProjectData, val job: TomographyDrgnEv
 			}
 		}
 
-		private val plotOccupancy = FetchImagePanel("Occupancy", Storage::tomographyDrgnEvalPlotOccupancySize, ImageSize.Medium) {
+		private val plotOccupancy = FetchImagePanel("K-means (labels)", Storage::tomographyDrgnEvalPlotOccupancySize, ImageSize.Medium) {
 			when (modeHandler) {
 				is ModeHandler.UMAP -> ITomographyDrgnEvalService.plotOccupancyPathUmap(job.jobId)
 				is ModeHandler.PCA -> ITomographyDrgnEvalService.plotOccupancyPathPca(job.jobId)
@@ -190,7 +190,7 @@ class TomographyDrgnEvalView(val project: ProjectData, val job: TomographyDrgnEv
 				when (self.modeHandler) {
 
 					is ModeHandler.PCA -> {
-						span("Dimension:")
+						span("I-PC:")
 						add(self.modeHandler.dimensionsNavReconstruction)
 						self.modeHandler.dimensionsNavReconstruction.onShow = {
 							self.updateClasses()
@@ -201,11 +201,11 @@ class TomographyDrgnEvalView(val project: ProjectData, val job: TomographyDrgnEv
 				}
 				add(self.classesRadio)
 			}
-			add(classesPanel)
 			div {
 				add(self.plotResolution)
 				add(self.plotOccupancy)
 			}
+			add(classesPanel)
 
 			// init classes
 			when (modeHandler) {

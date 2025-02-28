@@ -148,7 +148,7 @@ class TomographyDrgnTrainView(val project: ProjectData, val job: TomographyDrgnT
 					}
 				}
 
-				addTab("Classes Movie", "fas fa-question-circle") { lazyTab ->
+				addTab("Classes Movie", "fas fa-film") { lazyTab ->
 					classesMovieTab = ClassesMovieTab(iterationsNav.clone()).also {
 						lazyTab.elem.add(it)
 						it.reset()
@@ -359,14 +359,14 @@ class TomographyDrgnTrainView(val project: ProjectData, val job: TomographyDrgnT
 		private val classesRadio = ClassesRadio("Class")
 
 		private val classesPanel = ContentSizedPanel(
-			"Projections/Slices",
+			"Classes",
 			ImageSize.values().map { it.approxWidth },
 			(Storage.tomographyDrgnTrainClassSize ?: ImageSize.Small).ordinal
 		)
 		private val classesElem = Div(classes = setOf("classes"))
 			.also { classesPanel.add(it) }
 
-		private val plot4 = FetchImagePanel("Resolution", Storage::tomographyDrgnTrainPlot4Size, ImageSize.Medium) {
+		private val plot4 = FetchImagePanel("Decoder UMAP sketching", Storage::tomographyDrgnTrainPlot4Size, ImageSize.Medium) {
 			ITomographyDrgnTrainService.plotPath(job.jobId, 4)
 		}
 
@@ -380,7 +380,7 @@ class TomographyDrgnTrainView(val project: ProjectData, val job: TomographyDrgnT
 
 			// layout the tab
 			div(classes = setOf("nav")) {
-				span("Iteration:")
+				span("Checkpoint:")
 				add(iterationsNav)
 				add(self.classesRadio)
 			}
@@ -388,8 +388,8 @@ class TomographyDrgnTrainView(val project: ProjectData, val job: TomographyDrgnT
 				span("Epoch: ")
 				add(self.epochElem)
 			}
-			add(classesPanel)
 			add(plot4)
+			add(classesPanel)
 
 			// wire up events
 			iterationsNav.onShow = {
