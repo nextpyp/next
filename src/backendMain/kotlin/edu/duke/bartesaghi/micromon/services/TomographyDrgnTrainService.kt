@@ -124,7 +124,7 @@ actual class TomographyDrgnTrainService : ITomographyDrgnTrainService, Service {
 								val size = parseSize()
 
 								// serve the image
-								val imagePath = job.epochDir(epoch) / "vol_${(classNum-1).formatCls()}.webp"
+								val imagePath = job.epochDir(epoch) / "vol_${classNum.formatCls()}.webp"
 								val cacheKey = WebCacheDir.Keys.tomoDrgnVolume.parameterized("$epoch-$classNum")
 								ImageType.Webp.respondSized(call, imagePath, size.info(job.wwwDir, cacheKey))
 									?.respondPlaceholder(call, size)
@@ -139,7 +139,7 @@ actual class TomographyDrgnTrainService : ITomographyDrgnTrainService, Service {
 								val epoch = parseEpoch()
 								val classNum = parseClassNum()
 
-								call.respondFileMrc(job.epochDir(epoch) / "vol_${(classNum-1).formatCls()}.mrc")
+								call.respondFileMrc(job.epochDir(epoch) / "vol_${classNum.formatCls()}.mrc")
 							}
 						}
 					}
@@ -210,7 +210,7 @@ actual class TomographyDrgnTrainService : ITomographyDrgnTrainService, Service {
 
 		val job = jobId.authJob(ProjectPermission.Read).job
 
-		val path = job.epochDir(epoch) / "vol_${(classNum-1).formatCls()}.mrc"
+		val path = job.epochDir(epoch) / "vol_${classNum.formatCls()}.mrc"
 		return path
 			.toFileDownloadData()
 			.toOption()
