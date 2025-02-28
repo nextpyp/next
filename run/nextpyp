@@ -182,6 +182,9 @@ setup()
   addbind "$shareddatadir"
   addbind "$sharedexecdir"
 
+  # the service account is the owner of the shared data folder
+  srvname=$(stat --format '%U' "$shareddatadir")
+
   sockdir="$localdir/sock"
 
   # pick the host processor executable, if not already picked by the dev setup
@@ -212,14 +215,57 @@ usersetup()
   # make a way to run commands as the target user
   usdo="sudo -u $username"
 
-  upexec="$sharedexecdir/user-processors/user-processor-$username"
+  updir="$sharedexecdir/user-processors"
+  upexec="$updir/user-processor-$username"
 }
 
 
-create_upexec() # depends on usdo, installdir, and upexec
+user_in_group() # (username, gid)
 {
+  gids=$(id -G "$1")
+  for gid in $gids ; do
+    if [ "$gid" = "$2" ]; then
+      return 0
+      # NOTE: 0 is success (not true: there are no boolean types here)
+    fi
+  done
+  return 1
+  # NOTE: any non-zero result is failure (not false: there are no boolean types here)
+}
+
+
+create_upexec() # depends on: usdo, installdir, updir, upexec, username
+{
+  # get the gid of the user-processor folder, for later checks
+  srvgid=$(stat --format '%g' "$updir")
+
+  # skip this check when the user is the same as the service account (typical for dev installations)
+  if [ "$username" != "$srvname" ]; then
+    # make sure the user isn't a member of the group owning the user-processors folder,
+    # since that folder group will become the group of the user-processor exectuable itself,
+    # and any member of that group will be allowed to use the user-processor.
+    # If regular users (like the user we're installing) are members of that group, then any
+    # regular user could use the user-processor executables. That's a gaping security hole.
+    if user_in_group "$username" "$srvgid" ; then
+      groupname=$(getent group "$srvgid" | cut -d: -f1)
+      echo "ERROR: Regular users (eg $username) should not be members of the"
+      echo "       group $groupname, which should be only for the service account."
+      echo "       Fix this security issue by changing the group of the user-processor folder ($updir)"
+      echo "       to be a group that contains only the service account."
+      exit 1
+    fi
+  fi
+
   # create the user-processor executable for this user
   $usdo cp "$installdir/user-processor" "$upexec"
+
+  # make sure the executable group is the same as the folder group
+  exegid=$(stat --format '%g' "$upexec")
+  if [ "$exegid" != "$srvgid" ]; then
+    echo "ERROR: User-processor executable did not inherit the group ownership from the parent folder."
+    echo "       The user-processor folder should have the sticky bit set."
+    exit 1
+  fi
 
   # only the user should be able to write
   # only the user and the group should be able to execute

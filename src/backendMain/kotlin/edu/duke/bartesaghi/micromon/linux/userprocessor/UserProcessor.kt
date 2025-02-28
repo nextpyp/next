@@ -102,6 +102,21 @@ class UserProcessor(
 				failures.add("File permissions: website user $micromonUsername is not a member of group $fileGroupname")
 			}
 
+			// If the user isn't the service account already (typical for dev installations),
+			// then the user should not themself be a member of that group.
+			// Which by itself is not bad, but such a configuration usually means other users are also members of that group
+			// which most definitely *is* a security violation, since it would allow regular users to impersonate each other
+			if (uid != websiteUid) {
+				val userGids = hostProcessor.gids(uid)
+				if (userGids != null && stat.gid in userGids) {
+					val fileGroupname = hostProcessor.groupname(stat.gid)
+					failures.add("""
+						Group configuration: Regular users (eg $username) should not be members of the
+						group $fileGroupname, which should be only for the service account
+					""".trim())
+				}
+			}
+
 			if (failures.isNotEmpty()) {
 				throw UserProcessorException(path, failures)
 			}
