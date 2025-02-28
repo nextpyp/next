@@ -34,29 +34,62 @@ interface ITomographyDrgnEvalService {
 
 	companion object {
 
+		fun plotUmapScatterSubplotkmeanslabel(jobId: String) =
+			"/kv/node/${TomographyDrgnEvalNodeConfig.ID}/$jobId/plot/umap_scatter_subplotkmeanslabel"
+
+		fun plotUmapScatterColorkmeanslabel(jobId: String) =
+			"/kv/node/${TomographyDrgnEvalNodeConfig.ID}/$jobId/plot/umap_scatter_colorkmeanslabel"
+
+		fun plotUmapScatterAnnotatekmeans(jobId: String) =
+			"/kv/node/${TomographyDrgnEvalNodeConfig.ID}/$jobId/plot/umap_scatter_annotatekmeans"
+
+		fun plotUmapHexbinAnnotatekmeans(jobId: String) =
+			"/kv/node/${TomographyDrgnEvalNodeConfig.ID}/$jobId/plot/umap_hexbin_annotatekmeans"
+
+		fun plotPcaScatterSubplotkmeanslabel(jobId: String) =
+			"/kv/node/${TomographyDrgnEvalNodeConfig.ID}/$jobId/plot/pca_scatter_subplotkmeanslabel"
+
+		fun plotPcaScatterClorkmeanslabel(jobId: String) =
+			"/kv/node/${TomographyDrgnEvalNodeConfig.ID}/$jobId/plot/pca_scatter_colorkmeanslabel"
+
+		fun plotPcaScatterColorkmeanslabel(jobId: String) =
+			"/kv/node/${TomographyDrgnEvalNodeConfig.ID}/$jobId/plot/pca_scatter_colorkmeanslabel"
+
+		fun plotPcaScatterAnnotatekmeans(jobId: String) =
+			"/kv/node/${TomographyDrgnEvalNodeConfig.ID}/$jobId/plot/pca_scatter_annotatekmeans"
+
+		fun plotPcaHexbinAnnotatekmeans(jobId: String) =
+			"/kv/node/${TomographyDrgnEvalNodeConfig.ID}/$jobId/plot/pca_hexbin_annotatekmeans"
+
+		fun plotTomogramLabelDistribution(jobId: String) =
+			"/kv/node/${TomographyDrgnEvalNodeConfig.ID}/$jobId/plot/tomogram_label_distribution"
+
+		fun plotUmapHexbinAnnotatepca(jobId: String) =
+			"/kv/node/${TomographyDrgnEvalNodeConfig.ID}/$jobId/plot/umap_hexbin_annotatepca"
+
+		fun plotUmapScatterAnnotatepca(jobId: String) =
+			"/kv/node/${TomographyDrgnEvalNodeConfig.ID}/$jobId/plot/umap_scatter_annotatepca"
+
+		fun plotPcaHexbinAnnotatepca(jobId: String) =
+			"/kv/node/${TomographyDrgnEvalNodeConfig.ID}/$jobId/plot/pca_hexbin_annotatepca"
+
+		fun plotPcaScatterAnnotatepca(jobId: String) =
+			"/kv/node/${TomographyDrgnEvalNodeConfig.ID}/$jobId/plot/pca_scatter_annotatepca"
+
 		fun classImagePathUmap(jobId: String, classNum: Int, size: ImageSize) =
-			"/kv/node/${TomographyDrgnEvalNodeConfig.ID}/$jobId/umap/class/$classNum/image/${size.id}"
+			"/kv/node/${TomographyDrgnEvalNodeConfig.ID}/$jobId/class/$classNum/image/${size.id}"
 
 		fun classMrcPathUmap(jobId: String, classNum: Int) =
-			"/kv/node/${TomographyDrgnEvalNodeConfig.ID}/$jobId/umap/class/$classNum/mrc"
+			"/kv/node/${TomographyDrgnEvalNodeConfig.ID}/$jobId/class/$classNum/mrc"
 
-		fun plotResolutionPathUmap(jobId: String) =
-			"/kv/node/${TomographyDrgnEvalNodeConfig.ID}/$jobId/umap/plot/resolution"
-
-		fun plotOccupancyPathUmap(jobId: String) =
-			"/kv/node/${TomographyDrgnEvalNodeConfig.ID}/$jobId/umap/plot/occupancy"
+		fun plotUmapColorlatentpca(jobId: String, dim: Int) =
+			"/kv/node/${TomographyDrgnEvalNodeConfig.ID}/$jobId/dim/$dim/plot/umap_colorlatentpca"
 
 		fun classImagePathPca(jobId: String, dim: Int, classNum: Int, size: ImageSize) =
-			"/kv/node/${TomographyDrgnEvalNodeConfig.ID}/$jobId/pca/dim/$dim/class/$classNum/image/${size.id}"
+			"/kv/node/${TomographyDrgnEvalNodeConfig.ID}/$jobId/dim/$dim/class/$classNum/image/${size.id}"
 
 		fun classMrcPathPca(jobId: String, dim: Int, classNum: Int) =
-			"/kv/node/${TomographyDrgnEvalNodeConfig.ID}/$jobId/pca/dim/$dim/class/$classNum/mrc"
-
-		fun plotResolutionPathPca(jobId: String) =
-			"/kv/node/${TomographyDrgnEvalNodeConfig.ID}/$jobId/pca/plot/resolution"
-
-		fun plotOccupancyPathPca(jobId: String) =
-			"/kv/node/${TomographyDrgnEvalNodeConfig.ID}/$jobId/pca/plot/occupancy"
+			"/kv/node/${TomographyDrgnEvalNodeConfig.ID}/$jobId/dim/$dim/class/$classNum/mrc"
 	}
 }
 
@@ -84,34 +117,8 @@ data class TomographyDrgnEvalParams(
 	val pc: Int,
 	val ksample: Int
 ) {
-	fun mode(): TomographyDrgnEvalMode =
-		TomographyDrgnEvalMode.from(this)
-}
 
-
-sealed interface TomographyDrgnEvalMode {
-
-	companion object {
-
-		fun from(params: TomographyDrgnEvalParams): TomographyDrgnEvalMode =
-			if (params.skipumap) {
-				PCA(
-					numDimensions = params.pc,
-					numClasses = params.ksample // TODO: is this right?
-				)
-			} else {
-				UMAP(
-					numClasses = params.ksample // TODO: is this right?
-				)
-			}
-	}
-
-	data class UMAP(
-		val numClasses: Int
-	) : TomographyDrgnEvalMode
-
-	data class PCA(
-		val numDimensions: Int,
-		val numClasses: Int
-	) : TomographyDrgnEvalMode
+	// alias some params so they make more sense in this context
+	val numDimensions: Int get() = pc
+	val numClasses: Int get() = ksample
 }

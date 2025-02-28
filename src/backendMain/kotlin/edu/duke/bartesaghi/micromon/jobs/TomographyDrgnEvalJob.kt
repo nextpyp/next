@@ -86,13 +86,7 @@ class TomographyDrgnEvalJob(
 	}
 
 	fun diagramImageURL(): String =
-		when (val mode = params()?.mode()) {
-			is TomographyDrgnEvalMode.UMAP ->
-				ITomographyDrgnEvalService.plotOccupancyPathUmap(idOrThrow)
-			is TomographyDrgnEvalMode.PCA ->
-				ITomographyDrgnEvalService.plotOccupancyPathPca(idOrThrow)
-			else -> ImageType.Svgz.placeholderUrl()
-		}
+		ITomographyDrgnEvalService.plotUmapHexbinAnnotatekmeans(idOrThrow)
 
 	override fun wipeData() {
 

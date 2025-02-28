@@ -40,6 +40,14 @@ pub fn run(web: &Web, args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 	args.set_from_group(GROUP_ANALYZE, "ksample", ArgValue::Int(ksample as i64));
 	web.write_parameters(&args, &args_config)?;
 
+	info!(web, "skipumap={skipumap}");
+	info!(web, "pc={pc}");
+	info!(web, "ksample={ksample}");
+
+	// alias parameters so they make more sense in this context
+	let num_dimensions = pc;
+	let num_classes = ksample;
+
 	// create subfolders
 	let dir_train = PathBuf::from("train");
 	fs::create_dir_all(&dir_train)
@@ -48,67 +56,46 @@ pub fn run(web: &Web, args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 	fs::create_dir_all(&dir_kmeans)
 		.context("Failed to create kmeans dir")?;
 
-	// figure out the mode
-	let mode = match skipumap {
-		false => Mode::UMAP {
-			num_classes: ksample
-		},
-		true => Mode::PCA {
-			num_dimensions: pc,
-			num_classes: ksample
+	if !skipumap {
+
+		// generate static plots
+		plot_img(web, &dir_kmeans, "z_umap_scatter_subplotkmeanslabel".to_string(), None)?;
+		plot_img(web, &dir_kmeans, "z_umap_scatter_colorkmeanslabel".to_string(), None)?;
+		plot_img(web, &dir_kmeans, "z_umap_scatter_annotatekmeans".to_string(), None)?;
+		plot_img(web, &dir_kmeans, "z_umap_hexbin_annotatekmeans".to_string(), None)?;
+		plot_img(web, &dir_kmeans, "z_pca_scatter_subplotkmeanslabel".to_string(), None)?;
+		plot_img(web, &dir_kmeans, "z_pca_scatter_colorkmeanslabel".to_string(), None)?;
+		plot_img(web, &dir_kmeans, "z_pca_scatter_colorkmeanslabel".to_string(), None)?;
+		plot_img(web, &dir_kmeans, "z_pca_scatter_annotatekmeans".to_string(), None)?;
+		plot_img(web, &dir_kmeans, "z_pca_hexbin_annotatekmeans".to_string(), None)?;
+		plot_img(web, &dir_kmeans, "tomogram_label_distribution".to_string(), None)?;
+
+		generate_classes(web, &dir_kmeans, None, num_classes)?;
+	}
+
+	for dim in 1 ..= num_dimensions {
+
+		let dir_dim = dir_train.join(format!("pc{dim}"));
+		fs::create_dir_all(&dir_dim)
+			.context("Failed to create dimension dir")?;
+
+		if dim == 1 {
+			plot_img(web, &dir_dim, "z_umap_hexbin_annotatepca".to_string(), None)?;
+			plot_img(web, &dir_dim, "z_umap_scatter_annotatepca".to_string(), None)?;
+			plot_img(web, &dir_dim, "z_pca_hexbin_annotatepca".to_string(), None)?;
+			plot_img(web, &dir_dim, "z_pca_scatter_annotatepca".to_string(), None)?;
 		}
-	};
 
-	match mode {
+		plot_img(web, &dir_dim, "z_umap_colorlatentpca".to_string(), Some(dim))?;
 
-		Mode::UMAP { num_classes } => {
-			info!(web, "UMAP: num_classes={num_classes}");
-			plot_img(web, &dir_kmeans, "Resolution", mode.name(), "z_umap_scatter_subplotkmeanslabel".to_string())?;
-			plot_img(web, &dir_kmeans, "Occupancy", mode.name(), "z_umap_scatter_colorkmeanslabel".to_string())?;
-			generate_classes(web, &dir_kmeans, mode.name(), None, num_classes)?;
-		}
-
-		Mode::PCA { num_dimensions, num_classes } => {
-			info!(web, "PCA: num_dimensions={num_dimensions}, num_classes={num_classes}");
-			plot_img(web, &dir_kmeans, "Resolution", mode.name(), "z_pca_scatter_subplotkmeanslabel".to_string())?;
-			plot_img(web, &dir_kmeans, "Occupancy", mode.name(), "z_pca_scatter_colorkmeanslabel".to_string())?;
-			for dim in 1 ..= num_dimensions {
-
-				let dir_dim = dir_train.join(format!("pc{dim}"));
-				fs::create_dir_all(&dir_dim)
-					.context("Failed to create dimension dir")?;
-
-				generate_classes(web, &dir_dim, mode.name(), Some(dim), num_classes)?;
-			}
-		}
+		generate_classes(web, &dir_dim, Some(dim), num_classes)?;
 	}
 
 	Ok(())
 }
 
 
-enum Mode {
-	UMAP {
-		num_classes: u32
-	},
-	PCA {
-		num_dimensions: u32,
-		num_classes: u32
-	}
-}
-
-impl Mode {
-
-	fn name(&self) -> &'static str {
-		match self {
-			Self::UMAP { .. } => "UMAP",
-			Self::PCA { .. } => "PCA"
-		}
-	}
-}
-
-
-fn generate_classes(web: &Web, dir: &Path, mode_name: &'static str, dim: Option<u32>, num_classes: u32) -> Result<()> {
+fn generate_classes(web: &Web, dir: &Path, dim: Option<u32>, num_classes: u32) -> Result<()> {
 
 	use image::Rgb;
 
@@ -130,11 +117,13 @@ fn generate_classes(web: &Web, dir: &Path, mode_name: &'static str, dim: Option<
 		img.draw().noise(&DEFAULT_NOISE);
 		let mut lines = vec![
 			format!("Block: {}", BLOCK_ID),
-			format!("Mode: {}", mode_name),
 			"Type: Volume".to_string()
 		];
 		if let Some(dim) = &dim {
+			lines.push("Mode: PCA".to_string());
 			lines.push(format!("Dimension: {}", dim));
+		} else {
+			lines.push("Mode: UMAP".to_string());
 		}
 		lines.push(format!("Class: {}", class_num));
 		img.draw().text_lines(32, Rgb([255, 255, 255]), lines);
@@ -145,16 +134,21 @@ fn generate_classes(web: &Web, dir: &Path, mode_name: &'static str, dim: Option<
 }
 
 
-fn plot_img(web: &Web, dir: &Path, title: impl AsRef<str>, mode_name: &'static str, filename: impl AsRef<str>) -> Result<()> {
+fn plot_img(web: &Web, dir: &Path, filename: impl AsRef<str>, dim: Option<u32>) -> Result<()> {
 
 	use crate::svg::Rgb;
 
 	let mut img = SvgImage::new(512, 512);
 	img.draw().fill_rect(0, 0, 512, 512, Rgb(128, 128, 128));
-	img.draw().text_lines(32, Rgb(255, 255, 255), [
+	let mut lines = vec![
 		format!("Block: {}", BLOCK_ID),
-		format!("Mode: {}", mode_name),
-		format!("Type: {}", title.as_ref())
-	]);
+	];
+	let (x, mut y) = img.draw().text_line_pos(32, 1);
+	if let Some(dim) = dim {
+		lines.push(format!("Dimension: {dim}"));
+		y += 32;
+	}
+	img.draw().text_lines(32, Rgb(255, 255, 255), lines);
+	img.draw().text(x, y, 18, Rgb(255, 255, 255), format!("Filename: {}", filename.as_ref()));
 	img.save(web, dir.join(format!("{}.svgz", filename.as_ref())))
 }

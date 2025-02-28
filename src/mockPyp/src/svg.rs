@@ -100,16 +100,15 @@ impl <'a> SvgDrawing<'a> {
 		);
 	}
 
-	pub fn text_lines(&mut self, size: u32, color: Rgb, lines: impl IntoIterator<Item=impl AsRef<str>>) {
+	pub fn text_line_pos(&self, size: u32, line_i: usize) -> (u32, u32) {
 		let margin = size/2;
+		(margin, margin + (line_i as u32 + 1)*size)
+	}
+
+	pub fn text_lines(&mut self, size: u32, color: Rgb, lines: impl IntoIterator<Item=impl AsRef<str>>) {
 		for (line_i, line) in lines.into_iter().enumerate() {
-			self.text(
-				margin,
-				margin + (line_i as u32)*size + size,
-				size,
-				color,
-				line.as_ref()
-			);
+			let (x, y) = self.text_line_pos(size, line_i);
+			self.text(x, y, size, color, line.as_ref());
 		}
 	}
 }

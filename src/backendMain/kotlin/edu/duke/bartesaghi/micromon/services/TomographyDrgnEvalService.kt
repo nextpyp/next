@@ -36,85 +36,124 @@ actual class TomographyDrgnEvalService : ITomographyDrgnEvalService, Service {
 					call.parameters.getOrFail("classNum").toIntOrNull()
 						?: throw BadRequestException("classNum must be an integer")
 
-				route("umap") {
+				route("plot") {
 
-					route("class/{classNum}") {
-
-						get("image/{size}") {
+					fun makePlotHandler(key: String, basenamer: (String) -> String) {
+						get(key) {
 							call.respondExceptions {
 
 								// parse args
 								val job = authJob(ProjectPermission.Read).job
-								val classNum = parseClassNum()
-								val size = parseSize()
 
-								val imageType = ImageType.Webp
+								val imageType = ImageType.Svgz
 								val params = job.params()
-									?: return@respondExceptions imageType.respondPlaceholder(call, size)
+									?: return@respondExceptions imageType.respondPlaceholder(call)
 
 								// serve the image
-								val imagePath = job.kmeansDir(params) / "vol_${classNum.formatCls()}.webp"
-								val cacheKey = WebCacheDir.Keys.tomoDrgnVolume.parameterized("$classNum")
-								imageType.respondSized(call, imagePath, size.info(job.wwwDir, cacheKey))
-									?.respondPlaceholder(call, size)
+								imageType.respond(call, job.kmeansDir(params) / "${basenamer(key)}.svgz")
+									?.respondPlaceholder(call)
 							}
 						}
+					}
 
-						get("mrc") {
+					makePlotHandler("umap_scatter_subplotkmeanslabel") { "z_$it" }
+					makePlotHandler("umap_scatter_colorkmeanslabel") { "z_$it" }
+					makePlotHandler("umap_scatter_annotatekmeans") { "z_$it" }
+					makePlotHandler("umap_hexbin_annotatekmeans") { "z_$it" }
+					makePlotHandler("pca_scatter_subplotkmeanslabel") { "z_$it" }
+					makePlotHandler("pca_scatter_colorkmeanslabel") { "z_$it" }
+					makePlotHandler("pca_scatter_annotatekmeans") { "z_$it" }
+					makePlotHandler("pca_hexbin_annotatekmeans") { "z_$it" }
+					makePlotHandler("tomogram_label_distribution") { "tomogram_label_distribution" }
+
+					fun makePlotHandlerDim(key: String, dim: Int, basenamer: (String) -> String) {
+						get(key) {
 							call.respondExceptions {
 
 								// parse args
 								val job = authJob(ProjectPermission.Read).job
-								val classNum = parseClassNum()
 
+								val imageType = ImageType.Svgz
 								val params = job.params()
-									?: throw NotFoundException()
+									?: return@respondExceptions imageType.respondPlaceholder(call)
 
-								call.respondFileMrc(job.kmeansDir(params) / "vol_${classNum.formatCls()}.mrc")
+								// serve the image
+								imageType.respond(call, job.dimDir(dim) / "${basenamer(key)}.svgz")
+									?.respondPlaceholder(call)
 							}
 						}
 					}
 
-					get("plot/resolution") {
+					makePlotHandlerDim("umap_hexbin_annotatepca", 1) { "z_$it" }
+					makePlotHandlerDim("umap_scatter_annotatepca", 1) { "z_$it" }
+					makePlotHandlerDim("pca_hexbin_annotatepca", 1) { "z_$it" }
+					makePlotHandlerDim("pca_scatter_annotatepca", 1) { "z_$it" }
+				}
+
+				route("class/{classNum}") {
+
+					get("image/{size}") {
 						call.respondExceptions {
 
 							// parse args
 							val job = authJob(ProjectPermission.Read).job
+							val classNum = parseClassNum()
+							val size = parseSize()
 
-							val imageType = ImageType.Svgz
+							val imageType = ImageType.Webp
 							val params = job.params()
-								?: return@respondExceptions imageType.respondPlaceholder(call)
+								?: return@respondExceptions imageType.respondPlaceholder(call, size)
 
 							// serve the image
-							imageType.respond(call, job.kmeansDir(params) / "z_umap_scatter_subplotkmeanslabel.svgz")
-								?.respondPlaceholder(call)
+							val imagePath = job.kmeansDir(params) / "vol_${classNum.formatCls()}.webp"
+							val cacheKey = WebCacheDir.Keys.tomoDrgnVolume.parameterized("$classNum")
+							imageType.respondSized(call, imagePath, size.info(job.wwwDir, cacheKey))
+								?.respondPlaceholder(call, size)
 						}
 					}
 
-					get("plot/occupancy") {
+					get("mrc") {
 						call.respondExceptions {
 
 							// parse args
 							val job = authJob(ProjectPermission.Read).job
+							val classNum = parseClassNum()
 
-							val imageType = ImageType.Svgz
 							val params = job.params()
-								?: return@respondExceptions imageType.respondPlaceholder(call)
+								?: throw NotFoundException()
 
-							// serve the image
-							imageType.respond(call, job.kmeansDir(params) / "z_umap_scatter_colorkmeanslabel.svgz")
-								?.respondPlaceholder(call)
+							call.respondFileMrc(job.kmeansDir(params) / "vol_${classNum.formatCls()}.mrc")
 						}
 					}
 				}
 
-				route("pca") {
+				route("dim/{dim}") {
 
-					route("dim/{dim}/class/{classNum}") {
+					fun PipelineContext<Unit,ApplicationCall>.parseDim(): Int =
+						call.parameters.getOrFail("dim").toIntOrNull()
+							?: throw BadRequestException("dim must be an integer")
 
-						fun PipelineContext<Unit,ApplicationCall>.parseDim(): Int =
-							call.parameters.getOrFail("dim").toIntOrNull()
-								?: throw BadRequestException("dim must be an integer")
+					route("plot") {
+
+						fun makePlotHandler(key: String, basenamer: (String) -> String) {
+							get(key) {
+								call.respondExceptions {
+
+									// parse args
+									val job = authJob(ProjectPermission.Read).job
+									val dim = parseDim()
+
+									// serve the image
+									ImageType.Svgz.respond(call, job.dimDir(dim) / "${basenamer(key)}.svgz")
+										?.respondPlaceholder(call)
+								}
+							}
+						}
+
+						makePlotHandler("umap_colorlatentpca") { "z_$it" }
+					}
+
+					route("class/{classNum}") {
 
 						get("image/{size}") {
 							call.respondExceptions {
@@ -143,38 +182,6 @@ actual class TomographyDrgnEvalService : ITomographyDrgnEvalService, Service {
 
 								call.respondFileMrc(job.dimDir(dim) / "vol_${classNum.formatCls()}.mrc")
 							}
-						}
-					}
-
-					get("plot/resolution") {
-						call.respondExceptions {
-
-							// parse args
-							val job = authJob(ProjectPermission.Read).job
-
-							val imageType = ImageType.Svgz
-							val params = job.params()
-								?: return@respondExceptions imageType.respondPlaceholder(call)
-
-							// serve the image
-							imageType.respond(call, job.kmeansDir(params) / "z_pca_scatter_subplotkmeanslabel.svgz")
-								?.respondPlaceholder(call)
-						}
-					}
-
-					get("plot/occupancy") {
-						call.respondExceptions {
-
-							// parse args
-							val job = authJob(ProjectPermission.Read).job
-
-							val imageType = ImageType.Svgz
-							val params = job.params()
-								?: return@respondExceptions imageType.respondPlaceholder(call)
-
-							// serve the image
-							imageType.respond(call, job.kmeansDir(params) / "z_pca_scatter_colorkmeanslabel.svgz")
-								?.respondPlaceholder(call)
 						}
 					}
 				}
