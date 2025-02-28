@@ -123,13 +123,13 @@ if [ "$whoami" = "root" ]; then
       # first, backup the parent folder permissions and allow write access to others
       parentdir=$(dirname "$1")
       backup=$(stat --format '%a' "$parentdir")
-      chmod go+wx "$parentdir"
+      $heredo chmod go+wx "$parentdir"
 
       # then, create the folder as the service account
       mkdirdo "$srvdo" "$1" "$2"
 
       # restore the original permissions
-      chmod "$backup" "$parentdir"
+      $heredo chmod "$backup" "$parentdir"
     fi
   }
 
