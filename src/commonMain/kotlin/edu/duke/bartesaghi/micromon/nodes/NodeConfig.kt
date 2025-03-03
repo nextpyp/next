@@ -64,6 +64,9 @@ interface NodeConfig {
 			/** A trained model for DRGN */
 			DrgnModel("DRGN Model"),
 
+			/** A trained model for DRGN */
+			DrgnParticles("DRGN Particles"),
+
 			/** A trained model for MiLoPYP */
 			MiloModel("MiLoPYP Model"),
 

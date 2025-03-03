@@ -179,6 +179,8 @@ fun Application.main(config: Config.Web) {
 		applyRoutes(TomographyParticlesEvalServiceManager)
 		applyRoutes(TomographyDrgnTrainServiceManager)
 		applyRoutes(TomographyDrgnEvalServiceManager)
+		applyRoutes(TomographyDrgnEvalVolsServiceManager)
+		applyRoutes(TomographyDrgnFilteringServiceManager)
 		applyRoutes(TomographyCoarseRefinementServiceManager)
 		applyRoutes(TomographyFineRefinementServiceManager)
 		applyRoutes(TomographyMovieCleaningServiceManager)
@@ -208,6 +210,7 @@ fun Application.main(config: Config.Web) {
 		TomographyMiloEvalService.init(this)
 		TomographyDrgnTrainService.init(this)
 		TomographyDrgnEvalService.init(this)
+		TomographyDrgnEvalVolsService.init(this)
 
 		// only enable the debug service in debug mode
 		if (config.debug) {

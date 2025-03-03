@@ -1,0 +1,115 @@
+package edu.duke.bartesaghi.micromon.jobs
+
+import com.mongodb.client.model.Updates
+import edu.duke.bartesaghi.micromon.ImageType
+import edu.duke.bartesaghi.micromon.mongo.getDocument
+import edu.duke.bartesaghi.micromon.nodes.TomographyDrgnEvalVolsNodeConfig
+import edu.duke.bartesaghi.micromon.pyp.*
+import edu.duke.bartesaghi.micromon.services.*
+import org.bson.Document
+import org.bson.conversions.Bson
+
+
+class TomographyDrgnEvalVolsJob(
+	userId: String,
+	projectId: String
+) : Job(userId, projectId, config) {
+
+	val args = JobArgs<TomographyDrgnEvalVolsArgs>()
+
+	var inModel: CommonJobData.DataId? by InputProp(config.inModel)
+
+	companion object : JobInfo {
+
+		override val config = TomographyDrgnEvalVolsNodeConfig
+		override val dataType = JobInfo.DataType.TiltSeries
+		override val dataClass = TomographyDrgnEvalVolsData::class
+
+		override fun fromDoc(doc: Document) = TomographyDrgnEvalVolsJob(
+			doc.getString("userId"),
+			doc.getString("projectId")
+		).apply {
+			args.finished = doc.getDocument("finishedArgs")?.let { TomographyDrgnEvalVolsArgs.fromDoc(it) }
+			args.next = doc.getDocument("nextArgs")?.let { TomographyDrgnEvalVolsArgs.fromDoc(it) }
+			fromDoc(doc)
+		}
+
+		private fun TomographyDrgnEvalVolsArgs.toDoc() = Document().also { doc ->
+			doc["values"] = values
+		}
+
+		private fun TomographyDrgnEvalVolsArgs.Companion.fromDoc(doc: Document) =
+			TomographyDrgnEvalVolsArgs(
+				doc.getString("values")
+			)
+
+		val eventListeners = TiltSeriesEventListeners(this)
+	}
+
+	override fun createDoc(doc: Document) {
+		super.createDoc(doc)
+		doc["finishedArgs"] = args.finished?.toDoc()
+		doc["nextArgs"] = args.next?.toDoc()
+	}
+
+	override fun updateDoc(updates: MutableList<Bson>) {
+		super.updateDoc(updates)
+		updates.add(Updates.set("finishedArgs", args.finished?.toDoc()))
+		updates.add(Updates.set("nextArgs", args.next?.toDoc()))
+	}
+
+	override fun isChanged() = args.hasNext()
+
+	override suspend fun data() =
+		TomographyDrgnEvalVolsData(
+			commonData(),
+			args,
+			diagramImageURL()
+		)
+
+	override suspend fun launch(runId: Int) {
+
+		val project = projectOrThrow()
+
+		// clear caches
+		wwwDir.recreate()
+
+		// build the args for PYP
+		val pypArgs = launchArgValues()
+		pypArgs.dataMode = "tomo"
+
+		Pyp.pyp.launch(project, runId, pypArgs, "Launch", "pyp_launch")
+
+		// job was launched, move the args over
+		args.run()
+		update()
+	}
+
+	fun diagramImageURL(): String =
+		ITomographyDrgnEvalVolsService.plotUmapHexbinAnnotatekmeans(idOrThrow)
+
+	override fun wipeData() {
+
+		// also delete any associated data
+		// TODO: what metadata should be deleted?
+
+		// also reset the finished args
+		args.unrun()
+		update()
+	}
+
+	override fun newestArgValues(): ArgValuesToml? =
+		args.newest()?.args?.values
+
+	override fun finishedArgValues(): ArgValuesToml? =
+		args.finished?.values
+
+	fun params(): TomographyDrgnEvalVolsParams? =
+		pypParameters()?.let {
+			TomographyDrgnEvalVolsParams(
+				skipumap = it.tomodrgnAnalyzeSkipumap,
+				pc = it.tomodrgnAnalyzeVolumesKsample,
+				ksample = it.tomodrgnAnalyzeVolumesKsample
+			)
+		}
+}

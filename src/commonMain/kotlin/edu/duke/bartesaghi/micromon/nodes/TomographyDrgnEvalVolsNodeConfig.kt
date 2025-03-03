@@ -1,13 +1,13 @@
 package edu.duke.bartesaghi.micromon.nodes
 
 
-object TomographyDrgnEvalNodeConfig : NodeConfig {
+object TomographyDrgnEvalVolsNodeConfig : NodeConfig {
 
-	const val ID = "tomo-drgn-eval"
+	const val ID = "tomo-drgn-eval-vols"
 
 	override val id = ID
-	override val configId = "tomo_drgn_analyze"
-	override val name = "tomoDRGN (analyze)"
+	override val configId = "tomo_drgn_analyze_vols"
+	override val name = "tomoDRGN (analyze volumes)"
 	override val hasFiles = true
 	
 	// TEMP: preview status during development

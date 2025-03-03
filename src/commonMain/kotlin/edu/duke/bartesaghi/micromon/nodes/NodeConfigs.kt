@@ -38,6 +38,8 @@ object NodeConfigs {
 		TomographyParticlesEvalNodeConfig,
 		TomographyDrgnTrainNodeConfig,
 		TomographyDrgnEvalNodeConfig,
+		TomographyDrgnEvalVolsNodeConfig,
+		TomographyDrgnFilteringNodeConfig,
 		TomographyCoarseRefinementNodeConfig,
 		TomographyFineRefinementNodeConfig,
 		TomographyMovieCleaningNodeConfig,

@@ -45,6 +45,8 @@ object Nodes {
 		TomographyParticlesEvalNodeConfig to TomographyParticlesEvalNode.Companion,
 		TomographyDrgnTrainNodeConfig to TomographyDrgnTrainNode.Companion,
 		TomographyDrgnEvalNodeConfig to TomographyDrgnEvalNode.Companion,
+		TomographyDrgnEvalVolsNodeConfig to TomographyDrgnEvalVolsNode.Companion,
+		TomographyDrgnFilteringNodeConfig to TomographyDrgnFilteringNode.Companion,
 		TomographyCoarseRefinementNodeConfig to TomographyCoarseRefinementNode.Companion,
 		TomographyFineRefinementNodeConfig to TomographyFineRefinementNode.Companion,
 		TomographyMovieCleaningNodeConfig to TomographyMovieCleaningNode.Companion,

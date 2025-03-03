@@ -391,6 +391,10 @@ val Args.tomodrgnAnalyzeKsample: Arg
 	get() = argOrThrow("tomodrgn_analyze", "ksample")
 val ArgValues.tomodrgnAnalyzeKsample: Int
 	get() = (getOrDefault(args.tomodrgnAnalyzeKsample) as Long).toInt()
+val Args.tomodrgnAnalyzeVolumesKsample: Arg
+	get() = argOrThrow("tomodrgn_analyze_volumes", "ksample")
+val ArgValues.tomodrgnAnalyzeVolumesKsample: Int
+	get() = (getOrDefault(args.tomodrgnAnalyzeVolumesKsample) as Long).toInt()
 
 
 /**

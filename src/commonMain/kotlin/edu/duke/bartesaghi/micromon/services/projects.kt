@@ -394,6 +394,8 @@ interface JobData {
 					subclass(TomographyParticlesEvalData::class)
 					subclass(TomographyDrgnTrainData::class)
 					subclass(TomographyDrgnEvalData::class)
+					subclass(TomographyDrgnEvalVolsData::class)
+					subclass(TomographyDrgnFilteringData::class)
 					subclass(TomographyCoarseRefinementData::class)
 					subclass(TomographyFineRefinementData::class)
 					subclass(TomographyMovieCleaningData::class)

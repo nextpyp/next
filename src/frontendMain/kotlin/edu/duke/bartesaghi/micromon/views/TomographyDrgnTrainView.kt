@@ -286,7 +286,7 @@ class TomographyDrgnTrainView(val project: ProjectData, val job: TomographyDrgnT
 
 	private inner class FscTab : Div() {
 
-		val plot7 = FetchImagePanel("FSC", Storage::tomographyDrgnTrainPlot7Size, ImageSize.Medium) {
+		val plot7 = FetchImagePanel("Fourier Shell Correlation (FSC)", Storage::tomographyDrgnTrainPlot7Size, ImageSize.Medium) {
 			ITomographyDrgnTrainService.plotPath(job.jobId, 7)
 		}
 
@@ -388,8 +388,8 @@ class TomographyDrgnTrainView(val project: ProjectData, val job: TomographyDrgnT
 				span("Epoch: ")
 				add(self.epochElem)
 			}
-			add(plot4)
 			add(classesPanel)
+			add(plot4)
 
 			// wire up events
 			iterationsNav.onShow = {

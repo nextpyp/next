@@ -42,6 +42,8 @@ object Jobs {
 		TomographyParticlesEvalNodeConfig to TomographyParticlesEvalJob.Companion,
 		TomographyDrgnTrainNodeConfig to TomographyDrgnTrainJob.Companion,
 		TomographyDrgnEvalNodeConfig to TomographyDrgnEvalJob.Companion,
+		TomographyDrgnEvalVolsNodeConfig to TomographyDrgnEvalVolsJob.Companion,
+		TomographyDrgnFilteringNodeConfig to TomographyDrgnFilteringJob.Companion,
 		TomographyCoarseRefinementNodeConfig to TomographyCoarseRefinementJob.Companion,
 		TomographyFineRefinementNodeConfig to TomographyFineRefinementJob.Companion,
 		TomographyMovieCleaningNodeConfig to TomographyMovieCleaningJob.Companion,
