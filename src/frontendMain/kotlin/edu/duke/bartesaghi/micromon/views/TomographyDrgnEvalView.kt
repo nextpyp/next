@@ -117,40 +117,40 @@ class TomographyDrgnEvalView(val project: ProjectData, val job: TomographyDrgnEv
 
 				if (!evalParams.skipumap) {
 
-					addTab("UMAP Reconstruction", "fas fa-desktop") { lazyTab ->
+					addTab("K-means (classes)", "fas fa-chart-pie") { lazyTab ->
 						umapReconstructionTab = UmapReconstructionTab(evalParams.numClasses).also {
 							lazyTab.elem.add(it)
 							lazyTab.onActivate = { it.revalidate() }
 						}
 					}
 
-					addTab("UMAP Classes Movie", "fas fa-film") { lazyTab ->
+					addTab("K-means (movie)", "fas fa-film") { lazyTab ->
 						umapClassesMovieTab = UmapClassesMovieTab(evalParams.numClasses).also {
 							lazyTab.elem.add(it)
 						}
 					}
 
-					addTab("UMAP 3D View", "fas fa-cube") { lazyTab ->
+					addTab("K-means (3D view)", "fas fa-cube") { lazyTab ->
 						umapThreeDeeTab = UmapThreeDeeTab(evalParams.numClasses).also {
 							lazyTab.elem.add(it)
 						}
 					}
 				}
 
-				addTab("PCA Reconstruction", "fas fa-desktop") { lazyTab ->
+				addTab("PC sampling (classes)", "fas fa-ruler-horizontal") { lazyTab ->
 					pcaReconstructionTab = PcaReconstructionTab(evalParams.numClasses).also {
 						lazyTab.elem.add(it)
 						lazyTab.onActivate = { it.revalidate() }
 					}
 				}
 
-				addTab("PCA Classes Movie", "fas fa-film") { lazyTab ->
+				addTab("PC sampling (movie)", "fas fa-film") { lazyTab ->
 					pcaClassesMovieTab = PcaClassesMovieTab(evalParams.numClasses).also {
 						lazyTab.elem.add(it)
 					}
 				}
 
-				addTab("PCA 3D View", "fas fa-cube") { lazyTab ->
+				addTab("PC sampling (3D view)", "fas fa-cube") { lazyTab ->
 					pcaThreeDeeTab = PcaThreeDeeTab(evalParams.numClasses).also {
 						lazyTab.elem.add(it)
 					}
@@ -185,6 +185,7 @@ class TomographyDrgnEvalView(val project: ProjectData, val job: TomographyDrgnEv
 			div(classes = setOf("nav")) {
 				add(self.classesRadio)
 			}
+			add(classesPanel)
 			div {
 
 				fun addPlot(plot: FetchImagePanel) {
@@ -192,23 +193,30 @@ class TomographyDrgnEvalView(val project: ProjectData, val job: TomographyDrgnEv
 					add(plot)
 				}
 
-				addPlot(FetchImagePanel("K-means (sublots)", Storage::tomographyDrgnEvalPlotUmapScatterSubplotkmeanslabelSize, ImageSize.Medium) {
-					ITomographyDrgnEvalService.plotUmapScatterSubplotkmeanslabel(job.jobId)
-				})
-				addPlot(FetchImagePanel("K-means (labels)", Storage::tomographyDrgnEvalPlotUmapScatterColorkmeanslabelSize, ImageSize.Medium) {
+				addPlot(FetchImagePanel("UMAP (labels)", Storage::tomographyDrgnEvalPlotUmapScatterColorkmeanslabelSize, ImageSize.Medium) {
 					ITomographyDrgnEvalService.plotUmapScatterColorkmeanslabel(job.jobId)
 				})
+				addPlot(FetchImagePanel("UMAP (sublots)", Storage::tomographyDrgnEvalPlotUmapScatterSubplotkmeanslabelSize, ImageSize.Medium) {
+					ITomographyDrgnEvalService.plotUmapScatterSubplotkmeanslabel(job.jobId)
+				})
+				addPlot(FetchImagePanel("UMAP (hexbin)", Storage::tomographyDrgnEvalPlotUmapHexbinAnnotatekmeansSize, ImageSize.Medium) {
+					ITomographyDrgnEvalService.plotUmapHexbinAnnotatekmeans(job.jobId)
+				})
+				addPlot(FetchImagePanel("PCA (labels)", Storage::tomographyDrgnEvalPlotPcaScatterClorkmeanslabelSize, ImageSize.Medium) {
+					ITomographyDrgnEvalService.plotPcaScatterClorkmeanslabel(job.jobId)
+				})
+				addPlot(FetchImagePanel("PCA (subplots)", Storage::tomographyDrgnEvalPlotPcaScatterSubplotkmeanslabelSize, ImageSize.Medium) {
+					ITomographyDrgnEvalService.plotPcaScatterSubplotkmeanslabel(job.jobId)
+				})
+				addPlot(FetchImagePanel("PCA (hexbin)", Storage::tomographyDrgnEvalPlotPcaHexbinAnnotatekmeansSize, ImageSize.Medium) {
+					ITomographyDrgnEvalService.plotPcaHexbinAnnotatekmeans(job.jobId)
+				})
+				/* 				
 				addPlot(FetchImagePanel("TODO", Storage::tomographyDrgnEvalPlotUmapScatterAnnotatekmeansSize, ImageSize.Medium) {
 					ITomographyDrgnEvalService.plotUmapScatterAnnotatekmeans(job.jobId)
 				})
-				addPlot(FetchImagePanel("TODO", Storage::tomographyDrgnEvalPlotUmapHexbinAnnotatekmeansSize, ImageSize.Medium) {
-					ITomographyDrgnEvalService.plotUmapHexbinAnnotatekmeans(job.jobId)
-				})
 				addPlot(FetchImagePanel("TODO", Storage::tomographyDrgnEvalPlotPcaScatterSubplotkmeanslabelSize, ImageSize.Medium) {
 					ITomographyDrgnEvalService.plotPcaScatterSubplotkmeanslabel(job.jobId)
-				})
-				addPlot(FetchImagePanel("TODO", Storage::tomographyDrgnEvalPlotPcaScatterClorkmeanslabelSize, ImageSize.Medium) {
-					ITomographyDrgnEvalService.plotPcaScatterClorkmeanslabel(job.jobId)
 				})
 				addPlot(FetchImagePanel("TODO", Storage::tomographyDrgnEvalPlotPcaScatterColorkmeanslabelSize, ImageSize.Medium) {
 					ITomographyDrgnEvalService.plotPcaScatterColorkmeanslabel(job.jobId)
@@ -216,14 +224,11 @@ class TomographyDrgnEvalView(val project: ProjectData, val job: TomographyDrgnEv
 				addPlot(FetchImagePanel("TODO", Storage::tomographyDrgnEvalPlotPcaScatterAnnotatekmeansSize, ImageSize.Medium) {
 					ITomographyDrgnEvalService.plotPcaScatterAnnotatekmeans(job.jobId)
 				})
-				addPlot(FetchImagePanel("TODO", Storage::tomographyDrgnEvalPlotPcaHexbinAnnotatekmeansSize, ImageSize.Medium) {
-					ITomographyDrgnEvalService.plotPcaHexbinAnnotatekmeans(job.jobId)
-				})
-				addPlot(FetchImagePanel("TODO", Storage::tomographyDrgnEvalPlotTomogramLabelDistributionSize, ImageSize.Medium) {
+				*/
+				addPlot(FetchImagePanel("Class distribution per tomogram", Storage::tomographyDrgnEvalPlotTomogramLabelDistributionSize, ImageSize.Medium) {
 					ITomographyDrgnEvalService.plotTomogramLabelDistribution(job.jobId)
 				})
 			}
-			add(classesPanel)
 
 			// init classes
 			classesRadio.count = numClasses
@@ -362,7 +367,7 @@ class TomographyDrgnEvalView(val project: ProjectData, val job: TomographyDrgnEv
 		private val dimensionsNav = this@TomographyDrgnEvalView.dimensionsNav.clone()
 
 		private val plotUmapColorlatentpcaSize =
-			FetchImagePanel("TODO", Storage::tomographyDrgnEvalPlotUmapColorlatentpcaSize, ImageSize.Medium) {
+			FetchImagePanel("UMAP (colored PC)", Storage::tomographyDrgnEvalPlotUmapColorlatentpcaSize, ImageSize.Medium) {
 				"/images/placeholder.svgz"
 			}
 
@@ -376,10 +381,11 @@ class TomographyDrgnEvalView(val project: ProjectData, val job: TomographyDrgnEv
 
 			// layout the tab
 			div(classes = setOf("nav")) {
-				span("I-PC:")
+				span("PC:")
 				add(self.dimensionsNav)
 				add(self.classesRadio)
 			}
+			add(classesPanel)
 			div {
 
 				fun addPlot(plot: FetchImagePanel) {
@@ -387,23 +393,22 @@ class TomographyDrgnEvalView(val project: ProjectData, val job: TomographyDrgnEv
 					add(plot)
 				}
 
-				addPlot(FetchImagePanel("TODO", Storage::tomographyDrgnEvalPlotUmapHexbinAnnotatepcaSize, ImageSize.Medium) {
-					ITomographyDrgnEvalService.plotUmapHexbinAnnotatepca(job.jobId)
-				})
-				addPlot(FetchImagePanel("TODO", Storage::tomographyDrgnEvalPlotUmapScatterAnnotatepcaSize, ImageSize.Medium) {
+				addPlot(FetchImagePanel("UMAP (labels)", Storage::tomographyDrgnEvalPlotUmapScatterAnnotatepcaSize, ImageSize.Medium) {
 					ITomographyDrgnEvalService.plotUmapScatterAnnotatepca(job.jobId)
 				})
-				addPlot(FetchImagePanel("TODO", Storage::tomographyDrgnEvalPlotPcaHexbinAnnotatepcaSize, ImageSize.Medium) {
-					ITomographyDrgnEvalService.plotPcaHexbinAnnotatepca(job.jobId)
+				addPlot(FetchImagePanel("UMAP (hexbin)", Storage::tomographyDrgnEvalPlotUmapHexbinAnnotatepcaSize, ImageSize.Medium) {
+					ITomographyDrgnEvalService.plotUmapHexbinAnnotatepca(job.jobId)
 				})
-				addPlot(FetchImagePanel("TODO", Storage::tomographyDrgnEvalPlotPcaScatterAnnotatepcaSize, ImageSize.Medium) {
+				addPlot(FetchImagePanel("PCA (labels)", Storage::tomographyDrgnEvalPlotPcaScatterAnnotatepcaSize, ImageSize.Medium) {
 					ITomographyDrgnEvalService.plotPcaScatterAnnotatepca(job.jobId)
+				})
+				addPlot(FetchImagePanel("PCA (hexbin)", Storage::tomographyDrgnEvalPlotPcaHexbinAnnotatepcaSize, ImageSize.Medium) {
+					ITomographyDrgnEvalService.plotPcaHexbinAnnotatepca(job.jobId)
 				})
 
 				addPlot(self.plotUmapColorlatentpcaSize)
 
 			}
-			add(classesPanel)
 
 			// init classes
 			classesRadio.count = numClasses
