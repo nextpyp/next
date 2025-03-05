@@ -7,7 +7,7 @@ object TomographyDrgnTrainNodeConfig : NodeConfig {
 
 	override val id = ID
 	override val configId = "tomo_drgn_vae"
-	override val name = "tomoDRGN (train)"
+	override val name = "tomoDRGN (train-vae)"
 	override val hasFiles = true
 
 	// TEMP: preview status during development
