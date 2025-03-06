@@ -112,7 +112,7 @@ class UserProcessor(
 					val fileGroupname = hostProcessor.groupname(stat.gid)
 					failures.add("""
 						Group configuration: Regular users (eg $username) should not be members of the
-						group $fileGroupname, which should be only for the service account
+						service group ($fileGroupname), which should be only for the service account
 					""".trim())
 				}
 			}
