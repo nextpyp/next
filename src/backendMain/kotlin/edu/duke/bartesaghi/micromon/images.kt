@@ -1,6 +1,7 @@
 package edu.duke.bartesaghi.micromon
 
 import edu.duke.bartesaghi.micromon.linux.userprocessor.WebCacheDir
+import edu.duke.bartesaghi.micromon.linux.userprocessor.deleteAs
 import edu.duke.bartesaghi.micromon.linux.userprocessor.writeBytesAs
 import edu.duke.bartesaghi.micromon.services.*
 import io.ktor.application.*
@@ -92,8 +93,18 @@ interface ImageType {
 
 			// if we already have the cached image that's newer than the source image, use that
 			val cacheMtime = cachePath.mtime()
-			if (cacheMtime != null && cacheMtime > srcMtime) {
-				return respondPath(type, call, cachePath, extraHeaders)
+			if (cacheMtime != null) {
+				if (cacheMtime > srcMtime) {
+					// cached image is up-to-date: use it
+					return respondPath(type, call, cachePath, extraHeaders)
+				} else {
+					// cached image is out-of-date: don't use it
+					// HACKACK: An older version of the web cache code used to write images as the service account
+					//          even for projects with os users. Overwriting those files as the os user will cause a
+					//          permission error. So if the cache file already exists, and we're going to overwrite it,
+					//          delete the image first. That way, writing the file will create it as the os user, if any.
+					cachePath.deleteAs(sizeInfo.dir.osUsername)
+				}
 			}
 
 			// cache miss! resize the source image
