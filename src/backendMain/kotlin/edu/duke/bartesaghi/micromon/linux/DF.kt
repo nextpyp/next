@@ -21,15 +21,27 @@ object DF {
 		val gibFree get() = bytesFree/1024/1024/1024
 	}
 
-	suspend fun run(): List<Filesystem> = slowIOs f@{
+	data class Output(
+		val errors: List<String> = emptyList(),
+		val filesystems: List<Filesystem> = emptyList()
+	)
+
+	suspend fun run(): Output {
 
 		// run df
-		val lines = ProcessBuilder()
-			.command("df", "--block-size=1", "-T")
-			.stream()
-			.waitFor()
-			.console
-			.toList()
+		val lines = slowIOs {
+			ProcessBuilder()
+				.command("df", "--block-size=1", "-T")
+				.stream()
+				.waitFor()
+				.console
+				.toList()
+		}
+
+		return parse(lines)
+	}
+
+	fun parse(lines: List<String>): Output {
 
 		/* we should get something like:
 		Filesystem                                                   Type           1B-blocks            Used      Available Use% Mounted on
@@ -47,19 +59,41 @@ object DF {
 		xxxxxxxxxxxxxxxxxxxxxxxxx:xxx/xxxxxxxxxxxxx/xxxxxxxxxxxxxxxx nfs      xxxxxxxxxxxxxxx xxxxxxxxxxxxxxx xxxxxxxxxxxxxx  92% /nfs/foo
 		*/
 
+		/* sometimes, we get errors prefixed to the output too:
+		df: /cifs/Krios-EPUData: Resource temporarily unavailable
+		df: /cifs/Krios-OffloadData: Host is down
+		df: /cifs/Krios-gatan: Host is down
+		Filesystem                                                                                                        Type           1B-blocks            Used      Available Use% Mounted on
+		...
+		*/
+
+		fun String.isHeader() =
+			startsWith("Filesystem ")
+
+		// look for errors before the header
+		val errors = lines
+			.takeWhile { !it.isHeader() }
+			.toList()
+
 		// split the header from the filesystem entries
-		val header = lines.getOrNull(0)
-			?: return@f emptyList()
-		val entries = lines.subList(1, lines.size)
+		val header = lines.getOrNull(errors.size)
+			?: return Output(errors = errors)
+		val entries = lines.subList(errors.size + 1, lines.size)
 
 		// get the column delimiters by finding the line offsets where all lines have a space character
-		// but since there may be multiple spaces separating a column, be sure that the next character is NOT a space character for at least one line
+		// and collapse contiguous space sequences
 		val offsets = ArrayList<Int>()
+		var lastSpace: Int? = null
 		for (i in header.indices) {
-			if (lines.all { i < it.length && it[i] == ' ' } && lines.any { i < it.length - 1 && it[i + 1] != ' '}) {
-				offsets.add(i)
+			val isSpace = entries.all { i < it.length && it[i] == ' ' }
+			if (isSpace) {
+				if (lastSpace == null || i > lastSpace + 1) {
+					offsets.add(i)
+				}
+				lastSpace = i
 			}
 		}
+		println("offsets: $offsets") // TEMP
 
 		fun String.col(i: Int): String {
 
@@ -79,15 +113,18 @@ object DF {
 		}
 
 		try {
-			entries.map { entry ->
-				Filesystem(
-					name = entry.col(0),
-					type = entry.col(1),
-					bytes = entry.col(2).toLong(),
-					bytesUsed = entry.col(3).toLong(),
-					mountedOn = entry.col(6).toPath()
-				)
-			}
+			return Output(
+				errors = errors,
+				filesystems = entries.map { entry ->
+					Filesystem(
+						name = entry.col(0),
+						type = entry.col(1),
+						bytes = entry.col(2).toLong(),
+						bytesUsed = entry.col(3).toLong(),
+						mountedOn = entry.col(6).toPath()
+					)
+				}
+			)
 		} catch (t: Throwable) {
 			throw Error("""
 				|failed to parse output from DF:
@@ -103,6 +140,6 @@ object DF {
 // for testing
 fun main() {
 	runBlocking {
-		DF.run().forEach { println(it) }
+		DF.run().filesystems.forEach { println(it) }
 	}
 }

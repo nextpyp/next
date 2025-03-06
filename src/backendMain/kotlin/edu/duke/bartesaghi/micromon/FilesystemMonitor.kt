@@ -82,7 +82,12 @@ class FilesystemMonitor(val configs: List<Config.Web.Filesystem>, val email: Ema
 
 		// get new info about filesystems
 		// NOTE: make sure to replace the old instance of the list and keep the lists immutable to avoid concurrency issues
-		_filesystems = DF.run()
+		_filesystems = DF.run().run {
+			for (err in errors) {
+				log.warn("DF error: $err")
+			}
+			filesystems
+		}
 
 		// update listeners, if any
 		listeners.dispatch()
