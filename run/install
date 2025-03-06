@@ -355,9 +355,19 @@ mkdirdo "$srvdo" "$sharedDataDir/os-users" ugo=rwx,+t
 mkdirdo "$srvdo" "$sharedDataDir/sessions"
 mkdirdo "$srvdo" "$sharedDataDir/groups"
 
+# The user-processors folder needs some special case, since it houses set-uid executables:
+# The folder should be owned by the service account, and the service group.
+# But we need to explicitly set the service group for this folder, since the group might
+# be something other than the service group chosen in this installer by default,
+# ie, the parent folder's group, or the service account's default group.
+# And it is *vitally* important the user-processors folder have the tmpdir bit set,
+# so the service account can't overwrite the users' executables.
+userProcessorsDir="$sharedDataDir/user-processors"
+mkdirdo "$srvdo" "$userProcessorsDir" ugo=rwx,+t
+$srvdo chown ":$groupname" "$userProcessorsDir"
+
 # make the shared exec sub-folders
 mkdirdo "$sharedexecdo" "$sharedExecDir/containers"
-mkdirdo "$sharedexecdo" "$sharedExecDir/user-processors" ugo=rwx,+t
 
 
 # configure downloads
