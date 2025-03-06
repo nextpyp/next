@@ -93,7 +93,6 @@ object DF {
 				lastSpace = i
 			}
 		}
-		println("offsets: $offsets") // TEMP
 
 		fun String.col(i: Int): String {
 
