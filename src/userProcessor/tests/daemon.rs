@@ -42,6 +42,8 @@ fn connect() {
 
 	user_processor.disconnect(socket);
 	user_processor.stop();
+	fs::remove_dir_all(SOCKET_DIR)
+		.ok();
 }
 
 
@@ -58,6 +60,8 @@ fn ping_pong() {
 
 	user_processor.disconnect(socket);
 	user_processor.stop();
+	fs::remove_dir_all(SOCKET_DIR)
+		.ok();
 }
 
 
@@ -77,6 +81,8 @@ fn uids() {
 
 	user_processor.disconnect(socket);
 	user_processor.stop();
+	fs::remove_dir_all(SOCKET_DIR)
+		.ok();
 }
 
 
@@ -85,8 +91,10 @@ fn read_file() {
 	let _logging = logging::init_test();
 
 	// write a file we can read
-	fs::create_dir_all(SOCKET_DIR)
+	fs::remove_dir_all(SOCKET_DIR)
 		.ok();
+	fs::create_dir_all(SOCKET_DIR)
+		.unwrap();
 	let path = PathBuf::from(SOCKET_DIR).join("read_file_test");
 	fs::write(&path, "hello".to_string())
 		.unwrap();
@@ -115,8 +123,8 @@ fn read_file() {
 
 	user_processor.disconnect(socket);
 	user_processor.stop();
-	fs::remove_file(&path)
-		.unwrap();
+	fs::remove_dir_all(SOCKET_DIR)
+		.ok();
 }
 
 
@@ -129,8 +137,10 @@ fn read_file_large() {
 	for i in 0 .. content.capacity() {
 		content.push(i as u8);
 	}
-	fs::create_dir_all(SOCKET_DIR)
+	fs::remove_dir_all(SOCKET_DIR)
 		.ok();
+	fs::create_dir_all(SOCKET_DIR)
+		.unwrap();
 	let path = PathBuf::from(SOCKET_DIR).join("read_file_large_test");
 	fs::write(&path, &content)
 		.unwrap();
@@ -169,8 +179,8 @@ fn read_file_large() {
 
 	user_processor.disconnect(socket);
 	user_processor.stop();
-	fs::remove_file(&path)
-		.unwrap();
+	fs::remove_dir_all(SOCKET_DIR)
+		.ok();
 }
 
 
@@ -181,8 +191,10 @@ fn write_file() {
 	let user_processor = UserProcessor::start();
 	let mut socket = user_processor.connect();
 
-	fs::create_dir_all(SOCKET_DIR)
+	fs::remove_dir_all(SOCKET_DIR)
 		.ok();
+	fs::create_dir_all(SOCKET_DIR)
+		.unwrap();
 	let path = PathBuf::from(SOCKET_DIR).join("write_file_test");
 	let request_id = 5;
 	let response = request(&mut socket, request_id, Request::WriteFile(WriteFileRequest::Open {
@@ -212,8 +224,8 @@ fn write_file() {
 
 	user_processor.disconnect(socket);
 	user_processor.stop();
-	fs::remove_file(&path)
-		.unwrap();
+	fs::remove_dir_all(SOCKET_DIR)
+		.ok();
 }
 
 
@@ -224,8 +236,10 @@ fn write_file_append() {
 	let user_processor = UserProcessor::start();
 	let mut socket = user_processor.connect();
 
-	fs::create_dir_all(SOCKET_DIR)
+	fs::remove_dir_all(SOCKET_DIR)
 		.ok();
+	fs::create_dir_all(SOCKET_DIR)
+		.unwrap();
 	let path = PathBuf::from(SOCKET_DIR).join("write_file_append_test");
 
 	// create a new file
@@ -275,8 +289,8 @@ fn write_file_append() {
 
 	user_processor.disconnect(socket);
 	user_processor.stop();
-	fs::remove_file(&path)
-		.unwrap();
+	fs::remove_dir_all(SOCKET_DIR)
+		.ok();
 }
 
 
@@ -287,8 +301,10 @@ fn write_file_large() {
 	let user_processor = UserProcessor::start();
 	let mut socket = user_processor.connect();
 
-	fs::create_dir_all(SOCKET_DIR)
+	fs::remove_dir_all(SOCKET_DIR)
 		.ok();
+	fs::create_dir_all(SOCKET_DIR)
+		.unwrap();
 	let path = PathBuf::from(SOCKET_DIR).join("write_file_large_test");
 	let request_id = 5;
 	let response = request(&mut socket, request_id, Request::WriteFile(WriteFileRequest::Open {
@@ -335,8 +351,8 @@ fn write_file_large() {
 
 	user_processor.disconnect(socket);
 	user_processor.stop();
-	fs::remove_file(&path)
-		.unwrap();
+	fs::remove_dir_all(SOCKET_DIR)
+		.ok();
 }
 
 
@@ -348,8 +364,10 @@ fn write_file_rewrite() {
 	let mut socket = user_processor.connect();
 
 	// create the file
-	fs::create_dir_all(SOCKET_DIR)
+	fs::remove_dir_all(SOCKET_DIR)
 		.ok();
+	fs::create_dir_all(SOCKET_DIR)
+		.unwrap();
 	let path = PathBuf::from(SOCKET_DIR).join("write_file_test");
 	let request_id = 5;
 	let response = request(&mut socket, request_id, Request::WriteFile(WriteFileRequest::Open {
@@ -402,8 +420,8 @@ fn write_file_rewrite() {
 
 	user_processor.disconnect(socket);
 	user_processor.stop();
-	fs::remove_file(&path)
-		.unwrap();
+	fs::remove_dir_all(SOCKET_DIR)
+		.ok();
 }
 
 
@@ -412,11 +430,11 @@ fn chmod() {
 	let _logging = logging::init_test();
 
 	// write a file we can modify
+	fs::remove_dir_all(SOCKET_DIR)
+		.ok();
 	fs::create_dir_all(SOCKET_DIR)
-		.ok();
+		.unwrap();
 	let path = PathBuf::from(SOCKET_DIR).join("chmod_test");
-	fs::remove_file(&path)
-		.ok();
 	fs::write(&path, "hello".to_string())
 		.unwrap();
 
@@ -485,11 +503,10 @@ fn chmod() {
 	]);
 	assert_that!(&mode(), eq(0o0664));
 
-
 	user_processor.disconnect(socket);
 	user_processor.stop();
-	fs::remove_file(&path)
-		.unwrap();
+	fs::remove_dir_all(SOCKET_DIR)
+		.ok();
 }
 
 
@@ -498,8 +515,10 @@ fn delete_file() {
 	let _logging = logging::init_test();
 
 	// write a file we can delete
-	fs::create_dir_all(SOCKET_DIR)
+	fs::remove_dir_all(SOCKET_DIR)
 		.ok();
+	fs::create_dir_all(SOCKET_DIR)
+		.unwrap();
 	let path = PathBuf::from(SOCKET_DIR).join("delete_file_test");
 	fs::remove_file(&path)
 		.ok();
@@ -520,6 +539,8 @@ fn delete_file() {
 
 	user_processor.disconnect(socket);
 	user_processor.stop();
+	fs::remove_dir_all(SOCKET_DIR)
+		.ok();
 }
 
 
@@ -527,8 +548,10 @@ fn delete_file() {
 fn create_folder() {
 	let _logging = logging::init_test();
 
-	fs::create_dir_all(SOCKET_DIR)
+	fs::remove_dir_all(SOCKET_DIR)
 		.ok();
+	fs::create_dir_all(SOCKET_DIR)
+		.unwrap();
 	let path = PathBuf::from(SOCKET_DIR).join("create_folder_test");
 	fs::remove_dir_all(&path)
 		.ok();
@@ -553,6 +576,8 @@ fn create_folder() {
 
 	user_processor.disconnect(socket);
 	user_processor.stop();
+	fs::remove_dir_all(SOCKET_DIR)
+		.ok();
 }
 
 
@@ -561,9 +586,13 @@ fn delete_folder() {
 	let _logging = logging::init_test();
 
 	// create a folder we can delete, put stuff in it too
+	fs::remove_dir_all(SOCKET_DIR)
+		.ok();
+	fs::create_dir_all(SOCKET_DIR)
+		.unwrap();
 	let path = PathBuf::from(SOCKET_DIR).join("delete_folder_test");
 	fs::create_dir_all(&path)
-		.ok();
+		.unwrap();
 	fs::write(path.join("file"), "hello")
 		.unwrap();
 
@@ -581,6 +610,8 @@ fn delete_folder() {
 
 	user_processor.disconnect(socket);
 	user_processor.stop();
+	fs::remove_dir_all(SOCKET_DIR)
+		.ok();
 }
 
 
@@ -589,9 +620,13 @@ fn list_folder() {
 	let _logging = logging::init_test();
 
 	// create a folder we can delete, put stuff in it too
+	fs::remove_dir_all(SOCKET_DIR)
+		.ok();
+	fs::create_dir_all(SOCKET_DIR)
+		.unwrap();
 	let path = PathBuf::from(SOCKET_DIR).join("list_folder_test");
 	fs::create_dir_all(&path)
-		.ok();
+		.unwrap();
 	fs::write(path.join("file"), "hello")
 		.unwrap();
 
@@ -639,8 +674,8 @@ fn list_folder() {
 
 	user_processor.disconnect(socket);
 	user_processor.stop();
-	fs::remove_dir_all(path)
-		.unwrap();
+	fs::remove_dir_all(SOCKET_DIR)
+		.ok();
 }
 
 
@@ -649,9 +684,13 @@ fn copy_folder() {
 	let _logging = logging::init_test();
 
 	// create a folder we can delete, put stuff in it too
+	fs::remove_dir_all(SOCKET_DIR)
+		.ok();
+	fs::create_dir_all(SOCKET_DIR)
+		.unwrap();
 	let src_path = PathBuf::from(SOCKET_DIR).join("copy_folder_src_test");
 	fs::create_dir_all(&src_path)
-		.ok();
+		.unwrap();
 	fs::write(src_path.join("file"), "hello")
 		.unwrap();
 
@@ -674,10 +713,8 @@ fn copy_folder() {
 
 	user_processor.disconnect(socket);
 	user_processor.stop();
-	fs::remove_dir_all(src_path)
-		.unwrap();
-	fs::remove_dir_all(dst_path)
-		.unwrap();
+	fs::remove_dir_all(SOCKET_DIR)
+		.ok();
 }
 
 
@@ -686,9 +723,11 @@ fn copy_folder_link_internal() {
 	let _logging = logging::init_test();
 
 	// create a folder we can delete, put stuff in it too
-	let src_path = PathBuf::from(SOCKET_DIR).join("copy_folder_src_li_test");
-	fs::remove_dir_all(&src_path)
+	fs::remove_dir_all(SOCKET_DIR)
 		.ok();
+	fs::create_dir_all(SOCKET_DIR)
+		.unwrap();
+	let src_path = PathBuf::from(SOCKET_DIR).join("copy_folder_src_li_test");
 	fs::create_dir_all(&src_path)
 		.unwrap();
 	let file_path = src_path.join("file");
@@ -713,10 +752,8 @@ fn copy_folder_link_internal() {
 
 	user_processor.disconnect(socket);
 	user_processor.stop();
-	fs::remove_dir_all(src_path)
-		.unwrap();
-	fs::remove_dir_all(dst_path)
-		.unwrap();
+	fs::remove_dir_all(SOCKET_DIR)
+		.ok();
 }
 
 
@@ -725,9 +762,11 @@ fn copy_folder_link_external() {
 	let _logging = logging::init_test();
 
 	// create a folder we can delete, put stuff in it too
-	let src_path = PathBuf::from(SOCKET_DIR).join("copy_folder_src_le_test");
-	fs::remove_dir_all(&src_path)
+	fs::remove_dir_all(SOCKET_DIR)
 		.ok();
+	fs::create_dir_all(SOCKET_DIR)
+		.unwrap();
+	let src_path = PathBuf::from(SOCKET_DIR).join("copy_folder_src_le_test");
 	fs::create_dir_all(&src_path)
 		.unwrap();
 	let src_link1 = src_path.join("link");
@@ -771,10 +810,8 @@ fn copy_folder_link_external() {
 
 	user_processor.disconnect(socket);
 	user_processor.stop();
-	fs::remove_dir_all(src_path)
-		.unwrap();
-	fs::remove_dir_all(dst_path)
-		.unwrap();
+	fs::remove_dir_all(SOCKET_DIR)
+		.ok();
 }
 
 
@@ -783,9 +820,13 @@ fn stat() {
 	let _logging = logging::init_test();
 
 	// create stuff we can stat
+	fs::remove_dir_all(SOCKET_DIR)
+		.ok();
+	fs::create_dir_all(SOCKET_DIR)
+		.unwrap();
 	let path = PathBuf::from(SOCKET_DIR).join("stat_test");
 	fs::create_dir_all(&path)
-		.ok();
+		.unwrap();
 	fs::write(path.join("file"), "hello")
 		.unwrap();
 	symlink(path.join("file"), path.join("link-file"))
@@ -841,8 +882,8 @@ fn stat() {
 
 	user_processor.disconnect(socket);
 	user_processor.stop();
-	fs::remove_dir_all(path)
-		.unwrap();
+	fs::remove_dir_all(SOCKET_DIR)
+		.ok();
 }
 
 
@@ -851,11 +892,11 @@ fn rename() {
 	let _logging = logging::init_test();
 
 	// write a file we can rename
+	fs::remove_dir_all(SOCKET_DIR)
+		.ok();
 	fs::create_dir_all(SOCKET_DIR)
-		.ok();
+		.unwrap();
 	let path = PathBuf::from(SOCKET_DIR).join("rename_test");
-	fs::remove_file(&path)
-		.ok();
 	fs::write(&path, "hello".to_string())
 		.unwrap();
 	let renamed_path = PathBuf::from(SOCKET_DIR).join("renamed");
@@ -876,8 +917,8 @@ fn rename() {
 
 	user_processor.disconnect(socket);
 	user_processor.stop();
-	fs::remove_file(renamed_path)
-		.unwrap();
+	fs::remove_dir_all(SOCKET_DIR)
+		.ok();
 }
 
 
@@ -886,11 +927,11 @@ fn create_symlink() {
 	let _logging = logging::init_test();
 
 	// write a file we can rename
+	fs::remove_dir_all(SOCKET_DIR)
+		.ok();
 	fs::create_dir_all(SOCKET_DIR)
-		.ok();
+		.unwrap();
 	let path = PathBuf::from(SOCKET_DIR).join("symlink_test");
-	fs::remove_file(&path)
-		.ok();
 	fs::write(&path, "hello".to_string())
 		.unwrap();
 	let link = PathBuf::from(SOCKET_DIR).join("linked");
@@ -910,10 +951,8 @@ fn create_symlink() {
 
 	user_processor.disconnect(socket);
 	user_processor.stop();
-	fs::remove_file(path)
-		.unwrap();
-	fs::remove_file(link)
-		.unwrap();
+	fs::remove_dir_all(SOCKET_DIR)
+		.ok();
 }
 
 
