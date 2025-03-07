@@ -26,3 +26,28 @@ class FetchImagePanel(
 		img.fetch(pather(size))
 	}
 }
+
+
+class ArbitraryFetchImagePanel(
+	title: String,
+	sizes: List<Int>,
+	private val sizeStorage: KMutableProperty0<Int?>? = null,
+	initialIndex: Int? = null,
+	var pather: (Int) -> String
+): ArbitrarySizedPanel(title, sizes, sizeStorage?.get() ?: initialIndex) {
+
+	val img = fetchImage(classes = setOf("full-width-image"))
+
+	init {
+		fetch()
+
+		onResize = { newIndex: Int ->
+			sizeStorage?.set(newIndex)
+			fetch()
+		}
+	}
+
+	fun fetch() {
+		img.fetch(pather(index))
+	}
+}

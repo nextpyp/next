@@ -366,7 +366,8 @@ class TomographyDrgnTrainView(val project: ProjectData, val job: TomographyDrgnT
 		private val classesElem = Div(classes = setOf("classes"))
 			.also { classesPanel.add(it) }
 
-		private val plot4 = FetchImagePanel("Decoder UMAP sketching", Storage::tomographyDrgnTrainPlot4Size, ImageSize.Medium) {
+		private val plot4Sizes = listOf(512, 1024, 2048)
+		private val plot4 = ArbitraryFetchImagePanel("Decoder UMAP sketching", plot4Sizes, Storage::tomographyDrgnTrainPlot4Size, 1) {
 			ITomographyDrgnTrainService.plotPath(job.jobId, 4)
 		}
 

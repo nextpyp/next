@@ -148,7 +148,7 @@ object Storage {
 	var tomographyDrgnTrainPlot1Size by ImageSizeStorageItem("tomographyDrgnTrainPlot1Size")
 	var tomographyDrgnTrainPlot2Size by ImageSizeStorageItem("tomographyDrgnTrainPlot2Size")
 	var tomographyDrgnTrainPlot3Size by ImageSizeStorageItem("tomographyDrgnTrainPlot3Size")
-	var tomographyDrgnTrainPlot4Size by ImageSizeStorageItem("tomographyDrgnTrainPlot4Size")
+	var tomographyDrgnTrainPlot4Size by IntStorageItem("tomographyDrgnTrainPlot4Size")
 	var tomographyDrgnTrainPlot5Size by ImageSizeStorageItem("tomographyDrgnTrainPlot5Size")
 	var tomographyDrgnTrainPlot6Size by ImageSizeStorageItem("tomographyDrgnTrainPlot6Size")
 	var tomographyDrgnTrainPlot7Size by ImageSizeStorageItem("tomographyDrgnTrainPlot7Size")
