@@ -83,6 +83,16 @@ fun Throwable.alert() {
 }
 
 
+fun Container.addBefore(child: Component, before: Component): Boolean {
+	// get the index of the target
+	val i = getChildren().indexOf(before)
+		.takeIf { it >= 0 }
+		?: return false
+	add(i, child)
+	return true
+}
+
+
 /**
  * Re-implement the Navbar class so we can modify the 'brand' area
  */

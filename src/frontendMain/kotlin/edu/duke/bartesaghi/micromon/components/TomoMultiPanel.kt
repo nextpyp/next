@@ -2,6 +2,7 @@ package edu.duke.bartesaghi.micromon.components
 
 import edu.duke.bartesaghi.micromon.AppScope
 import edu.duke.bartesaghi.micromon.Storage
+import edu.duke.bartesaghi.micromon.addBefore
 import edu.duke.bartesaghi.micromon.pyp.TiltSeriesesData
 import edu.duke.bartesaghi.micromon.pyp.TiltSeriesesParticlesData
 import edu.duke.bartesaghi.micromon.services.*
@@ -147,14 +148,6 @@ class TomoMultiPanel(
 		val metadata = Services.jobs.getDriftMetadata(job.jobId, tiltSeries.id)
 			.unwrap()
 		if (metadata != null) {
-			val motionData = metadata.drifts.map { MotionData(it.map { xy -> xy.x }, it.map { xy -> xy.y }) }
-
-			val initialIndexToShow = run {
-				// Try to find the zero-tilt data, if possible
-				val tempIndex = metadata.tilts.indexOf(0.0)
-				// Otherwise, use the smallest tilt available
-				if (tempIndex >= 0) tempIndex else metadata.tilts.indexOf(metadata.tilts.minByOrNull { abs(it) })
-			}
 
 			// Alignment tab
 			alignedTiltSeriesImage.load(metadata.tilts.size, metadata.tilts.size / 2 - 1) { sprite ->
@@ -166,37 +159,53 @@ class TomoMultiPanel(
 
 			// CTF tab
 			ctfMultiTiltPlot.myOnClick = { index ->
-				currentTiltCTFTab = metadata.tilts[index]
-				ctf1DPlot.setData(metadata.ctfProfiles[index])
+				currentTiltCTFTab = metadata.tilts.getOrNull(index)
+				metadata.ctfProfiles.getOrNull(index)?.let { ctf1DPlot.setData(it) }
 				if (!ctf2dImage.showing) {
 					ctf2dImage.myShow(index)
+				} else {
+					ctf2dImage.sprite?.index = index
 				}
-				else ctf2dImage.sprite?.index = index
+				val ctfValue = metadata.ctfValues.getOrNull(index)
 				ctf2dImage.setStatusText(
-					"DF1 ${metadata.ctfValues[index].defocus1.toFixed(1)} A, " +
-					"DF2 ${metadata.ctfValues[index].defocus2.toFixed(1)} A, " +
-					"Angast ${metadata.ctfValues[index].astigmatism.toFixed(1)}\u00b0, " +
-					"Score ${metadata.ctfValues[index].cc.toFixed(2)}"
+					"DF1 ${ctfValue?.let { it.defocus1.toFixed(1) } ?: "?"} A, " +
+					"DF2 ${ctfValue?.let { it.defocus2.toFixed(1) } ?: "?"} A, " +
+					"Angast ${ctfValue?.let { it.astigmatism.toFixed(1) } ?: "?"}\u00b0, " +
+					"Score ${ctfValue?.let { it.cc.toFixed(2) } ?: "?"}"
 				)
 			}
 			ctf2dImage.load(metadata.tilts.size)
 			ctfMultiTiltPlot.setData(metadata)
 
+			// reshape the point lists into a list of struct-of-arrays
+			val motionData = metadata.drifts.map { points ->
+				MotionData(
+					x = points.map { it.x },
+					y = points.map { it.y }
+				)
+			}
+
 			// Movie frames (Tilts) tab
 			driftBarPlot.myOnClick = { index ->
-				currentTiltFramesTab = metadata.tilts[index]
-				motionPlot.setData(motionData[index])
+				metadata.tilts.getOrNull(index)?.let { currentTiltFramesTab = it }
+				motionData.getOrNull(index)?.let { motionPlot.setData(it) }
 				if (!rawTiltSeriesImage.showing) {
 					rawTiltSeriesImage.myShow(index)
+				} else {
+					rawTiltSeriesImage.sprite?.index = index
 				}
-				else rawTiltSeriesImage.sprite?.index = index
 			}
 			rawTiltSeriesImage.load(metadata.tilts.size)
-			rawTiltSeriesImage.sprite?.let { it.div(classes = setOf("tilt-angle-line")).div().apply {
-				this.setStyle("transform", "rotate(${90.0 + metadata.tiltAxisAngle}deg)")
-				it.add(it.img) // Move the image element after the tilt angle line (i.e. reorder the DOM)
-							   // Ideally, there would have been an insertBefore method for this...
-			} }
+			rawTiltSeriesImage.sprite?.let { sprite ->
+
+				// add the tilt line before the sprite image
+				val line = Div(classes = setOf("tilt-angle-line")) {
+					div {
+						setStyle("transform", "rotate(${90.0 + metadata.tiltAxisAngle}deg)")
+					}
+				}
+				sprite.addBefore(line, sprite.img)
+			}
 			rawTiltSeriesImage.setStatusText("Tilt axis angle ${metadata.tiltAxisAngle.toFixed(1)}\u00b0")
 
 			driftBarPlot.setData(metadata, motionData, Services.jobs.getTiltExclusions(job.jobId, tiltSeries.id))
@@ -223,9 +232,19 @@ class TomoMultiPanel(
 				}
 			}
 
-			// Load the data corresponding to the initial index we want to show, determined above
-			ctfMultiTiltPlot.myOnClick(initialIndexToShow)
-			driftBarPlot.myOnClick(initialIndexToShow)
+			// Try to find the zero-tilt data, if possible
+			val initialIndexToShow = metadata.tilts.indexOf(0.0)
+				.takeIf { it >= 0 }
+				?: run {
+					// otherwise, pick the smallest tilt available
+					metadata.tilts.withIndex()
+						.minByOrNull { (_, tilt) -> abs(tilt) }
+						?.let { (i, _) -> i }
+				}
+			if (initialIndexToShow != null) {
+				ctfMultiTiltPlot.myOnClick(initialIndexToShow)
+				driftBarPlot.myOnClick(initialIndexToShow)
+			}
 		}
 
 		recDownloadBadge.load()
