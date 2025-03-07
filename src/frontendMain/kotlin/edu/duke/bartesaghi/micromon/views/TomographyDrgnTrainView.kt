@@ -66,7 +66,7 @@ class TomographyDrgnTrainView(val project: ProjectData, val job: TomographyDrgnT
 		labeler = l@{ i ->
 			val convergence = convergence
 				?: return@l "?"
-			iterations[i].number(convergence.parameters).toString()
+			iterations[i].checkpoint(convergence.parameters).toString()
 		}
 	}
 
@@ -238,7 +238,7 @@ class TomographyDrgnTrainView(val project: ProjectData, val job: TomographyDrgnT
 
 		convergenceTab?.revalidate()
 		fscTab?.revalidate()
-		ccMatrixTab?.addIterations(newIterations)
+		ccMatrixTab?.addIterations(convergence, newIterations)
 		threeDeeTab?.addIterations(convergence, newIterations)
 	}
 
@@ -329,13 +329,14 @@ class TomographyDrgnTrainView(val project: ProjectData, val job: TomographyDrgnT
 					return
 				}
 
-			addIterations(iters)
+			addIterations(convergence, iters)
 		}
 
-		fun addIterations(newIterations: List<TomoDrgnConvergence.Iteration>) {
+		fun addIterations(convergence: TomoDrgnConvergence, newIterations: List<TomoDrgnConvergence.Iteration>) {
 			for (iter in newIterations) {
-				val panel = FetchImagePanel("Epoch ${iter.epoch}", null, ImageSize.Medium) {
-					ITomographyDrgnTrainService.pairwiseCCMatrixPath(job.jobId, iter.epoch)
+				val checkpoint = iter.checkpoint(convergence.parameters)
+				val panel = FetchImagePanel("Checkpoint $checkpoint: Epoch ${iter.epoch}", null, ImageSize.Medium) {
+					ITomographyDrgnTrainService.pairwiseCCMatrixPath(job.jobId, checkpoint)
 				}
 				plots.add(iter to panel)
 				add(panel)

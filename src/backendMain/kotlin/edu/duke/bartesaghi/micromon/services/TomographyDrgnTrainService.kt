@@ -87,26 +87,33 @@ actual class TomographyDrgnTrainService : ITomographyDrgnTrainService, Service {
 					}
 				}
 
-				route("epoch/{epoch}") {
+				route("checkpoint/{checkpoint}") {
 
-					fun PipelineContext<Unit,ApplicationCall>.parseEpoch(): Int =
-						call.parameters.getOrFail("epoch").toIntOrNull()
-							?: throw BadRequestException("epoch must be an integer")
+					fun PipelineContext<Unit,ApplicationCall>.parseCheckpoint(): Int =
+						call.parameters.getOrFail("checkpoint").toIntOrNull()
+							?: throw BadRequestException("checkpoint must be an integer")
 
 					get("pairwiseCCMatrix") {
 						call.respondExceptions {
 
 							// parse args
 							val job = authJob(ProjectPermission.Read).job
-							val epoch = parseEpoch()
+							val checkpoint = parseCheckpoint()
 
 							val dir = job.dir / "train" / "convergence" / "plots"
 
 							// serve the image
-							ImageType.Svgz.respond(call, dir / "09_pairwise_CC_matrix_epoch-$epoch.svgz")
+							ImageType.Svgz.respond(call, dir / "09_pairwise_CC_matrix_epoch-$checkpoint.svgz")
 								?.respondPlaceholder(call)
 						}
 					}
+				}
+
+				route("epoch/{epoch}") {
+
+					fun PipelineContext<Unit,ApplicationCall>.parseEpoch(): Int =
+						call.parameters.getOrFail("epoch").toIntOrNull()
+							?: throw BadRequestException("epoch must be an integer")
 
 					route("class/{classNum}") {
 

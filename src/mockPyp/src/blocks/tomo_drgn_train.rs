@@ -44,6 +44,10 @@ pub fn run(web: &Web, args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 	args.set_from_group(GROUP_CONVERGENCE, "final_maxima", ArgValue::Int(final_maxima as i64));
 	web.write_parameters(&args, &args_config)?;
 
+	info!(web, "final_maxima = {final_maxima}");
+	info!(web, "epoch_index = {epoch_index}");
+	info!(web, "epoch_interval = {epoch_interval}");
+
 	// create subfolders
 	let dir_train = PathBuf::from("train");
 	fs::create_dir_all(&dir_train)
@@ -64,7 +68,7 @@ pub fn run(web: &Web, args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 
 		info!(web, "epoch {epoch}, iteration {iter}");
 
-		plot_img(web, &dir_plots, format!("09_pairwise_CC_matrix_epoch-{}", epoch))?;
+		plot_img(web, &dir_plots, format!("09_pairwise_CC_matrix_epoch-{}", iter))?;
 
 		let dir_iter = dir_convergence.join(format!("vols.{}", epoch));
 		fs::create_dir_all(&dir_iter)

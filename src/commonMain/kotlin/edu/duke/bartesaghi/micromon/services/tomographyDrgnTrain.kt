@@ -1,5 +1,6 @@
 package edu.duke.bartesaghi.micromon.services
 
+import edu.duke.bartesaghi.micromon.divideUp
 import edu.duke.bartesaghi.micromon.nodes.TomographyDrgnTrainNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
 import io.kvision.annotations.KVBindingRoute
@@ -37,8 +38,8 @@ interface ITomographyDrgnTrainService {
 		fun distributionPath(jobId: String): String =
 			"/kv/node/${TomographyDrgnTrainNodeConfig.ID}/$jobId/distribution"
 
-		fun pairwiseCCMatrixPath(jobId: String, epoch: Int): String =
-			"/kv/node/${TomographyDrgnTrainNodeConfig.ID}/$jobId/epoch/$epoch/pairwiseCCMatrix"
+		fun pairwiseCCMatrixPath(jobId: String, checkpoint: Int): String =
+			"/kv/node/${TomographyDrgnTrainNodeConfig.ID}/$jobId/checkpoint/$checkpoint/pairwiseCCMatrix"
 
 		fun classImagePath(jobId: String, epoch: Int, classNum: Int, size: ImageSize) =
 			"/kv/node/${TomographyDrgnTrainNodeConfig.ID}/$jobId/epoch/$epoch/class/$classNum/image/${size.id}"
@@ -89,8 +90,8 @@ data class TomoDrgnConvergence(
 		val timestamp: Long
 	) {
 
-		fun number(params: Parameters): Int =
-			epoch/params.epochInterval
+		fun checkpoint(params: Parameters): Int =
+			epoch.divideUp(params.epochInterval)
 	}
 
 	fun epochs(): Set<Int> =
