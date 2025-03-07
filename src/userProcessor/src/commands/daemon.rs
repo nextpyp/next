@@ -1,9 +1,8 @@
 
-use std::{fs, io};
 use std::collections::HashMap;
 use std::ffi::OsString;
-use std::fs::{File, OpenOptions, Permissions};
-use std::io::{Cursor, ErrorKind, Read, Write};
+use std::fs::Permissions;
+use std::io::{Cursor, ErrorKind, Read};
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::time::Duration;
@@ -13,6 +12,9 @@ use anyhow::{bail, Context, Result};
 use async_trait::async_trait;
 use gumdrop::Options;
 use pathdiff::diff_paths;
+use tokio::fs;
+use tokio::fs::{File, OpenOptions};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{UnixListener, UnixStream};
 use tokio::net::unix::OwnedWriteHalf;
 use tokio::signal::unix::{signal, SignalKind};
@@ -88,7 +90,8 @@ pub fn run(quiet: bool, _args: Args) -> Result<()> {
 					//          That means no ? operator or any other kind of early returns until cleanup.
 
 					// explicitly set the socket as group readable/writable so the website can use it
-					let mut result = fs::set_permissions(&socket_path, fs::Permissions::from_mode(0o770))
+					let mut result = fs::set_permissions(&socket_path, Permissions::from_mode(0o770))
+						.await
 						.context("Failed to set file permisisons on socket");
 					if let Ok(_) = result {
 
@@ -100,6 +103,7 @@ pub fn run(quiet: bool, _args: Args) -> Result<()> {
 					// try to cleanup the socket file
 					info!("Removing socket file: {}", socket_path.to_string_lossy());
 					fs::remove_file(&socket_path)
+						.await
 						.context(format!("Failed to remove socket file: {}", socket_path.to_string_lossy()))
 						.warn_err()
 						.ok();
@@ -406,7 +410,7 @@ async fn dispatch_uids(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32) {
 		0 => (), // ok,
 		_ => {
 			let response = Response::Error {
-				reason: format!("Failed to call getresuid(): {}", io::Error::last_os_error())
+				reason: format!("Failed to call getresuid(): {}", std::io::Error::last_os_error())
 			};
 			write_response(&socket, request_id, response)
 				.await
@@ -434,6 +438,7 @@ async fn dispatch_read_file(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32, 
 
 	// try to open the file for reading
 	let Some(mut file) = File::open(&path)
+		.await
 		.or_respond_error(&socket, request_id, |e|
 			format!("Failed to open file {}\n\tpath: {}", e, &path)
 		)
@@ -442,6 +447,7 @@ async fn dispatch_read_file(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32, 
 
 	// try to get the file size
 	let Some(metadata) = file.metadata()
+		.await
 		.or_respond_error(&socket, request_id, |e|
 			format!("Failed to read metadata for file {}\n\tpath: {}", e, &path)
 		)
@@ -464,6 +470,7 @@ async fn dispatch_read_file(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32, 
 		// read the next chunk
 		sequence += 1;
 		let Some(bytes_read) = file.read(&mut buf)
+			.await
 			.or_respond_error(&socket, request_id, |e|
 				format!("Failed to read chunk {}: {}\n\tpath: {}", sequence, e, &path)
 			)
@@ -540,6 +547,7 @@ async fn dispatch_write_file(
 				.truncate(!append)
 				.append(append)
 				.open(&path)
+				.await
 				.or_respond_error(&socket, request_id, |e|
 					format!("Failed to create file for writing {}\n\tpath: {}", e, &path)
 				)
@@ -590,7 +598,9 @@ async fn dispatch_write_file(
 			// write to the file, but save the first error (if any) for later
 			let result = file_writer.lock()
 				.await
-				.file.write(data.as_ref());
+				.file
+				.write(data.as_ref())
+				.await;
 			if let Err(e) = result {
 				file_writer.lock()
 					.await
@@ -654,6 +664,7 @@ async fn dispatch_chmod(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32, requ
 	debug!(path = request.path, ops = request.ops_to_string(), "Request");
 
 	let Some(meta) = fs::metadata(&request.path)
+		.await
 		.or_respond_error(&socket, request_id, |e|
 			format!("Failed to read file permissions: {}\n\tpath: {}", e, &request.path)
 		)
@@ -673,6 +684,7 @@ async fn dispatch_chmod(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32, requ
 	}
 
 	let Some(()) = fs::set_permissions(&request.path, Permissions::from_mode(mode))
+		.await
 		.or_respond_error(&socket, request_id, |e|
 			format!("Failed to write file permissions: {}\n\tpath: {}", e, &request.path)
 		)
@@ -693,8 +705,12 @@ async fn dispatch_delete_file(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32
 	// NOTE: Don't just check for exists() here, since that returns false for a broken symlink,
 	//       but we may still want to delete the symlink.
 	//       Instead, use an existence check that won't follow symlinks, like symlink_metadata().
-	if fs::symlink_metadata(&path).is_ok() {
+	let exists = fs::symlink_metadata(&path)
+		.await
+		.is_ok();
+	if exists {
 		let Some(()) = fs::remove_file(&path)
+			.await
 			.or_respond_error(&socket, request_id, |e|
 				format!("Failed to delete file: {}\n\tpath: {}", e, &path)
 			)
@@ -714,6 +730,7 @@ async fn dispatch_create_folder(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u
 	debug!(path, "Request");
 
 	let Some(()) = fs::create_dir_all(&path)
+		.await
 		.or_respond_error(&socket, request_id, |e|
 			format!("Failed to create folder: {}\n\tpath: {}", e, &path)
 		)
@@ -731,9 +748,15 @@ async fn dispatch_delete_folder(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u
 
 	debug!(path, "Request");
 
-	let path_buf = PathBuf::from(&path);
-	if path_buf.exists() {
+	// NOTE: Don't just check for exists() here, since that returns false for a broken symlink,
+	//       but we may still want to delete the symlink.
+	//       Instead, use an existence check that won't follow symlinks, like symlink_metadata().
+	let exists = fs::symlink_metadata(&path)
+		.await
+		.is_ok();
+	if exists {
 		let Some(()) = fs::remove_dir_all(&path)
+			.await
 			.or_respond_error(&socket, request_id, |e|
 				format!("Failed to delete folder: {}\n\tpath: {}", e, &path)
 			)
@@ -752,39 +775,48 @@ async fn dispatch_copy_folder(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32
 
 	debug!(src, dst, "Request");
 
-	fn run_copy(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> Result<()> {
+	async fn run_copy(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> Result<()> {
 
 		let src = src.as_ref();
 		let dst = dst.as_ref();
 
-		let root_canon = src.canonicalize()
+		let root_canon = fs::canonicalize(&src)
+			.await
 			.context(format!("Failed to canonicalize src dir: {}", src.to_string_lossy()))?;
 
 		copy_dir_all(root_canon.as_path(), src, dst)
+			.await
 	}
 
-	fn copy_dir_all(root_canon: &Path, src: impl AsRef<Path>, dst: impl AsRef<Path>) -> Result<()> {
+	async fn copy_dir_all(root_canon: &Path, src: impl AsRef<Path>, dst: impl AsRef<Path>) -> Result<()> {
 
 		let src = src.as_ref();
 		let dst = dst.as_ref();
 
 		fs::create_dir_all(&dst)
+			.await
 			.context(format!("Failed to create folder: {}", dst.to_string_lossy()))?;
 
-		let src_read = fs::read_dir(src)
+		let mut src_read = fs::read_dir(src)
+			.await
 			.context(format!("Failed to read folder: {}", src.to_string_lossy()))?;
-		for entry in src_read {
-			let entry = entry
-				.context(format!("Failed to read folder entry from: {}", src.to_string_lossy()))?;
+		loop {
+			let Some(entry) = src_read.next_entry()
+				.await
+				.context(format!("Failed to read folder entry from: {}", src.to_string_lossy()))?
+				else { break; };
 			let ty = entry.file_type()
+				.await
 				.context(format!("Failed to read file type: {}", entry.path().to_string_lossy()))?;
 			if ty.is_symlink() {
 
 				// for symlinks, we need to know if it's pointing to somewhere inside src or not
 				let src_link = entry.path();
 				let link_target = fs::read_link(&src_link)
+					.await
 					.context(format!("Failed to read symlink target: {}", src_link.to_string_lossy()))?;
-				let link_target_canon = src.join(&link_target).canonicalize()
+				let link_target_canon = fs::canonicalize(src.join(&link_target))
+					.await
 					.context(format!("Failed to canonicalize link target: {}", link_target.to_string_lossy()))?;
 				let links_within_root = link_target_canon.starts_with(&root_canon);
 
@@ -812,18 +844,22 @@ async fn dispatch_copy_folder(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32
 								dst.to_string_lossy()
 							))?
 					};
-				std::os::unix::fs::symlink(&dst_link_target, &dst_link)
+				fs::symlink(&dst_link_target, &dst_link)
+					.await
 					.context(format!("Failed to copy symlink\n\tsymlink: {}\n\ttarget: {}",
 						src_link.to_string_lossy(),
 						link_target.to_string_lossy()
 					))?;
 
 			} else if ty.is_dir() {
-				copy_dir_all(root_canon, entry.path(), dst.join(entry.file_name()))?;
+				// NOTE: recursion in async functions boxing the future, so its size can be bounded
+				Box::pin(copy_dir_all(root_canon, entry.path(), dst.join(entry.file_name())))
+					.await?;
 			} else if ty.is_file() {
 				let src_file = entry.path();
 				let dst_file = dst.join(entry.file_name());
 				fs::copy(&src_file, &dst_file)
+					.await
 					.context(format!("Failed to copy file:\n\tfrom: {}\n\t  to: {}", src_file.to_string_lossy(), dst_file.to_string_lossy()))?;
 			} else {
 				// whatever else this is, don't copy it
@@ -833,6 +869,7 @@ async fn dispatch_copy_folder(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32
 	}
 
 	let Some(()) = run_copy(&src, &dst)
+		.await
 		.or_respond_error(&socket, request_id, |e|
 			format!("Failed to copy folder:\n\tfrom: {}\n\t  to: {}\n{}", &src, &dst, e)
 		)
@@ -854,20 +891,24 @@ async fn dispatch_list_folder(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32
 	// should be fast enough for big NFS folders, right?
 	// TODO: do we need to go to raw kernel interfaces for more speed?? might not be very portable?
 	let mut list_writer = DirListWriter::new();
-	let Some(read) = fs::read_dir(&path)
+	let Some(mut read) = fs::read_dir(&path)
+		.await
 		.or_respond_error(&socket, request_id, |e|
 			format!("Failed to read folder: {}\n\tpath: {}", e, &path)
 		)
 		.await
 		else { return };
-	for result in read {
-
-		let Some(entry) = result
+	loop {
+		let Some(entry) = read.next_entry()
+			.await
 			.or_respond_error(&socket, request_id, |e| format!("Failed to read file entry: {}", e))
 			.await
 			else { return };
+		let Some(entry) = entry
+			else { break; };
 
 		let Some(file_type) = entry.file_type()
+			.await
 			.or_respond_error(&socket, request_id, |e| format!("Failed to read file type: {}", e))
 			.await
 			else { return };
@@ -903,7 +944,6 @@ async fn dispatch_list_folder(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32
 		.or_respond_error(&socket, request_id, |e| format!("Failed to write list: {}", e))
 		.await
 		else { return };
-	let mut list_reader = Cursor::new(&list);
 
 	// send back the response
 	let response = Response::ReadFile(ReadFileResponse::Open {
@@ -913,14 +953,17 @@ async fn dispatch_list_folder(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32
 		.await
 		else { return };
 
-	// read the file in chunks
+	// read the folder listing in chunks
 	let mut buf = [0u8; 4*1024];
 	let mut sequence: u32 = 0;
+	let mut list_reader = Cursor::new(&list);
 	loop {
 
 		// read the next chunk
 		sequence += 1;
-		let bytes_read = list_reader.read(&mut buf)
+		// NOTE: need to call read from sync trait explicitly here to disambiguare, since read from the async trait is also in scope
+		//       and we want a sync read, since we're reading from a source that's already in memory
+		let bytes_read = Read::read(&mut list_reader, &mut buf)
 			.unwrap(); // PANIC SAFETY: infallible, we're reading from a cursor to an in-memory buffer
 		if bytes_read == 0 {
 			break;
@@ -952,7 +995,9 @@ async fn dispatch_stat(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32, path:
 	debug!(path, "Request");
 
 	// exists, link(recurse), dir, file(size)
-	let response = match fs::symlink_metadata(&path) {
+	let result = fs::symlink_metadata(&path)
+		.await;
+	let response = match result {
 
 		// if the path wasn't found, we get an error, so map that back into a NotFound response
 		Err(e) if e.kind() == ErrorKind::NotFound => StatResponse::NotFound,
@@ -969,7 +1014,9 @@ async fn dispatch_stat(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32, path:
 
 		Ok(lstat) => {
 			if lstat.is_symlink() {
-				StatResponse::Symlink(match fs::metadata(&path) {
+				let result = fs::metadata(&path)
+					.await;
+				StatResponse::Symlink(match result {
 
 					// if the path wasn't found, we get an error, so map that back into a NotFound response
 					Err(e) if e.kind() == ErrorKind::NotFound => StatSymlinkResponse::NotFound,
@@ -1019,6 +1066,7 @@ async fn dispatch_rename(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32, src
 	debug!(src, dst, "Request");
 
 	let Some(()) = fs::rename(&src, &dst)
+		.await
 		.or_respond_error(&socket, request_id, |e|
 			format!("Failed to rename: {}\n\tsrc: {}\n\tdst: {}", e, &src, &dst)
 		)
@@ -1041,6 +1089,7 @@ async fn dispatch_symlink(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32, pa
 	// create the parent folders, if needed
 	if let Some(parent) = path_buf.parent() {
 		let Some(()) = fs::create_dir_all(parent)
+			.await
 			.or_respond_error(&socket, request_id, |e|
 				format!("Failed to create parent folders of symlink: {}\n\tpath: {}\n\tlink: {}", e, &path, &link)
 			)
@@ -1048,7 +1097,8 @@ async fn dispatch_symlink(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32, pa
 			else { return };
 	}
 
-	let Some(()) = std::os::unix::fs::symlink(&path_buf, &link)
+	let Some(()) = fs::symlink(&path_buf, &link)
+		.await
 		.or_respond_error(&socket, request_id, |e|
 			format!("Failed to symlink: {}\n\tpath: {}\n\tlink: {}", e, &path, &link)
 		)
