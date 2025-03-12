@@ -7,7 +7,7 @@ object TomographyDrgnFilteringNodeConfig : NodeConfig {
 
 	override val id = ID
 	override val configId = "tomo_drgn_filter"
-	override val name = "Drgn particle filtering"
+	override val name = "tomoDRGN (filter-star)"
 	override val hasFiles = true
 
 	val movieRefinementsIn = NodeConfig.Data("movie-refinementsIn", NodeConfig.Data.Type.DrgnParticles)
