@@ -46,4 +46,8 @@ class ThreeDeeTab(
 
 	override fun path(): String =
 		pathFragment
+
+	fun close() {
+		viewer.close()
+	}
 }

@@ -182,6 +182,7 @@ class TomographyDrgnTrainView(val project: ProjectData, val job: TomographyDrgnT
 
 	override fun close() {
 		connector?.disconnect()
+		threeDeeTab?.close()
 	}
 
 	private fun update(convergence: TomoDrgnConvergence) {
@@ -528,6 +529,10 @@ class TomographyDrgnTrainView(val project: ProjectData, val job: TomographyDrgnT
 					viewer.addVolume(volumeData(iter, classNum))
 				}
 			}
+		}
+
+		fun close() {
+			viewer.close()
 		}
 	}
 

@@ -54,19 +54,21 @@ class ThreeDeeViewer : Div() {
 			Div(classes = setOf("threeD-status"))
 		}
 
+	private val renderer = MicromonMRC.Renderer()
+
 	private enum class Model(val number: Int) {
 
 		One(1) {
 
 			override fun clear(viewer: ThreeDeeViewer) {
-				viewer.replot(countViews(first = false))
-				MicromonMRC.clearMesh1()
+				viewer.replot(viewer.countViews(first = false))
+				viewer.renderer.clearMesh1()
 			}
 
 			override fun update(viewer: ThreeDeeViewer, data: Any?) {
-				viewer.replot(countViews(first = data != null))
+				viewer.replot(viewer.countViews(first = data != null))
 				try {
-					data?.let { MicromonMRC.createMesh1fromData(it) }
+					data?.let { viewer.renderer.createMesh1fromData(it) }
 				} catch (d: dynamic) {
 					reportJsError(d)
 					Toast.error("Failed to build 3D model from MRC file: $d")
@@ -77,14 +79,14 @@ class ThreeDeeViewer : Div() {
 		Two(2) {
 
 			override fun clear(viewer: ThreeDeeViewer) {
-				viewer.replot(countViews(second = false))
-				MicromonMRC.clearMesh2()
+				viewer.replot(viewer.countViews(second = false))
+				viewer.renderer.clearMesh2()
 			}
 
 			override fun update(viewer: ThreeDeeViewer, data: Any?) {
-				viewer.replot(countViews(second = data != null))
+				viewer.replot(viewer.countViews(second = data != null))
 				try {
-					data?.let { MicromonMRC.createMesh2fromData(it) }
+					data?.let { viewer.renderer.createMesh2fromData(it) }
 				} catch (d: dynamic) {
 					reportJsError(d)
 					Toast.error("Failed to build 3D model from MRC file: $d")
@@ -255,14 +257,14 @@ class ThreeDeeViewer : Div() {
 			usingDoubleViews = !usingDoubleViews
 			toggleButton.innerText = if (usingDoubleViews) "Show maps overlaid" else "Show maps separately"
 			Storage.threeJsDoubleViews = usingDoubleViews
-			MicromonMRC.setUseDoubleViews(usingDoubleViews)
+			renderer.setUseDoubleViews(usingDoubleViews)
 			replot(countViews())
 		}
 
 		controlsElem.elem.appendChild(toggleButton)
 
-		MicromonMRC.createViewport(renderDiv.elem, controlsElem.elem, 0)
-		MicromonMRC.setUseDoubleViews(usingDoubleViews)
+		renderer.init(renderDiv.elem, controlsElem.elem, 0)
+		renderer.setUseDoubleViews(usingDoubleViews)
 	}
 
 	private fun updateDropdowns() {
@@ -285,23 +287,26 @@ class ThreeDeeViewer : Div() {
 			2 -> 0.5
 			else -> throw Error("unsupported number of views: $numViews")
 		}).toInt()
-		MicromonMRC.updateRendererSize(size)
+		renderer.updateRendererSize(size)
 		renderDiv.height = size.px
 	}
-}
 
+	/** count the number of views showing, or will be showing after the arguments are applied */
+	private fun countViews(first: Boolean? = null, second: Boolean? = null, doubleViews: Boolean? = null): Int {
+		var count = 0
+		if (first ?: renderer.checkFirstMeshIsShowing()) {
+			count += 1
+		}
+		if (second ?: renderer.checkSecondMeshIsShowing()) {
+			count += 1
+		}
+		if (count == 2 && !(doubleViews ?: renderer.checkUsingDoubleViews())) {
+			count = 1
+		}
+		return count
+	}
 
-/** count the number of views showing, or will be showing after the arguments are applied */
-private fun countViews(first: Boolean? = null, second: Boolean? = null, doubleViews: Boolean? = null): Int {
-	var count = 0
-	if (first ?: MicromonMRC.checkFirstMeshIsShowing()) {
-		count += 1
+	fun close() {
+		renderer.dispose()
 	}
-	if (second ?: MicromonMRC.checkSecondMeshIsShowing()) {
-		count += 1
-	}
-	if (count == 2 && !(doubleViews ?: MicromonMRC.checkUsingDoubleViews())) {
-		count = 1
-	}
-	return count
 }

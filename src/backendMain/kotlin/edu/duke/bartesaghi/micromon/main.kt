@@ -135,6 +135,7 @@ fun Application.main(config: Config.Web) {
 		}
 
 		// serve static resources out of KVison's magic `assets` package
+		// NOTE: the `assets` package is some magic package created by KVision somehow out of the src/frontendMain/web folder
 		static("/") {
 			resources("assets")
 		}

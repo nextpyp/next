@@ -475,5 +475,6 @@ class IntegratedRefinementView(
 
 	override fun close() {
 		connector?.disconnect()
+		threeDeeTab?.close()
 	}
 }

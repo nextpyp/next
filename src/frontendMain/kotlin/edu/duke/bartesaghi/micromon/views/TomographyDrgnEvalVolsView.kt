@@ -159,6 +159,11 @@ class TomographyDrgnEvalVolsView(val project: ProjectData, val job: TomographyDr
 		}
 	}
 
+	override fun close() {
+		umapThreeDeeTab?.close()
+		pcaThreeDeeTab?.close()
+	}
+
 
 	private inner class UmapReconstructionTab(
 		numClasses: Int
@@ -346,6 +351,10 @@ class TomographyDrgnEvalVolsView(val project: ProjectData, val job: TomographyDr
 						url = ITomographyDrgnEvalVolsService.classMrcPathUmap(job.jobId, classNum)
 					)
 				}
+		}
+
+		fun close() {
+			viewer.close()
 		}
 	}
 
@@ -551,6 +560,10 @@ class TomographyDrgnEvalVolsView(val project: ProjectData, val job: TomographyDr
 						)
 					}
 				}
+		}
+
+		fun close() {
+			viewer.close()
 		}
 	}
 }
