@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::ffi::OsString;
 use std::fs::Permissions;
 use std::io::{Cursor, ErrorKind, Read};
+use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::time::Duration;
@@ -18,7 +19,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{UnixListener, UnixStream};
 use tokio::net::unix::OwnedWriteHalf;
 use tokio::signal::unix::{signal, SignalKind};
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, MutexGuard};
 use tokio::task::LocalSet;
 use tracing::{debug, error_span, info, Instrument, trace, warn};
 
@@ -509,7 +510,7 @@ struct FileWriter {
 
 impl FileWriter {
 
-	async fn resequence(s: &Rc<Mutex<Self>>, sequence: u32) {
+	async fn lock_in_sequence(s: &Rc<Mutex<Self>>, sequence: u32) -> FileWriterGuard {
 
 		// wait for the riqht sequence
 		while sequence < s.lock().await.sequence {
@@ -517,11 +518,36 @@ impl FileWriter {
 			tokio::task::yield_now()
 				.await;
 		}
+		// TODO: this loop shouldn't be busy, right? Hopefully clients are sending chunks in-order?
+		//       do we need a longer wait than just a yield?
 
-		// increment the sequence counter for next time
-		let mut s = s.lock()
+		// we're in-sequence, lock it!
+		let writer = s.lock()
 			.await;
-		s.sequence += 1;
+		FileWriterGuard(writer)
+	}
+}
+
+
+struct FileWriterGuard<'a>(MutexGuard<'a,FileWriter>);
+
+impl<'a> Deref for FileWriterGuard<'a> {
+	type Target = FileWriter;
+	fn deref(&self) -> &Self::Target {
+		&self.0
+	}
+}
+
+impl<'a> DerefMut for FileWriterGuard<'a> {
+	fn deref_mut(&mut self) -> &mut Self::Target {
+		&mut self.0
+	}
+}
+
+impl<'a> Drop for FileWriterGuard<'a> {
+	fn drop(&mut self) {
+		// we're done writing this chunk: increment the sequence
+		self.0.sequence += 1;
 	}
 }
 
@@ -583,28 +609,20 @@ async fn dispatch_write_file(
 				.map(|w| w.clone())
 				else { return };
 
-			// sometimes async tasks can get processesed out of sequence, so explicitly re-sequence here
-			FileWriter::resequence(&file_writer, sequence)
+			let mut file_writer = FileWriter::lock_in_sequence(&file_writer, sequence)
 				.await;
 
-			let has_error = file_writer.lock()
-				.await
-				.error.is_some();
-			if has_error {
+			if file_writer.error.is_some() {
 				// already had an error, stop writing
 				return;
 			}
 
 			// write to the file, but save the first error (if any) for later
-			let result = file_writer.lock()
-				.await
-				.file
+			let result = file_writer.file
 				.write(data.as_ref())
 				.await;
 			if let Err(e) = result {
-				file_writer.lock()
-					.await
-					.error = Some(e.to_string());
+				file_writer.error = Some(e.to_string());
 			}
 
 			// no need to respond to the clent ... what is this, TCP?
@@ -622,11 +640,10 @@ async fn dispatch_write_file(
 				.await
 				else { return };
 
-			// sometimes async tasks can get processesed out of sequence, so explicitly re-sequence here
-			FileWriter::resequence(&file_writer, sequence)
+			let _ = FileWriter::lock_in_sequence(&file_writer, sequence)
 				.await;
 
-			// we should have exclusive owneship over the writer now
+			// we should have exclusive ownership over the writer now
 			let Some(mut file_writer) = Rc::into_inner(file_writer)
 				.map(|s| s.into_inner())
 				.or_respond_error(&socket, request_id, |()| "File write tasks not finished yet: this is a bug in UserProcessor".to_string())
