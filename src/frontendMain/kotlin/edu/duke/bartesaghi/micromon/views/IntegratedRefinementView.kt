@@ -101,6 +101,7 @@ class IntegratedRefinementView(
 			val registrationList = listOf<Pair<RegisterableTab,LazyTabSelector>>(
 				MapsTab to { it.maps },
 				ClassesTab to { it.classes },
+				ClassesMovieTab to { it.classesMovie },
 				RefinementsTab.ImageType.Particles to { it.particles },
 				RefinementsTab.ImageType.Weights to { it.scores },
 				RefinementsTab.ImageType.Scores to { it.weights },
