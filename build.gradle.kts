@@ -53,7 +53,7 @@ group = "edu.duke.bartesaghi"
  *
  * Also, incrementing 9 yields 10. eg, incrementing the minor version of 1.9.0 yields 1.10.0
  */
-val apiVersion = "1.0.0"
+val apiVersion = "1.1.0"
 
 
 repositories {
