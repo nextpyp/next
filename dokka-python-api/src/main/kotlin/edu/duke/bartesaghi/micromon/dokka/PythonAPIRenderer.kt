@@ -21,6 +21,8 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 		file.bufferedWriter().use { writer ->
 			Indented(writer, 0).write(model)
 		}
+
+		println("Write Generated API to: $file")
 	}
 
 	private fun Indented.write(model: Model) {

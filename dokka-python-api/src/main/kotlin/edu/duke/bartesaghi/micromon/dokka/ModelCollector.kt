@@ -278,11 +278,11 @@ class ModelCollector(val ctx: DokkaContext) : DocumentableToPageTranslator {
 
 		// read the function arguments
 		val arguments = func.parameters
-			.map {
+			.mapNotNull {
 				Model.Service.Function.Argument(
 					name = it.name
 						?: throw NoSuchElementException("${iface.name}.${func.name} argument has no name"),
-					type = collectTypeRef(it.type)
+					type = collectTypeRef(it.type) ?: return@mapNotNull null
 				)
 			}
 
@@ -308,7 +308,7 @@ class ModelCollector(val ctx: DokkaContext) : DocumentableToPageTranslator {
 		)
 	}
 
-	private fun collectTypeRef(type: Projection): Model.TypeRef =
+	private fun collectTypeRef(type: Projection): Model.TypeRef? =
 		when (type) {
 
 			is GenericTypeConstructor ->
@@ -316,16 +316,16 @@ class ModelCollector(val ctx: DokkaContext) : DocumentableToPageTranslator {
 					packageName = type.dri.packageName ?: "",
 					name = type.dri.classNames ?: "",
 					params = type.projections
-						.map { collectTypeRef(it) }
+						.mapNotNull { collectTypeRef(it) }
 				)
 
 			is Nullable -> collectTypeRef(type.inner)
-				.copy(nullable = true)
+				?.copy(nullable = true)
 
 			is Variance<*> -> collectTypeRef(type.inner)
 
 			is TypeAliased -> collectTypeRef(type.typeAlias)
-				.copy(aliased = collectTypeRef(type.inner))
+				?.copy(aliased = collectTypeRef(type.inner))
 
 			is TypeParameter ->
 				Model.TypeRef(
@@ -334,6 +334,10 @@ class ModelCollector(val ctx: DokkaContext) : DocumentableToPageTranslator {
 					parameter = true
 				)
 
+			is FunctionalTypeConstructor -> {
+				println("WARNING: function object not supported")
+				null
+			}
 			// do we need to handle more types here?
 
 			else -> throw Error("don't know how to reference type ${type::class.simpleName} for $type")
@@ -351,7 +355,7 @@ class ModelCollector(val ctx: DokkaContext) : DocumentableToPageTranslator {
 			props = c.properties
 				// filter out explicitly skipped properties
 				.filterNot { it.exportServicePropertyAnnotation()?.skip == true }
-				.map { collectProperty(it) },
+				.mapNotNull { collectProperty(it) },
 			typeParams =
 				when (c) {
 					is DClass -> c.generics.map { it.name }
@@ -387,13 +391,15 @@ class ModelCollector(val ctx: DokkaContext) : DocumentableToPageTranslator {
 		}
 	}
 
-	private fun collectProperty(prop: DProperty): Model.Type.Property =
-		Model.Type.Property(
-			name = prop.name,
-			type = collectTypeRef(prop.type),
-			default = prop.extra[DefaultValue]?.value,
-			doc = prop.documentation.readKdoc()
-		)
+	private fun collectProperty(prop: DProperty): Model.Type.Property? =
+		collectTypeRef(prop.type)?.let { propType ->
+			Model.Type.Property(
+				name = prop.name,
+				type = propType,
+				default = prop.extra[DefaultValue]?.value,
+				doc = prop.documentation.readKdoc()
+			)
+		}
 
 	private fun collectTypeAlias(t: DTypeAlias): Model.TypeAlias {
 
