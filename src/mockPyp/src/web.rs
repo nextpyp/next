@@ -7,7 +7,7 @@ use serde_json::{json, Map, Value};
 
 use crate::args::{Args, ArgsConfig, ArgType};
 use crate::metadata::{Micrograph, TiltSeries};
-
+use crate::refinement::{Histogram, Reconstruction};
 
 pub struct Web {
 	host: String,
@@ -437,6 +437,48 @@ impl Web {
 		Ok(())
 	}
 
+	pub fn write_reconstruction(&self, reconstruction: &Reconstruction) -> Result<()> {
+
+		let mut args = Map::<String,Value>::new();
+		args.ins("webid", self.id.as_str());
+
+		args.ins("reconstruction_id", reconstruction.id.as_str());
+		args.ins("class_num", reconstruction.class_num);
+		args.ins("iteration", reconstruction.iteration);
+
+		args.ins_array2("fsc", &reconstruction.fsc.samples);
+
+		{
+			let m = args.get_or_ins_object("metadata")?;
+			m.ins("particles_total", reconstruction.metadata.particles_total);
+			m.ins("particles_used", reconstruction.metadata.particles_used);
+			m.ins("phase_residual", reconstruction.metadata.phase_residual);
+			m.ins("occ", reconstruction.metadata.occ);
+			m.ins("logp", reconstruction.metadata.logp);
+			m.ins("sigma", reconstruction.metadata.sigma);
+		}
+
+		{
+			let m = args.get_or_ins_object("plots")?;
+			m.ins_array2("def_rot_histogram", &reconstruction.plots.def_rot_histogram.pixels);
+			m.ins_array2("def_rot_scores", &reconstruction.plots.def_rot_scores.pixels);
+			m.ins_hist("rot_hist", &reconstruction.plots.rot_hist);
+			m.ins_hist("def_hist", &reconstruction.plots.def_hist);
+			m.ins_hist("scores_hist", &reconstruction.plots.scores_hist);
+			m.ins_hist("occ_hist", &reconstruction.plots.occ_hist);
+			m.ins_hist("logp_hist", &reconstruction.plots.logp_hist);
+			m.ins_hist("sigma_hist", &reconstruction.plots.sigma_hist);
+			if let Some(occ_plot) = &reconstruction.plots.occ_plot {
+				m.ins_array("occ_plot", &occ_plot);
+			}
+		}
+
+
+		self.json_rpc("write_reconstruction", Value::Object(args))?;
+
+		Ok(())
+	}
+
 	pub fn write_tomo_drgn_convergence(&self, epoch: u32) -> Result<()> {
 
 		let mut args = Map::<String,Value>::new();
@@ -490,7 +532,30 @@ impl ValueEx for Value {
 
 trait MapEx {
 	fn ins(&mut self, key: impl AsRef<str>, value: impl Into<Value>) -> &mut Value;
+	fn ins_object(&mut self, key: impl AsRef<str>) -> &mut Map<String,Value>;
 	fn get_or_ins_object(&mut self, key: impl AsRef<str>) -> Result<&mut Map<String,Value>>;
+
+	fn ins_array<T>(&mut self, key: impl AsRef<str>, arr: &Vec<T>)
+		where
+			T: Clone,
+			T: Into<Value>
+	{
+		self.ins(key, arr.to_vec());
+	}
+
+	fn ins_array2<T>(&mut self, key: impl AsRef<str>, arr2: &Vec<Vec<T>>)
+		where
+			T: Clone,
+			T: Into<Value>
+	{
+		self.ins(key, arr2.to_vec());
+	}
+
+	fn ins_hist(&mut self, key: impl AsRef<str>, hist: &Histogram) {
+		let m = self.ins_object(key);
+		m.ins_array("n", &hist.n);
+		m.ins_array("bins", &hist.bins);
+	}
 }
 
 impl MapEx for Map<String,Value> {
@@ -500,6 +565,15 @@ impl MapEx for Map<String,Value> {
 		self.insert(key.to_string(), value.into());
 		self.get_mut(key)
 			.expect("missing value we just added")
+	}
+
+	fn ins_object(&mut self, key: impl AsRef<str>) -> &mut Map<String,Value> {
+		let key = key.as_ref();
+		self.ins(key, Value::Object(Map::new()));
+		self.get_mut(key)
+			.expect("we just added it")
+			.as_object_mut()
+			.expect("we just added an object")
 	}
 
 	fn get_or_ins_object(&mut self, key: impl AsRef<str>) -> Result<&mut Map<String,Value>> {
