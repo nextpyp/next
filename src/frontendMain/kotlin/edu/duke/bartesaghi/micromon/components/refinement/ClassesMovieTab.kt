@@ -52,11 +52,18 @@ class ClassesMovieTab(
 
 		// wire up events
 		iterationsNav.onShow = {
-			val numClasses = state.currentIteration
-				?.let { state.reconstructions.withIteration(it) }
-				?.classes
-				?.size
-			movie.update(numClasses)
+			update()
 		}
+		update()
+	}
+
+	private fun update() {
+
+		val numClasses = state.currentIteration
+			?.let { state.reconstructions.withIteration(it) }
+			?.classes
+			?.size
+
+		movie.update(numClasses)
 	}
 }
