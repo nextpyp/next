@@ -27,14 +27,64 @@ else
   tvb=_VERSION__
   if [ "$version" = "$tva$tvb" ]; then
     echo "No version set by the build process."
-    exit
+    exit 1
   fi
-
 fi
 
 
 # gather info about the local environment
 here=$(pwd)
+
+
+echo "Installing nextPYP $version at: $here"
+
+
+# TODO: let admin know the old pyp container can be deleted
+
+
+# look for an existing installation here and try to populate the original installation settings
+
+# TODO: existing installations won't have these symlinks right? so need to add info to docs to make them
+# first, get the folders based on symlinks
+hereLocalDir="$here/local"
+if [ -z "$PYP_LOCAL" ]; then
+  if [ -L "$hereLocalDir" ]; then
+    PYP_LOCAL="$(readlink "$hereLocalDir")"
+    echo "Found previous local folder at: $PYP_LOCAL"
+  elif [ -d "$hereLocalDir" ]; then
+    echo "Found previous local folder at: $hereLocalDir"
+  fi
+fi
+
+hereSharedDataDir="$here/shared"
+if [ -z "$PYP_SHARED_DATA" ]; then
+  if [ -L "$hereSharedDataDir" ]; then
+    PYP_SHARED_DATA="$(readlink "$hereSharedDataDir")"
+    echo "Found previous shared data folder at: $PYP_SHARED_DATA"
+  elif [ -d "$hereSharedDataDir" ]; then
+    echo "Found previous shared data folder at: $hereSharedDataDir"
+  fi
+fi
+
+hereSharedExecDir="$here/sharedExec"
+if [ -z "$PYP_SHARED_EXEC" ]; then
+  if [ -L "$hereSharedExecDir" ]; then
+    PYP_SHARED_EXEC="$(readlink "$hereSharedExecDir")"
+    echo "Found previous shared exec folder at: $PYP_SHARED_EXEC"
+  elif [ -d "$hereSharedExecDir" ]; then
+    echo "Found previous shared exec folder at: $hereSharedExecDir"
+  fi
+fi
+
+# then, try to get the user,group names from the folder
+if [ -z "$PYP_USER" ] && [ -d "$hereSharedDataDir" ]; then
+  PYP_USER="$(stat -c '%U' -L "$hereSharedDataDir")"
+  echo "Found existing nextPYP account $PYP_USER"
+fi
+if [ -z "$PYP_GROUP" ] && [ -d "$hereSharedDataDir" ]; then
+  PYP_GROUP="$(stat -c '%G' -L "$hereSharedDataDir")"
+  echo "Found existing nextPYP group $PYP_GROUP"
+fi
 
 
 mkdirdo() { #(do, path, chmod ops)
@@ -63,7 +113,7 @@ if [ "$whoami" = "root" ]; then
   username=$PYP_USER
   if [ -z "$username" ]; then
     echo "No PYP_USER set."
-    exit
+    exit 1
   fi
 
   # get the groupname for the service account
@@ -73,11 +123,11 @@ if [ "$whoami" = "root" ]; then
       groupname=$username
     else
       echo "$username is not a valid group. Choose the pyp group by setting PYP_GROUP"
-      exit
+      exit 1
     fi
   fi
 
-  echo "Installing nextPYP $version for service account $username in group $groupname ..."
+  echo "Installing for service account $username in group $groupname ..."
 
   # make a way to do things as the service account, like sudo, but service-do
   srvdo="sudo -u $username"
@@ -151,7 +201,7 @@ else
 
   username="$whoami"
 
-  echo "Installing nextPYP $version as current account $username ..."
+  echo "Installing as current account $username ..."
 
   srvdo=
   heredo=
@@ -216,16 +266,15 @@ if [ -n "$PYP_LOCAL" ]; then
   localDir="$PYP_LOCAL"
 
   # make a symlink to the local folder in the install dir so scripts can easily find it again later
-  # NOTE: currently  not actually used by any other scripts
-  if [ -L "$here/local" ]; then
-    $heredo rm "$here/local"
+  if [ -L "$hereLocalDir" ]; then
+    $heredo rm "$hereLocalDir"
   fi
-  $heredo ln -s "$localDir" "$here/local"
+  $heredo ln -s "$localDir" "$hereLocalDir"
 
 else
 
   # no folder given, use a folder inside the installation folder
-  localDir="$here/local"
+  localDir="$hereLocalDir"
   mkdirheresrv "$localDir" g+s
 
   # check ownership
@@ -261,16 +310,15 @@ if [ -n "$PYP_SHARED_DATA" ]; then
   sharedDataDir="$PYP_SHARED_DATA"
 
   # make a symlink to the shared folder in the install dir so scripts can easily find it again later
-  # NOTE: currently not actually used by any other scripts
-  if [ -L "$here/shared" ]; then
-    $heredo rm "$here/shared"
+  if [ -L "$hereSharedDataDir" ]; then
+    $heredo rm "$hereSharedDataDir"
   fi
-  $heredo ln -s "$sharedDataDir" "$here/shared"
+  $heredo ln -s "$sharedDataDir" "$hereSharedDataDir"
 
 else
 
   # no folder given, use a folder inside the installation folder
-  sharedDataDir="$here/shared"
+  sharedDataDir="$hereSharedDataDir"
   mkdirheresrv "$sharedDataDir" ugo+rx,g+s
 
   # check ownership
@@ -310,16 +358,15 @@ if [ -n "$PYP_SHARED_EXEC" ]; then
   sharedexecdo="sudo -u $admin"
 
   # make a symlink to the shared exec folder in the install dir so scripts can easily find it again later
-  # NOTE: currently used only by the uninstall script to remove containers and user-processor executables
-  if [ -L "$here/sharedExec" ]; then
-    $heredo rm "$here/sharedExec"
+  if [ -L "$hereSharedExecDir" ]; then
+    $heredo rm "$hereSharedExecDir"
   fi
-  $heredo ln -s "$sharedExecDir" "$here/sharedExec"
+  $heredo ln -s "$sharedExecDir" "$hereSharedExecDir"
 
 else
 
   # no folder given, use a folder in the installation folder
-  sharedExecDir="$here/sharedExec"
+  sharedExecDir="$hereSharedExecDir"
   mkdirherenotsrv "$sharedExecDir" ugo+rx,g+s
 
   # check ownership, if useful (can't enforce admin ownership when there's no admin, ie in unprivileged user mode)
@@ -379,7 +426,7 @@ wgetopts="-nv"
 download() { #(do, path, todir, chmod vops)
   if [ -n "$PYP_DIST" ]; then
     # copy distribution files from the local path
-    echo "Copying $2 ..."
+    echo "Copying $3/$2 ..."
     $1 cp "$PYP_DIST/$2" "$3/$2"
   else
     # otherwise, download from the URL
@@ -456,8 +503,18 @@ if [ "$oscaps" = "root" ]; then
 fi
 
 
-# generate the initial configuration
+hereConfigPath="$here/config.toml"
 configPath="$sharedExecDir/config.toml"
+
+# if a config file exists in the old location, move it to the new one
+if [ -f "$hereConfigPath" ] && [ ! -L "$hereConfigPath" ]; then
+  echo "Found config file in old location: $hereConfigPath"
+  $sharedexecdo mv "$hereConfigPath" "$configPath"
+  $heredo ln -s "$configPath" "$hereConfigPath"
+  echo "Moved config file to new location: $configPath"
+fi
+
+# generate the initial configuration, if needed
 if [ -f "$configPath" ]; then
   echo "Using existing configuration file: $configPath"
 else
@@ -496,16 +553,11 @@ auth = "none"
 
 EOF
   echo "Created configuration file: $configPath"
+  $heredo ln -s "$configPath" "$hereConfigPath"
 fi
 
 # make sure others can't write to the config file
 $sharedexecdo chmod ug=rw,o=r "$configPath"
-
-# make a symlink to the configuration file in the install dir so scripts can easily find it again later
-if [ -L "$here/config.toml" ]; then
-  $heredo rm "$here/config.toml"
-fi
-$heredo ln -s "$configPath" "$here/config.toml"
 
 if [ "$oscaps" = "root" ]; then
   echo "Installing integrations with systemd ..."

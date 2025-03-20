@@ -167,14 +167,17 @@ setup()
   # make sure the base directories exist
   if [ ! -d "$localdir" ] ; then
     echo "Local folder does not exist. It should have been created during installation"
+    echo " at $localdir"
     exit 1
   fi
   if [ ! -d "$shareddatadir" ] ; then
     echo "Shared data folder does not exist. It should have been created during installation"
+    echo " at $shareddatadir"
     exit 1
   fi
   if [ ! -d "$sharedexecdir" ] ; then
     echo "Shared exec folder does not exist. It should have been created during installation"
+    echo " at $sharedexecdir"
     exit 1
   fi
 

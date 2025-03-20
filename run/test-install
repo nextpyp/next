@@ -108,11 +108,12 @@ assert_failed() { #(exit_code)
 
 
 assert_install() {
-  echo "----- CHECK INSTALL -----"
-  "$rundir/nextpyp" check
   local exit
+  cd / || fail
+  echo "----- CHECK INSTALL -----"
+  "$bindir/nextpyp" check
   exit=$?
-  echo "----- ------------- -----"
+  echo "-----      EXIT = $exit -----"
   assert_succeeded $exit
 }
 
@@ -150,20 +151,27 @@ mkdir_install_admin() { # sets installdir
 }
 
 
-install() { #(acct, ...), sets install_exit
+install() { #(acct, ...), sets install_exit, bindir
 
   local cmddo
   if [ "$1" = 'root' ]; then
     cmddo=
+    bindir=/usr/bin
   else
     cmddo="sudo -u \"$1\""
+    bindir="$installdir"
   fi
   shift
 
+  # copy the install script to the install folder
+  cd "$installdir" || fail "failed to cd"
+  eval "$cmddo cp \"$rundir/install\" ./"
+  eval "$cmddo chmod +x ./install"
+
   echo "----- INSTALL SCRIPT -----"
-  eval "$cmddo PYP_DIST=\"$rundir\" $* \"$rundir/install\""
+  eval "$cmddo PYP_DIST=\"$rundir\" $* \"./install\""
   install_exit=$?
-  echo "----- -------------- -----"
+  echo "-----       EXIT = $install_exit -----"
 }
 
 
@@ -177,10 +185,12 @@ uninstall() { #(acct, ...), sets uninstall_exit
   fi
   shift
 
+  cd "$installdir" || fail "failed to cd"
+  eval "$cmddo chmod +x ./uninstall"
   echo "----- UNINSTALL SCRIPT -----"
-  eval "$cmddo $* \"$rundir/uninstall\""
+  eval "$cmddo ./uninstall"
   uninstall_exit=$?
-  echo "----- ---------------- -----"
+  echo "-----         EXIT = $uninstall_exit -----"
 }
 
 
@@ -340,7 +350,7 @@ test_upgrade_as_root_folder_owned_by_root() {
   install "root" PYP_USER="$service_acct"
   assert_succeeded $install_exit
   srvstop
-  install "root" PYP_USER="$service_acct"
+  install "root"
   assert_succeeded $install_exit
   assert_install
 }
@@ -351,7 +361,7 @@ test_upgrade_as_root_folder_owned_by_admin() {
   install "root" PYP_USER="$service_acct"
   assert_succeeded $install_exit
   srvstop
-  install "root" PYP_USER="$service_acct"
+  install "root"
   assert_succeeded $install_exit
   assert_install
 }
@@ -369,7 +379,7 @@ test_upgrade_as_root_with_local() {
   install "root" PYP_USER="$service_acct" PYP_LOCAL="$ldir"
   assert_succeeded $install_exit
   srvstop
-  install "root" PYP_USER="$service_acct" PYP_LOCAL="$ldir"
+  install "root"
   assert_succeeded $install_exit
   assert_install
 }
@@ -386,7 +396,7 @@ test_upgrade_as_root_with_shared_data() {
   install "root" PYP_USER="$service_acct" PYP_SHARED_DATA="$sddir"
   assert_succeeded $install_exit
   srvstop
-  install "root" PYP_USER="$service_acct" PYP_SHARED_DATA="$sddir"
+  install "root"
   assert_succeeded $install_exit
   assert_install
 }
@@ -403,7 +413,7 @@ test_upgrade_as_root_with_shared_exec() {
   install "root" PYP_USER="$service_acct" PYP_SHARED_EXEC="$sedir"
   assert_succeeded $install_exit
   srvstop
-  install "root" PYP_USER="$service_acct" PYP_SHARED_EXEC="$sedir"
+  install "root"
   assert_succeeded $install_exit
   assert_install
 }
@@ -419,6 +429,55 @@ test_upgrade_as_service() {
   assert_install
 }
 
+
+build_installed_v6.5() { #(acct)
+
+  # build an environment that looks like a v6.5 install
+
+  local ldir
+  ldir="$installdir/local"
+  mkdir "$ldir" || fail
+  chown "$service_acct:$service_acct" "$ldir" || fail
+
+  local sddir
+  sddir="$installdir/shared"
+  mkdir "$sddir" || fail
+  chown "$service_acct:$service_acct" "$sddir" || fail
+
+  local configpath
+  configpath="$installdir/config.toml"
+  cat - > "$configpath" << EOF
+
+[pyp]
+container = '$installdir/pyp.sif'
+scratch = '/tmp/pyp'
+
+[web]
+localDir = '$ldir'
+sharedDir = '$sddir'
+auth = "none"
+
+EOF
+  chown "$1:$1" "$configpath" || fail
+}
+
+
+test_upgrade_as_root_from_v6.5() {
+  mkdir_install_root
+  build_installed_v6.5 "root"
+  install "root"
+  assert_succeeded $install_exit
+  assert_install
+}
+
+
+test_upgrade_as_service_from_v6.5() {
+  mkdir_install_service
+  build_installed_v6.5 "$service_acct"
+  install "$service_acct"
+  assert_succeeded $install_exit
+  assert_install
+}
 
 
 # run all the tests
@@ -443,5 +502,10 @@ run_test "test_upgrade_as_root_with_local"
 run_test "test_upgrade_as_root_with_shared_data"
 run_test "test_upgrade_as_root_with_shared_exec"
 run_test "test_upgrade_as_service"
+
+# upgrades from specific versions
+run_test "test_upgrade_as_root_from_v6.5"
+run_test "test_upgrade_as_service_from_v6.5"
+
 
 echo "Testing completed successfully! =D =D =D"
