@@ -540,33 +540,22 @@ EOF
   # poke systemd to recognize the new daemon
   systemctl daemon-reload
 
-  # start the demon now and at boot too
+  # (try to) start the demon now
   if ! systemctl start $appDaemon; then
-    echo "ERROR: Daemon start failure detected, dumping logs:"
-    date
-
-    echo "LOG: systemd service"
-    echo "-----"
-    journalctl -u "$appDaemon"
-    echo "-----"
-
-    dumplog() { #(name, path)
-      echo "LOG: $1"
-      if [ -f "$2" ]; then
-        echo "-----"
-        cat "$2"
-        echo "-----"
-      else
-        echo "   (log not present: $2)"
-      fi
-    }
-
-    dumplog "init" "$localDir/logs/init.log"
-    dumplog "supervisord" "$localDir/logs/superd"
-    dumplog "micromon" "$localDir/logs/micromon"
-
+    echo "ERROR: Looks like nextPYP failed to start the first time."
+    echo "       The first place to look for information is the systemd logs."
+    echo "       You can do that with \`sudo journalctl -ue nextPYP\`"
+    echo "       If there's no useful information there, the next place to look is the init log:"
+    echo "       \`cat "$localDir/logs/init.log"\`"
+    echo "       If there's no useful in formation there, the next place to look is the supervisord log:"
+    echo "       \`cat "$localDir/logs/superd"\`"
+    echo "       Finally, the last place to look for error information is the website log:"
+    echo "       \`tail -n 200 "$localDir/logs/micromon"\`"
+    echo "       If any of the above log files are missing, it means nextPYP never reached that stage of the startup procedure."
     exit 1
   fi
+
+  # and at boot too
   systemctl enable $appDaemon
 
   # seems to be running ok, show the status
