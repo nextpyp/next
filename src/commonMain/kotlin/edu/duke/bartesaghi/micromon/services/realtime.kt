@@ -400,6 +400,7 @@ sealed class RealTimeS2C {
 
 	@Serializable
 	data class SessionSmallData(
+		@ExportServiceProperty(default=DefaultValue.EmptyList)
 		val exports: List<SessionExportData> = emptyList()
 	) : RealTimeS2C()
 
@@ -407,8 +408,11 @@ sealed class RealTimeS2C {
 	data class SessionLargeData(
 		val autoVirionsCount: Long = 0,
 		val autoParticlesCount: Long = 0,
+		@ExportServiceProperty(default=DefaultValue.EmptyList)
 		val micrographs: List<MicrographMetadata> = emptyList(),
+		@ExportServiceProperty(default=DefaultValue.EmptyList)
 		val tiltSerieses: List<TiltSeriesData> = emptyList(),
+		@ExportServiceProperty(default=DefaultValue.EmptyList)
 		val twoDClasses: List<TwoDClassesData> = emptyList(),
 	) : RealTimeS2C()
 

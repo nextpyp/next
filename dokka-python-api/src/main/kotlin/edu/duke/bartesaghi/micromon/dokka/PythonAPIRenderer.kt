@@ -592,21 +592,26 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 							var expr = "optional_map(json.get('${prop.name}', None), lambda it: ${prop.type.renderReader("it", model, type.typeParams)})"
 
 							// apply default value (if any) or bail if the type is not nullable
-							val default = when (val default = prop.default) {
+							val default = when (prop.default) {
 								null -> null
-								is IntegerConstant -> default.value.toString()
-								is StringConstant -> "'${default.value.replace("'", "\\'")}'"
-								is DoubleConstant -> default.value.toString()
-								is FloatConstant -> default.value.toString()
-								is BooleanConstant -> when (default.value) {
-									true -> "True"
-									false -> "False"
+								is Model.Type.Property.Default.Expr -> when (val default = prop.default.expression) {
+									is IntegerConstant -> default.value.toString()
+									is StringConstant -> "'${default.value.replace("'", "\\'")}'"
+									is DoubleConstant -> default.value.toString()
+									is FloatConstant -> default.value.toString()
+									is BooleanConstant -> when (default.value) {
+										true -> "True"
+										false -> "False"
+									}
+									is ComplexExpression -> when (default.value) {
+										"null" -> "None"
+										else -> throw Error("don't know how to handle property default complex expression: ${default.value}")
+									}
+									else -> throw Error("don't know how to handle property default: $default")
 								}
-								is ComplexExpression -> when (default.value) {
-									"null" -> "None"
-									else -> throw Error("don't know how to handle property default complex expression: ${default.value}")
+								is Model.Type.Property.Default.Annotated -> when (prop.default.value) {
+									AnnotatedDefaultValue.EmptyList -> "[]"
 								}
-								else -> throw Error("don't know how to handle property default: $default")
 							}
 							if (!prop.type.nullable) {
 								if (default != null) {
@@ -615,7 +620,7 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 									}
 									expr = "none_map($expr, lambda: $default)"
 								} else {
-									expr = "none_raise($expr, lambda: KeyError('missing JSON key: ${prop.name}'))"
+									expr = "none_raise($expr, lambda: KeyError(f'${type.name}.from_json(): can't deserialize, missing field: ${prop.name}: json={json}'))"
 								}
 							} else if (default != null && default != "None") {
 								expr = "none_map($expr, lambda: $default)"

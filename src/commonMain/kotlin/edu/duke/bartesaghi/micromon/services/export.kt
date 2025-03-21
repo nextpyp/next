@@ -34,8 +34,14 @@ annotation class ExportServiceFunction(
  */
 @Target(AnnotationTarget.PROPERTY)
 annotation class ExportServiceProperty(
-	val skip: Boolean = false
+	val skip: Boolean = false,
+	val default: DefaultValue = DefaultValue.None
 )
+
+enum class DefaultValue {
+	None,
+	EmptyList
+}
 
 
 @Target(AnnotationTarget.PROPERTY)

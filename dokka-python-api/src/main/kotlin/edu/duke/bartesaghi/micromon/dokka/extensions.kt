@@ -47,14 +47,29 @@ fun DFunction.exportServiceFunctionAnnotation(): ExportServiceFunctionAnnotation
 		}
 
 
-data class ExportServicePropertyAnnotation(val skip: Boolean)
+data class ExportServicePropertyAnnotation(
+	val skip: Boolean,
+	val default: AnnotatedDefaultValue? = null
+)
+
+enum class AnnotatedDefaultValue {
+	EmptyList
+}
 
 fun DProperty.exportServicePropertyAnnotation(): ExportServicePropertyAnnotation? =
 	annotations()
 		.find { it.dri.packageName == PACKAGE_SERVICES && it.dri.classNames == "ExportServiceProperty" }
 		?.let {
 			ExportServicePropertyAnnotation(
-				skip = it.params.booleanOrThrow("skip")
+				skip = it.params.boolean("skip") ?: false,
+				default = it.params.enum("default")
+					?.let { dri ->
+						when (Model.typeId(dri)) {
+							Model.typeId(PACKAGE_SERVICES, "DefaultValue.None") -> null
+							Model.typeId(PACKAGE_SERVICES,"DefaultValue.EmptyList") -> AnnotatedDefaultValue.EmptyList
+							else -> throw Error("Unrecognized annotated default value type: $dri")
+						}
+					}
 			)
 		}
 
@@ -128,7 +143,7 @@ fun Map<String,AnnotationParameterValue>.string(name: String): String? =
 
 fun Map<String,AnnotationParameterValue>.stringOrThrow(name: String): String =
 	string(name)
-		?: throw NoSuchElementException("anotation has no parameter named $name")
+		?: throw NoSuchElementException("anotation has no string parameter named $name, try one of ${dumpParams()}")
 
 
 fun Map<String,AnnotationParameterValue>.boolean(name: String): Boolean? =
@@ -137,7 +152,7 @@ fun Map<String,AnnotationParameterValue>.boolean(name: String): Boolean? =
 
 fun Map<String,AnnotationParameterValue>.booleanOrThrow(name: String): Boolean =
 	boolean(name)
-		?: throw NoSuchElementException("anotation has no parameter named $name")
+		?: throw NoSuchElementException("anotation has no boolean parameter named $name, try one of ${dumpParams()}")
 
 
 fun Map<String,AnnotationParameterValue>.classList(name: String): List<DRI>? =
@@ -148,7 +163,7 @@ fun Map<String,AnnotationParameterValue>.classList(name: String): List<DRI>? =
 
 fun Map<String,AnnotationParameterValue>.classListOrThrow(name: String): List<DRI> =
 	classList(name)
-		?: throw NoSuchElementException("anotation has no parameter named $name")
+		?: throw NoSuchElementException("anotation has no class list parameter named $name, try one of ${dumpParams()}")
 
 
 fun Map<String,AnnotationParameterValue>.enum(name: String): DRI? =
@@ -157,7 +172,10 @@ fun Map<String,AnnotationParameterValue>.enum(name: String): DRI? =
 
 fun Map<String,AnnotationParameterValue>.enumOrThrow(name: String): DRI =
 	enum(name)
-		?: throw NoSuchElementException("annotation has no parameter named $name")
+		?: throw NoSuchElementException("annotation has no enum parameter named $name, try one of ${dumpParams()}")
+
+fun Map<String,AnnotationParameterValue>.dumpParams(): String =
+	entries.joinToString(",") { (k, v) -> "$k=${v::class.simpleName}" }
 
 
 // because the default toString() methods for dokka classes are completely damn useless!!! >8[

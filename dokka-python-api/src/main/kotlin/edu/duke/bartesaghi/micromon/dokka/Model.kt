@@ -1,6 +1,7 @@
 package edu.duke.bartesaghi.micromon.dokka
 
 import org.jetbrains.dokka.links.DRI
+import org.jetbrains.dokka.model.BooleanConstant
 import org.jetbrains.dokka.model.Expression
 
 
@@ -120,9 +121,21 @@ class Model(
 		data class Property(
 			val name: String,
 			val type: TypeRef,
-			val default: Expression? = null,
+			val default: Default? = null,
 			val doc: Doc? = null
-		)
+		) {
+
+			sealed interface Default {
+
+				class Expr(val expression: Expression) : Default
+				class Annotated(val value: AnnotatedDefaultValue) : Default
+
+				companion object {
+					fun boolean(v: Boolean): Expr =
+						Expr(BooleanConstant(v))
+				}
+			}
+		}
 
 		val ancestry: List<Type> get() {
 			val out = ArrayList<Type>()

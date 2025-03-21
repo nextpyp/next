@@ -403,7 +403,19 @@ class ModelCollector(val ctx: DokkaContext) : DocumentableToPageTranslator {
 		Model.Type.Property(
 			name = prop.name,
 			type = collectTypeRef(prop.type),
-			default = prop.extra[DefaultValue]?.value,
+			default = run {
+
+				// look for a default expression first
+				prop.extra[DefaultValue]?.value
+					?.let { return@run Model.Type.Property.Default.Expr(it) }
+
+				// otherwise, look for an annotated default,
+				// to cover the cases when dokka's AST can't represent the default value
+				prop.exportServicePropertyAnnotation()?.default
+					?.let { return@run Model.Type.Property.Default.Annotated(it) }
+
+				null
+			},
 			doc = prop.documentation.readKdoc()
 		)
 
@@ -527,8 +539,8 @@ class ModelCollector(val ctx: DokkaContext) : DocumentableToPageTranslator {
 				Model.Type.Property("subtext", Model.TypeRef("kotlin", "String", nullable = true)),
 				Model.Type.Property("icon", Model.TypeRef("kotlin", "String", nullable = true)),
 				Model.Type.Property("content", Model.TypeRef("kotlin", "String", nullable = true)),
-				Model.Type.Property("disabled", Model.TypeRef("kotlin", "Boolean"), default = BooleanConstant(false)),
-				Model.Type.Property("divider", Model.TypeRef("kotlin", "Boolean"), default = BooleanConstant(false))
+				Model.Type.Property("disabled", Model.TypeRef("kotlin", "Boolean"), default = Model.Type.Property.Default.boolean(false)),
+				Model.Type.Property("divider", Model.TypeRef("kotlin", "Boolean"), default = Model.Type.Property.Default.boolean(false))
 			),
 			doc = Model.Doc("""
 				|Search result option, with some options for presentation
