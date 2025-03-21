@@ -215,7 +215,8 @@ fun Application.main(config: Config.Web) {
 
 		// only enable the debug service in debug mode
 		if (config.debug) {
-			DebugService.init(this)
+			// but even then, don't enable it since we've gotten into a habit of turning on debug mode for the nicer logs
+			//DebugService.init(this)
 		}
 	}
 
