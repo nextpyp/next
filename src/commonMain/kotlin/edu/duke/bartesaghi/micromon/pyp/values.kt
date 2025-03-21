@@ -1,5 +1,6 @@
 package edu.duke.bartesaghi.micromon.pyp
 
+import edu.duke.bartesaghi.micromon.services.ExportServiceProperty
 import edu.duke.bartesaghi.micromon.services.ParticlesList
 import kotlinx.serialization.Serializable
 
@@ -170,7 +171,11 @@ val ArgValues.detectMethodOrDefault: DetectMethod
 		)
 
 @Serializable
-enum class DetectMethod(val id: String, val particlesList: (ownerId: String) -> ParticlesList?) {
+enum class DetectMethod(
+	val id: String,
+	@ExportServiceProperty(skip=true)
+	val particlesList: (ownerId: String) -> ParticlesList?
+) {
 
 	None("none", { null }),
 	Auto("auto", { ParticlesList.autoParticles2D(it) }),
@@ -208,7 +213,11 @@ val ArgValues.tomoVirMethodOrDefault: TomoVirMethod
 		)
 
 @Serializable
-enum class TomoVirMethod(val id: String, val particlesList: (ownerId: String) -> ParticlesList?) {
+enum class TomoVirMethod(
+	val id: String,
+	@ExportServiceProperty(skip=true)
+	val particlesList: (ownerId: String) -> ParticlesList?
+) {
 
 	None("none", { null }),
 	Auto("auto", { ParticlesList.autoVirions(it) }),
@@ -250,7 +259,11 @@ val ArgValues.tomoVirDetectMethodOrDefault: TomoVirDetectMethod
 		)
 
 @Serializable
-enum class TomoVirDetectMethod(val id: String, val particlesList: (ownerId: String) -> ParticlesList?) {
+enum class TomoVirDetectMethod(
+	val id: String,
+	@ExportServiceProperty(skip=true)
+	val particlesList: (ownerId: String) -> ParticlesList?
+) {
 
 	None("none", { null }),
 	Auto("template", { ParticlesList.autoParticles3D(it) }),
@@ -277,7 +290,11 @@ val ArgValues.tomoPickMethodOrDefault: TomoPickMethod
 
 
 @Serializable
-enum class TomoPickMethod(val id: String, val particlesList: (ownerId: String) -> ParticlesList?) {
+enum class TomoPickMethod(
+	val id: String,
+	@ExportServiceProperty(skip=true)
+	val particlesList: (ownerId: String) -> ParticlesList?
+) {
 
 	None("none", { null }),
 	Auto("auto", { ParticlesList.autoParticles3D(it) }),
@@ -306,7 +323,11 @@ val ArgValues.tomoSpkMethodOrDefault: TomoSpkMethod
 
 
 @Serializable
-enum class TomoSpkMethod(val id: String, val particlesList: (ownerId: String) -> ParticlesList?) {
+enum class TomoSpkMethod(
+	val id: String,
+	@ExportServiceProperty(skip=true)
+	val particlesList: (ownerId: String) -> ParticlesList?
+) {
 
 	None("none", { null }),
 	Auto("auto", { ParticlesList.autoParticles3D(it) }),
@@ -352,7 +373,11 @@ val ArgValues.tomoSrfMethodOrDefault: TomoSrfMethod
 		)
 
 @Serializable
-enum class TomoSrfMethod(val id: String, val particlesList: (ownerId: String) -> ParticlesList?) {
+enum class TomoSrfMethod(
+	val id: String,
+	@ExportServiceProperty(skip=true)
+	val particlesList: (ownerId: String) -> ParticlesList?
+) {
 
 	None("none", { null }),
 	Template("template", { ParticlesList.autoParticles3D(it) }),
