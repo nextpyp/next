@@ -1,5 +1,6 @@
 package edu.duke.bartesaghi.micromon.dokka
 
+import org.jetbrains.dokka.base.signatures.KotlinSignatureUtils.modifiers
 import org.jetbrains.dokka.base.templating.parseJson
 import org.jetbrains.dokka.links.DRI
 import org.jetbrains.dokka.model.*
@@ -342,6 +343,13 @@ class ModelCollector(val ctx: DokkaContext) : DocumentableToPageTranslator {
 			else -> throw Error("don't know how to reference type ${type::class.simpleName} for $type")
 		}
 
+	private fun DClass.hasModifier(modifier: ExtraModifiers.KotlinOnlyModifiers): Boolean =
+		modifiers().values.any { modifier in it }
+
+	private fun DClasslike.isValueClass(): Boolean =
+		this is DClass && this.hasModifier(ExtraModifiers.KotlinOnlyModifiers.Value)
+
+
 	private fun collectType(c: DClasslike): Model.Type {
 
 		println("\tTYPE: ${c.dri.classNames}")
@@ -371,6 +379,7 @@ class ModelCollector(val ctx: DokkaContext) : DocumentableToPageTranslator {
 				else -> false
 			},
 			doc = c.documentation.readKdoc(),
+			isValueClass = c.isValueClass(),
 
 			// recurse
 			inners = c.classlikes

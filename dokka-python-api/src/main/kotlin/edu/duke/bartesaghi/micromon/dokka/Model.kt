@@ -109,7 +109,8 @@ class Model(
 		val polymorphicSubtypes: MutableList<Type> = ArrayList(),
 		var polymorphicSupertype: Type? = null,
 		val doc: Doc? = null,
-		val inners: MutableList<Type> = ArrayList()
+		val inners: MutableList<Type> = ArrayList(),
+		val isValueClass: Boolean = false
 	) {
 
 		data class Param(val name: String) {
@@ -161,6 +162,16 @@ class Model(
 				inner.descendents(out)
 			}
 			return out
+		}
+
+		fun interiorType(): TypeRef? {
+			if (!isValueClass) {
+				return null
+			}
+			if (props.size != 1) {
+				throw Error("value class doesn't have just one property, it has ${props.size}")
+			}
+			return props[0].type
 		}
 	}
 	val types = ArrayList<Type>()

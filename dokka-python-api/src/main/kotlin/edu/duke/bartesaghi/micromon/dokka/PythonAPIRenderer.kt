@@ -382,6 +382,11 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 
 	private fun Indented.writeClass(type: Model.Type, model: Model) {
 
+		// don't write out value classes: we'll treat them as their inner types instead
+		if (type.isValueClass) {
+			return
+		}
+
 		val args = type.props
 			.joinToString("") {
 				val name = it.name.caseCamelToSnake()
@@ -1175,7 +1180,13 @@ private fun Model.TypeRef.renderReader(expr: String, model: Model, typeParams: L
 					}
 				"$flatName.from_json($expr, type_ids={$p})"
 			} else {
-				"$flatName.from_json($expr)"
+				val interiorType = model.findType(this)?.interiorType()
+				if (interiorType != null) {
+					// for value classes, lower to the interior type
+					interiorType.renderReader(expr, model, emptyList())
+				} else {
+					"$flatName.from_json($expr)"
+				}
 			}
 		}
 
@@ -1240,7 +1251,13 @@ private fun Model.TypeRef.renderWriter(varname: String, model: Model, typeParams
 					throw Error("Don't know how to render reader for type alias: $alias")
 				}
 			} else {
-				"$varname.to_json()"
+				val interiorType = model.findType(this)?.interiorType()
+				if (interiorType != null) {
+					// for value classes, lower to the interior type
+					interiorType.renderWriter(varname, model, emptyList())
+				} else {
+					"$varname.to_json()"
+				}
 			}
 		}
 
