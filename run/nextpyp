@@ -124,7 +124,15 @@ setup()
   if [ -z "$configpath" ]; then
     # look for the config file in the install folder (may be a symlink)
     configpath="$installdir/config.toml"
-    if [ -f "$configpath" ]; then
+    if [ -L "$configpath" ]; then
+      # resovle the symlink
+      configpath="$(readlink "$configpath")"
+      echo "Using configuration from shared folder: $configpath"
+      if [ ! -f "$configpath" ]; then
+        echo "ERROR: Config file symlink points to non-existent path: $configpath"
+        exit 1
+      fi
+    elif [ -f "$configpath" ]; then
       echo "Using configuration from install folder: $configpath"
     else
       echo "ERROR: Config file (or symlink) not found at: $configpath"
