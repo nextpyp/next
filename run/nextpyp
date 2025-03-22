@@ -226,7 +226,7 @@ usersetup()
   # make a way to run commands as the target user
   usdo="sudo -u $username"
 
-  updir="$sharedexecdir/user-processors"
+  updir="$shareddatadir/user-processors"
   upexec="$updir/user-processor-$username"
 }
 
@@ -538,7 +538,7 @@ case "$1" in
 
     setup
 
-    updir="$sharedexecdir/user-processors"
+    updir="$shareddatadir/user-processors"
 
     upgraded=0
     for f in "$updir"/user-processor-* ; do
