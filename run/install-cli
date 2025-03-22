@@ -95,13 +95,14 @@ scratch = '/tmp/pyp'
 # Bind network locations as needed
 # binds = [ '/nfs', '/opt']
 
-[slurm]
+# sample slurm configuration
+# [slurm]
 
 # user account for the SLURM login node
-user = '$(whoami)'
+# user = your_user_name
 
 # hostname for the SLURM login node
-host = '$domain'
+# host = slurm.myorganization.org
 
 # configure SLURM partitions here
 # queues = [ "normal" ]
