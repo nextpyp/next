@@ -222,7 +222,7 @@ private val exportHandlers = mapOf<KClass<out SessionExportRequest>,SessionExpor
 			val file = export.dir(session) / "${names.session}.micrographs"
 			file.writeString(session.resolveFilter(filter).joinToString("\n"))
 		},
-s
+
 		result = { session, export ->
 			export.request as SessionExportRequest.Filter
 
