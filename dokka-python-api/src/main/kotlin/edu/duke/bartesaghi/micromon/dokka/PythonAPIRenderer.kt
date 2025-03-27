@@ -382,8 +382,9 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 
 	private fun Indented.writeClass(type: Model.Type, model: Model) {
 
-		// don't write out value classes: we'll treat them as their inner types instead
-		if (type.isValueClass) {
+		// treat value classes as type aliases for their inner types
+		type.interiorType()?.let { interiorType ->
+			writeln("${type.name} = ${interiorType.render(model)}")
 			return
 		}
 
