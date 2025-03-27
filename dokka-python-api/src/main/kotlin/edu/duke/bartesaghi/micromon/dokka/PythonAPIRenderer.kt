@@ -620,7 +620,7 @@ class PythonAPIRenderer(val ctx: DokkaContext) : Renderer {
 									}
 									expr = "none_map($expr, lambda: $default)"
 								} else {
-									expr = "none_raise($expr, lambda: KeyError(f'${type.name}.from_json(): can't deserialize, missing field: ${prop.name}: json={json}'))"
+									expr = "none_raise($expr, lambda: KeyError(f'${type.name}.from_json(): can\\'t deserialize, missing field: ${prop.name}: json={json}'))"
 								}
 							} else if (default != null && default != "None") {
 								expr = "none_map($expr, lambda: $default)"
