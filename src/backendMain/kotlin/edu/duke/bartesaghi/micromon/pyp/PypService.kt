@@ -251,6 +251,7 @@ object PypService {
 				val values = when (owner) {
 					is ClusterJobOwner.Job -> owner.job.pypParameters()
 					is ClusterJobOwner.Session -> owner.session.pypParameters()
+					is ClusterJobOwner.SessionExport -> return JsonRpcFailure("Can't write micrograph for session export")
 				} ?: return JsonRpcFailure("can't import boxx particles: no pyp parameters sent")
 				val dims = ctf.imageDims()
 				val r = values.detectRad

@@ -8,6 +8,7 @@ import edu.duke.bartesaghi.micromon.mongo.authJobOrThrow
 import edu.duke.bartesaghi.micromon.services.ProjectPermission
 import edu.duke.bartesaghi.micromon.services.SessionPermission
 import edu.duke.bartesaghi.micromon.sessions.Session
+import edu.duke.bartesaghi.micromon.sessions.SessionExport
 import edu.duke.bartesaghi.micromon.sessions.authSessionOrThrow
 import io.kvision.remote.ServiceException
 
@@ -26,6 +27,12 @@ sealed class ClusterJobOwner(
 		override fun toString(): String =
 			"Session[${session.type.id},${session.id}]"
 	}
+
+	class SessionExport(val export: edu.duke.bartesaghi.micromon.sessions.SessionExport) : ClusterJobOwner(export.idOrThrow) {
+
+		override fun toString(): String =
+			"SessionExport[session=${export.sessionId},export=${export.id}]"
+	}
 }
 
 
@@ -43,6 +50,11 @@ fun ClusterJob.findOwner(): ClusterJobOwner? {
 	// try sessions
 	Session.fromId(ownerId)?.let { session ->
 		return ClusterJobOwner.Session(session)
+	}
+
+	// try session exports
+	SessionExport.get(ownerId)?.let { export ->
+		return ClusterJobOwner.SessionExport(export)
 	}
 
 	// owner was unrecognized
@@ -95,6 +107,7 @@ fun User.authClusterJobOrThrow(permission: ClusterJobPermission, clusterJobId: S
 
 		is ClusterJobOwner.Job -> authJobOrThrow(permission.toProject(), owner.job.idOrThrow)
 		is ClusterJobOwner.Session -> authSessionOrThrow(owner.session.idOrThrow, permission.toSession())
+		is ClusterJobOwner.SessionExport -> authSessionOrThrow(owner.export.sessionId, permission.toSession())
 	}
 
 	return clusterJob

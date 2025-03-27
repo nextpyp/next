@@ -2,13 +2,14 @@
 use std::collections::VecDeque;
 use std::{env, fs};
 use std::ops::Deref;
+use std::path::PathBuf;
 use std::process::ExitCode;
 
 use anyhow::{bail, Context, Result};
 use display_error_chain::ErrorChainExt;
 use tracing::{error, info, warn};
 
-use mock_pyp::{blocks, logging, sessions, info as web_info, error as web_error};
+use mock_pyp::{blocks, logging, sessions, info as web_info, warn as web_warn, error as web_error};
 use mock_pyp::args::{Args, ArgsConfig};
 use mock_pyp::logging::ResultExt;
 use mock_pyp::web::Web;
@@ -58,6 +59,16 @@ fn run() -> Result<()> {
 		"streampyp" => {
 			let web = Web::new()?;
 			let result = run_session(&web, args, array_element);
+			if let Err(e) = &result {
+				// make an attempt to stream the error to the log
+				web_error!(web, "{}", e.deref().chain());
+			}
+			result
+		}
+
+		"pex" => {
+			let web = Web::new()?;
+			let result = run_export(&web, args);
 			if let Err(e) = &result {
 				// make an attempt to stream the error to the log
 				web_error!(web, "{}", e.deref().chain());
@@ -164,6 +175,20 @@ fn run_project(web: &Web, args: VecDeque<String>, array_element: Option<u32>) ->
 
 	// run the block command
 	blocks::run(web, block_id.as_str(), &mut args, &args_config, array_element)?;
+
+	Ok(())
+}
+
+
+fn run_export(web: &Web, _args: VecDeque<String>) -> Result<()> {
+
+	// TODO: mock exports?
+	web_warn!(&web, "TODO: mock exports");
+
+	// TEMP: for now, just create the relion folder to pass checks in the website
+	let dir = PathBuf::from("relion");
+	fs::create_dir_all(&dir)
+		.context(format!("Failed to create export folder: {}", dir.to_string_lossy()))?;
 
 	Ok(())
 }

@@ -4,10 +4,10 @@ import com.mongodb.client.model.Updates.set
 import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.cluster.ClusterJob
 import edu.duke.bartesaghi.micromon.cluster.slurm.toSbatchArgs
-import edu.duke.bartesaghi.micromon.linux.userprocessor.createDirsIfNeededAs
 import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.pyp.ArgValues
 import edu.duke.bartesaghi.micromon.pyp.Pyp
+import edu.duke.bartesaghi.micromon.pyp.dataParent
 import edu.duke.bartesaghi.micromon.services.*
 import org.bson.Document
 import java.nio.file.Path
@@ -61,8 +61,8 @@ class SessionExport(
 				)
 			}
 
-			// create the export folder
-			export.dir(session).createDirsIfNeededAs(user.osUsername)
+			// create the export folder (as the service acct)
+			export.dir(session).createDirsIfNeeded()
 
 			// run the request-specific prep
 			request.handler.prep(session, export)
@@ -75,16 +75,22 @@ class SessionExport(
 				}
 			val pypDir = session.pypDir(names)
 
+			// write the parameters file
+			val paramsPath = session.dir / "pyp_params.${export.idOrThrow}.toml"
+			paramsPath.writeString(ArgValues(Backend.instance.pypArgs).apply {
+				dataParent = pypDir.toString()
+			}.toToml())
+
 			// launch the cluster job
 			val clusterJob = Pyp.pex.launch(
 				userId = user.id,
-				osUsername = null,
+				osUsername = null, // NOTE: use the service acct for session things
 				webName = "Export ${request::class.simpleName}",
 				clusterName = "pyp_export",
 				owner = export.idOrThrow,
 				ownerListener = this,
 				dir = export.dir(session),
-				args = listOf("-data_parent=${pypDir}"),
+				args = listOf("-params_file=$paramsPath"),
 				launchArgs = slurmArgValues.toSbatchArgs()
 			)
 			export.clusterJobId = clusterJob.id
@@ -216,7 +222,7 @@ private val exportHandlers = mapOf<KClass<out SessionExportRequest>,SessionExpor
 			val file = export.dir(session) / "${names.session}.micrographs"
 			file.writeString(session.resolveFilter(filter).joinToString("\n"))
 		},
-
+s
 		result = { session, export ->
 			export.request as SessionExportRequest.Filter
 

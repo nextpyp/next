@@ -73,6 +73,7 @@ fun SavedParticles<Particle3DUntyped>.toUnbinned3D(owner: ClusterJobOwner, list:
 			val argValues = when (owner) {
 				is ClusterJobOwner.Job -> owner.job.pypParametersOrThrow()
 				is ClusterJobOwner.Session -> owner.session.pypParametersOrThrow()
+				is ClusterJobOwner.SessionExport -> throw Error("Session export has no particles")
 			}
 
 			val tomoBinning = argValues.tomoRecBinningOrDefault
