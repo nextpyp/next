@@ -247,9 +247,6 @@ class SingleParticleSessionView(
 								opsTab?.transferMonitor?.finished(msg)
 								opsTab?.speedsMonitor?.transferFinished()
 							}
-							is RealTimeS2C.UpdatedParameters -> {
-								micrographsTab?.update(msg)
-							}
 							is RealTimeS2C.SessionMicrograph -> {
 
 								// add or update the micrograph
@@ -626,10 +623,6 @@ class SingleParticleSessionView(
 		fun show(lazyTab: LazyTabPanel.LazyTab) {
 			lazyTab.elem.add(this)
 			loader.init(lazyTab)
-		}
-
-		fun update(msg: RealTimeS2C.UpdatedParameters) {
-			listNav.reshow()
 		}
 	}
 

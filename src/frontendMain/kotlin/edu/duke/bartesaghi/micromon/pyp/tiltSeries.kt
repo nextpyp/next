@@ -70,15 +70,7 @@ data class TiltSeriesesData(
 			// older blocks had complicated rules
 			is TomographyPreprocessingData,
 			is TomographyImportDataData,
-			is TomographySessionDataData -> combinedRules(
-				job.jobId,
-				values.tomoVirMethodOrDefault,
-				values.tomoVirRadOrDefault,
-				values.tomoVirBinnOrDefault.toInt(),
-				values.tomoVirDetectMethodOrDefault,
-				values.tomoSpkMethodOrDefault,
-				values.tomoSpkRadOrDefault
-			)
+			is TomographySessionDataData -> combinedRules(job.jobId, values)
 
 			// other blocks don't have particles
 			else -> Unit
@@ -89,61 +81,65 @@ data class TiltSeriesesData(
 		console.log("Loaded tilt series data: particles=", particles)
 	}
 
-	private fun combinedRules(
-		ownerId: String,
-		tomoVirMethod: TomoVirMethod,
-		tomoVirRad: ValueA,
-		tomoVirBinn: Int,
-		tomoVirDetectMethod: TomoVirDetectMethod,
-		tomoSpkMethod: TomoSpkMethod,
-		tomoSpkRad: ValueA
-	) {
+	private fun combinedRules(ownerId: String, values: ArgValues) {
 
 		// check for virus mode
-		val virionsList = tomoVirMethod.particlesList(ownerId)
+		val virionsList = values.tomoVirMethodOrDefault.particlesList(ownerId)
 		if (virionsList != null) {
 
 			particles = TiltSeriesesParticlesData.VirusMode(
 				virions = TiltSeriesesParticlesData.Data(
 					list = virionsList,
-					radius = tomoVirRad
+					radius = values.tomoVirRad
 				),
-				spikes = tomoVirDetectMethod.particlesList(ownerId)?.let { list ->
+				spikes = values.tomoVirDetectMethodOrDefault.particlesList(ownerId)?.let { list ->
 					TiltSeriesesParticlesData.Data(list)
 				}
 			)
 
 		} else {
 
-			particles = tomoSpkMethod.particlesList(ownerId)?.let { list ->
+			particles = values.tomoSpkMethodOrDefault.particlesList(ownerId)?.let { list ->
 				TiltSeriesesParticlesData.Data(
 					list,
-					radius = tomoSpkRad
+					radius = values.tomoSpkRad
 				)
 			}
 		}
 	}
 
-	fun loadForSession(session: SessionData, initMsg: RealTimeS2C.SessionStatus, dataMsg: RealTimeS2C.SessionLargeData) {
+	fun loadForSession(session: TomographySessionData, args: Args, dataMsg: RealTimeS2C.SessionLargeData) {
 
 		// collect all the tilt series
 		tiltSerieses.clear()
 		tiltSerieses.addAll(dataMsg.tiltSerieses)
 
-		// sessions work like combined mode project blocks
-		combinedRules(
-			session.sessionId,
-			initMsg.tomoVirMethod,
-			initMsg.tomoVirRad,
-			initMsg.tomoVirBinn.toInt(),
-			initMsg.tomoVirDetectMethod,
-			initMsg.tomoSpkMethod,
-			initMsg.tomoSpkRad
-		)
+		// get the newest arg values, if any
+		val values = session.args.newest()
+			?.args?.values?.toArgValues(args)
+		if (values != null) {
+
+			// sessions work like combined mode project blocks
+			combinedRules(session.sessionId, values)
+		}
 
 		// since loading particles list is a complicated and error-prone process,
 		// let's just always print debug info here about what got loaded
 		console.log("Loaded tilt series data: particles=", particles)
+	}
+
+	fun updateForSession(session: TomographySessionData, args: Args) {
+
+		// get the newest arg values, if any
+		val values = session.args.newest()
+			?.args?.values?.toArgValues(args)
+		if (values != null) {
+			combinedRules(session.sessionId, values)
+		}
+
+		// since loading particles list is a complicated and error-prone process,
+		// let's just always print debug info here about what got loaded
+		console.log("Updated tilt series data: particles=", particles)
 	}
 
 	fun update(tiltSeries: TiltSeriesData) {

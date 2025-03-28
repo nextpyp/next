@@ -520,9 +520,6 @@ object RealTimeService {
 
 	private suspend fun SendChannel<Frame>.sendSessionStatus(session: Session) {
 
-		val values = session.pypParameters()
-		val defaults = ArgValues(Backend.instance.pypArgsWithMicromon)
-
 		// send the initial status
 		// NOTE: this should be FAST so the UI feels responsive
 		sendMessage(RealTimeS2C.SessionStatus(
@@ -538,14 +535,7 @@ object RealTimeService {
 						size = job.commands.numJobs,
 						status = job.getLog()?.runStatus() ?: RunStatus.Waiting
 					)
-				},
-
-			tomoVirMethod = (values ?: defaults).tomoVirMethodOrDefault,
-			tomoVirRad = (values ?: defaults).tomoVirRadOrDefault,
-			tomoVirBinn = (values ?: defaults).tomoVirBinnOrDefault,
-			tomoVirDetectMethod = (values ?: defaults).tomoVirDetectMethodOrDefault,
-			tomoSpkMethod = (values ?: defaults).tomoSpkMethodOrDefault,
-			tomoSpkRad = (values ?: defaults).tomoSpkRadOrDefault
+				}
 		))
 
 		// send the small data

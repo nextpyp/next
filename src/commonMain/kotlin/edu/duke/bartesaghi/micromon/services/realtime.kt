@@ -385,13 +385,7 @@ sealed class RealTimeS2C {
 	data class SessionStatus(
 		/** in order of SessionDaemon.values() */
 		val daemonsRunning: List<Boolean>,
-		val jobsRunning: List<SessionRunningJob>,
-		val tomoVirMethod: TomoVirMethod,
-		val tomoVirRad: ValueA,
-		val tomoVirBinn: Long,
-		val tomoVirDetectMethod: TomoVirDetectMethod,
-		val tomoSpkMethod: TomoSpkMethod,
-		val tomoSpkRad: ValueA,
+		val jobsRunning: List<SessionRunningJob>
 	) : RealTimeS2C() {
 
 		fun isRunning(daemon: SessionDaemon): Boolean

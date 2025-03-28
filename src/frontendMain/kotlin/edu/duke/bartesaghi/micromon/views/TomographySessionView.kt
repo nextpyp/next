@@ -202,7 +202,7 @@ class TomographySessionView(
 			// wait for the large data message from the server
 			val dataMsg = input.receiveMessage<RealTimeS2C.SessionLargeData>()
 			try {
-				tiltSeriesesData.loadForSession(session, initMsg, dataMsg)
+				tiltSeriesesData.loadForSession(session, pypArgs.get(), dataMsg)
 				tiltSeriesStats.set(
 					tiltSeriesesData,
 					virions = dataMsg.autoVirionsCount,
@@ -239,9 +239,6 @@ class TomographySessionView(
 							is RealTimeS2C.SessionTransferFinished -> {
 								opsTab?.transferMonitor?.finished(msg)
 								opsTab?.speedsMonitor?.transferFinished()
-							}
-							is RealTimeS2C.UpdatedParameters -> {
-								tiltSeriesTab?.listNav?.reshow()
 							}
 							is RealTimeS2C.SessionTiltSeries -> {
 								tiltSeriesesData.update(msg.tiltSeries)
@@ -382,10 +379,10 @@ class TomographySessionView(
 				// update the route
 				routing.show(path(session.sessionId))
 
-				initSession(session)
-
 				this@TomographySessionView.session = session
+				initSession(session)
 				updateStatistics()
+				tiltSeriesTab?.listNav?.reshow()
 			}
 		}
 
@@ -405,7 +402,9 @@ class TomographySessionView(
 				this@TomographySessionView.sendSettingsSaved?.invoke()
 
 				this@TomographySessionView.session!!.args.next = args
+				tiltSeriesesData.updateForSession(session, pypArgs.get())
 				updateStatistics()
+				tiltSeriesTab?.listNav?.reshow()
 
 				Toast.success("Session saved")
 			}
@@ -611,16 +610,12 @@ class TomographySessionView(
 	}
 
 	private fun updateStatistics() {
-
 		AppScope.launch {
 
 			val args = pypArgs.get()
 			val argsValues = session?.newestArgs?.values?.toArgValues(args)
 
 			statsElem.removeAll()
-
-			val session = session
-				?: return@launch
 
 			statsElem.add(tiltSeriesStats)
 			statsElem.add(PypStatsLine(PypStats.fromArgValues(argsValues)))

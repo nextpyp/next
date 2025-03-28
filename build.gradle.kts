@@ -52,8 +52,11 @@ group = "edu.duke.bartesaghi"
  * Otherwise, if you fix a bug or patch a vulnerability without breaking compatibility, you must increment the patch number.
  *
  * Also, incrementing 9 yields 10. eg, incrementing the minor version of 1.9.0 yields 1.10.0
+ *
+ * Don't be afraid to increment the major version number!
+ * It's perfectly ok if the major version number becomes some large number like 157.
  */
-val apiVersion = "1.1.0"
+val apiVersion = "2.0.0"
 
 
 repositories {
