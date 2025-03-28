@@ -28,7 +28,7 @@ class SingleParticleDrgnNode(
 	companion object : NodeClientInfo {
 
 		override val config = SingleParticleDrgnNodeConfig
-		override val type = MicromonDiagrams.nodeType(config, "far fa-chart-bar") // TODO: pick an icon
+		override val type = MicromonDiagrams.nodeType(config, "fas fa-dragon") // TODO: pick an icon
 		override val jobClass = SingleParticleDrgnData::class
 		override val urlFragment = null
 
