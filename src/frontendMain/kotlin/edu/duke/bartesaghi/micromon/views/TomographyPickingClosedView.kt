@@ -162,7 +162,7 @@ class TomographyPickingClosedView(val project: ProjectData, val job: TomographyP
 				}
 
 				liveTab = LiveTab(data, tiltSeriesStats)
-				liveTabId = addTab("Reconstruction", "fas fa-desktop") {
+				liveTabId = addTab("Particles", "fas fa-crosshairs") {
 					liveTab?.show(it.elem)
 				}.id
 			}

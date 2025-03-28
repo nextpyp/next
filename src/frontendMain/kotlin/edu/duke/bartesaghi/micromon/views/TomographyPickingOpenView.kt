@@ -124,7 +124,7 @@ class TomographyPickingOpenView(val project: ProjectData, val job: TomographyPic
 
 					persistence = Storage::tomographyPickingOpenTabIndex
 
-					addTab("Reconstruction", "fas fa-desktop") { lazyTab ->
+					addTab("Particles", "fas fa-crosshairs") { lazyTab ->
 
 						val particlesImage = TomoParticlesImage.forProject(project, job, data, tiltSeries, pickingControls)
 						particlesImage.onParticlesChange = {
