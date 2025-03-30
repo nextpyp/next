@@ -138,20 +138,20 @@ class TomographyDrgnEvalVolsView(val project: ProjectData, val job: TomographyDr
 				}
 
 				addTab("PCA (classes)", "fas fa-ruler-horizontal") { lazyTab ->
-					pcaReconstructionTab = PcaReconstructionTab(evalParams.numClasses).also {
+					pcaReconstructionTab = PcaReconstructionTab(10).also {
 						lazyTab.elem.add(it)
 						lazyTab.onActivate = { it.revalidate() }
 					}
 				}
 
 				addTab("PCA (movie)", "fas fa-film") { lazyTab ->
-					pcaClassesMovieTab = PcaClassesMovieTab(evalParams.numClasses).also {
+					pcaClassesMovieTab = PcaClassesMovieTab(10).also {
 						lazyTab.elem.add(it)
 					}
 				}
 
 				addTab("PCA (3D view)", "fas fa-cube") { lazyTab ->
-					pcaThreeDeeTab = PcaThreeDeeTab(evalParams.numClasses).also {
+					pcaThreeDeeTab = PcaThreeDeeTab(10).also {
 						lazyTab.elem.add(it)
 					}
 				}
