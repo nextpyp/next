@@ -484,11 +484,11 @@ object MicromonArgs {
 	)
 
 	val slurmLaunch = listOf(
-		slurmTemplate,
 		slurmLaunchCpus,
 		slurmLaunchMemory,
 		slurmLaunchWalltime,
-		slurmLaunchGres
+		slurmLaunchGres,
+		slurmTemplate
 	)
 
 	val args = Args(
