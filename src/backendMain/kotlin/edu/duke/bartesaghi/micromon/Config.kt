@@ -189,54 +189,6 @@ class Config(toml: String) {
 			throw TomlParseException("TOML parsing failure:\n${doc.errors().joinToString("\n")}")
 		}
 
-		pyp = doc.getTableOrThrow("pyp").run {
-			Pyp(
-				container = getStringOrThrow("container").toPath(),
-				sources = getString("sources")?.toPath(),
-				scratch = getStringOrThrow("scratch").toPath(),
-				binds = getArray("binds")?.run {
-					indices.map { i ->
-						getString(i).toPath()
-					}
-				} ?: emptyList(),
-				// NOTE: there's a `containerExec` option that is used by the pyp launcher, but not the website
-				cudaLibs = getArray("cudaLibs")?.run {
-					indices.map { i ->
-						getString(i).toPath()
-					}
-				} ?: emptyList(),
-				mock = getTable("mock")?.run {
-					Pyp.Mock(
-						getStringOrThrow("container").toPath(),
-						getStringOrThrow("exec").toPath()
-					)
-				}
-			)
-		}
-
-		slurm = doc.getTable("slurm")?.run {
-			Slurm(
-				user = getString("user") ?: System.getProperty("user.name"),
-				host = getStringOrThrow("host"),
-				key = getString("key")?.toPath() ?: SshPoolConfig.defaultKeyPath,
-				port = getInt("port") ?: SshPoolConfig.defaultPort,
-				maxConnections = getInt("maxConnections") ?: SshPoolConfig.defaultPoolSize,
-				timeoutSeconds = getInt("timeoutSeconds") ?: SshPoolConfig.defaultTimeoutSeconds,
-				path = getString("path")?.toPath()
-					?: Paths.get("/usr/bin"),
-				templatesDir = getStringOrThrow("templatesDir")
-					.toPath(),
-			)
-		}
-
-		standalone = doc.getTable("standalone")?.run {
-			Standalone(
-				availableCpus = getInt("availableCpus") ?: Standalone.defaultAvailableCpus,
-				availableMemoryGiB = getInt("availableMemoryGiB") ?: Standalone.defaultAvailableMemoryGiB,
-				availableGpus = getInt("availableGpus") ?: Standalone.defaultAvailableGpus
-			)
-		}
-
 		web = doc.getTableOrThrow("web").run {
 			val host = getString("host") ?: "127.0.0.1"
 			// NOTE: for security reasons, we should only bind to localhost by default, rather than all network iterfaces
@@ -281,6 +233,55 @@ class Config(toml: String) {
 				demo = getBoolean("demo") ?: false,
 				maxProjectsPerUser = getInt("maxProjectsPerUser"),
 				minPasswordLength = getInt("minPasswordLength") ?: 12
+			)
+		}
+
+		pyp = doc.getTableOrThrow("pyp").run {
+			Pyp(
+				container = getString("container")?.toPath()
+					?: (web.sharedExecDir / "containers" / "pyp.sif"),
+				sources = getString("sources")?.toPath(),
+				scratch = getStringOrThrow("scratch").toPath(),
+				binds = getArray("binds")?.run {
+					indices.map { i ->
+						getString(i).toPath()
+					}
+				} ?: emptyList(),
+				// NOTE: there's a `containerExec` option that is used by the pyp launcher, but not the website
+				cudaLibs = getArray("cudaLibs")?.run {
+					indices.map { i ->
+						getString(i).toPath()
+					}
+				} ?: emptyList(),
+				mock = getTable("mock")?.run {
+					Pyp.Mock(
+						getStringOrThrow("container").toPath(),
+						getStringOrThrow("exec").toPath()
+					)
+				}
+			)
+		}
+
+		slurm = doc.getTable("slurm")?.run {
+			Slurm(
+				user = getString("user") ?: System.getProperty("user.name"),
+				host = getStringOrThrow("host"),
+				key = getString("key")?.toPath() ?: SshPoolConfig.defaultKeyPath,
+				port = getInt("port") ?: SshPoolConfig.defaultPort,
+				maxConnections = getInt("maxConnections") ?: SshPoolConfig.defaultPoolSize,
+				timeoutSeconds = getInt("timeoutSeconds") ?: SshPoolConfig.defaultTimeoutSeconds,
+				path = getString("path")?.toPath()
+					?: Paths.get("/usr/bin"),
+				templatesDir = getStringOrThrow("templatesDir")
+					.toPath(),
+			)
+		}
+
+		standalone = doc.getTable("standalone")?.run {
+			Standalone(
+				availableCpus = getInt("availableCpus") ?: Standalone.defaultAvailableCpus,
+				availableMemoryGiB = getInt("availableMemoryGiB") ?: Standalone.defaultAvailableMemoryGiB,
+				availableGpus = getInt("availableGpus") ?: Standalone.defaultAvailableGpus
 			)
 		}
 	}

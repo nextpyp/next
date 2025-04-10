@@ -521,8 +521,6 @@ else
   $sharedexecdo tee "$configPath" > /dev/null << EOF
 
 [pyp]
-# path to the PYP container file, from a SLURM compute node's point of view
-container = '$sharedExecDir/containers/pyp.sif'
 
 # fast storage for temporary files, ideally local to the compute node
 scratch = '/tmp/pyp'
