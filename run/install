@@ -525,6 +525,9 @@ else
 # fast storage for temporary files, ideally local to the compute node
 scratch = '/tmp/pyp'
 
+# add folder paths into this list to make your data visible to nextPYP
+binds = []
+
 
 [web]
 
