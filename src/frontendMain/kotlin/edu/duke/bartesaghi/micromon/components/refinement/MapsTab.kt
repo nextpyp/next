@@ -52,7 +52,7 @@ class MapsTab(
 	override var isActiveTab = false
 
 	private val iterationNav = state.iterationNav.clone()
-	private val classRadio = ClassesRadio("Class")
+	private val classRadio = ClassesRadio("Class", false)
 	private val contentElem = Div()
 
 

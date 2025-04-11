@@ -55,7 +55,7 @@ class ClassesTab(
 
 	private val iterationNav = state.iterationNav.clone()
 
-	private val classRadio = ClassesRadio("Classes")
+	private val classRadio = ClassesRadio("Classes", true)
 
 	private val thumbsPanel = ContentSizedPanel(
 		"Projections/Slices",

@@ -358,7 +358,7 @@ class TomographyDrgnTrainView(val project: ProjectData, val job: TomographyDrgnT
 
 		private val epochElem = Span()
 
-		private val classesRadio = ClassesRadio("Class")
+		private val classesRadio = ClassesRadio("Class", true)
 
 		private val classesPanel = ContentSizedPanel(
 			"Classes",

@@ -169,7 +169,7 @@ class TomographyDrgnEvalVolsView(val project: ProjectData, val job: TomographyDr
 		numClasses: Int
 	) : Div(classes = setOf("reconstruction-tab")) {
 
-		private val classesRadio = ClassesRadio("Class")
+		private val classesRadio = ClassesRadio("Class", true)
 		private val classesPanel = ContentSizedPanel(
 			"Classes",
 			ImageSize.values().map { it.approxWidth },
@@ -363,7 +363,7 @@ class TomographyDrgnEvalVolsView(val project: ProjectData, val job: TomographyDr
 		numClasses: Int
 	) : Div(classes = setOf("reconstruction-tab")) {
 
-		private val classesRadio = ClassesRadio("Class")
+		private val classesRadio = ClassesRadio("Class", true)
 		private val classesPanel = ContentSizedPanel(
 			"Classes",
 			ImageSize.values().map { it.approxWidth },

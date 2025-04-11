@@ -8,9 +8,10 @@ fun Int.classNumToIndex() = this - 1
 
 class ClassesRadio(
 	label: String,
+	canMultiSelect: Boolean
 ) : RadioSelection(
 	labelText = "$label: ",
-	canMultiSelect = true
+	canMultiSelect = canMultiSelect
 ) {
 
 	var checkedClasses: List<Int>
