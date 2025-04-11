@@ -37,7 +37,9 @@ pub enum Request {
 
 	/// send SIGTERM to a process launched with Exec
 	Kill {
-		pid: u32
+		signal: KillSignal,
+		pid: u32,
+		process_group: bool
 	},
 
 	/// lookup the username for a uid
@@ -142,6 +144,33 @@ impl ExecStderr {
 }
 
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum KillSignal {
+	Interrupt,
+	Kill
+}
+
+impl KillSignal {
+
+	pub fn name(&self) -> &'static str {
+		match self {
+			Self::Interrupt => "SIGINT",
+			Self::Kill => "SIGKILL"
+		}
+	}
+
+	fn from(s: &str) -> Option<Self> {
+		if Self::Interrupt.name() == s {
+			Some(Self::Interrupt)
+		} else if Self::Kill.name() == s {
+			Some(Self::Kill)
+		} else {
+			None
+		}
+	}
+}
+
+
 impl RequestEnvelope {
 
 	pub fn encode(&self) -> Result<Vec<u8>> {
@@ -230,9 +259,11 @@ impl RequestEnvelope {
 				out.write_u32::<BigEndian>(*pid)?;
 			}
 
-			Request::Kill { pid } => {
+			Request::Kill { signal, pid, process_group } => {
 				out.write_u32::<BigEndian>(Request::ID_KILL)?;
+				out.write_utf8(signal.name())?;
 				out.write_u32::<BigEndian>(*pid)?;
+				out.write_bool(*process_group)?;
 			}
 
 			Request::Username { uid } => {
@@ -359,7 +390,15 @@ impl RequestEnvelope {
 				}
 			} else if type_id == Request::ID_KILL {
 				Request::Kill {
-					pid: reader.read_u32::<BigEndian>().map_err(|e| (e.into(), Some(request_id)))?
+					signal: {
+						let signal_str = reader.read_utf8().map_err(|e| (e.into(), Some(request_id)))?;
+						match KillSignal::from(&signal_str) {
+							Some(s) => s,
+							None => return Err((anyhow!("Unrecognized kill signal: {}", &signal_str), Some(request_id)))
+						}
+					},
+					pid: reader.read_u32::<BigEndian>().map_err(|e| (e.into(), Some(request_id)))?,
+					process_group: reader.read_bool().map_err(|e| (e.into(), Some(request_id)))?
 				}
 			} else if type_id == Request::ID_USERNAME {
 				Request::Username {
@@ -956,7 +995,9 @@ mod test {
 		});
 
 		assert_roundtrip(Request::Kill {
-			pid: 42
+			signal: KillSignal::Interrupt,
+			pid: 42,
+			process_group: false
 		});
 
 		assert_roundtrip(Request::Username {

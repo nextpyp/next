@@ -238,23 +238,28 @@ class HostProcessor(
 	// NOTE: need an interface here to keep things private to the outer class, like the constructor
 	interface Process {
 		val pid: UInt
-		suspend fun status(): Boolean
-		suspend fun kill()
+		suspend fun status(): Response.Status
+		suspend fun interrupt(processGroup: Boolean = false)
+		suspend fun kill(processGroup: Boolean = false)
 	}
 
 	open inner class ProcessImpl(override val pid: UInt) : Process {
 
-		override suspend fun status(): Boolean =
+		override suspend fun status(): Response.Status =
 			connectionOrThrow
 				.request(Request.Status(pid))
 				.use { responder ->
 					responder.recv<Response.Status>()
-						.isRunning
 				}
 
-		override suspend fun kill() =
+		/** shells usually respond to SIGINT rather than SIGTERM */
+		override suspend fun interrupt(processGroup: Boolean) =
 			connectionOrThrow
-				.send(Request.Kill(pid))
+				.send(Request.Kill(Request.Kill.Signal.Interrupt, pid, processGroup))
+
+		override suspend fun kill(processGroup: Boolean) =
+			connectionOrThrow
+				.send(Request.Kill(Request.Kill.Signal.Kill, pid, processGroup))
 	}
 
 

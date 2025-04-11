@@ -260,7 +260,7 @@ class UserProcessor(
 
 		suspend fun HostProcessor.StreamingProcess.close(log: Logger) {
 
-			var isAlive = status()
+			var isAlive = status().isRunning
 			log.debug("cleaning up subprocess, alive? {}", isAlive)
 			if (isAlive) {
 
@@ -269,7 +269,7 @@ class UserProcessor(
 				kill()
 
 				retryLoop(5_000L) { _, timedOut ->
-					isAlive = status()
+					isAlive = status().isRunning
 					if (!isAlive) {
 						log.debug("Exited!")
 						Tried.Return(Unit)

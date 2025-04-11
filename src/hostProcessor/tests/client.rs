@@ -675,7 +675,7 @@ mod exec {
 	use tracing::info;
 
 	use host_processor::framing::{ReadFramed, WriteFramed};
-	use host_processor::proto::{ConsoleKind, ExecRequest, ExecResponse, ProcessEvent, Request, RequestEnvelope, Response, ResponseEnvelope};
+	use host_processor::proto::{ConsoleKind, ExecRequest, ExecResponse, KillSignal, ProcessEvent, Request, RequestEnvelope, Response, ResponseEnvelope};
 
 
 	pub fn launch(socket: &mut UnixStream, request: ExecRequest) -> (u32, u32) {
@@ -793,6 +793,10 @@ mod exec {
 
 
 	pub fn kill(socket: &mut UnixStream, pid: u32) {
-		super::send(socket, Request::Kill { pid });
+		super::send(socket, Request::Kill {
+			signal: KillSignal::Interrupt,
+			pid,
+			process_group: false
+		});
 	}
 }

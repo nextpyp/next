@@ -14,6 +14,8 @@ import edu.duke.bartesaghi.micromon.linux.userprocessor.readStringAs
 import edu.duke.bartesaghi.micromon.services.ClusterJobResultType
 import edu.duke.bartesaghi.micromon.services.ClusterMode
 import edu.duke.bartesaghi.micromon.services.StandaloneData
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.nio.file.Path
@@ -22,6 +24,7 @@ import java.util.*
 import kotlin.collections.HashMap
 import kotlin.math.absoluteValue
 import kotlin.random.Random
+import kotlin.time.Duration.Companion.seconds
 
 
 /**
@@ -523,10 +526,29 @@ class PseudoCluster(val config: Config.Standalone) : Cluster {
 			for (task in job.tasks) {
 				val process = task.process
 				if (!task.finished && process != null) {
-					process.kill()
-					// TODO: do we need to forcibly terminate? after a timeout?
-					// NOTE: the job end signal will be sent by the job process before it exits
-					//       but since we already removed all the tasks and jobs, we should just ignore the signal
+
+					Backend.log.debug("Asking job {} task {} to exit nicely ...", job.jobId, task.taskId)
+
+					// ask the process to exit nicely
+					// NOTE: we run all our jobs in a shell and shells usually respond to SIGINT instead of SIGTERM
+					// NOTE: send SIGINT to the whole process group too, since shells won't forward SIGINT
+					process.interrupt(processGroup=true)
+
+					// but just in case, follow up with a less nice request later on
+					Backend.instance.scope.launch {
+						delay(10.seconds)
+
+						// if the task is still running, take it down more forcefully
+						if (process.status().isRunning) {
+							Backend.log.warn("Job {} task {} didn't exit after asking nicely. Asking less nicely.", job.jobId, task.taskId)
+							process.kill(processGroup=true)
+						} else {
+							Backend.log.debug("Job {} task {} exited after asking nicely.", job.jobId, task.taskId)
+						}
+					}
+
+					// NOTE: the job end signal will be sent by the task process before it exits
+					//       but since we already removed all the tasks and jobs, that signal should be ignored
 				}
 			}
 		}

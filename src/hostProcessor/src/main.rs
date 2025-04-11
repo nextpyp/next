@@ -26,7 +26,7 @@ use tracing::{debug, error_span, info, Instrument, trace, warn};
 use host_processor::framing::{AsyncReadFramed, AsyncWriteFramed};
 use host_processor::logging::{self, ResultExt};
 use host_processor::processes::Processes;
-use host_processor::proto::{ConsoleKind, ExecRequest, ExecResponse, ExecStderr, ExecStdin, ExecStdout, ProcessEvent, Request, RequestEnvelope, Response, ResponseEnvelope};
+use host_processor::proto::{ConsoleKind, ExecRequest, ExecResponse, ExecStderr, ExecStdin, ExecStdout, KillSignal, ProcessEvent, Request, RequestEnvelope, Response, ResponseEnvelope};
 
 
 #[derive(Options)]
@@ -264,8 +264,8 @@ async fn drive_connection(socket: UnixStream, processes: Rc<Mutex<Processes>>) {
 						dispatch_close_stdin(processes, pid)
 							.await,
 
-					Request::Kill { pid } =>
-						dispatch_kill(processes, pid)
+					Request::Kill { signal, pid, process_group } =>
+						dispatch_kill(processes, signal, pid, process_group)
 							.await,
 
 					Request::Username { uid } =>
@@ -401,10 +401,12 @@ async fn dispatch_exec(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32, proce
 			ExecStderr::Log => Stdio::piped(),
 			ExecStderr::Ignore => Stdio::null()
 		})
+		.process_group(0) // start a new process group for this process and all its subprocesses
 		.spawn()
 		.context("Failed to spawn process")
 		.and_then(|proc| {
 			// lookup the pid, if any
+			// NOTE: the PID here is also the PGID, since we created a new process group
 			match proc.id() {
 				Some(pid) => Ok((proc, pid)),
 				None => Err(anyhow!("Spawned process had no pid"))
@@ -641,10 +643,10 @@ async fn dispatch_close_stdin(processes: Rc<Mutex<Processes>>, pid: u32) {
 
 
 #[tracing::instrument(skip_all, level = 5, name = "Kill", fields(pid))]
-async fn dispatch_kill(processes: Rc<Mutex<Processes>>, pid: u32) {
+async fn dispatch_kill(processes: Rc<Mutex<Processes>>, signal: KillSignal, pid: u32, process_group: bool) {
 
 	tracing::Span::current().record("pid", pid);
-	trace!("Request");
+	trace!("Request: signal={}, process_group={}", &signal.name(), process_group);
 
 	let Ok(_) = processes.lock()
 		.await
@@ -654,12 +656,28 @@ async fn dispatch_kill(processes: Rc<Mutex<Processes>>, pid: u32) {
 		else { return; };
 
 	// send a kill signal (SIGTERM)
-	Command::new("kill")
-		.arg(pid.to_string())
-		.spawn()
-		.context("Failed to spawn `kill`")
+	let Ok(output) = Command::new("kill")
+		.args([
+			"-s".to_string(), signal.name().to_string(),
+			"--".to_string(), // NODE: need this token to keep the negative pgid from being interpreted as an argument
+			if process_group {
+				format!("-{pid}")
+			} else {
+				format!("{pid}")
+			}
+		])
+		.output()
+		.await
+		.context("Failed to spawn `kill` and wait for its output")
 		.warn_err()
-		.ok();
+		else { return; };
+
+	// examine the kill output
+	if !output.status.success() {
+		let stdout = String::from_utf8_lossy(&output.stdout);
+		let stderr = String::from_utf8_lossy(&output.stderr);
+		warn!("Kill failed with code {:?}\nSTDOUT: {}\nSTDERR: {}", output.status.code(), stdout, stderr);
+	}
 }
 
 

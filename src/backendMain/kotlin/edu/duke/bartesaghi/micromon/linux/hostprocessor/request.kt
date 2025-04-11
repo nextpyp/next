@@ -112,10 +112,23 @@ sealed interface Request {
 	}
 
 	class Kill(
-		val pid: UInt
+		val signal: Signal,
+		val pid: UInt,
+		val processGroup: Boolean
 	) : Request {
 		companion object {
 			const val ID: UInt = 6u
+		}
+
+		enum class Signal(val id: String) {
+
+			Interrupt("SIGINT"),
+			Kill("SIGKILL");
+
+			companion object {
+				operator fun get(id: String): Signal? =
+					values().find { it.id == id }
+			}
 		}
 	}
 
@@ -254,7 +267,9 @@ class RequestEnvelope(
 
 			is Request.Kill -> {
 				out.writeU32(Request.Kill.ID)
+				out.writeUtf8(request.signal.id)
 				out.writeU32(request.pid)
+				out.writeBoolean(request.processGroup)
 			}
 
 			is Request.Username -> {
@@ -350,7 +365,12 @@ class RequestEnvelope(
 				)
 
 				Request.Kill.ID -> Request.Kill(
-					pid = input.readU32()
+					signal = input.readUtf8().let { s ->
+						Request.Kill.Signal[s]
+							?: throw NoSuchElementException("unrecognized kill signal: $s")
+					},
+					pid = input.readU32(),
+					processGroup = input.readBoolean()
 				)
 
 				Request.Username.ID -> Request.Username(
