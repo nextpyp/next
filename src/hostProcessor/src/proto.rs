@@ -111,13 +111,15 @@ pub enum ExecStdout {
 	Write {
 		path: String
 	},
+	Log,
 	Ignore
 }
 
 impl ExecStdout {
 	const ID_STREAM: u32 = 1;
 	const ID_WRITE: u32 = 2;
-	const ID_DROP: u32 = 3;
+	const ID_LOG: u32 = 3;
+	const ID_IGNORE: u32 = 4;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -127,6 +129,7 @@ pub enum ExecStderr {
 		path: String
 	},
 	Merge,
+	Log,
 	Ignore
 }
 
@@ -134,7 +137,8 @@ impl ExecStderr {
 	const ID_STREAM: u32 = 1;
 	const ID_WRITE: u32 = 2;
 	const ID_MERGE: u32 = 3;
-	const ID_DROP: u32 = 4;
+	const ID_LOG: u32 = 4;
+	const ID_IGNORE: u32 = 5;
 }
 
 
@@ -182,8 +186,11 @@ impl RequestEnvelope {
 						out.write_u32::<BigEndian>(ExecStdout::ID_WRITE)?;
 						out.write_utf8(path)?;
 					}
+					ExecStdout::Log => {
+						out.write_u32::<BigEndian>(ExecStdout::ID_LOG)?;
+					}
 					ExecStdout::Ignore => {
-						out.write_u32::<BigEndian>(ExecStdout::ID_DROP)?;
+						out.write_u32::<BigEndian>(ExecStdout::ID_IGNORE)?;
 					}
 				}
 				match &request.stderr {
@@ -197,8 +204,11 @@ impl RequestEnvelope {
 					ExecStderr::Merge => {
 						out.write_u32::<BigEndian>(ExecStderr::ID_MERGE)?;
 					}
+					ExecStderr::Log => {
+						out.write_u32::<BigEndian>(ExecStderr::ID_LOG)?;
+					}
 					ExecStderr::Ignore => {
-						out.write_u32::<BigEndian>(ExecStderr::ID_DROP)?;
+						out.write_u32::<BigEndian>(ExecStderr::ID_IGNORE)?;
 					}
 				}
 				out.write_bool(request.stream_fin)?;
@@ -304,7 +314,9 @@ impl RequestEnvelope {
 							ExecStdout::Write {
 								path: reader.read_utf8().map_err(|e| (e, Some(request_id)))?
 							}
-						} else if stdout_type_id == ExecStdout::ID_DROP {
+						} else if stdout_type_id == ExecStdout::ID_LOG {
+							ExecStdout::Log
+						} else if stdout_type_id == ExecStdout::ID_IGNORE {
 							ExecStdout::Ignore
 						} else {
 							return Err((anyhow!("Unrecognized exec stdin type id: {}", stdout_type_id), Some(request_id)));
@@ -322,7 +334,9 @@ impl RequestEnvelope {
 							}
 						} else if stderr_type_id == ExecStderr::ID_MERGE {
 							ExecStderr::Merge
-						} else if stderr_type_id == ExecStderr::ID_DROP {
+						} else if stderr_type_id == ExecStderr::ID_LOG {
+							ExecStderr::Log
+						} else if stderr_type_id == ExecStderr::ID_IGNORE {
 							ExecStderr::Ignore
 						} else {
 							return Err((anyhow!("Unrecognized exec stdin type id: {}", stderr_type_id), Some(request_id)));

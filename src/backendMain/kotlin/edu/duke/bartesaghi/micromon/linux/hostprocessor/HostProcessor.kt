@@ -1,5 +1,6 @@
 package edu.duke.bartesaghi.micromon.linux.hostprocessor
 
+import edu.duke.bartesaghi.micromon.Backend
 import edu.duke.bartesaghi.micromon.use
 import edu.duke.bartesaghi.micromon.SuspendCloseable
 import edu.duke.bartesaghi.micromon.linux.*
@@ -211,10 +212,18 @@ class HostProcessor(
 					stdin = Request.Exec.Stdin.Ignore,
 					stdout = outPath
 						?.let { Request.Exec.Stdout.Write(it.toString()) }
-						?: Request.Exec.Stdout.Ignore,
+						?: if (Backend.isDevLogging) {
+							Request.Exec.Stdout.Log
+						} else {
+							Request.Exec.Stdout.Ignore
+						},
 					stderr = outPath
 						?.let { Request.Exec.Stderr.Merge }
-						?: Request.Exec.Stderr.Ignore,
+						?: if (Backend.isDevLogging) {
+							Request.Exec.Stderr.Log
+						} else {
+							Request.Exec.Stderr.Ignore
+						},
 					streamFin = false
 				)
 			)

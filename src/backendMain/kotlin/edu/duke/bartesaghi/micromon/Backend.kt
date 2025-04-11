@@ -50,6 +50,10 @@ class Backend(config: Config, val pypArgs: Args) {
 		fun uninstall() {
 			_instance = null
 		}
+
+
+		val isDevLogging: Boolean get() =
+			System.getenv("NEXTPYP_LOGS") == "dev"
 	}
 
 	val pypArgsWithMicromon get() =

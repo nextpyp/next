@@ -1,5 +1,6 @@
 package edu.duke.bartesaghi.micromon.linux.userprocessor
 
+import edu.duke.bartesaghi.micromon.Backend
 import edu.duke.bartesaghi.micromon.SuspendCloseable
 import edu.duke.bartesaghi.micromon.linux.hostprocessor.HostProcessor
 import kotlinx.coroutines.*
@@ -31,7 +32,7 @@ class UserProcessors(val hostProcessor: HostProcessor) : SuspendCloseable {
 			// otherwise, start a new user processor
 			log.debug("starting new subprocess for user: {}", username)
 			val tracingLog =
-				if (System.getenv("NEXTPYP_LOGS") == "dev") {
+				if (Backend.isDevLogging) {
 					"user_processor=debug"
 				} else {
 					null

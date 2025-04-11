@@ -51,8 +51,12 @@ sealed interface Request {
 				}
 			}
 
-			object Ignore : Stdout {
+			object Log : Stdout {
 				const val ID: UInt = 3u
+			}
+
+			object Ignore : Stdout {
+				const val ID: UInt = 4u
 			}
 		}
 
@@ -72,8 +76,12 @@ sealed interface Request {
 				const val ID: UInt = 3u
 			}
 
-			object Ignore : Stderr {
+			object Log : Stderr {
 				const val ID: UInt = 4u
+			}
+
+			object Ignore : Stderr {
+				const val ID: UInt = 5u
 			}
 		}
 	}
@@ -200,6 +208,9 @@ class RequestEnvelope(
 						out.writeU32(Request.Exec.Stdout.Write.ID)
 						out.writeUtf8(request.stdout.path)
 					}
+					Request.Exec.Stdout.Log -> {
+						out.writeU32(Request.Exec.Stdout.Log.ID)
+					}
 					Request.Exec.Stdout.Ignore -> {
 						out.writeU32(Request.Exec.Stdout.Ignore.ID)
 					}
@@ -214,6 +225,9 @@ class RequestEnvelope(
 					}
 					Request.Exec.Stderr.Merge -> {
 						out.writeU32(Request.Exec.Stderr.Merge.ID)
+					}
+					Request.Exec.Stderr.Log -> {
+						out.writeU32(Request.Exec.Stderr.Log.ID)
 					}
 					Request.Exec.Stderr.Ignore -> {
 						out.writeU32(Request.Exec.Stderr.Ignore.ID)
@@ -305,6 +319,7 @@ class RequestEnvelope(
 						Request.Exec.Stdout.Write.ID -> Request.Exec.Stdout.Write(
 							path = input.readUtf8()
 						)
+						Request.Exec.Stdout.Log.ID -> Request.Exec.Stdout.Log
 						Request.Exec.Stdout.Ignore.ID -> Request.Exec.Stdout.Ignore
 						else -> throw NoSuchElementException("unrecognized exec stdout type id: $stdoutTypeId")
 					},
@@ -314,6 +329,7 @@ class RequestEnvelope(
 							path = input.readUtf8()
 						)
 						Request.Exec.Stderr.Merge.ID -> Request.Exec.Stderr.Merge
+						Request.Exec.Stderr.Log.ID -> Request.Exec.Stderr.Log
 						Request.Exec.Stderr.Ignore.ID -> Request.Exec.Stderr.Ignore
 						else -> throw NoSuchElementException("unrecognized exec stderr type id: $stderrTypeId")
 					},

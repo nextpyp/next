@@ -380,7 +380,7 @@ async fn dispatch_exec(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32, proce
 	};
 
 	// spawn the process
-	let response = Command::new(request.program)
+	let result = Command::new(request.program)
 		.args(request.args)
 		.current_dir(dir)
 		.envs(request.envvars)
@@ -391,12 +391,14 @@ async fn dispatch_exec(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32, proce
 		.stdout(match &request.stdout {
 			ExecStdout::Stream => Stdio::piped(),
 			ExecStdout::Write { .. } => Stdio::piped(),
+			ExecStdout::Log => Stdio::piped(),
 			ExecStdout::Ignore => Stdio::null()
 		})
 		.stderr(match &request.stderr {
 			ExecStderr::Stream => Stdio::piped(),
 			ExecStderr::Write { .. } => Stdio::piped(),
 			ExecStderr::Merge => Stdio::piped(),
+			ExecStderr::Log => Stdio::piped(),
 			ExecStderr::Ignore => Stdio::null()
 		})
 		.spawn()
@@ -408,7 +410,7 @@ async fn dispatch_exec(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32, proce
 				None => Err(anyhow!("Spawned process had no pid"))
 			}
 		});
-	let (mut proc, pid) = match response {
+	let (mut proc, pid) = match result {
 		Ok(p) => p,
 		Err(e) => {
 
@@ -448,78 +450,96 @@ async fn dispatch_exec(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32, proce
 	if let Some(proc_stderr) = proc.stderr.take() {
 		proc_outputs.insert(ConsoleKind::Stderr, Box::pin(ReaderStream::new(proc_stderr)));
 	}
-	loop {
-		match proc_outputs.next().await {
+	if proc_outputs.is_empty() {
+		trace!("not streaming process outputs");
+	} else {
+		loop {
+			match proc_outputs.next().await {
 
-			Some((ConsoleKind::Stdout, Ok(chunk))) => {
-				match &request.stdout {
+				Some((ConsoleKind::Stdout, Ok(chunk))) => {
+					match &request.stdout {
 
-					ExecStdout::Stream => {
-						// send back the console chunk
-						let Ok(_) = write_response(&socket, request_id, Response::ProcessEvent(ProcessEvent::Console {
-							kind: ConsoleKind::Stdout,
-							chunk: chunk.to_vec()
-						}))
-							.await
-							else { break; };
-					}
-
-					ExecStdout::Write { .. } => {
-						// write to the stdout file, if any
-						if let Some(file) = &mut stdout_file {
-							let Ok(_) = file.write(&chunk)
+						ExecStdout::Stream => {
+							// send back the console chunk
+							let Ok(_) = write_response(&socket, request_id, Response::ProcessEvent(ProcessEvent::Console {
+								kind: ConsoleKind::Stdout,
+								chunk: chunk.to_vec()
+							}))
 								.await
 								else { break; };
 						}
-					}
 
-					ExecStdout::Ignore => ()
+						ExecStdout::Write { .. } => {
+							// write to the stdout file, if any
+							if let Some(file) = &mut stdout_file {
+								let Ok(_) = file.write(&chunk)
+									.await
+									else { break; };
+							}
+						}
+
+						ExecStdout::Log => {
+							let chunk_str = String::from_utf8_lossy(&chunk);
+							for line in chunk_str.lines() {
+								println!("STDOUT{{rid={},pid{}}}: {}", request_id, pid, line);
+							}
+						}
+
+						ExecStdout::Ignore => ()
+					}
 				}
-			}
 
-			Some((ConsoleKind::Stderr, Ok(chunk))) => {
-				match &request.stderr {
+				Some((ConsoleKind::Stderr, Ok(chunk))) => {
+					match &request.stderr {
 
-					ExecStderr::Stream => {
-						// send back the console chunk
-						let Ok(_) = write_response(&socket, request_id, Response::ProcessEvent(ProcessEvent::Console {
-							kind: ConsoleKind::Stderr,
-							chunk: chunk.to_vec()
-						}))
-							.await
-							else { break; };
-					}
-
-					ExecStderr::Write { .. } => {
-						// write to the stderr file, if any
-						if let Some(file) = &mut stderr_file {
-							let Ok(_) = file.write(&chunk)
+						ExecStderr::Stream => {
+							// send back the console chunk
+							let Ok(_) = write_response(&socket, request_id, Response::ProcessEvent(ProcessEvent::Console {
+								kind: ConsoleKind::Stderr,
+								chunk: chunk.to_vec()
+							}))
 								.await
 								else { break; };
 						}
-					}
 
-					ExecStderr::Merge { .. } => {
-						// write to the stdout file, if any
-						if let Some(file) = &mut stdout_file {
-							let Ok(_) = file.write(&chunk)
-								.await
-								else { break; };
+						ExecStderr::Write { .. } => {
+							// write to the stderr file, if any
+							if let Some(file) = &mut stderr_file {
+								let Ok(_) = file.write(&chunk)
+									.await
+									else { break; };
+							}
 						}
-					}
 
-					ExecStderr::Ignore => ()
+						ExecStderr::Merge { .. } => {
+							// write to the stdout file, if any
+							if let Some(file) = &mut stdout_file {
+								let Ok(_) = file.write(&chunk)
+									.await
+									else { break; };
+							}
+						}
+
+						ExecStderr::Log => {
+							let chunk_str = String::from_utf8_lossy(&chunk);
+							for line in chunk_str.lines() {
+								println!("STDERR{{rid={},pid={}}}: {}", request_id, pid, line);
+							}
+						}
+
+						ExecStderr::Ignore => ()
+					}
 				}
-			}
 
-			Some((kind, Err(e))) => {
-				warn!("Failed to read from {} for pid {}: {}", kind.name(), pid, e.into_chain());
-			}
+				Some((kind, Err(e))) => {
+					warn!("Failed to read from {} for pid {}: {}", kind.name(), pid, e.into_chain());
+				}
 
-			// both streams closed
-			None => {
-				trace!("all proc output streams closed");
-				break;
+				// both streams closed
+				None => {
+					trace!("all proc output streams closed");
+					break;
+				}
 			}
 		}
 	}
