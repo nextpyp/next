@@ -161,8 +161,8 @@ csp_spatial_sigma = 15.0
 csp_transreg = true
 csp_frame_refinement = true
 csp_UseImagesForRefinementMax = 60
-dose_weighting_enable = true
-dose_weighting_fraction = 4
+reconstruct_dose_weighting_enable = true
+reconstruct_dose_weighting_fraction = 4
 
 [blocks.sharpening]
 blockId = "sp-postprocessing"

@@ -60,56 +60,54 @@ tomo_srf_detect_rad = 50
 tomo_srf_detect_dist = 8
 
 [blocks.reference_refinement]
-blockId = "tomo-coarse-refinement"
+blockId = "tomo-reference-refinement"
 name = "Reference-based refinement"
 parent = "particlepickingclosed"
 
 [blocks.reference_refinement.args]
-refine_parfile_tomo = "auto"
 particle_mw = 300
 particle_rad = 150
 particle_sym = "C6"
 extract_box = 192
 extract_gold = false
 extract_bin = 2
-refine_rhref = "8.0"
-refine_fboost = true
+metric_rhref = "8.0"
+metric_fboost = true
+metric_UseImagesForRefinementMax = 10
 reconstruct_mintilt = -50
 reconstruct_maxtilt = 50
-csp_refine_particles = true
-csp_UseImagesForRefinementMax = 10
-csp_NumberOfRandomIterations = 50000
-csp_ToleranceParticlesPsi = 10.0
-csp_ToleranceParticlesTheta = 10.0
-csp_ToleranceParticlesShifts = 50.0
+csp_tomo_reference_AngleStep = 2
+csp_tomo_reference_ToleranceParticlesPsi = 10.0
+csp_tomo_reference_ToleranceParticlesTheta = 10.0
+csp_tomo_reference_ToleranceParticlesShifts = 50.0
+csp_tomo_reference_ShiftStep = 6
 
 [blocks.constrained_refinement]
-blockId = "tomo-coarse-refinement"
+blockId = "tomo-new-coarse-refinement"
 name = "Fully constrained refinement"
 parent = "reference_refinement"
 
 [blocks.constrained_refinement.args]
-refine_parfile = "auto"
-refine_model = "auto"
 particle_mw = 300
 particle_rad = 150
 particle_sym = "C6"
 extract_box = 192
 extract_bin = 2
-refine_maxiter = 4
-refine_rhref = "10:8:6"
-refine_fboost = true
-csp_refine_particles = true
-csp_refine_micrographs = true
-csp_OptimizerStepLength = 100.0
-csp_UseImagesForRefinementMax = 10
-csp_NumberOfRandomIterations = 0
-csp_ToleranceParticlesPsi = 20.0
-csp_ToleranceParticlesPhi = 20.0
-csp_ToleranceParticlesTheta = 20.0
-csp_ToleranceParticlesShifts = 100.0
-dose_weighting_enable = true
-dose_weighting_fraction = 4
+metric_fboost = true
+metric_UseImagesForRefinementMax = 10
+metric_rhref = "10:8:6"
+csp_tomo_coarse_parfile = "auto"
+csp_tomo_coarse_maxiter = 4
+csp_tomo_coarse_refine_particles = true
+csp_tomo_coarse_refine_micrographs = true
+csp_tomo_coarse_OptimizerStepLength = 100.0
+csp_tomo_coarse_NumberOfRandomIterations = 0
+csp_tomo_coarse_ToleranceParticlesPsi = 20.0
+csp_tomo_coarse_ToleranceParticlesPhi = 20.0
+csp_tomo_coarse_ToleranceParticlesTheta = 20.0
+csp_tomo_coarse_ToleranceParticlesShifts = 100.0
+reconstruct_dose_weighting_enable = true
+reconstruct_dose_weighting_fraction = 4
 
 [blocks.particle_filtering]
 blockId = "tomo-fine-refinement"
@@ -123,47 +121,36 @@ clean_mintilt = -15.0
 clean_maxtilt = 15.0
 clean_min_num_projections = 1
 clean_check_reconstruction = true
-clean_parfile = 'auto'
-refine_model = 'auto'
-
-[blocks.particle_deep_clean]
-blockId = "tomo-fine-refinement"
-name = "Particle deep cleaning"
-parent = "particle_filtering"
-
-[blocks.particle_deep_clean.args]
-clean_parfile = 'auto'
-refine_model = 'auto'
 clean_discard = true
+clean_parfile = 'auto'
 
 [blocks.region_refinement]
-blockId = "tomo-coarse-refinement"
+blockId = "tomo-new-coarse-refinement"
 name = "Region-based refinement"
-parent = "particle_deep_clean"
+parent = "particle_filtering"
 
 [blocks.region_refinement.args]
-refine_parfile = "auto"
-refine_model = "auto"
 particle_mw = 300
 particle_rad = 100
 particle_sym = "C6"
 extract_box = 384
 extract_bin = 1
-refine_maxiter = 3
-refine_rhref = "6:5"
-refine_fboost = true
-csp_refine_particles = true
-csp_refine_micrographs = true
-csp_OptimizerStepLength = 100.0
-csp_UseImagesForRefinementMax = 4
-csp_NumberOfRandomIterations = 0
-csp_ToleranceParticlesPsi = 20.0
-csp_ToleranceParticlesPhi = 20.0
-csp_ToleranceParticlesTheta = 20.0
-csp_ToleranceParticlesShifts = 20.0
-csp_Grid = "8,8,2"
-dose_weighting_enable = true
-dose_weighting_fraction = 4
+metric_fboost = true
+metric_UseImagesForRefinementMax = 4
+metric_rhref = "6:5"
+csp_tomo_coarse_parfile = "auto"
+csp_tomo_coarse_maxiter = 3
+csp_tomo_coarse_refine_particles = true
+csp_tomo_coarse_refine_micrographs = true
+csp_tomo_coarse_OptimizerStepLength = 100.0
+csp_tomo_coarse_NumberOfRandomIterations = 0
+csp_tomo_coarse_ToleranceParticlesPsi = 20.0
+csp_tomo_coarse_ToleranceParticlesPhi = 20.0
+csp_tomo_coarse_ToleranceParticlesTheta = 20.0
+csp_tomo_coarse_ToleranceParticlesShifts = 20.0
+csp_tomo_coarse_Grid = "8,8,2"
+reconstruct_dose_weighting_enable = true
+reconstruct_dose_weighting_fraction = 4
 
 [blocks.mask_generation]
 blockId = "sp-masking"
@@ -176,60 +163,59 @@ mask_threshold = 0.45
 mask_edge_width = 8
 
 [blocks.region_refinement_2]
-blockId = "tomo-coarse-refinement"
+blockId = "tomo-new-coarse-refinement"
 name = "Region-based refinement 2"
 parent = "region_refinement"
 
 [blocks.region_refinement_2.args]
-refine_parfile = "auto"
-refine_model = "auto"
-refine_maskth = { ask = true }
 particle_mw = 300
 particle_rad = 100
 particle_sym = "C6"
 extract_box = 384
 extract_bin = 1
-refine_maxiter = 4
-refine_rhref = "5:4:3.5"
-refine_fboost = true
-csp_refine_particles = true
-csp_refine_micrographs = true
-csp_OptimizerStepLength = 100.0
-csp_UseImagesForRefinementMax = 4
-csp_NumberOfRandomIterations = 0
-csp_ToleranceParticlesPsi = 20.0
-csp_ToleranceParticlesPhi = 20.0
-csp_ToleranceParticlesTheta = 20.0
-csp_ToleranceParticlesShifts = 20.0
-csp_Grid = "8,8,2"
-dose_weighting_enable = true
-dose_weighting_fraction = 4
+metric_fboost = true
+metric_UseImagesForRefinementMax = 4
+metric_masking_method = "file"
+metric_maskth = { ask = true }
+metric_rhref = "5:4:3.5"
+csp_tomo_coarse_parfile = "auto"
+csp_tomo_coarse_maxiter = 4
+csp_tomo_coarse_refine_particles = true
+csp_tomo_coarse_refine_micrographs = true
+csp_tomo_coarse_OptimizerStepLength = 100.0
+csp_tomo_coarse_NumberOfRandomIterations = 0
+csp_tomo_coarse_ToleranceParticlesPsi = 20.0
+csp_tomo_coarse_ToleranceParticlesPhi = 20.0
+csp_tomo_coarse_ToleranceParticlesTheta = 20.0
+csp_tomo_coarse_ToleranceParticlesShifts = 20.0
+csp_tomo_coarse_Grid = "8,8,2"
+reconstruct_dose_weighting_enable = true
+reconstruct_dose_weighting_fraction = 4
 
 [blocks.ctf_refinement]
-blockId = "tomo-coarse-refinement"
+blockId = "tomo-new-coarse-refinement"
 name = "Particle-based CTF refinement"
 parent = "region_refinement_2"
 
 [blocks.ctf_refinement.args]
-refine_parfile = "auto"
-refine_model = "auto"
 particle_mw = 300
-particle_rad = 100
+particle_rad = 80
 particle_sym = "C6"
 extract_box = 384
 extract_bin = 1
-refine_maxiter = 2
-refine_rhref = "3.1"
-refine_fboost = true
-csp_refine_particles = false
-csp_refine_micrographs = false
-csp_refine_ctf = true
-csp_OptimizerStepLength = 100.0
-csp_UseImagesForRefinementMax = 10
-csp_NumberOfRandomIterations = 0
-csp_Grid = "8,8,2"
-dose_weighting_enable = true
-dose_weighting_fraction = 4
+metric_fboost = true
+metric_UseImagesForRefinementMax = 10
+metric_rhref = "3.1"
+csp_tomo_coarse_parfile = "auto"
+csp_tomo_coarse_maxiter = 2
+csp_tomo_coarse_refine_particles = false
+csp_tomo_coarse_refine_micrographs = false
+csp_tomo_coarse_refine_ctf = true
+csp_tomo_coarse_OptimizerStepLength = 100.0
+csp_tomo_coarse_NumberOfRandomIterations = 0
+csp_tomo_coarse_Grid = "8,8,2"
+reconstruct_dose_weighting_enable = true
+reconstruct_dose_weighting_fraction = 4
 
 [blocks.movie_refinement]
 blockId = "tomo-flexible-refinement"
@@ -237,58 +223,51 @@ name = "Movie refinement"
 parent = "ctf_refinement"
 
 [blocks.movie_refinement.args]
-refine_parfile = "auto"
-refine_model = "auto"
 particle_mw = 300
 particle_rad = 80
 particle_sym = "C6"
 extract_box = 384
 extract_bin = 1
-refine_maxiter = 2
-refine_rhref = "3.2"
-refine_fboost = true
-csp_transreg = true
-csp_spatial_sigma = 200.0
-dose_weighting_enable = true
-dose_weighting_fraction = 4
-csp_frame_refinement = true
-csp_refine_ctf = false
-csp_UseImagesForRefinementMax = 4
+metric_fboost = true
+metric_UseImagesForRefinementMax = 4
+metric_rhref = "3.2"
+csp_tomo_movie_parfile = "auto"
+csp_tomo_movie_maxiter = 2
+csp_tomo_movie_transreg = true
+csp_tomo_movie_spatial_sigma = 200.0
+reconstruct_dose_weighting_enable = true
+reconstruct_dose_weighting_fraction = 4
 
 [blocks.refinement_after_movie_refinement]
-blockId = "tomo-flexible-refinement"
+blockId = "tomo-flexible-refinement-after"
 name = "Refinement after movie refinement"
 parent = "movie_refinement"
 
 [blocks.refinement_after_movie_refinement.args]
-refine_parfile = "auto"
-refine_model = "auto"
 particle_mw = 300
 particle_rad = 80
 particle_sym = "C6"
 extract_box = 384
 extract_bin = 1
-refine_maxiter = 2
-refine_rhref = "3.3"
-refine_fboost = true
-csp_frame_refinement = false
-csp_refine_particles = true
-csp_refine_micrographs = true
-csp_OptimizerStepLength = 100.0
-csp_UseImagesForRefinementMax = 4
-csp_NumberOfRandomIterations = 0
-csp_ToleranceParticlesPsi = 1.0
-csp_ToleranceParticlesPhi = 1.0
-csp_ToleranceParticlesTheta = 1.0
-csp_ToleranceParticlesShifts = 10.0
-csp_RefineProjectionCutoff = 2
-csp_ToleranceMicrographShifts = 10.0
-csp_ToleranceMicrographTiltAngles = 1.0
-csp_ToleranceMicrographTiltAxisAngles = 1.0
-
-csp_Grid = "8,8,2"
-dose_weighting_enable = true
-dose_weighting_fraction = 4
+metric_fboost = true
+metric_rhref = "3.3"
+metric_UseImagesForRefinementMax = 4
+metric_RefineProjectionCutoff = 2
+csp_tomo_movie_after_parfile = "auto"
+csp_tomo_movie_after_maxiter = 2
+csp_tomo_movie_after_refine_particles = true
+csp_tomo_movie_after_refine_micrographs = true
+csp_tomo_movie_after_OptimizerStepLength = 100.0
+csp_tomo_movie_after_NumberOfRandomIterations = 0
+csp_tomo_movie_after_ToleranceParticlesPsi = 1.0
+csp_tomo_movie_after_ToleranceParticlesPhi = 1.0
+csp_tomo_movie_after_ToleranceParticlesTheta = 1.0
+csp_tomo_movie_after_ToleranceParticlesShifts = 10.0
+csp_tomo_movie_after_ToleranceMicrographShifts = 10.0
+csp_tomo_movie_after_ToleranceMicrographTiltAngles = 1.0
+csp_tomo_movie_after_ToleranceMicrographTiltAxisAngles = 1.0
+reconstruct_dose_weighting_enable = true
+reconstruct_dose_weighting_fraction = 4
 
 [blocks.sharpening]
 blockId = "sp-postprocessing"
@@ -298,4 +277,5 @@ parent = "refinement_after_movie_refinement"
 [blocks.sharpening.args]
 sharpen_input_map = 'auto'
 sharpen_automask_threshold = 0.35
+sharpen_bfactor_method = 'adhoc'
 sharpen_adhoc_bfac = -25
