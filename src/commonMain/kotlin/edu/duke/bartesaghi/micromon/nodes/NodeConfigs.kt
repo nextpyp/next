@@ -40,10 +40,16 @@ object NodeConfigs {
 		TomographyDrgnEvalNodeConfig,
 		TomographyDrgnEvalVolsNodeConfig,
 		TomographyDrgnFilteringNodeConfig,
+		TomographyInitialRefinementNodeConfig,
+		TomographyReferenceFreeRefinementNodeConfig,
+		TomographyReferenceBasedRefinementNodeConfig,
+		TomographyNewCoarseRefinementNodeConfig,
+		TomographyNewCoarseClassificationNodeConfig,
 		TomographyCoarseRefinementNodeConfig,
 		TomographyFineRefinementNodeConfig,
 		TomographyMovieCleaningNodeConfig,
-		TomographyFlexibleRefinementNodeConfig
+		TomographyFlexibleRefinementNodeConfig,
+		TomographyAfterFlexibleRefinementNodeConfig
 	).apply {
 
 		// make sure all the node IDs are unique

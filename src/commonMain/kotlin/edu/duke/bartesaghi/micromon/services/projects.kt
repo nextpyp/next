@@ -396,10 +396,16 @@ interface JobData {
 					subclass(TomographyDrgnEvalData::class)
 					subclass(TomographyDrgnEvalVolsData::class)
 					subclass(TomographyDrgnFilteringData::class)
+					subclass(TomographyInitialRefinementData::class)
+					subclass(TomographyReferenceFreeRefinementData::class)
+					subclass(TomographyReferenceBasedRefinementData::class)
+					subclass(TomographyNewCoarseRefinementData::class)
+					subclass(TomographyNewCoarseClassificationData::class)
 					subclass(TomographyCoarseRefinementData::class)
 					subclass(TomographyFineRefinementData::class)
 					subclass(TomographyMovieCleaningData::class)
 					subclass(TomographyFlexibleRefinementData::class)
+					subclass(TomographyAfterFlexibleRefinementData::class)
 				}
 			}
 		}

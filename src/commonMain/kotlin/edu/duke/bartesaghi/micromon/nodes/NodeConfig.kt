@@ -40,6 +40,9 @@ interface NodeConfig {
 			/** Multiple movie refinements */
 			MovieRefinements("Particles"),
 
+			/** A single movie refinement classes */
+			MovieRefinementsClasses("Particle classes"),
+
 			/** A single movie frame refinements */
 			MovieFrameRefinement("Frames"),
 

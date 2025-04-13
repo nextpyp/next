@@ -47,10 +47,16 @@ object Nodes {
 		TomographyDrgnEvalNodeConfig to TomographyDrgnEvalNode.Companion,
 		TomographyDrgnEvalVolsNodeConfig to TomographyDrgnEvalVolsNode.Companion,
 		TomographyDrgnFilteringNodeConfig to TomographyDrgnFilteringNode.Companion,
+		TomographyInitialRefinementNodeConfig to TomographyInitialRefinementNode.Companion,
+		TomographyReferenceFreeRefinementNodeConfig to TomographyReferenceFreeRefinementNode.Companion,
+		TomographyReferenceBasedRefinementNodeConfig to TomographyReferenceBasedRefinementNode.Companion,
+		TomographyNewCoarseRefinementNodeConfig to TomographyNewCoarseRefinementNode.Companion,
+		TomographyNewCoarseClassificationNodeConfig to TomographyNewCoarseClassificationNode.Companion,
 		TomographyCoarseRefinementNodeConfig to TomographyCoarseRefinementNode.Companion,
 		TomographyFineRefinementNodeConfig to TomographyFineRefinementNode.Companion,
 		TomographyMovieCleaningNodeConfig to TomographyMovieCleaningNode.Companion,
-		TomographyFlexibleRefinementNodeConfig to TomographyFlexibleRefinementNode.Companion
+		TomographyFlexibleRefinementNodeConfig to TomographyFlexibleRefinementNode.Companion,
+		TomographyAfterFlexibleRefinementNodeConfig to TomographyAfterFlexibleRefinementNode.Companion
 	)
 
 	fun clientInfo(config: NodeConfig): NodeClientInfo =

@@ -7,7 +7,7 @@ object TomographyPickingNodeConfig : NodeConfig {
 
 	override val id = ID
 	override val configId = "tomo_picking"
-	override val name = "Particle-Picking"
+	override val name = "Particle picking"
 	override val hasFiles = true
 
 	val tomograms = NodeConfig.Data("tomograms", NodeConfig.Data.Type.Tomograms)

@@ -7,9 +7,10 @@ object TomographyCoarseRefinementNodeConfig : NodeConfig {
 
 	override val id = ID
 	override val configId = "tomo_coarse_refine"
-	override val name = "Particle refinement"
+	override val name = "Particle refinement (legacy)"
 	override val hasFiles = true
-
+	override val status = NodeConfig.NodeStatus.Legacy
+	
 	val movieRefinement = NodeConfig.Data("movie-refinement", NodeConfig.Data.Type.MovieRefinement)
 	val movieRefinementsIn = NodeConfig.Data("movie-refinements-in", NodeConfig.Data.Type.MovieRefinements)
 	val movieRefinements = NodeConfig.Data("movie-refinements", NodeConfig.Data.Type.MovieRefinements)

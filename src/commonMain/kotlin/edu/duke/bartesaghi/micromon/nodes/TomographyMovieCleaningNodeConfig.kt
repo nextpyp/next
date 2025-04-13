@@ -9,6 +9,7 @@ object TomographyMovieCleaningNodeConfig : NodeConfig {
 	override val configId = "tomo_map_clean"
 	override val name = "Particle cleaning"
 	override val hasFiles = true
+	override val status = NodeConfig.NodeStatus.Legacy
 
 	val movieRefinementsIn = NodeConfig.Data("movie-refinementsIn", NodeConfig.Data.Type.MovieFrameAfterRefinements)
 	val movieRefinementsOut = NodeConfig.Data("movie-refinementsOut", NodeConfig.Data.Type.MovieFrameAfterRefinements)

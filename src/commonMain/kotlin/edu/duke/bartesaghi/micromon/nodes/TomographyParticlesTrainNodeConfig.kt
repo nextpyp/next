@@ -7,7 +7,7 @@ object TomographyParticlesTrainNodeConfig : NodeConfig {
 
 	override val id = ID
 	override val configId = "tomo_particles_train"
-	override val name = "Particle-Picking (train)"
+	override val name = "Particle picking (train)"
 	override val hasFiles = true
 
 	val particles = NodeConfig.Data("particles", NodeConfig.Data.Type.MovieRefinement)

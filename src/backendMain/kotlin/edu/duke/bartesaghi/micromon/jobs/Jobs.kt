@@ -44,10 +44,16 @@ object Jobs {
 		TomographyDrgnEvalNodeConfig to TomographyDrgnEvalJob.Companion,
 		TomographyDrgnEvalVolsNodeConfig to TomographyDrgnEvalVolsJob.Companion,
 		TomographyDrgnFilteringNodeConfig to TomographyDrgnFilteringJob.Companion,
+		TomographyInitialRefinementNodeConfig to TomographyInitialRefinementJob.Companion,
+		TomographyReferenceFreeRefinementNodeConfig to TomographyReferenceFreeRefinementJob.Companion,
+		TomographyReferenceBasedRefinementNodeConfig to TomographyReferenceBasedRefinementJob.Companion,
 		TomographyCoarseRefinementNodeConfig to TomographyCoarseRefinementJob.Companion,
+		TomographyNewCoarseRefinementNodeConfig to TomographyNewCoarseRefinementJob.Companion,
+		TomographyNewCoarseClassificationNodeConfig to TomographyNewCoarseClassificationJob.Companion,
 		TomographyFineRefinementNodeConfig to TomographyFineRefinementJob.Companion,
 		TomographyMovieCleaningNodeConfig to TomographyMovieCleaningJob.Companion,
-		TomographyFlexibleRefinementNodeConfig to TomographyFlexibleRefinementJob.Companion
+		TomographyFlexibleRefinementNodeConfig to TomographyFlexibleRefinementJob.Companion,
+		TomographyAfterFlexibleRefinementNodeConfig to TomographyAfterFlexibleRefinementJob.Companion
 	)
 
 	fun info(config: NodeConfig): JobInfo =

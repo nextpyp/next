@@ -18,8 +18,14 @@ private val refinementNodes = listOf(
 	SingleParticleFineRefinementNode,
 	SingleParticlePostprocessingNode,
 	SingleParticleMaskingNode,
+	TomographyInitialRefinementNode,
+	TomographyReferenceFreeRefinementNode,
+	TomographyReferenceBasedRefinementNode,
+	TomographyNewCoarseRefinementNode,
+	TomographyNewCoarseClassificationNode,
 	TomographyCoarseRefinementNode,
 	TomographyFlexibleRefinementNode,
+	TomographyAfterFlexibleRefinementNode,
 	TomographyFineRefinementNode,
 	TomographyMovieCleaningNode
 )
@@ -324,9 +330,15 @@ class IntegratedRefinementView(
 						.addAndTrack(lazyTab)
 				} else {
 					val showPerParticleScores = nodeInfo in listOf(
+						TomographyInitialRefinementNode,
+						TomographyReferenceFreeRefinementNode,
+						TomographyReferenceBasedRefinementNode,
+						TomographyNewCoarseRefinementNode,
+						TomographyNewCoarseClassificationNode,
 						TomographyCoarseRefinementNode,
 						TomographyFineRefinementNode,
 						TomographyFlexibleRefinementNode,
+						TomographyAfterFlexibleRefinementNode,
 						TomographyMovieCleaningNode
 					)
 					mapsTab = MapsTab(job, state, urlParams as? MapsTab.UrlParams?, showPerParticleScores)
@@ -337,6 +349,11 @@ class IntegratedRefinementView(
 			val classesLazyTab = if (nodeInfo in listOf(
 					SingleParticleCoarseRefinementNode,
 					SingleParticleFineRefinementNode,
+					TomographyInitialRefinementNode,
+					TomographyReferenceFreeRefinementNode,
+					TomographyReferenceBasedRefinementNode,
+					TomographyNewCoarseRefinementNode,
+					TomographyNewCoarseClassificationNode,
 					TomographyCoarseRefinementNode,
 					TomographyFineRefinementNode,
 					TomographyMovieCleaningNode
@@ -352,6 +369,11 @@ class IntegratedRefinementView(
 			val classesMovieLazyTab = if (nodeInfo in listOf(
 					SingleParticleCoarseRefinementNode,
 					SingleParticleFineRefinementNode,
+					TomographyInitialRefinementNode,
+					TomographyReferenceFreeRefinementNode,
+					TomographyReferenceBasedRefinementNode,
+					TomographyNewCoarseRefinementNode,
+					TomographyNewCoarseClassificationNode,
 					TomographyCoarseRefinementNode,
 					TomographyFineRefinementNode,
 					TomographyMovieCleaningNode
@@ -368,7 +390,8 @@ class IntegratedRefinementView(
 
 			val particlesLazyTab = if (nodeInfo in listOf(
 					SingleParticleFlexibleRefinementNode,
-					TomographyFlexibleRefinementNode
+					TomographyFlexibleRefinementNode,
+					TomographyAfterFlexibleRefinementNode
 				)) {
 				tabsPanel.addTab("Particle View", "fas fa-grip-horizontal") { lazyTab ->
 					particlesTab = RefinementsTab(job, state, RefinementsTab.ImageType.Particles)
@@ -398,8 +421,14 @@ class IntegratedRefinementView(
 
 			val weightsLazyTab = if (nodeInfo in listOf(
 					SingleParticleFlexibleRefinementNode,
+					TomographyInitialRefinementNode,
+					TomographyReferenceFreeRefinementNode,
+					TomographyReferenceBasedRefinementNode,
+					TomographyNewCoarseRefinementNode,
+					TomographyNewCoarseClassificationNode,
 					TomographyCoarseRefinementNode,
 					TomographyFlexibleRefinementNode,
+					TomographyAfterFlexibleRefinementNode,
 					TomographyFineRefinementNode,
 					TomographyMovieCleaningNode
 				)) {
@@ -423,8 +452,14 @@ class IntegratedRefinementView(
 
 			val metadataLazyTab = if (nodeInfo in listOf(
 					// TODO: update this block filter list
+					TomographyInitialRefinementNode,
+					TomographyReferenceFreeRefinementNode,
+					TomographyReferenceBasedRefinementNode,
+					TomographyNewCoarseRefinementNode,
+					TomographyNewCoarseClassificationNode,
 					TomographyCoarseRefinementNode,
 					TomographyFlexibleRefinementNode,
+					TomographyAfterFlexibleRefinementNode,
 					TomographyFineRefinementNode,
 					TomographyMovieCleaningNode
 				)) {

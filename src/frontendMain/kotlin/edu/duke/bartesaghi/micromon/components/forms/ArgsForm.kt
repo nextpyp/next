@@ -274,12 +274,18 @@ class ArgsInputs(
 							is SingleParticleFlexibleRefinementNode,
 							is SingleParticlePostprocessingNode,
 							is SingleParticleMaskingNode,
+							is TomographyInitialRefinementNode,
+							is TomographyReferenceFreeRefinementNode,
+							is TomographyReferenceBasedRefinementNode,
+							is TomographyNewCoarseRefinementNode,
+							is TomographyNewCoarseClassificationNode,
 							is TomographyCoarseRefinementNode,
 							is TomographyFineRefinementNode,
 							is TomographyMovieCleaningNode,
 							is SingleParticleRelionDataNode,
 							is TomographyRelionDataNode,
-							is TomographyFlexibleRefinementNode -> Paths.join(it.jobDir, "frealign/maps")
+							is TomographyFlexibleRefinementNode,
+							is TomographyAfterFlexibleRefinementNode -> Paths.join(it.jobDir, "frealign/maps")
 
 							else -> it.jobDir
 						}

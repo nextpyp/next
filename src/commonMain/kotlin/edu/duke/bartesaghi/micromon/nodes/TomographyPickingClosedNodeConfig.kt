@@ -7,7 +7,7 @@ object TomographyPickingClosedNodeConfig : NodeConfig {
 
 	override val id = ID
 	override val configId = "tomo_par_close"
-	override val name = "Particle-Picking (closed surfaces)"
+	override val name = "Particle picking (closed surfaces)"
 	override val hasFiles = true
 
 	val segmentation = NodeConfig.Data("segmentation", NodeConfig.Data.Type.SegmentationClosed)

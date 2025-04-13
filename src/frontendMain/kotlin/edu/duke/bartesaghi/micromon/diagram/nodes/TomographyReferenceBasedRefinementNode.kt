@@ -4,7 +4,7 @@ import edu.duke.bartesaghi.micromon.AppScope
 import edu.duke.bartesaghi.micromon.components.forms.*
 import edu.duke.bartesaghi.micromon.diagram.Diagram
 import edu.duke.bartesaghi.micromon.dynamicImageClassName
-import edu.duke.bartesaghi.micromon.nodes.TomographyCoarseRefinementNodeConfig
+import edu.duke.bartesaghi.micromon.nodes.TomographyReferenceBasedRefinementNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
 import edu.duke.bartesaghi.micromon.pyp.Args
 import edu.duke.bartesaghi.micromon.revalidateDynamicImages
@@ -18,36 +18,36 @@ import js.micromondiagrams.MicromonDiagrams
 import js.micromondiagrams.nodeType
 
 
-class TomographyCoarseRefinementNode(
+class TomographyReferenceBasedRefinementNode(
 	viewport: Viewport,
 	diagram: Diagram,
 	project: ProjectData,
-	job: TomographyCoarseRefinementData
+	job: TomographyReferenceBasedRefinementData
 ) : Node(viewport, diagram, type, config, project, job) {
 
-	val job get() = baseJob as TomographyCoarseRefinementData
+	val job get() = baseJob as TomographyReferenceBasedRefinementData
 
 	companion object : NodeClientInfo {
 
-		override val config = TomographyCoarseRefinementNodeConfig
-		override val type = MicromonDiagrams.nodeType(config, "fas fa-cubes")
-		override val jobClass = TomographyCoarseRefinementData::class
-		override val urlFragment = "tomographyCoarseRefinement"
+		override val config = TomographyReferenceBasedRefinementNodeConfig
+		override val type = MicromonDiagrams.nodeType(config, "fas fa-cube")
+		override val jobClass = TomographyReferenceBasedRefinementData::class
+		override val urlFragment = "tomographyReferenceBasedRefinement"
 
 		override fun makeNode(viewport: Viewport, diagram: Diagram, project: ProjectData, job: JobData) =
-			TomographyCoarseRefinementNode(viewport, diagram, project, job as TomographyCoarseRefinementData)
+			TomographyReferenceBasedRefinementNode(viewport, diagram, project, job as TomographyReferenceBasedRefinementData)
 
 		override suspend fun showUseDataForm(viewport: Viewport, diagram: Diagram, project: ProjectData, outNode: Node, input: CommonJobData.DataId, copyFrom: Node?, callback: (Node) -> Unit) {
-			val defaultArgs = (copyFrom as TomographyCoarseRefinementNode?)?.job?.args
-				?: JobArgs.fromNext(TomographyCoarseRefinementArgs(newArgValues(project, input), null))
+			val defaultArgs = (copyFrom as TomographyReferenceBasedRefinementNode?)?.job?.args
+				?: JobArgs.fromNext(TomographyReferenceBasedRefinementArgs(newArgValues(project, input), null))
 			form(config.name, outNode, defaultArgs, true) { args ->
 
 				// save the node to the server
 				AppScope.launch {
-					val data = Services.tomographyCoarseRefinement.addNode(project.owner.id, project.projectId, input, args)
+					val data = Services.tomographyReferenceBasedRefinement.addNode(project.owner.id, project.projectId, input, args)
 
 					// send the node back to the diagram
-					callback(TomographyCoarseRefinementNode(viewport, diagram, project, data))
+					callback(TomographyReferenceBasedRefinementNode(viewport, diagram, project, data))
 				}
 			}
 		}
@@ -56,21 +56,21 @@ class TomographyCoarseRefinementNode(
 			@Suppress("NAME_SHADOWING")
 			val input = input
 				?: throw IllegalArgumentException("input required to make job for ${config.id}")
-			val args = TomographyCoarseRefinementArgs(
+			val args = TomographyReferenceBasedRefinementArgs(
 				values = argValues,
 				filter = null
 			)
-			return Services.tomographyCoarseRefinement.addNode(project.owner.id, project.projectId, input, args)
+			return Services.tomographyReferenceBasedRefinement.addNode(project.owner.id, project.projectId, input, args)
 		}
 
-		override suspend fun getJob(jobId: String): TomographyCoarseRefinementData =
-			Services.tomographyCoarseRefinement.get(jobId)
+		override suspend fun getJob(jobId: String): TomographyReferenceBasedRefinementData =
+			Services.tomographyReferenceBasedRefinement.get(jobId)
 
 		override val pypArgs = ServerVal {
-			Args.fromJson(Services.tomographyCoarseRefinement.getArgs())
+			Args.fromJson(Services.tomographyReferenceBasedRefinement.getArgs())
 		}
 
-		private fun form(caption: String, upstreamNode: Node, args: JobArgs<TomographyCoarseRefinementArgs>?, enabled: Boolean, onDone: (TomographyCoarseRefinementArgs) -> Unit) = AppScope.launch {
+		private fun form(caption: String, upstreamNode: Node, args: JobArgs<TomographyReferenceBasedRefinementArgs>?, enabled: Boolean, onDone: (TomographyReferenceBasedRefinementArgs) -> Unit) = AppScope.launch {
 
 			val pypArgs = pypArgs.get()
 
@@ -81,7 +81,7 @@ class TomographyCoarseRefinementNode(
 				classes = setOf("dashboard-popup", "args-form-popup", "max-height-dialog")
 			)
 
-			val form = win.formPanel<TomographyCoarseRefinementArgs>().apply {
+			val form = win.formPanel<TomographyReferenceBasedRefinementArgs>().apply {
 
 				val upstreamIsPreprocessing =
 					upstreamNode is TomographyPreprocessingNode
@@ -89,7 +89,7 @@ class TomographyCoarseRefinementNode(
 					|| upstreamNode is TomographySessionDataNode
 					|| upstreamNode is TomographyPurePreprocessingNode
 					|| upstreamNode is TomographyDenoisingEvalNode
-				add(TomographyCoarseRefinementArgs::filter,
+				add(TomographyReferenceBasedRefinementArgs::filter,
 					// look for the preprocessing job in the upstream node to get the filter
 					if (upstreamIsPreprocessing) {
 						SelectRemote(
@@ -104,12 +104,12 @@ class TomographyCoarseRefinementNode(
 					}
 				)
 
-				add(TomographyCoarseRefinementArgs::values, ArgsForm(pypArgs, listOf(upstreamNode), enabled, config.configId))
+				add(TomographyReferenceBasedRefinementArgs::values, ArgsForm(pypArgs, listOf(upstreamNode), enabled, config.configId))
 			}
 
 			// use the none filter option for the particles name in the form,
 			// since the control can't handle nulls
-			val mapper = ArgsMapper<TomographyCoarseRefinementArgs>(
+			val mapper = ArgsMapper<TomographyReferenceBasedRefinementArgs>(
 				toForm = { args ->
 					var a = args
 					if (a.filter == null) {
@@ -172,7 +172,7 @@ class TomographyCoarseRefinementNode(
 			val diff = job.args.diff(newArgs)
 			if (diff.shouldSave) {
 				AppScope.launch {
-					baseJob = Services.tomographyCoarseRefinement.edit(baseJob.jobId, diff.newNextArgs(newArgs))
+					baseJob = Services.tomographyReferenceBasedRefinement.edit(baseJob.jobId, diff.newNextArgs(newArgs))
 					edited()
 				}
 			}

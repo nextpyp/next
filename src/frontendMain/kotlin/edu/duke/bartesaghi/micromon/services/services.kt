@@ -63,10 +63,16 @@ object Services {
 	val tomographyDrgnEval = TomographyDrgnEvalService()
 	val tomographyDrgnEvalVols = TomographyDrgnEvalVolsService()
 	val tomographyDrgnFiltering = TomographyDrgnFilteringService()
+	val tomographyInitialRefinement = TomographyInitialRefinementService()
+	val tomographyReferenceFreeRefinement = TomographyReferenceFreeRefinementService()
+	val tomographyReferenceBasedRefinement = TomographyReferenceBasedRefinementService()
+	val tomographyNewCoarseRefinement = TomographyNewCoarseRefinementService()
+	val tomographyNewCoarseClassification = TomographyNewCoarseClassificationService()
 	val tomographyCoarseRefinement = TomographyCoarseRefinementService()
 	val tomographyFineRefinement = TomographyFineRefinementService()
 	val tomographyMovieCleaning = TomographyMovieCleaningService()
 	val tomographyFlexibleRefinement = TomographyFlexibleRefinementService()
+	val tomographyAfterFlexibleRefinement = TomographyAfterFlexibleRefinementService()
 
 
 	/**

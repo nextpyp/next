@@ -212,10 +212,16 @@ object PypService {
 					is SingleParticleCoarseRefinementJob,
 					is SingleParticleFineRefinementJob,
 					is SingleParticleFlexibleRefinementJob,
+					is TomographyInitialRefinementJob,
+					is TomographyReferenceFreeRefinementJob,
+					is TomographyReferenceBasedRefinementJob,
+					is TomographyNewCoarseRefinementJob,
+					is TomographyNewCoarseClassificationJob,
 					is TomographyCoarseRefinementJob,
 					is TomographyFineRefinementJob,
 					is TomographyMovieCleaningJob,
-					is TomographyFlexibleRefinementJob -> RefinementJobs.eventListeners.sendParams(owner.job.idOrThrow, values)
+					is TomographyFlexibleRefinementJob,
+					is TomographyAfterFlexibleRefinementJob -> RefinementJobs.eventListeners.sendParams(owner.job.idOrThrow, values)
 
 					else -> Unit // ignore other jobs
 				}
