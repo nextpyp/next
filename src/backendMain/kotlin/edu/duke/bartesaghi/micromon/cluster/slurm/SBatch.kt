@@ -256,7 +256,7 @@ class SBatch(val config: Config.Slurm) : Cluster {
 fun ArgValues.toSbatchArgs(): List<String> =
 	ArrayList<String>().apply {
 		add("--cpus-per-task=$slurmLaunchCpus")
-		add("--mem=${slurmLaunchMemory}G")
+		add("--mem=${slurmLaunchCpus*slurmLaunchMemory}G")
 		add("--time=$slurmLaunchWalltime")
 		slurmLaunchGres?.let { add("--gres=$it") }
 	}

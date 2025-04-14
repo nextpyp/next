@@ -441,8 +441,8 @@ object MicromonArgs {
 	val slurmLaunchCpus = Arg(
 		groupId = "slurm",
 		argId = "launch_tasks",
-		name = "Threads (launch task)",
-		description = "Number of CPUs used during launching",
+		name = "Launch, Threads",
+		description = "Number of threads used for Launch job",
 		type = ArgType.TInt(),
 		required = false,
 		default = ArgValue.VInt(1),
@@ -451,11 +451,12 @@ object MicromonArgs {
 
 	val slurmLaunchMemory = Arg(
 		groupId = "slurm",
-		argId = "launch_memory",
-		name = "Memory (launch task)",
-		description = "Amount of memory used during launching (0=all memory in node, GB)",
+		argId = "launch_memory_per_task",
+		name = "Launch, Memory per thread (GB)",
+		description = "Amount of memory per thread used for Launch job (0=all memory in node, GB)",
 		type = ArgType.TInt(),
 		required = false,
+		advanced = true,
 		default = ArgValue.VInt(4),
 		target = ArgTarget.Micromon
 	)
@@ -463,10 +464,11 @@ object MicromonArgs {
 	val slurmLaunchWalltime = Arg(
 		groupId = "slurm",
 		argId = "launch_walltime",
-		name = "Walltime (launch task)",
-		description = "Max running time for each task (dd-hh:mm:ss)",
+		name = "Launch, Walltime (dd-hh:mm:ss)",
+		description = "Max running time for Launch job (dd-hh:mm:ss)",
 		type = ArgType.TStr(),
 		required = false,
+		advanced = true,
 		default = ArgValue.VStr("2:00:00"),
 		target = ArgTarget.Micromon
 	)
@@ -474,8 +476,8 @@ object MicromonArgs {
 	val slurmLaunchGres = Arg(
 		groupId = "slurm",
 		argId = "launch_gres",
-		name = "Gres (launch task)",
-		description = "Comma separated list of generic resource scheduling options",
+		name = "Launch, Gres",
+		description = "List of generic resource scheduling options for Launch job",
 		type = ArgType.TStr(),
 		default = ArgValue.VStr(""),
 		required = false,
