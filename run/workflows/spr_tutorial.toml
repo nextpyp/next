@@ -26,10 +26,7 @@ detect_rad = 80
 detect_method = "all"
 detect_dist = 40
 slurm_tasks = { ask = true }            # e.g.: 7 (32 for movie refinement)
-slurm_memory = { ask = true }           # e.g.: 14 (300 for movie refinement)
-slurm_walltime = { ask = true }         # e.g.: 20:00:00
 slurm_merge_tasks = { ask = true }      # e.g.: 7
-slurm_merge_memory = { ask = true }     # e.g.: 14
 
 [blocks.refinement]
 blockId = "sp-coarse-refinement"

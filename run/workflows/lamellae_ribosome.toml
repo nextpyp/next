@@ -15,7 +15,7 @@ data_path_mdoc = "/nfs/bartesaghilab/nextpyp/lamellae/HeLa_argon/*.mdoc"
 gain_reference = "/nfs/bartesaghilab/nextpyp/lamellae/HeLa_argon/gain_ref/20220406_175020_EER_GainReference.gain"
 scope_pixel = 1.9
 scope_voltage = 300
-scope_tilt_axis = -174.23
+scope_tilt_axis = 90
 
 [blocks.preprocessing]
 blockId = "tomo-pure-preprocessing"
@@ -27,14 +27,14 @@ movie_ali = "motioncor"
 movie_pattern = "TILTSERIES_SCANORD_ANGLE_EER.eer"
 movie_eer_frames = 10
 ctf_max_res = 7.0
+ctf_min_def = 25000
 tomo_ali_method = "aretomo"
+tomo_ali_square = false
 tomo_rec_method = "aretomo"
+tomo_rec_aretomo_sart = true
+tomo_rec_thickness = 1536
 slurm_tasks = 11
-slurm_memory = 44
-slurm_walltime = "2:00:00"
 slurm_merge_tasks = 6
-slurm_merge_memory = 24
-slurm_merge_walltime = "2:00:00"
 
 [blocks.particlepicking]
 blockId = "tomo-picking"
@@ -47,12 +47,10 @@ tomo_pick_rad = 100
 tomo_pick_radiustimes_3d = 1.0
 tomo_pick_inhibit_3d = true
 tomo_pick_detection_width_3d = 80
-tomo_pick_stdtimes_filt_3d = 1.2
+tomo_pick_stdtimes_filt_3d = 1.1
 tomo_pick_remove_edge_3d = true
 tomo_pick_rand = true
 slurm_tasks = 4
-slurm_memory = 22
-slurm_walltime = "2:00:00"
 
 [blocks.reference_refinement]
 blockId = "tomo-coarse-refinement"
@@ -70,17 +68,23 @@ refine_rhref = "20.0"
 refine_fboost = true
 refine_maskth = "/nfs/bartesaghilab/nextpyp/lamellae/mask_bin2.mrc"
 refine_model = "/nfs/bartesaghilab/nextpyp/lamellae/emd_15636.mrc.mrc"
+refine_skip = false
+refine_refine_angle_phi = false
+refine_refine_angle_theta = false
+refine_refine_angle_psi = false
+refine_refine_shiftx = false
+refine_refine_shifty = false
 csp_UseImagesForRefinementMax = 16
 csp_refine_particles = true
 csp_ToleranceParticlesPhi = 180.0
-csp_ToleranceParticlesTheta = 180.0
-csp_ToleranceParticlesPsi = 90.0
+csp_ToleranceParticlesTheta = 90.0
+csp_ToleranceParticlesPsi = 180.0
 csp_ToleranceParticlesShifts = 60.0
 csp_NumberOfRandomIterations = 5000000
 csp_ctf_handedness = true
+reconstruct_maxtilt = 50
+reconstruct_mintilt = -50
 slurm_tasks = 124
-slurm_memory = 720
-slurm_walltime = "72:00:00"
 
 [blocks.particle_filtering]
 blockId = "tomo-fine-refinement"
@@ -128,8 +132,8 @@ refine_parfile = "auto"
 refine_model = "auto"
 refine_skip = true
 refine_maxiter = 6
-refine_rhref = "10"
-refine_fboost = false
+refine_rhref = "12:10:9:8"
+refine_fboost = true
 refine_fssnr = false
 refine_maskth = "/nfs/bartesaghilab/nextpyp/lamellae/mask_bin2.mrc"
 reconstruct_mintilt = -50
@@ -142,13 +146,11 @@ csp_ToleranceParticlesPsi = 30.0
 csp_ToleranceParticlesPhi = 30.0
 csp_ToleranceParticlesTheta = 30.0
 csp_ToleranceParticlesShifts = 30.0
+csp_ctf_handedness = true
 dose_weighting_enable = true
 dose_weighting_fraction = 4
 dose_weighting_global = true
-csp_ctf_handedness = true
 slurm_tasks = 124
-slurm_memory = 720
-slurm_walltime = "72:00:00"
 
 [blocks.dose_weighting]
 blockId = "tomo-coarse-refinement"
@@ -163,8 +165,11 @@ extract_bin = 2
 refine_parfile = "auto"
 refine_model = "auto"
 refine_maxiter = 3
-refine_rhref = "8"
+refine_rhref = "8:7"
 refine_maskth = "/nfs/bartesaghilab/nextpyp/lamellae/mask_bin2.mrc"
+refine_fboost = true
+reconstruct_maxtilt = 50
+reconstruct_mintilt = -50
 dose_weighting_enable = true
 dose_weighting_fraction = 6
 dose_weighting_global = true
@@ -183,7 +188,17 @@ refine_parfile = "auto"
 refine_model = "auto"
 refine_rhref = "6"
 refine_maskth = "/nfs/bartesaghilab/nextpyp/lamellae/mask_bin2.mrc"
+refine_fboost = true
 csp_Grid = "4,4,4"
+csp_refine_particles = true
+csp_refine_micrographs = true
+csp_UseImagesForRefinementMax = 12
+csp_ctf_handedness = true
+reconstruct_maxtilt = 50
+reconstruct_mintilt = -50
+dose_weighting_enable = true
+dose_weighting_fraction = 6
+dose_weighting_global = true
 
 [blocks.unbinned_refinement]
 blockId = "tomo-coarse-refinement"
@@ -200,8 +215,18 @@ refine_model = "auto"
 refine_maxiter = 3
 refine_rhref = "6:5"
 refine_maskth = "/nfs/bartesaghilab/nextpyp/lamellae/mask_bin1.mrc"
+refine_fboost = true
+csp_Grid = "4,4,4"
 csp_ToleranceParticlesShifts = 30.0
+csp_refine_particles = true
+csp_refine_micrographs = true
+csp_UseImagesForRefinementMax = 12
+csp_ctf_handedness = true
+reconstruct_maxtilt = 50
+reconstruct_mintilt = -50
+dose_weighting_enable = true
 dose_weighting_fraction = 7
+dose_weighting_global = true
 
 [blocks.ctf_refinement]
 blockId = "tomo-coarse-refinement"
@@ -217,12 +242,19 @@ refine_parfile = "auto"
 refine_model = "auto"
 refine_maxiter = 2
 refine_maskth = "/nfs/bartesaghilab/nextpyp/lamellae/mask_bin1.mrc"
+refine_fboost = true
 csp_refine_particles = false
 csp_refine_micrographs = false
 csp_refine_ctf = true
 csp_ToleranceMicrographDefocus1 = 2000
 csp_ToleranceMicrographDefocus2 = 2000
+csp_ctf_handedness = true
+reconstruct_maxtilt = 50
+reconstruct_mintilt = -50
 denoise_enable = true
+dose_weighting_enable = true
+dose_weighting_fraction = 7
+dose_weighting_global = true
 
 [blocks.region_refinement_2]
 blockId = "tomo-coarse-refinement"
@@ -239,9 +271,15 @@ refine_model = "auto"
 refine_maskth = "/nfs/bartesaghilab/nextpyp/lamellae/mask_bin1.mrc"
 refine_maxiter = 4
 refine_rhref = "5:5:4.8:4.5"
+refine_fboost = true
 csp_refine_particles = true
 csp_refine_micrographs = true
 csp_refine_ctf = false
+csp_UseImagesForRefinementMax = 18
+csp_ctf_handedness = true
+reconstruct_maxtilt = 50
+reconstruct_mintilt = -50
+denoise_enable = true
 
 [blocks.sharpening]
 blockId = "sp-postprocessing"

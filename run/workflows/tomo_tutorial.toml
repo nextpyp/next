@@ -26,11 +26,7 @@ ctf_max_res = 5.0
 tomo_rec_binning = 8
 tomo_rec_thickness = 2048
 slurm_tasks = { ask = true }            # e.g.: 42 (124 for refinement)
-slurm_memory = { ask = true }           # e.g.: 420 (720 for refinement)
-slurm_walltime = { ask = true }         # e.g.: 20:00:00
 slurm_merge_tasks = { ask = true }      # e.g.: 6
-slurm_merge_memory = { ask = true }     # e.g.: 20
-slurm_merge_walltime = { ask = true }   # e.g.: 20:00:00
 
 [blocks.particlepicking]
 blockId = "tomo-picking"
@@ -279,3 +275,4 @@ sharpen_input_map = 'auto'
 sharpen_automask_threshold = 0.35
 sharpen_bfactor_method = 'adhoc'
 sharpen_adhoc_bfac = -25
+slurm_tasks = 11

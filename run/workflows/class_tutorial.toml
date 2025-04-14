@@ -28,11 +28,7 @@ tomo_rec_binning = 12
 tomo_rec_thickness = 3072
 tomo_rec_erase_fiducials = true
 slurm_tasks = { ask = true }            # e.g.: 42 for pre-processing, 124 for refinement
-slurm_memory = { ask = true }           # e.g.: 420 for pre-processingm 720 for refinement
-slurm_walltime = { ask = true }         # e.g.: 72:00:00
 slurm_merge_tasks = { ask = true }      # e.g.: 13 for refinement, 100 for classification
-slurm_merge_memory = { ask = true }     # e.g.: 20 for refinement, 200 for classification
-slurm_merge_walltime = { ask = true }   # e.g.: 48:00:00
 
 [blocks.particlepicking]
 blockId = "tomo-picking"
