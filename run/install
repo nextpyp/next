@@ -53,6 +53,7 @@ if [ -z "$PYP_LOCAL" ]; then
     echo "Found previous local folder at: $PYP_LOCAL"
   elif [ -d "$hereLocalDir" ]; then
     echo "Found previous local folder at: $hereLocalDir"
+    PYP_LOCAL_HERE=true
   fi
 fi
 
@@ -63,6 +64,9 @@ if [ -z "$PYP_SHARED_DATA" ]; then
     echo "Found previous shared data folder at: $PYP_SHARED_DATA"
   elif [ -d "$hereSharedDataDir" ]; then
     echo "Found previous shared data folder at: $hereSharedDataDir"
+    PYP_SHARED_DATA_HERE=true
+    # HACKHACK: also allow the shared exec folder here, since pre-v7.0 installations won't have an existing one
+    PYP_SHARED_EXEC_HERE=true
   fi
 fi
 
@@ -73,6 +77,7 @@ if [ -z "$PYP_SHARED_EXEC" ]; then
     echo "Found previous shared exec folder at: $PYP_SHARED_EXEC"
   elif [ -d "$hereSharedExecDir" ]; then
     echo "Found previous shared exec folder at: $hereSharedExecDir"
+    PYP_SHARED_EXEC_HERE=true
   fi
 fi
 
@@ -242,6 +247,19 @@ if [ "$oscaps" = "root" ]; then
 fi
 
 
+storage_capacity() { #(path)
+  df -Pk "$1" | tail -n 1 | awk '{print $2}'
+}
+
+storage_free_space() { #(path)
+  df -Pk "$1" | tail -n 1 | awk '{print $4}'
+}
+
+kib_to_gib() { #(kib)
+  echo "$1" | awk '{ printf "%.1f", $1 / 1024 / 1024 }'
+}
+
+
 # create initial folders and set up permissions
 
 # make the local folder, or use the one given
@@ -275,6 +293,29 @@ else
 
   # no folder given, use a folder inside the installation folder
   localDir="$hereLocalDir"
+
+  if [ -z "$PYP_LOCAL_HERE" ]; then
+    # check the size of the storage device
+    # want at least 1 TiB (which is 1073741824 KiB-sized blocks)
+    localParent=$(dirname "$localDir")
+    localSpaceKiB=$(storage_capacity "$localParent")
+    if [ "$localSpaceKiB" -lt "1073741824" ]; then
+      localSpaceGiB=$(kib_to_gib "$localSpaceKiB")
+      echo "WARNING: $localParent is on a storage device with less than one terrabyte of total capacity."
+      echo "         It has $localSpaceGiB GiB total capacity."
+      echo "         You can install nextPYP using this location for the 'local' folder,"
+      echo "         but you may quickly run out of space."
+      echo ""
+      echo "         To choose another location for the 'local' folder that has more capacity,"
+      echo "         use the PYP_LOCAL installation option."
+      echo ""
+      echo "         Or, to install here anyway, override this warning by adding the following option"
+      echo "         to your installation command:"
+      echo "           PYP_LOCAL_HERE=true"
+      exit 1
+    fi
+  fi
+
   mkdirheresrv "$localDir" g+s
 
   # check ownership
@@ -319,11 +360,34 @@ else
 
   # no folder given, use a folder inside the installation folder
   sharedDataDir="$hereSharedDataDir"
+
+  if [ -z "$PYP_SHARED_DATA_HERE" ]; then
+    # check the size of the storage device
+    # want at least 1 TiB (which is 1073741824 KiB-sized blocks)
+    sharedDataParent=$(dirname "$sharedDataDir")
+    sharedDataSpaceKiB=$(storage_capacity "$sharedDataParent")
+    if [ "$sharedDataSpaceKiB" -lt "1073741824" ]; then
+      sharedDataSpaceGiB=$(kib_to_gib "$sharedDataSpaceKiB")
+      echo "WARNING: $sharedDataParent is on a storage device with less than one terrabyte of total capacity."
+      echo "         It has $sharedDataSpaceGiB GiB total capacity."
+      echo "         You can install nextPYP using this location for the 'shared data' folder,"
+      echo "         but you may quickly run out of space."
+      echo ""
+      echo "         To choose another location for the 'shared data' folder that has more capacity,"
+      echo "         use the PYP_SHARED_DATA installation option."
+      echo ""
+      echo "         Or, to install here anyway, override this warning by adding the following option"
+      echo "         to your installation command:"
+      echo "           PYP_SHARED_DATA_HERE=true"
+      exit 1
+    fi
+  fi
+
   mkdirheresrv "$sharedDataDir" ugo+rx,g+s
 
   # check ownership
   sharedOwner="$(stat -c '%U' "$sharedDataDir")"
-  if [ "$localOwner" != "$username" ]; then
+  if [ "$sharedOwner" != "$username" ]; then
     echo "ERROR: Shared data folder should be owned by service account $username"
     echo "       Instead it's owned by $sharedOwner"
     echo "       Path: $sharedDataDir"
@@ -367,6 +431,29 @@ else
 
   # no folder given, use a folder in the installation folder
   sharedExecDir="$hereSharedExecDir"
+
+  if [ -z "$PYP_SHARED_EXEC_HERE" ]; then
+    # check the size of the storage device
+    # want at least 100 GiB of free space (which is 104857600 KiB-sized blocks)
+    sharedExecParent=$(dirname "$sharedExecDir")
+    sharedExecSpaceKiB=$(storage_free_space "$sharedExecParent")
+    if [ "$sharedExecSpaceKiB" -lt "104857600" ]; then
+      sharedExecSpaceGiB=$(kib_to_gib "$sharedExecSpaceKiB")
+      echo "WARNING: $sharedExecParent is on a storage device with less than 100 gigabytes of free space."
+      echo "         It currently has $sharedExecSpaceGiB GiB of free space."
+      echo "         You can install nextPYP using this location for the 'shared exec' folder,"
+      echo "         but you might run out of space while downloading files."
+      echo ""
+      echo "         To choose another location for the 'shared exec' folder that has more capacity,"
+      echo "         use the PYP_SHARED_EXEC installation option."
+      echo ""
+      echo "         Or, to install here anyway, override this warning by adding the following option"
+      echo "         to your installation command:"
+      echo "           PYP_SHARED_EXEC_HERE=true"
+      exit 1
+    fi
+  fi
+
   mkdirherenotsrv "$sharedExecDir" ugo+rx,g+s
 
   # check ownership, if useful (can't enforce admin ownership when there's no admin, ie in unprivileged user mode)
@@ -597,13 +684,14 @@ EOF
   if ! systemctl start $appDaemon; then
     echo "ERROR: Looks like nextPYP failed to start the first time."
     echo "       The first place to look for information is the systemd logs."
-    echo "       You can do that with \`sudo journalctl -ue nextPYP\`"
+    echo "       You can do that with:"
+    echo "         sudo journalctl -e -u nextPYP"
     echo "       If there's no useful information there, the next place to look is the init log:"
-    echo "       \`cat "$localDir/logs/init.log"\`"
+    echo "         cat \"$localDir/logs/init.log\""
     echo "       If there's no useful in formation there, the next place to look is the supervisord log:"
-    echo "       \`cat "$localDir/logs/superd"\`"
+    echo "         cat \"$localDir/logs/superd\""
     echo "       Finally, the last place to look for error information is the website log:"
-    echo "       \`tail -n 200 "$localDir/logs/micromon"\`"
+    echo "         tail -n 200 \"$localDir/logs/micromon\""
     echo "       If any of the above log files are missing, it means nextPYP never reached that stage of the startup procedure."
     exit 1
   fi

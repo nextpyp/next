@@ -88,7 +88,8 @@ fail() { #(msg)
   echo "** TEST FAILURE **  $1"
   echo "******************"
   stacktrace
-  clean
+  # actually, don't clean here, so we can investigate error messages
+  #clean
   exit 1
 }
 
@@ -194,18 +195,23 @@ uninstall() { #(acct, ...), sets uninstall_exit
 }
 
 
+#--------------
+# INSTALL TESTS
+#--------------
+
+
 # install as the service account with root
 # should always fail with an error
 test_install_as_root_folder_owned_by_service() {
   mkdir_install_service
-  install "root" PYP_USER="$service_acct"
+  install "root" PYP_USER="$service_acct" PYP_LOCAL_HERE=true PYP_SHARED_DATA_HERE=true PYP_SHARED_EXEC_HERE=true
   assert_failed $install_exit
 }
 
 
 test_install_as_root_folder_owned_by_root() {
   mkdir_install_root
-  install "root" PYP_USER="$service_acct"
+  install "root" PYP_USER="$service_acct" PYP_LOCAL_HERE=true PYP_SHARED_DATA_HERE=true PYP_SHARED_EXEC_HERE=true
   assert_succeeded $install_exit
   assert_install
   assert_owner "$installdir/nextPYP.sif" "root"
@@ -219,7 +225,7 @@ test_install_as_root_folder_owned_by_root() {
 
 test_install_as_root_folder_owned_by_admin() {
   mkdir_install_admin
-  install "root" PYP_USER="$service_acct"
+  install "root" PYP_USER="$service_acct" PYP_LOCAL_HERE=true PYP_SHARED_DATA_HERE=true PYP_SHARED_EXEC_HERE=true
   assert_succeeded $install_exit
   assert_install
   assert_owner "$installdir/nextPYP.sif" "$admin_acct"
@@ -239,7 +245,7 @@ test_install_as_root_with_local_owned_by_root() {
   mkdir -p "$ldir"
 
   mkdir_install_root
-  install "root" PYP_USER="$service_acct" PYP_LOCAL="$ldir"
+  install "root" PYP_USER="$service_acct" PYP_LOCAL="$ldir" PYP_SHARED_DATA_HERE=true PYP_SHARED_EXEC_HERE=true
   assert_failed $install_exit
 }
 
@@ -253,7 +259,7 @@ test_install_as_root_with_local_owned_by_service() {
   chown "$service_acct:$service_acct" "$ldir"
 
   mkdir_install_root
-  install "root" PYP_USER="$service_acct" PYP_LOCAL="$ldir"
+  install "root" PYP_USER="$service_acct" PYP_LOCAL="$ldir" PYP_SHARED_DATA_HERE=true PYP_SHARED_EXEC_HERE=true
   assert_succeeded $install_exit
   assert_install
   assert_owner "$installdir/nextPYP.sif" "root"
@@ -273,7 +279,7 @@ test_install_as_root_with_shared_data_owned_by_admin() {
   sudo -u "$admin_acct" mkdir -p "$sddir"
 
   mkdir_install_root
-  install "root" PYP_USER="$service_acct" PYP_SHARED_DATA="$sddir"
+  install "root" PYP_USER="$service_acct" PYP_SHARED_DATA="$sddir" PYP_LOCAL_HERE=true PYP_SHARED_EXEC_HERE=true
   assert_failed $install_exit
 }
 
@@ -286,7 +292,7 @@ test_install_as_root_with_shared_data_owned_by_service() {
   sudo -u "$service_acct" mkdir -p "$sddir"
 
   mkdir_install_root
-  install "root" PYP_USER="$service_acct" PYP_SHARED_DATA="$sddir"
+  install "root" PYP_USER="$service_acct" PYP_SHARED_DATA="$sddir" PYP_LOCAL_HERE=true PYP_SHARED_EXEC_HERE=true
   assert_succeeded $install_exit
   assert_install
   assert_owner "$installdir/nextPYP.sif" "root"
@@ -306,7 +312,7 @@ test_install_as_root_with_shared_exec_owned_by_service() {
   sudo -u "$service_acct" mkdir -p "$sedir"
 
   mkdir_install_root
-  install "root" PYP_USER="$service_acct" PYP_SHARED_EXEC="$sedir"
+  install "root" PYP_USER="$service_acct" PYP_SHARED_EXEC="$sedir" PYP_LOCAL_HERE=true PYP_SHARED_DATA_HERE=true
   assert_failed $install_exit
 }
 
@@ -319,7 +325,7 @@ test_install_as_root_with_shared_exec_owned_by_admin() {
   sudo -u "$admin_acct" mkdir -p "$sedir"
 
   mkdir_install_root
-  install "root" PYP_USER="$service_acct" PYP_SHARED_EXEC="$sedir"
+  install "root" PYP_USER="$service_acct" PYP_SHARED_EXEC="$sedir" PYP_LOCAL_HERE=true PYP_SHARED_DATA_HERE=true
   assert_succeeded $install_exit
   assert_install
   assert_owner "$installdir/nextPYP.sif" "root"
@@ -331,9 +337,30 @@ test_install_as_root_with_shared_exec_owned_by_admin() {
 }
 
 
+test_install_as_root_small_local() {
+  mkdir_install_root
+  install "root" PYP_USER="$service_acct"
+  assert_failed $install_exit
+}
+
+
+test_install_as_root_small_shared_data() {
+  mkdir_install_root
+  install "root" PYP_USER="$service_acct" PYP_LOCAL_HERE=true
+  assert_failed $install_exit
+}
+
+
+test_install_as_root_small_shared_exec() {
+  mkdir_install_root
+  install "root" PYP_USER="$service_acct" PYP_LOCAL_HERE=true PYP_SHARED_DATA_HERE=true
+  assert_failed $install_exit
+}
+
+
 test_install_as_service() {
   mkdir_install_service
-  install "$service_acct"
+  install "$service_acct" PYP_LOCAL_HERE=true PYP_SHARED_DATA_HERE=true PYP_SHARED_EXEC_HERE=true
   assert_succeeded $install_exit
   assert_install
   assert_owner "$installdir/nextPYP.sif" "$service_acct"
@@ -345,9 +372,14 @@ test_install_as_service() {
 }
 
 
+#--------------
+# UPGRADE TESTS
+#--------------
+
+
 test_upgrade_as_root_folder_owned_by_root() {
   mkdir_install_root
-  install "root" PYP_USER="$service_acct"
+  install "root" PYP_USER="$service_acct" PYP_LOCAL_HERE=true PYP_SHARED_DATA_HERE=true PYP_SHARED_EXEC_HERE=true
   assert_succeeded $install_exit
   srvstop
   install "root"
@@ -358,7 +390,7 @@ test_upgrade_as_root_folder_owned_by_root() {
 
 test_upgrade_as_root_folder_owned_by_admin() {
   mkdir_install_admin
-  install "root" PYP_USER="$service_acct"
+  install "root" PYP_USER="$service_acct" PYP_LOCAL_HERE=true PYP_SHARED_DATA_HERE=true PYP_SHARED_EXEC_HERE=true
   assert_succeeded $install_exit
   srvstop
   install "root"
@@ -376,7 +408,7 @@ test_upgrade_as_root_with_local() {
   chown "$service_acct:$service_acct" "$ldir"
 
   mkdir_install_root
-  install "root" PYP_USER="$service_acct" PYP_LOCAL="$ldir"
+  install "root" PYP_USER="$service_acct" PYP_LOCAL="$ldir" PYP_SHARED_DATA_HERE=true PYP_SHARED_EXEC_HERE=true
   assert_succeeded $install_exit
   srvstop
   install "root"
@@ -393,7 +425,7 @@ test_upgrade_as_root_with_shared_data() {
   sudo -u "$service_acct" mkdir -p "$sddir"
 
   mkdir_install_root
-  install "root" PYP_USER="$service_acct" PYP_SHARED_DATA="$sddir"
+  install "root" PYP_USER="$service_acct" PYP_SHARED_DATA="$sddir" PYP_LOCAL_HERE=true PYP_SHARED_EXEC_HERE=true
   assert_succeeded $install_exit
   srvstop
   install "root"
@@ -410,7 +442,7 @@ test_upgrade_as_root_with_shared_exec() {
   sudo -u "$admin_acct" mkdir -p "$sedir"
 
   mkdir_install_root
-  install "root" PYP_USER="$service_acct" PYP_SHARED_EXEC="$sedir"
+  install "root" PYP_USER="$service_acct" PYP_SHARED_EXEC="$sedir" PYP_LOCAL_HERE=true PYP_SHARED_DATA_HERE=true
   assert_succeeded $install_exit
   srvstop
   install "root"
@@ -421,7 +453,7 @@ test_upgrade_as_root_with_shared_exec() {
 
 test_upgrade_as_service() {
   mkdir_install_service
-  install "$service_acct"
+  install "$service_acct" PYP_LOCAL_HERE=true PYP_SHARED_DATA_HERE=true PYP_SHARED_EXEC_HERE=true
   assert_succeeded $install_exit
   srvstop
   install "$service_acct"
@@ -462,6 +494,11 @@ EOF
 }
 
 
+#----------------------
+# UPGRADE VERSION TESTS
+#----------------------
+
+
 test_upgrade_as_root_from_v6.5() {
   mkdir_install_root
   build_installed_v6.5 "root"
@@ -493,6 +530,9 @@ run_test "test_install_as_root_with_shared_data_owned_by_admin"
 run_test "test_install_as_root_with_shared_data_owned_by_service"
 run_test "test_install_as_root_with_shared_exec_owned_by_service"
 run_test "test_install_as_root_with_shared_exec_owned_by_admin"
+run_test "test_install_as_root_small_local"
+run_test "test_install_as_root_small_shared_data"
+run_test "test_install_as_root_small_shared_exec"
 run_test "test_install_as_service"
 
 # upgrade tests
