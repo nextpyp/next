@@ -191,7 +191,9 @@ setup()
 
   addbind "$localdir"
   addbind "$shareddatadir"
-  addbind "$sharedexecdir"
+  if [ "$sharedexecdir" != "$shareddatadir" ]; then
+    addbind "$sharedexecdir"
+  fi
 
   # the service account is the owner of the shared data folder
   srvname=$(stat --format '%U' "$shareddatadir")
