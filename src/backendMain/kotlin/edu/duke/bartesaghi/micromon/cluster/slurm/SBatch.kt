@@ -188,29 +188,44 @@ class SBatch(val config: Config.Slurm) : Cluster {
 		}
 
 		// build the cancel commands
-		val commands = clusterJobs
+		val launchedClusterJobs = clusterJobs
 			.mapNotNull f@{ clusterJob ->
-
 				// get the SLURM job id for this job, if any
 				val slurmId = clusterJob.getLogOrThrow().launchResult?.jobId
 					?: return@f null
-
-				// build the scancel command
-				var scancel = Command(config.cmdScancel, slurmId.toString())
-
-				// run the job as the specified OS user, if needed
-				if (clusterJob.osUsername != null) {
-					scancel = Backend.instance.userProcessors.get(clusterJob.osUsername).wrap(scancel)
-				}
-
-				scancel
+				clusterJob to slurmId
 			}
+
+		val commands = launchedClusterJobs.map { (clusterJob, slurmId) ->
+
+			// build the scancel command
+			var scancel = Command(config.cmdScancel, slurmId.toString())
+
+			// run the job as the specified OS user, if needed
+			if (clusterJob.osUsername != null) {
+				scancel = Backend.instance.userProcessors.get(clusterJob.osUsername).wrap(scancel)
+			}
+
+			scancel
+		}
+
+		for ((clusterJob, slurmId) in launchedClusterJobs) {
+			Backend.log.debug("calling scancel clusterJob={}  SLURMid={} ...", clusterJob.id, slurmId)
+		}
 
 		// run the commands on the SLURM login node
-		sshPool.connection {
-			for (cmd in commands) {
+		val results = sshPool.connection {
+			commands.map { cmd ->
 				exec(cmd.toShellSafeString())
 			}
+		}
+
+		// record the result of the scancel
+		for ((launchedClusterJob, result) in launchedClusterJobs.zip(results)) {
+			val (clusterJob, slurmId) = launchedClusterJob
+			Backend.log.debug("scancel result (clusterJob={}, SLURMid={})  exit={}  console:\n\t{}",
+				clusterJob.id, slurmId, result.exitCode, result.console.joinToString("\n\t")
+			)
 		}
 	}
 
