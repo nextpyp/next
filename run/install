@@ -21,7 +21,6 @@ else
   # build-time settings (to be filled in by a build script)
   version="__TARGET_VERSION__"
 
-
   # check that the build process actually ran
   tva=__TARGET
   tvb=_VERSION__
@@ -35,74 +34,53 @@ fi
 # gather info about the local environment
 here=$(pwd)
 
-
 echo "Installing nextPYP $version at: $here"
 
-
-# TODO: let admin know the old pyp container can be deleted
-
-
-# look for an existing installation here and try to populate the original installation settings
-
-# TODO: existing installations won't have these symlinks right? so need to add info to docs to make them
-# first, get the folders based on symlinks
 hereLocalDir="$here/local"
-if [ -z "$PYP_LOCAL" ]; then
-  if [ -L "$hereLocalDir" ]; then
-    PYP_LOCAL="$(readlink "$hereLocalDir")"
-    echo "Found previous local folder at: $PYP_LOCAL"
-  elif [ -d "$hereLocalDir" ]; then
-    echo "Found previous local folder at: $hereLocalDir"
-    PYP_LOCAL_HERE=true
-  fi
-fi
-
 hereSharedDataDir="$here/shared"
-if [ -z "$PYP_SHARED_DATA" ]; then
-  if [ -L "$hereSharedDataDir" ]; then
-    PYP_SHARED_DATA="$(readlink "$hereSharedDataDir")"
-    echo "Found previous shared data folder at: $PYP_SHARED_DATA"
-  elif [ -d "$hereSharedDataDir" ]; then
-    echo "Found previous shared data folder at: $hereSharedDataDir"
-    PYP_SHARED_DATA_HERE=true
-    # HACKHACK: also allow the shared exec folder here, since pre-v7.0 installations won't have an existing one
-    PYP_SHARED_EXEC_HERE=true
-  fi
-fi
-
 hereSharedExecDir="$here/sharedExec"
-if [ -z "$PYP_SHARED_EXEC" ]; then
-  if [ -L "$hereSharedExecDir" ]; then
-    PYP_SHARED_EXEC="$(readlink "$hereSharedExecDir")"
-    echo "Found previous shared exec folder at: $PYP_SHARED_EXEC"
-  elif [ -d "$hereSharedExecDir" ]; then
-    echo "Found previous shared exec folder at: $hereSharedExecDir"
-    PYP_SHARED_EXEC_HERE=true
-  fi
-fi
-
-# then, try to get the user,group names from the folder
-if [ -z "$PYP_USER" ] && [ -d "$hereSharedDataDir" ]; then
-  PYP_USER="$(stat -c '%U' -L "$hereSharedDataDir")"
-  echo "Found existing nextPYP account $PYP_USER"
-fi
-if [ -z "$PYP_GROUP" ] && [ -d "$hereSharedDataDir" ]; then
-  PYP_GROUP="$(stat -c '%G' -L "$hereSharedDataDir")"
-  echo "Found existing nextPYP group $PYP_GROUP"
-fi
 
 
-mkdirdo() { #(do, path, chmod ops)
-  if [ -d "$2" ]; then
-    echo "Using existing folder $2"
-  else
-    $1 mkdir -p "$2"
-    if [ -n "$3" ]; then
-      $1 chmod "$3" "$2"
-    fi
-    echo "Created folder $2"
+folder_owner() { #(path)
+  stat -c '%U' -L "$1"
+}
+folder_group() { #(path)
+  stat -c '%G' -L "$1"
+}
+
+storage_capacity() { #(path)
+  df -Pk "$1" | tail -n 1 | awk '{print $2}'
+}
+
+storage_free_space() { #(path)
+  df -Pk "$1" | tail -n 1 | awk '{print $4}'
+}
+
+kib_to_gib() { #(kib)
+  echo "$1" | awk '{ printf "%.1f", $1 / 1024 / 1024 }'
+}
+
+check_capacity() { #(path, pathDesc, minKiB, minDesc, settingName, overrideName)
+  capacityKiB=$(storage_capacity "$1")
+  if [ "$capacityKiB" -lt "$3" ]; then
+    capacityGiB=$(kib_to_gib "$capacityKiB")
+    echo "WARNING: $1 is on a storage device with less than $4 of total capacity."
+    echo "         It has $capacityGiB GiB total capacity."
+    echo "         You can install nextPYP using this location for the '$2' folder,"
+    echo "         but you may run out of space after a while."
+    echo ""
+    echo "         To choose another location for the '$2' folder that has more capacity,"
+    echo "         use the $5 installation option."
+    echo ""
+    echo "         Or, to install here anyway, override this warning by adding the following option"
+    echo "         to your installation command:"
+    echo "           $6=true"
+    exit 1
   fi
 }
+
+
+hereOwner=$(folder_owner "$here")
 
 
 # determine what capabilities we have
@@ -115,83 +93,41 @@ if [ "$whoami" = "root" ]; then
   oscaps="root"
 
   # get the username for the service account
-  username=$PYP_USER
-  if [ -z "$username" ]; then
+  if [ -n "$PYP_USER" ]; then
+    username="$PYP_USER"
+  # no username explicitly set: try to get it from the shared folder
+  elif [ -d "$hereSharedDataDir" ]; then
+    username=$(folder_owner "$hereSharedDataDir")
+    echo "Found existing nextPYP service account $username"
+  else
     echo "No PYP_USER set."
     exit 1
   fi
 
   # get the groupname for the service account
-  groupname=$PYP_GROUP
-  if [ -z "$groupname" ]; then
-    if getent group "$username" > /dev/null; then
-      groupname=$username
-    else
-      echo "$username is not a valid group. Choose the pyp group by setting PYP_GROUP"
-      exit 1
-    fi
+  if [ -n "$PYP_GROUP" ]; then
+    groupname="$PYP_GROUP"
+  # no groupname explicitly set: try to get it from the shared folder
+  elif [ -d "$hereSharedDataDir" ]; then
+    groupname=$(folder_group "$hereSharedDataDir")
+    echo "Found existing nextPYP service group $groupname"
+  # see if the username is also a valid groupname
+  elif getent group "$username" > /dev/null; then
+    groupname=$username
+  else
+    echo "Service account $username is not a valid group."
+    echo "Choose the nextPYP service group by setting PYP_GROUP."
+    exit 1
+  fi
+
+  # make sure the service account doesn't own the installation folder
+  if [ "$hereOwner" != "root" ] && [ "$hereOwner" != "$admin" ]; then
+    echo "ERROR: The installation folder is owned by $hereOwner,"
+    echo "       but it should be owned by root or the administrator $admin"
+    exit 1
   fi
 
   echo "Installing for service account $username in group $groupname ..."
-
-  # make a way to do things as the service account, like sudo, but service-do
-  srvdo="sudo -u $username"
-
-  # determine filesystem capabilities
-  installOwner="$(stat -c '%U' "$here")"
-  if [ "$installOwner" = "root" ]; then
-    echo "Install folder owned by root"
-
-    heredo=
-
-  elif [ "$installOwner" = "$admin" ]; then
-    echo "Install folder owned by administrator $admin"
-
-    heredo="sudo -u $admin"
-
-  elif [ "$installOwner" = "$username" ]; then
-    echo "Install folder owned by service account"
-
-    echo "ERROR: This installation mode is not recommended for security reasons."
-    echo "       For installs as root, the service account should not have write access to the nextPYP executable files."
-    echo "       Instead, install into a folder owned by root or an administrator account."
-    exit 1
-
-  else
-    echo "Install folder owned by $installOwner"
-
-    echo "ERROR: install folder $here should be owned by administrator $admin or root."
-    exit 1
-
-  fi
-
-  mkdirheresrv() { #(path, chmod ops)
-
-    if [ -d "$1" ]; then
-      echo "Using existing folder $1"
-    else
-
-      # In a normal universe, we'd create the folder as the admin account and then chown to the service account.
-      # But some networked filesystems won't allow chown, so we need to do something else:
-      # like temporarily allowing the service account to write to the parent folder.
-
-      # first, backup the parent folder permissions and allow write access to others
-      parentdir=$(dirname "$1")
-      backup=$(stat --format '%a' "$parentdir")
-      $heredo chmod go+wx "$parentdir"
-
-      # then, create the folder as the service account
-      mkdirdo "$srvdo" "$1" "$2"
-
-      # restore the original permissions
-      $heredo chmod "$backup" "$parentdir"
-    fi
-  }
-
-  mkdirherenotsrv() { #(path, chmod ops)
-    # folder will be owned by root/admin, which is not the service account
-    mkdirdo "$heredo" "$1" "$2"
-  }
 
   # install binaries to the OS bin dir
   bindir=/usr/bin
@@ -205,24 +141,180 @@ else
   oscaps="user"
 
   username="$whoami"
+  groupname="$username"
 
   echo "Installing as current account $username ..."
-
-  srvdo=
-  heredo=
-  mkdirheresrv() { #(path, chmod ops)
-    mkdirdo "$srvdo" "$1" "$2"
-  }
-  mkdirherenotsrv() { #(path, chmod ops)
-    # not possible to have folders owned by another user, so just use this one and hope for the best
-    mkdirdo "$srvdo" "$1" "$2"
-  }
 
   # "install" binaries here
   bindir="$here"
 
   home="$HOME"
+
+  # if doing a new install, use here as the storage folder
+  # assume the install is new if there's no local folder here
+  if [ ! -e "$hereLocalDir" ]; then
+    PYP_STORAGE="$here"
+  fi
 fi
+
+
+# NOTE: shared logic with uninstall script: keep in sync!
+folder_owner_type() { #(owner), reads: admin, username
+  if [ "$1" = "root" ]; then
+    echo "root"
+  elif [ "$1" = "$admin" ]; then
+    echo "admin"
+  elif [ "$1" = "$username" ]; then
+    echo "service"
+  else
+    echo "other"
+  fi
+}
+
+# NOTE: shared logic with uninstall script: keep in sync!
+folder_do() { #(path), reads: admin, oscaps, username
+  owner=$(folder_owner "$1")
+  if [ "$oscaps" = "root" ]; then
+    type=$(folder_owner_type "$owner")
+    if [ "$type" = "root" ]; then
+      echo
+    elif [ "$type" = "admin" ]; then
+      echo sudo -u "$admin"
+    elif [ "$type" = "service" ]; then
+      echo sudo -u "$username"
+    else
+      # some other user: this is an error
+      >&2 echo "ERROR: folder $1 owned by unrecognized user $owner"
+      exit 1
+    fi
+  else
+    if [ "$owner" = "$username" ]; then
+      echo
+    else
+      >&2 echo "ERROR: folder $1 owned by some other user $owner, instead of you: $username"
+      exit 1
+    fi
+  fi
+}
+
+
+hereDo=$(folder_do "$here")
+
+
+mkdir_owned() { #(path, owner, group, chmod ops); reads oscaps, admin, username
+
+  # look for an existing folder first
+  if [ -d "$1" ]; then
+    echo "Using existing folder $1"
+
+    # check ownership tho
+    folderOwner=$(folder_owner "$1")
+    if [ "$folderOwner" != "$2" ]; then
+      echo "ERROR: existing folder $1 is owned by $folderOwner, but it should be owned by $2"
+    fi
+
+  else
+
+    # folder doesn't exist: we need to create it
+    # why, oh why is creating folders so difficult?!? T_T
+
+    parent=$(dirname "$1")
+    parentOwner=$(folder_owner "$parent")
+
+    if [ "$oscaps" = "root" ]; then
+      parentType=$(folder_owner_type "$parentOwner")
+      if [ "$parentType" = "root" ]; then
+
+        # if a folder is owned by root, then things like chown should work normally
+        mkdir "$1"
+        if [ "$2" != "root" ]; then
+          chown "$2:$3" "$1"
+        fi
+        if [ -n "$4" ]; then
+          chmod "$4" "$1"
+        fi
+
+      elif [ "$parentType" = "admin" ]; then
+
+        if [ "$2" = "root" ]; then
+
+          echo "ERROR: can't create folder owned by root in a folder owned by an admin"
+          exit 1
+
+        elif [ "$2" = "$admin" ]; then
+
+          # can just create folder as admin
+          sudo -u "$admin" mkdir "$1"
+          if [ -n "$4" ]; then
+            sudo -u "$admin" chmod "$4" "$1"
+          fi
+
+        elif [ "$2" = "$username" ]; then
+
+          # if a folder is owned by admin and we need the folder to be owned by the service account,
+          # then chown might not work (networked filesystems, etc)
+          # so we have to resort to temporary permission tricks
+
+          # first, backup the parent folder permissions and allow write access to others
+          backup=$(stat --format '%a' "$parent")
+          sudo -u "$admin" chmod go+wx "$parent"
+
+          # then, create the folder as the service account
+          sudo -u "$username" mkdir "$1"
+
+          # restore the original permissions
+          sudo -u "$admin" chmod "$backup" "$parent"
+
+          if [ -n "$4" ]; then
+            sudo -u "$username" chmod "$4" "$1"
+          fi
+
+        else
+          echo "ERROR: unrecognized target owner $2"
+          exit 1
+        fi
+
+      elif [ "$parentType" = "service" ]; then
+
+        if [ "$2" = "$username" ]; then
+
+          # easy peasy
+          sudo -u "$username" mkdir "$1"
+          if [ -n "$4" ]; then
+            sudo -u "$username" chmod "$4" "$1"
+          fi
+
+        else
+          echo "ERROR: can't create folder owned by $2 in a folder owned by the service account"
+          exit 1
+        fi
+
+      else
+        # some other user: this is an error
+        echo "ERROR: folder $1 owned by unrecognized user $parentOwner"
+        exit 1
+      fi
+
+    else # oscaps = "user"
+
+      if [ "$parentOwner" = "$username" ]; then
+
+        # all we can do here is be a regular user
+        mkdir "$1"
+        if [ -n "$4" ]; then
+          chmod "$4" "$1"
+        fi
+
+      else
+        echo "ERROR: folder $1 owned by some other user $parentOwner, instead of you: $username"
+        exit 1
+      fi
+
+    fi
+
+    echo "Created folder $1"
+  fi
+}
 
 
 if [ "$oscaps" = "root" ]; then
@@ -247,22 +339,79 @@ if [ "$oscaps" = "root" ]; then
 fi
 
 
-storage_capacity() { #(path)
-  df -Pk "$1" | tail -n 1 | awk '{print $2}'
+# look for storage folder settings, which creates the other folders as sub-folders
+if [ -n "$PYP_STORAGE" ]; then
+
+  # check existence
+  if [ ! -d "$PYP_STORAGE" ]; then
+    echo "ERROR: Storage folder given by PYP_STORAGE not found"
+    echo "       PYP_STORAGE=$PYP_STORAGE"
+    exit 1
+  fi
+
+  storageDir="$PYP_STORAGE"
+  echo "Installing storage to folder: $storageDir"
+
+  # check ownership of the storage folder
+  storageOwner=$(folder_owner "$storageDir")
+  storageGroup=$(folder_group "$storageDir")
+  echo "  user=$storageOwner   group=$storageGroup"
+  if [ "$oscaps" = "root" ]; then
+    if [ "$storageOwner" != "root" ] && [ "$storageOwner" != "$admin" ]; then
+      echo "ERROR: The storage folder is owned by $storageOwner,"
+      echo "       but it should be owned by root or the administrator $admin"
+      exit 1
+    fi
+  else # oscaps = "user"
+    if [ "$storageOwner" != "$username" ]; then
+      echo "ERROR: The storage folder is owned by $storageOwner,"
+      echo "       but it should be owned your account $username"
+      exit 1
+    fi
+  fi
+
+  # check the size of the storage device hosting this folder, if needed
+  # want at least 1 TiB total capacity (which is 1073741824 KiB-sized blocks)
+  if [ -z "$PYP_STORAGE_OK" ]; then
+    check_capacity "$storageDir" "storage" "1073741824" "one terrabyte" "PYP_STORAGE" "PYP_STORAGE_OK"
+  fi
+
+  # define all the other folders as sub-folders of the storage folder
+
+  PYP_LOCAL="$storageDir/local"
+  mkdir_owned "$PYP_LOCAL" "$username" "$groupname" "u=rwx,g=rxs,o=rx"
+
+  PYP_SHARED_DATA="$storageDir/shared"
+  mkdir_owned "$PYP_SHARED_DATA" "$username" "$groupname" "u=rwx,g=rxs,o=rx"
+
+  PYP_SHARED_EXEC="$storageDir/sharedExec"
+  mkdir_owned "$PYP_SHARED_EXEC" "$storageOwner" "" "u=rwx,g=rxs,o=rx"
+
+  PYP_SCRATCH="$storageDir/scratch"
+  mkdir_owned "$PYP_SCRATCH" "$username" "$groupname" "u=rwx,g=rxs,o=rx"
+
+fi
+
+
+update_local_symlink() { #(src, target) reads: here, hereDo
+  if [ -L "$2" ]; then
+    # existing entry is a symlink: delete it so we can overwrite it
+    $hereDo rm "$2"
+    $hereDo ln -s "$1" "$2"
+  elif [ -d "$2" ]; then
+    # existing entry is a real folder: no symlink needed
+    true
+  elif [ -e "$2" ]; then
+    echo "ERROR: Can't create symlink at $2 because something already exists there"
+    exit 1
+  else
+    # nothing there yet: can create the symlink now
+    $hereDo ln -s "$1" "$2"
+  fi
 }
 
-storage_free_space() { #(path)
-  df -Pk "$1" | tail -n 1 | awk '{print $4}'
-}
 
-kib_to_gib() { #(kib)
-  echo "$1" | awk '{ printf "%.1f", $1 / 1024 / 1024 }'
-}
-
-
-# create initial folders and set up permissions
-
-# make the local folder, or use the one given
+# init the local folder
 if [ -n "$PYP_LOCAL" ]; then
 
   # check existence
@@ -273,63 +422,45 @@ if [ -n "$PYP_LOCAL" ]; then
   fi
 
   # check ownership
-  localOwner="$(stat -c '%U' "$PYP_LOCAL")"
+  localOwner=$(folder_owner "$PYP_LOCAL")
   if [ "$localOwner" != "$username" ]; then
-    echo "ERROR: Local folder given by PYP_LOCAL should be owned by service account $username"
+    echo "ERROR: Local folder given by PYP_LOCAL should be owned by $username"
     echo "       Instead it's owned by $localOwner"
     echo "       PYP_LOCAL=$PYP_LOCAL"
     exit 1
   fi
 
   localDir="$PYP_LOCAL"
+  echo "Using local folder: $localDir"
+  update_local_symlink "$localDir" "$hereLocalDir"
 
-  # make a symlink to the local folder in the install dir so scripts can easily find it again later
-  if [ -L "$hereLocalDir" ]; then
-    $heredo rm "$hereLocalDir"
-  fi
-  $heredo ln -s "$localDir" "$hereLocalDir"
+# look for a folder from a previous installation
+elif [ -L "$hereLocalDir" ]; then
+
+  localDir="$(readlink "$hereLocalDir")"
+  echo "Found previous local folder at: $localDir"
+
+elif [ -d "$hereLocalDir" ]; then
+
+  localDir="$hereLocalDir"
+  echo "Found previous local folder here: $localDir"
 
 else
 
-  # no folder given, use a folder inside the installation folder
+  # no folder given and no previous folder: create a folder inside the installation folder
   localDir="$hereLocalDir"
 
-  if [ -z "$PYP_LOCAL_HERE" ]; then
-    # check the size of the storage device
-    # want at least 1 TiB (which is 1073741824 KiB-sized blocks)
-    localParent=$(dirname "$localDir")
-    localSpaceKiB=$(storage_capacity "$localParent")
-    if [ "$localSpaceKiB" -lt "1073741824" ]; then
-      localSpaceGiB=$(kib_to_gib "$localSpaceKiB")
-      echo "WARNING: $localParent is on a storage device with less than one terrabyte of total capacity."
-      echo "         It has $localSpaceGiB GiB total capacity."
-      echo "         You can install nextPYP using this location for the 'local' folder,"
-      echo "         but you may quickly run out of space."
-      echo ""
-      echo "         To choose another location for the 'local' folder that has more capacity,"
-      echo "         use the PYP_LOCAL installation option."
-      echo ""
-      echo "         Or, to install here anyway, override this warning by adding the following option"
-      echo "         to your installation command:"
-      echo "           PYP_LOCAL_HERE=true"
-      exit 1
-    fi
+  # check the size of the storage device, if needed
+  # want at least 100 GiB (which is 104857600 KiB-sized blocks)
+  if [ -z "$PYP_HERE_OK" ]; then
+    check_capacity "$here" "install" "104857600" "one hundred gigabytes" "PYP_LOCAL" "PYP_HERE_OK"
   fi
 
-  mkdirheresrv "$localDir" g+s
-
-  # check ownership
-  localOwner="$(stat -c '%U' "$localDir")"
-  if [ "$localOwner" != "$username" ]; then
-    echo "ERROR: Local folder should be owned by service account $username"
-    echo "       Instead it's owned by $localOwner"
-    echo "       Path: $localDir"
-    exit 1
-  fi
+  mkdir_owned "$localDir" "$username" "$groupname" "u=rwx,g=rxs,o=rx"
 fi
 
 
-# make the shared data folder, or use the one given
+# init the shared data folder
 if [ -n "$PYP_SHARED_DATA" ]; then
 
   # check existence
@@ -340,59 +471,34 @@ if [ -n "$PYP_SHARED_DATA" ]; then
   fi
 
   # check ownership
-  sharedOwner="$(stat -c '%U' "$PYP_SHARED_DATA")"
+  sharedOwner=$(folder_owner "$PYP_SHARED_DATA")
   if [ "$sharedOwner" != "$username" ]; then
-    echo "ERROR: Shared folder given by PYP_SHARED_DATA should be owned by service account $username"
+    echo "ERROR: Shared folder given by PYP_SHARED_DATA should be owned by $username"
     echo "       Instead it's owned by $sharedOwner"
     echo "       PYP_SHARED_DATA=$PYP_SHARED_DATA"
     exit 1
   fi
 
   sharedDataDir="$PYP_SHARED_DATA"
+  echo "Using shared data folder: $sharedDataDir"
+  update_local_symlink "$sharedDataDir" "$hereSharedDataDir"
 
-  # make a symlink to the shared folder in the install dir so scripts can easily find it again later
-  if [ -L "$hereSharedDataDir" ]; then
-    $heredo rm "$hereSharedDataDir"
-  fi
-  $heredo ln -s "$sharedDataDir" "$hereSharedDataDir"
+# look for a folder from a previous installation
+elif [ -L "$hereSharedDataDir" ]; then
+
+  sharedDataDir="$(readlink "$hereSharedDataDir")"
+  echo "Found previous shared data folder at: $sharedDataDir"
+
+elif [ -d "$hereSharedDataDir" ]; then
+
+  sharedDataDir="$hereSharedDataDir"
+  echo "Found previous shared data folder here: $sharedDataDir"
 
 else
 
-  # no folder given, use a folder inside the installation folder
-  sharedDataDir="$hereSharedDataDir"
-
-  if [ -z "$PYP_SHARED_DATA_HERE" ]; then
-    # check the size of the storage device
-    # want at least 1 TiB (which is 1073741824 KiB-sized blocks)
-    sharedDataParent=$(dirname "$sharedDataDir")
-    sharedDataSpaceKiB=$(storage_capacity "$sharedDataParent")
-    if [ "$sharedDataSpaceKiB" -lt "1073741824" ]; then
-      sharedDataSpaceGiB=$(kib_to_gib "$sharedDataSpaceKiB")
-      echo "WARNING: $sharedDataParent is on a storage device with less than one terrabyte of total capacity."
-      echo "         It has $sharedDataSpaceGiB GiB total capacity."
-      echo "         You can install nextPYP using this location for the 'shared data' folder,"
-      echo "         but you may quickly run out of space."
-      echo ""
-      echo "         To choose another location for the 'shared data' folder that has more capacity,"
-      echo "         use the PYP_SHARED_DATA installation option."
-      echo ""
-      echo "         Or, to install here anyway, override this warning by adding the following option"
-      echo "         to your installation command:"
-      echo "           PYP_SHARED_DATA_HERE=true"
-      exit 1
-    fi
-  fi
-
-  mkdirheresrv "$sharedDataDir" ugo+rx,g+s
-
-  # check ownership
-  sharedOwner="$(stat -c '%U' "$sharedDataDir")"
-  if [ "$sharedOwner" != "$username" ]; then
-    echo "ERROR: Shared data folder should be owned by service account $username"
-    echo "       Instead it's owned by $sharedOwner"
-    echo "       Path: $sharedDataDir"
-    exit 1
-  fi
+  # NOTE: we should only hit this case in a cluster installation
+  echo "ERROR: PYP_SHARED_DATA is a required option"
+  exit 1
 fi
 
 
@@ -408,7 +514,7 @@ if [ -n "$PYP_SHARED_EXEC" ]; then
 
   # check ownership, if useful (can't enforce admin ownership when there's no admin, ie in unprivileged user mode)
   if [ "$oscaps" = "root" ]; then
-    sharedExecOwner="$(stat -c '%U' "$PYP_SHARED_EXEC")"
+    sharedExecOwner=$(folder_owner "$PYP_SHARED_EXEC")
     if [ "$sharedExecOwner" != "root" ] && [ "$sharedExecOwner" != "$admin" ]; then
       echo "ERROR: Shared exec folder given by PYP_SHARED_EXEC should be owned by root or $admin"
       echo "       Instead, it is owned by $sharedExecOwner"
@@ -418,57 +524,35 @@ if [ -n "$PYP_SHARED_EXEC" ]; then
   fi
 
   sharedExecDir="$PYP_SHARED_EXEC"
+  echo "Using shared exec folder: $sharedExecDir"
+  update_local_symlink "$sharedExecDir" "$hereSharedExecDir"
 
-  sharedexecdo="sudo -u $admin"
+# look for a folder from a previous installation
+elif [ -L "$hereSharedExecDir" ]; then
 
-  # make a symlink to the shared exec folder in the install dir so scripts can easily find it again later
-  if [ -L "$hereSharedExecDir" ]; then
-    $heredo rm "$hereSharedExecDir"
-  fi
-  $heredo ln -s "$sharedExecDir" "$hereSharedExecDir"
+  sharedExecDir="$(readlink "$hereSharedExecDir")"
+  echo "Found previous shared exec folder at: $sharedExecDir"
+
+elif [ -d "$hereSharedExecDir" ]; then
+
+  sharedExecDir="$hereSharedExecDir"
+  echo "Found previous shared exec folder here: $sharedExecDir"
+
+elif [ "$oscaps" = "user" ]; then
+
+  # we only get here if we're upgrading from pre-v0.7.0 in user mode
+  # so we make a new shared exec dir under the install dir
+  sharedExecDir="$hereSharedExecDir"
+  mkdir_owned "$sharedExecDir" "$username" "" "u=rwx,g=rxs,o=rx"
 
 else
 
-  # no folder given, use a folder in the installation folder
-  sharedExecDir="$hereSharedExecDir"
-
-  if [ -z "$PYP_SHARED_EXEC_HERE" ]; then
-    # check the size of the storage device
-    # want at least 100 GiB of free space (which is 104857600 KiB-sized blocks)
-    sharedExecParent=$(dirname "$sharedExecDir")
-    sharedExecSpaceKiB=$(storage_free_space "$sharedExecParent")
-    if [ "$sharedExecSpaceKiB" -lt "104857600" ]; then
-      sharedExecSpaceGiB=$(kib_to_gib "$sharedExecSpaceKiB")
-      echo "WARNING: $sharedExecParent is on a storage device with less than 100 gigabytes of free space."
-      echo "         It currently has $sharedExecSpaceGiB GiB of free space."
-      echo "         You can install nextPYP using this location for the 'shared exec' folder,"
-      echo "         but you might run out of space while downloading files."
-      echo ""
-      echo "         To choose another location for the 'shared exec' folder that has more capacity,"
-      echo "         use the PYP_SHARED_EXEC installation option."
-      echo ""
-      echo "         Or, to install here anyway, override this warning by adding the following option"
-      echo "         to your installation command:"
-      echo "           PYP_SHARED_EXEC_HERE=true"
-      exit 1
-    fi
-  fi
-
-  mkdirherenotsrv "$sharedExecDir" ugo+rx,g+s
-
-  # check ownership, if useful (can't enforce admin ownership when there's no admin, ie in unprivileged user mode)
-  if [ "$oscaps" = "root" ]; then
-    sharedExecOwner="$(stat -c '%U' "$sharedExecDir")"
-    if [ "$sharedExecOwner" != "root" ] && [ "$sharedExecOwner" != "$admin" ]; then
-      echo "ERROR: Shared exec folder should be owned by root or $admin"
-      echo "       Instead, it is owned by $sharedExecOwner"
-      echo "       Path: $sharedExecDir"
-      exit 1
-    fi
-  fi
-
-  sharedexecdo=$heredo
+  # NOTE: we should only hit this case in a cluster installation
+  echo "ERROR: PYP_SHARED_EXEC is a required option"
+  exit 1
 fi
+
+sharedExecDo=$(folder_do "$sharedExecDir")
 
 
 # NOTE: The base folders have setgid (g+s) so all files inherit the service account group.
@@ -476,20 +560,20 @@ fi
 #       so we don't need to re-set it for every folder.
 
 # make the local sub-folders
-mkdirdo "$srvdo" "$localDir/containers"
-mkdirdo "$srvdo" "$localDir/logs"
-mkdirdo "$srvdo" "$localDir/db"
-mkdirdo "$srvdo" "$localDir/sock" ugo=rwx,+t
+mkdir_owned "$localDir/containers" "$username" "$groupname"
+mkdir_owned "$localDir/logs" "$username" "$groupname"
+mkdir_owned "$localDir/db" "$username" "$groupname"
+mkdir_owned "$localDir/sock" "$username" "$groupname" ugo=rwx,+t
 
 # make the shared sub-folders
-mkdirdo "$srvdo" "$sharedDataDir/batch" ugo=rwx,+t
-mkdirdo "$srvdo" "$sharedDataDir/log" ugo=rwx,+t
-mkdirdo "$srvdo" "$sharedDataDir/users"
-mkdirdo "$srvdo" "$sharedDataDir/os-users" ugo=rwx,+t
-mkdirdo "$srvdo" "$sharedDataDir/sessions"
-mkdirdo "$srvdo" "$sharedDataDir/groups"
+mkdir_owned "$sharedDataDir/batch" "$username" "$groupname" ugo=rwx,+t
+mkdir_owned "$sharedDataDir/log" "$username" "$groupname" ugo=rwx,+t
+mkdir_owned "$sharedDataDir/users" "$username" "$groupname"
+mkdir_owned "$sharedDataDir/os-users" "$username" "$groupname" ugo=rwx,+t
+mkdir_owned "$sharedDataDir/sessions" "$username" "$groupname"
+mkdir_owned "$sharedDataDir/groups" "$username" "$groupname"
 
-# The user-processors folder needs some special case, since it houses set-uid executables:
+# The user-processors folder needs some special care, since it houses set-uid executables:
 # The folder should be owned by the service account, and the service group.
 # But we need to explicitly set the service group for this folder, since the group might
 # be something other than the service group chosen in this installer by default,
@@ -497,11 +581,19 @@ mkdirdo "$srvdo" "$sharedDataDir/groups"
 # And it is *vitally* important the user-processors folder have the tmpdir bit set,
 # so the service account can't overwrite the users' executables.
 userProcessorsDir="$sharedDataDir/user-processors"
-mkdirdo "$srvdo" "$userProcessorsDir" ugo=rwx,+t
-$srvdo chown ":$groupname" "$userProcessorsDir"
+mkdir_owned "$userProcessorsDir" "$username" "$groupname" ugo=rwx,+t
+
+updirGroup=$(folder_group "$userProcessorsDir")
+if [ "$updirGroup" != "$groupname" ]; then
+  echo "WARNING: User-processors folders is owned by group $updirGroup"
+  echo "         but it should be owned by $groupname instead. Attemping to fix ..."
+  $sharedExecDo chown ":$groupname" "$userProcessorsDir"
+fi
+
 
 # make the shared exec sub-folders
-mkdirdo "$sharedexecdo" "$sharedExecDir/containers"
+sharedExecOwner=$(folder_owner "$sharedExecDir")
+mkdir_owned "$sharedExecDir/containers" "$sharedExecOwner" ""
 
 
 # configure downloads
@@ -510,7 +602,7 @@ wgetopts="-nv"
 # for interactive use, it's helpful to turn on the progress bar to track long downloads
 #wgetopts="$wgetopts --progress=bar"
 
-download() { #(do, path, todir, chmod vops)
+download() { #(do, filename, todir, chmod vops)
   if [ -n "$PYP_DIST" ]; then
     # copy distribution files from the local path
     echo "Copying $3/$2 ..."
@@ -529,31 +621,27 @@ else
   echo "Downloading installation files from $www ..."
 fi
 
-download "$heredo" "nextPYP.sif" "$here" u=rw,go=r
-download "$heredo" "host-processor" "$here" u=rw,go=r
-download "$heredo" "user-processor" "$here" u=rw,go=r
-download "$heredo" "nextpyp" "$here" u=rw,go=r
-download "$heredo" "uninstall" "$here" u=rw,go=r
-download "$heredo" "install-rprox" "$here" u=rw,go=r
+download "$hereDo" "nextPYP.sif" "$here" u=rw,go=r
+download "$hereDo" "host-processor" "$here" u=rw,go=r
+download "$hereDo" "user-processor" "$here" u=rw,go=r
+download "$hereDo" "nextpyp" "$here" u=rw,go=r
+download "$hereDo" "uninstall" "$here" u=rw,go=r
+download "$hereDo" "install-rprox" "$here" u=rw,go=r
 
 # NOTE: we don't make the local scripts (eg other installers/uninstallers) in $here executable
 #       instead, the installation instructions ask the user to inspect them first
 #       and then chmod +x later if satisfied
 
 
-# download shared containers into the shared exec folder
-download_container() { #(name)
-  download "$sharedexecdo" "$1" "$sharedExecDir/containers" u=rw,go=r # shared container files need to be world-readable
-}
-download_container "pyp.sif"
-
+# download large container files
+download "$sharedExecDo" "pyp.sif" "$sharedExecDir/containers" u=rw,go=r
 
 # download the workflow files
 workflowDir="$here/workflows"
-mkdirdo "$heredo" "$workflowDir" u=rwx,go=r
-download "$heredo" "workflows/spr_tutorial.toml" "$here" u=rw,go=r
-download "$heredo" "workflows/tomo_tutorial.toml" "$here" u=rw,go=r
-download "$heredo" "workflows/class_tutorial.toml" "$here" u=rw,go=r
+mkdir_owned "$workflowDir" "$hereOwner" "" u=rwx,go=r
+download "$hereDo" "workflows/spr_tutorial.toml" "$here" u=rw,go=r
+download "$hereDo" "workflows/tomo_tutorial.toml" "$here" u=rw,go=r
+download "$hereDo" "workflows/class_tutorial.toml" "$here" u=rw,go=r
 
 
 install() { #(filename, dest filename)
@@ -566,7 +654,7 @@ install() { #(filename, dest filename)
   outpath="$bindir/$dstname"
   if [ "$here/$1" != "$outpath" ]; then
     cp -f "$here/$1" "$outpath"
-    $heredo rm "$here/$1"
+    rm "$here/$1"
   fi
   chmod u=rwx,go=rx "$outpath"
 }
@@ -581,12 +669,11 @@ if [ "$oscaps" = "root" ]; then
   if [ ! -d "$home" ]; then
     echo "Service account has no home folder, attempting to create automatically ..."
     echo "If automatic home folder creation fails, create the home folder manually and try installing again."
-    mkdirdo "" "$home" u+rwx,go+rx,go-w
-    chown "$username:$groupname" "$home"
+    mkdir_owned "$home" "$username" "$groupname" u=rwx,g=rxs,o=rx
   else
     echo "Home folder for service account already exists: $home"
   fi
-  mkdirdo "$srvdo" "$home/.config" u+rwx,go+rx,go-w
+  mkdir_owned "$home/.config" "$username" "$groupname" u=rwx,g=rxs,o=rx
 fi
 
 
@@ -596,8 +683,9 @@ configPath="$sharedExecDir/config.toml"
 # if a config file exists in the old location, move it to the new one
 if [ -f "$hereConfigPath" ] && [ ! -L "$hereConfigPath" ]; then
   echo "Found config file in old location: $hereConfigPath"
-  $sharedexecdo mv "$hereConfigPath" "$configPath"
-  $heredo ln -s "$configPath" "$hereConfigPath"
+  $sharedExecDo cp "$hereConfigPath" "$configPath"
+  $hereDo rm "$hereConfigPath"
+  $hereDo ln -s "$configPath" "$hereConfigPath"
   echo "Moved config file to new location: $configPath"
 fi
 
@@ -605,12 +693,40 @@ fi
 if [ -f "$configPath" ]; then
   echo "Using existing configuration file: $configPath"
 else
-  $sharedexecdo tee "$configPath" > /dev/null << EOF
+
+  # prep the scratch folder
+  if [ -n "$PYP_SCRATCH" ]; then
+
+    # check existence
+    if [ ! -d "$PYP_SCRATCH" ]; then
+      echo "ERROR: Folder given by PYP_SCRATCH not found"
+      echo "       PYP_SCRATCH=$PYP_SCRATCH"
+      exit 1
+    fi
+
+    # check ownership
+    scratchOwner=$(folder_owner "$PYP_SCRATCH")
+    if [ "$scratchOwner" != "$username" ]; then
+      echo "ERROR: Scratch folder given by PYP_SCRATCH should be owned by $username"
+      echo "       Instead it's owned by $scratchOwner"
+      echo "       PYP_SCRATCH=$PYP_SCRATCH"
+      exit 1
+    fi
+
+    scratchDir="$PYP_SCRATCH"
+
+  else
+    # NOTE: we should only hit this case in a cluster installation
+    echo "ERROR: PYP_SCRATCH is a required setting"
+    exit 1
+  fi
+
+  $sharedExecDo tee "$configPath" > /dev/null << EOF
 
 [pyp]
 
 # fast storage for temporary files, ideally local to the compute node
-scratch = '/tmp/pyp'
+scratch = '$scratchDir'
 
 # add folder paths into this list to make your data visible to nextPYP
 binds = []
@@ -628,7 +744,7 @@ localDir = '$localDir'
 sharedDir = '$sharedDataDir'
 
 # Storage space for the executables needed by data processing jobs,
-# and the and configuration (like this file) shared between the web server and the data processing jobs.
+# and the configuration (like this file) shared between the web server and the data processing jobs.
 # This area should be read-only to the account running nextpyp.
 sharedExecDir = '$sharedExecDir'
 
@@ -641,11 +757,11 @@ auth = "none"
 
 EOF
   echo "Created configuration file: $configPath"
-  $heredo ln -s "$configPath" "$hereConfigPath"
+  $hereDo ln -s "$configPath" "$hereConfigPath"
 fi
 
 # make sure others can't write to the config file
-$sharedexecdo chmod ug=rw,o=r "$configPath"
+$sharedExecDo chmod ug=rw,o=r "$configPath"
 
 if [ "$oscaps" = "root" ]; then
   echo "Installing integrations with systemd ..."
@@ -708,4 +824,33 @@ else
   echo "      To stop nextPYP, run: \"$here/nextpyp\" stop"
 fi
 
-echo "Finished installing nextPYP $version"
+echo ""
+echo "Finished installing nextPYP $version !"
+
+
+# use the presence of the old container file to signal an upgrade from a pre-v0.7.0 version
+# then show the manual post-installation steps
+if [ -f "$here/pyp.sif" ]; then
+  echo ""
+  echo "==============================================================================="
+  echo "|  BUT WAIT! There's still a bit more you need to do                          |"
+  echo "|-----------------------------------------------------------------------------|"
+  echo "|                                                                             |"
+  echo "| This install script won't delete files or change your configuration file,   |"
+  echo "| so you'll have to do a few steps manually.                                  |"
+  echo "|                                                                             |"
+  echo "| The old pyp container file is no longer used and should be deleted:         |"
+  echo "|   rm \"$here/pyp.sif\""
+  echo "|                                                                             |"
+  echo "| Make a couple changes to your configuration file, at:                       |"
+  echo "|   $configPath"
+  echo "|                                                                             |"
+  echo "| 1. Delete the 'pyp.container' option. It's no longer used.                  |"
+  echo "|                                                                             |"
+  echo "| 2. Under the [web] section,                                                 |"
+  echo "|    add the path to the new folder for shared executables and configuration: |"
+  echo "|       sharedExecDir = \"$sharedExecDir\""
+  echo "|                                                                             |"
+  echo "| nextPYP will fail to start until these steps have been completed.           |"
+  echo "==============================================================================="
+fi

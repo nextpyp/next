@@ -130,6 +130,20 @@ assert_owner() { #(path, owner)
 }
 
 
+mkdir_owned() { # (path, username, groupname)
+  local path username groupname
+  path=$1
+  username=$2
+  if [ -n "$3" ]; then
+    groupname=$3
+  else
+    groupname=$2
+  fi
+  mkdir "$path"
+  chown "$username:$groupname" "$path"
+}
+
+
 mkdir_install_service() { # sets installdir
   installdir="$shareddir/$service_acct/test"
   sudo -u "$service_acct" mkdir -p "$installdir"
@@ -200,38 +214,103 @@ uninstall() { #(acct, ...), sets uninstall_exit
 #--------------
 
 
-# install as the service account with root
+# install as root into folder owned by the service account
 # should always fail with an error
 test_install_as_root_folder_owned_by_service() {
+
   mkdir_install_service
-  install "root" PYP_USER="$service_acct" PYP_LOCAL_HERE=true PYP_SHARED_DATA_HERE=true PYP_SHARED_EXEC_HERE=true
+  mkdir_owned "$installdir/local" "$service_acct"
+  mkdir_owned "$installdir/shared" "$service_acct"
+  mkdir_owned "$installdir/sharedExec" "$service_acct"
+  mkdir_owned "$installdir/scratch" "$service_acct"
+
+  install "root" \
+    PYP_USER="$service_acct" \
+    PYP_LOCAL="$installdir/local" \
+    PYP_SHARED_DATA="$installdir/shared" \
+    PYP_SHARED_EXEC="$installdir/sharedExec" \
+    PYP_SCRATCH="$installdir/scratch"
   assert_failed $install_exit
 }
 
 
 test_install_as_root_folder_owned_by_root() {
+
   mkdir_install_root
-  install "root" PYP_USER="$service_acct" PYP_LOCAL_HERE=true PYP_SHARED_DATA_HERE=true PYP_SHARED_EXEC_HERE=true
+  mkdir_owned "$installdir/local" "$service_acct"
+  mkdir_owned "$installdir/shared" "$service_acct"
+  mkdir_owned "$installdir/sharedExec" "root"
+  mkdir_owned "$installdir/scratch" "$service_acct"
+
+  install "root" \
+    PYP_USER="$service_acct" \
+    PYP_LOCAL="$installdir/local" \
+    PYP_SHARED_DATA="$installdir/shared" \
+    PYP_SHARED_EXEC="$installdir/sharedExec" \
+    PYP_SCRATCH="$installdir/scratch"
   assert_succeeded $install_exit
   assert_install
   assert_owner "$installdir/nextPYP.sif" "root"
   assert_owner "$installdir/local/logs" "$service_acct"
   assert_owner "$installdir/shared/log" "$service_acct"
   assert_owner "$installdir/sharedExec/containers/pyp.sif" "root"
+
   uninstall "root"
   assert_succeeded $uninstall_exit
 }
 
 
 test_install_as_root_folder_owned_by_admin() {
+
   mkdir_install_admin
-  install "root" PYP_USER="$service_acct" PYP_LOCAL_HERE=true PYP_SHARED_DATA_HERE=true PYP_SHARED_EXEC_HERE=true
+  mkdir_owned "$installdir/local" "$service_acct"
+  mkdir_owned "$installdir/shared" "$service_acct"
+  mkdir_owned "$installdir/sharedExec" "$admin_acct"
+  mkdir_owned "$installdir/scratch" "$service_acct"
+
+  install "root" \
+    PYP_USER="$service_acct" \
+    PYP_LOCAL="$installdir/local" \
+    PYP_SHARED_DATA="$installdir/shared" \
+    PYP_SHARED_EXEC="$installdir/sharedExec" \
+    PYP_SCRATCH="$installdir/scratch"
   assert_succeeded $install_exit
   assert_install
   assert_owner "$installdir/nextPYP.sif" "$admin_acct"
   assert_owner "$installdir/local/logs" "$service_acct"
   assert_owner "$installdir/shared/log" "$service_acct"
   assert_owner "$installdir/sharedExec/containers/pyp.sif" "$admin_acct"
+
+  uninstall "root"
+  assert_succeeded $uninstall_exit
+}
+
+
+test_install_as_root_with_local_owned_by_service() {
+
+  # make a local folder owned by the service account
+  local ldir
+  ldir="$localdir/test"
+  mkdir_owned "$ldir" "$service_acct"
+
+  mkdir_install_root
+  mkdir_owned "$installdir/shared" "$service_acct"
+  mkdir_owned "$installdir/sharedExec" "root"
+  mkdir_owned "$installdir/scratch" "$service_acct"
+
+  install "root" \
+    PYP_USER="$service_acct" \
+    PYP_LOCAL="$ldir" \
+    PYP_SHARED_DATA="$installdir/shared" \
+    PYP_SHARED_EXEC="$installdir/sharedExec" \
+    PYP_SCRATCH="$installdir/scratch"
+  assert_succeeded $install_exit
+  assert_install
+  assert_owner "$installdir/nextPYP.sif" "root"
+  assert_owner "$ldir/logs" "$service_acct"
+  assert_owner "$installdir/shared/log" "$service_acct"
+  assert_owner "$installdir/sharedExec/containers/pyp.sif" "root"
+
   uninstall "root"
   assert_succeeded $uninstall_exit
 }
@@ -242,44 +321,41 @@ test_install_as_root_with_local_owned_by_root() {
   # make a local folder owned by root
   local ldir
   ldir="$localdir/test"
-  mkdir -p "$ldir"
+  mkdir_owned "$ldir" "root"
 
   mkdir_install_root
-  install "root" PYP_USER="$service_acct" PYP_LOCAL="$ldir" PYP_SHARED_DATA_HERE=true PYP_SHARED_EXEC_HERE=true
+  mkdir_owned "$installdir/shared" "$service_acct"
+  mkdir_owned "$installdir/sharedExec" "$admin_acct"
+  mkdir_owned "$installdir/scratch" "$service_acct"
+
+  install "root" \
+    PYP_USER="$service_acct" \
+    PYP_LOCAL="$ldir" \
+    PYP_SHARED_DATA="$installdir/shared" \
+    PYP_SHARED_EXEC="$installdir/sharedExec" \
+    PYP_SCRATCH="$installdir/scratch"
   assert_failed $install_exit
 }
 
 
-test_install_as_root_with_local_owned_by_service() {
+test_install_as_root_with_local_owned_by_admin() {
 
-  # make a local folder owned by the service account
+  # make a local folder owned by admin
   local ldir
   ldir="$localdir/test"
-  mkdir -p "$ldir"
-  chown "$service_acct:$service_acct" "$ldir"
+  mkdir_owned "$ldir" "$admin_acct"
 
   mkdir_install_root
-  install "root" PYP_USER="$service_acct" PYP_LOCAL="$ldir" PYP_SHARED_DATA_HERE=true PYP_SHARED_EXEC_HERE=true
-  assert_succeeded $install_exit
-  assert_install
-  assert_owner "$installdir/nextPYP.sif" "root"
-  assert_owner "$ldir/logs" "$service_acct"
-  assert_owner "$installdir/shared/log" "$service_acct"
-  assert_owner "$installdir/sharedExec/containers/pyp.sif" "root"
-  uninstall "root"
-  assert_succeeded $uninstall_exit
-}
+  mkdir_owned "$installdir/shared" "$service_acct"
+  mkdir_owned "$installdir/sharedExec" "$admin_acct"
+  mkdir_owned "$installdir/scratch" "$service_acct"
 
-
-test_install_as_root_with_shared_data_owned_by_admin() {
-
-  # make a shared data folder owned by the admin account
-  local sddir
-  sddir="$shareddir/$admin_acct/data"
-  sudo -u "$admin_acct" mkdir -p "$sddir"
-
-  mkdir_install_root
-  install "root" PYP_USER="$service_acct" PYP_SHARED_DATA="$sddir" PYP_LOCAL_HERE=true PYP_SHARED_EXEC_HERE=true
+  install "root" \
+    PYP_USER="$service_acct" \
+    PYP_LOCAL="$ldir" \
+    PYP_SHARED_DATA="$installdir/shared" \
+    PYP_SHARED_EXEC="$installdir/sharedExec" \
+    PYP_SCRATCH="$installdir/scratch"
   assert_failed $install_exit
 }
 
@@ -289,18 +365,72 @@ test_install_as_root_with_shared_data_owned_by_service() {
   # make a shared data folder owned by the service account
   local sddir
   sddir="$shareddir/$service_acct/data"
-  sudo -u "$service_acct" mkdir -p "$sddir"
+  mkdir_owned "$sddir" "$service_acct"
 
   mkdir_install_root
-  install "root" PYP_USER="$service_acct" PYP_SHARED_DATA="$sddir" PYP_LOCAL_HERE=true PYP_SHARED_EXEC_HERE=true
+  mkdir_owned "$installdir/local" "$service_acct"
+  mkdir_owned "$installdir/sharedExec" "root"
+  mkdir_owned "$installdir/scratch" "$service_acct"
+
+  install "root" \
+    PYP_USER="$service_acct" \
+    PYP_LOCAL="$installdir/local" \
+    PYP_SHARED_DATA="$sddir" \
+    PYP_SHARED_EXEC="$installdir/sharedExec" \
+    PYP_SCRATCH="$installdir/scratch"
   assert_succeeded $install_exit
   assert_install
   assert_owner "$installdir/nextPYP.sif" "root"
   assert_owner "$installdir/local/logs" "$service_acct"
   assert_owner "$sddir/log" "$service_acct"
   assert_owner "$installdir/sharedExec/containers/pyp.sif" "root"
+
   uninstall "root"
   assert_succeeded $uninstall_exit
+}
+
+
+test_install_as_root_with_shared_data_owned_by_root() {
+
+  # make a shared data folder owned by root
+  local sddir
+  sddir="$shareddir/$admin_acct/data"
+  mkdir_owned "$sddir" "root"
+
+  mkdir_install_root
+  mkdir_owned "$installdir/local" "$service_acct"
+  mkdir_owned "$installdir/sharedExec" "$admin_acct"
+  mkdir_owned "$installdir/scratch" "$service_acct"
+
+  install "root" \
+    PYP_USER="$service_acct" \
+    PYP_LOCAL="$installdir/local" \
+    PYP_SHARED_DATA="$sddir" \
+    PYP_SHARED_EXEC="$installdir/sharedExec" \
+    PYP_SCRATCH="$installdir/scratch"
+  assert_failed $install_exit
+}
+
+
+test_install_as_root_with_shared_data_owned_by_admin() {
+
+  # make a shared data folder owned by the admin account
+  local sddir
+  sddir="$shareddir/$admin_acct/data"
+  mkdir_owned "$sddir" "$admin_acct"
+
+  mkdir_install_root
+  mkdir_owned "$installdir/local" "$service_acct"
+  mkdir_owned "$installdir/sharedExec" "$admin_acct"
+  mkdir_owned "$installdir/scratch" "$service_acct"
+
+  install "root" \
+    PYP_USER="$service_acct" \
+    PYP_LOCAL="$installdir/local" \
+    PYP_SHARED_DATA="$sddir" \
+    PYP_SHARED_EXEC="$installdir/sharedExec" \
+    PYP_SCRATCH="$installdir/scratch"
+  assert_failed $install_exit
 }
 
 
@@ -309,11 +439,50 @@ test_install_as_root_with_shared_exec_owned_by_service() {
   # make a shared exec folder owned by the service account
   local sedir
   sedir="$shareddir/$service_acct/exec"
-  sudo -u "$service_acct" mkdir -p "$sedir"
+  mkdir_owned "$sedir" "$service_acct"
 
   mkdir_install_root
-  install "root" PYP_USER="$service_acct" PYP_SHARED_EXEC="$sedir" PYP_LOCAL_HERE=true PYP_SHARED_DATA_HERE=true
+  mkdir_owned "$installdir/local" "$service_acct"
+  mkdir_owned "$installdir/shared" "$service_acct"
+  mkdir_owned "$installdir/scratch" "$service_acct"
+
+  install "root" \
+    PYP_USER="$service_acct" \
+    PYP_LOCAL="$installdir/local" \
+    PYP_SHARED_DATA="$installdir/shared" \
+    PYP_SHARED_EXEC="$sedir" \
+    PYP_SCRATCH="$installdir/scratch"
   assert_failed $install_exit
+}
+
+
+test_install_as_root_with_shared_exec_owned_by_root() {
+
+  # make a shared exec folder owned by root
+  local sedir
+  sedir="$shareddir/$admin_acct/exec"
+  mkdir_owned "$sedir" "root"
+
+  mkdir_install_root
+  mkdir_owned "$installdir/local" "$service_acct"
+  mkdir_owned "$installdir/shared" "$service_acct"
+  mkdir_owned "$installdir/scratch" "$service_acct"
+
+  install "root" \
+    PYP_USER="$service_acct" \
+    PYP_LOCAL="$installdir/local" \
+    PYP_SHARED_DATA="$installdir/shared" \
+    PYP_SHARED_EXEC="$sedir" \
+    PYP_SCRATCH="$installdir/scratch"
+  assert_succeeded $install_exit
+  assert_install
+  assert_owner "$installdir/nextPYP.sif" "root"
+  assert_owner "$installdir/local/logs" "$service_acct"
+  assert_owner "$installdir/shared/log" "$service_acct"
+  assert_owner "$sedir/containers/pyp.sif" "root"
+
+  uninstall "root"
+  assert_succeeded $uninstall_exit
 }
 
 
@@ -322,51 +491,134 @@ test_install_as_root_with_shared_exec_owned_by_admin() {
   # make a shared exec folder owned by the admin account
   local sedir
   sedir="$shareddir/$admin_acct/exec"
-  sudo -u "$admin_acct" mkdir -p "$sedir"
+  mkdir_owned "$sedir" "$admin_acct"
 
   mkdir_install_root
-  install "root" PYP_USER="$service_acct" PYP_SHARED_EXEC="$sedir" PYP_LOCAL_HERE=true PYP_SHARED_DATA_HERE=true
+  mkdir_owned "$installdir/local" "$service_acct"
+  mkdir_owned "$installdir/shared" "$service_acct"
+  mkdir_owned "$installdir/scratch" "$service_acct"
+
+  install "root" \
+    PYP_USER="$service_acct" \
+    PYP_LOCAL="$installdir/local" \
+    PYP_SHARED_DATA="$installdir/shared" \
+    PYP_SHARED_EXEC="$sedir" \
+    PYP_SCRATCH="$installdir/scratch"
   assert_succeeded $install_exit
   assert_install
   assert_owner "$installdir/nextPYP.sif" "root"
   assert_owner "$installdir/local/logs" "$service_acct"
   assert_owner "$installdir/shared/log" "$service_acct"
   assert_owner "$sedir/containers/pyp.sif" "$admin_acct"
+
   uninstall "root"
   assert_succeeded $uninstall_exit
 }
 
 
-test_install_as_root_small_local() {
+test_install_as_root_small_storage() {
+
+  # make a shared exec folder owned by root
+  local sdir
+  sdir="$localdir/storage"
+  mkdir_owned "$sdir" "$admin_acct"
+
   mkdir_install_root
-  install "root" PYP_USER="$service_acct"
+
+  install "root" \
+    PYP_USER="$service_acct" \
+    PYP_STORAGE="$sdir"
   assert_failed $install_exit
 }
 
 
-test_install_as_root_small_shared_data() {
+test_install_as_root_stoage_owned_by_service() {
+
+  # make a shared exec folder owned by the service account
+  local sdir
+  sdir="$localdir/storage"
+  mkdir_owned "$sdir" "$service_acct"
+
   mkdir_install_root
-  install "root" PYP_USER="$service_acct" PYP_LOCAL_HERE=true
+
+  install "root" \
+    PYP_USER="$service_acct" \
+    PYP_STORAGE="$sdir"
   assert_failed $install_exit
 }
 
 
-test_install_as_root_small_shared_exec() {
+test_install_as_root_stoage_owned_by_root() {
+
+  # make a shared exec folder owned by root
+  local sdir
+  sdir="$localdir/storage"
+  mkdir_owned "$sdir" "root"
+
   mkdir_install_root
-  install "root" PYP_USER="$service_acct" PYP_LOCAL_HERE=true PYP_SHARED_DATA_HERE=true
+
+  install "root" \
+    PYP_USER="$service_acct" \
+    PYP_STORAGE="$sdir" \
+    PYP_STORAGE_OK=true
+  assert_succeeded $install_exit
+  assert_install
+  assert_owner "$installdir/nextPYP.sif" "root"
+  assert_owner "$sdir/local/logs" "$service_acct"
+  assert_owner "$sdir/shared/log" "$service_acct"
+  assert_owner "$sdir/sharedExec/containers/pyp.sif" "root"
+
+  uninstall "root"
+  assert_succeeded $uninstall_exit
+}
+
+
+test_install_as_root_stoage_owned_by_admin() {
+
+  # make a shared exec folder owned by the admin account
+  local sdir
+  sdir="$localdir/storage"
+  mkdir_owned "$sdir" "$admin_acct"
+
+  mkdir_install_root
+
+  install "root" \
+    PYP_USER="$service_acct" \
+    PYP_STORAGE="$sdir" \
+    PYP_STORAGE_OK=true
+  assert_succeeded $install_exit
+  assert_install
+  assert_owner "$installdir/nextPYP.sif" "root"
+  assert_owner "$sdir/local/logs" "$service_acct"
+  assert_owner "$sdir/shared/log" "$service_acct"
+  assert_owner "$sdir/sharedExec/containers/pyp.sif" "$admin_acct"
+
+  uninstall "root"
+  assert_succeeded $uninstall_exit
+}
+
+
+test_install_as_service_small_storage() {
+
+  mkdir_install_service
+
+  install "$service_acct"
   assert_failed $install_exit
 }
 
 
 test_install_as_service() {
+
   mkdir_install_service
-  install "$service_acct" PYP_LOCAL_HERE=true PYP_SHARED_DATA_HERE=true PYP_SHARED_EXEC_HERE=true
+
+  install "$service_acct" PYP_STORAGE_OK=true
   assert_succeeded $install_exit
   assert_install
   assert_owner "$installdir/nextPYP.sif" "$service_acct"
   assert_owner "$installdir/local/logs" "$service_acct"
   assert_owner "$installdir/shared/log" "$service_acct"
   assert_owner "$installdir/sharedExec/containers/pyp.sif" "$service_acct"
+
   uninstall "$service_acct"
   assert_succeeded $uninstall_exit
 }
@@ -378,24 +630,54 @@ test_install_as_service() {
 
 
 test_upgrade_as_root_folder_owned_by_root() {
+
   mkdir_install_root
-  install "root" PYP_USER="$service_acct" PYP_LOCAL_HERE=true PYP_SHARED_DATA_HERE=true PYP_SHARED_EXEC_HERE=true
+  mkdir_owned "$installdir/local" "$service_acct"
+  mkdir_owned "$installdir/shared" "$service_acct"
+  mkdir_owned "$installdir/sharedExec" "root"
+  mkdir_owned "$installdir/scratch" "$service_acct"
+
+  install "root" \
+    PYP_USER="$service_acct" \
+    PYP_LOCAL="$installdir/local" \
+    PYP_SHARED_DATA="$installdir/shared" \
+    PYP_SHARED_EXEC="$installdir/sharedExec" \
+    PYP_SCRATCH="$installdir/scratch"
   assert_succeeded $install_exit
   srvstop
+
   install "root"
   assert_succeeded $install_exit
   assert_install
+
+  uninstall "root"
+  assert_succeeded $uninstall_exit
 }
 
 
 test_upgrade_as_root_folder_owned_by_admin() {
+
   mkdir_install_admin
-  install "root" PYP_USER="$service_acct" PYP_LOCAL_HERE=true PYP_SHARED_DATA_HERE=true PYP_SHARED_EXEC_HERE=true
+  mkdir_owned "$installdir/local" "$service_acct"
+  mkdir_owned "$installdir/shared" "$service_acct"
+  mkdir_owned "$installdir/sharedExec" "$admin_acct"
+  mkdir_owned "$installdir/scratch" "$service_acct"
+
+  install "root" \
+    PYP_USER="$service_acct" \
+    PYP_LOCAL="$installdir/local" \
+    PYP_SHARED_DATA="$installdir/shared" \
+    PYP_SHARED_EXEC="$installdir/sharedExec" \
+    PYP_SCRATCH="$installdir/scratch"
   assert_succeeded $install_exit
   srvstop
+
   install "root"
   assert_succeeded $install_exit
   assert_install
+
+  uninstall "root"
+  assert_succeeded $uninstall_exit
 }
 
 
@@ -404,16 +686,28 @@ test_upgrade_as_root_with_local() {
   # make a local folder owned by the service account
   local ldir
   ldir="$localdir/test"
-  mkdir -p "$ldir"
-  chown "$service_acct:$service_acct" "$ldir"
+  mkdir_owned "$ldir" "$service_acct"
 
   mkdir_install_root
-  install "root" PYP_USER="$service_acct" PYP_LOCAL="$ldir" PYP_SHARED_DATA_HERE=true PYP_SHARED_EXEC_HERE=true
+  mkdir_owned "$installdir/shared" "$service_acct"
+  mkdir_owned "$installdir/sharedExec" "$admin_acct"
+  mkdir_owned "$installdir/scratch" "$service_acct"
+
+  install "root" \
+    PYP_USER="$service_acct" \
+    PYP_LOCAL="$ldir" \
+    PYP_SHARED_DATA="$installdir/shared" \
+    PYP_SHARED_EXEC="$installdir/sharedExec" \
+    PYP_SCRATCH="$installdir/scratch"
   assert_succeeded $install_exit
   srvstop
+
   install "root"
   assert_succeeded $install_exit
   assert_install
+
+  uninstall "root"
+  assert_succeeded $uninstall_exit
 }
 
 
@@ -422,60 +716,127 @@ test_upgrade_as_root_with_shared_data() {
   # make a shared data folder owned by the service account
   local sddir
   sddir="$shareddir/$service_acct/data"
-  sudo -u "$service_acct" mkdir -p "$sddir"
+  mkdir_owned "$sddir" "$service_acct"
 
   mkdir_install_root
-  install "root" PYP_USER="$service_acct" PYP_SHARED_DATA="$sddir" PYP_LOCAL_HERE=true PYP_SHARED_EXEC_HERE=true
+  mkdir_owned "$installdir/local" "$service_acct"
+  mkdir_owned "$installdir/sharedExec" "$admin_acct"
+  mkdir_owned "$installdir/scratch" "$service_acct"
+
+  install "root" \
+    PYP_USER="$service_acct" \
+    PYP_LOCAL="$installdir/local" \
+    PYP_SHARED_DATA="$sddir" \
+    PYP_SHARED_EXEC="$installdir/sharedExec" \
+    PYP_SCRATCH="$installdir/scratch"
   assert_succeeded $install_exit
   srvstop
+
   install "root"
   assert_succeeded $install_exit
   assert_install
+
+  uninstall "root"
+  assert_succeeded $uninstall_exit
 }
 
 
-test_upgrade_as_root_with_shared_exec() {
+test_upgrade_as_root_with_shared_exec_owned_by_root() {
+
+  # make a shared exec folder owned by root
+  local sedir
+  sedir="$shareddir/$admin_acct/exec"
+  mkdir_owned "$sedir" "root"
+
+  mkdir_install_root
+  mkdir_owned "$installdir/local" "$service_acct"
+  mkdir_owned "$installdir/shared" "$service_acct"
+  mkdir_owned "$installdir/scratch" "$service_acct"
+
+  install "root" \
+    PYP_USER="$service_acct" \
+    PYP_LOCAL="$installdir/local" \
+    PYP_SHARED_DATA="$installdir/shared" \
+    PYP_SHARED_EXEC="$sedir" \
+    PYP_SCRATCH="$installdir/scratch"
+  assert_succeeded $install_exit
+  srvstop
+
+  install "root"
+  assert_succeeded $install_exit
+  assert_install
+
+  uninstall "root"
+  assert_succeeded $uninstall_exit
+}
+
+
+test_upgrade_as_root_with_shared_exec_owned_by_admin() {
 
   # make a shared exec folder owned by the admin account
   local sedir
   sedir="$shareddir/$admin_acct/exec"
-  sudo -u "$admin_acct" mkdir -p "$sedir"
+  mkdir_owned "$sedir" "$admin_acct"
 
   mkdir_install_root
-  install "root" PYP_USER="$service_acct" PYP_SHARED_EXEC="$sedir" PYP_LOCAL_HERE=true PYP_SHARED_DATA_HERE=true
+  mkdir_owned "$installdir/local" "$service_acct"
+  mkdir_owned "$installdir/shared" "$service_acct"
+  mkdir_owned "$installdir/scratch" "$service_acct"
+
+  install "root" \
+    PYP_USER="$service_acct" \
+    PYP_LOCAL="$installdir/local" \
+    PYP_SHARED_DATA="$installdir/shared" \
+    PYP_SHARED_EXEC="$sedir" \
+    PYP_SCRATCH="$installdir/scratch"
   assert_succeeded $install_exit
   srvstop
+
   install "root"
   assert_succeeded $install_exit
   assert_install
+
+  uninstall "root"
+  assert_succeeded $uninstall_exit
 }
 
 
 test_upgrade_as_service() {
+
   mkdir_install_service
-  install "$service_acct" PYP_LOCAL_HERE=true PYP_SHARED_DATA_HERE=true PYP_SHARED_EXEC_HERE=true
+
+  install "$service_acct" PYP_STORAGE_OK=true
   assert_succeeded $install_exit
   srvstop
+
   install "$service_acct"
   assert_succeeded $install_exit
   assert_install
+
+  uninstall "$service_acct"
+  assert_succeeded $uninstall_exit
 }
 
 
-build_installed_v6.5() { #(acct)
+# ----------------
+# VERSION UTILITES
+# ----------------
 
-  # build an environment that looks like a v6.5 install
 
-  local ldir
-  ldir="$installdir/local"
-  mkdir "$ldir" || fail
-  chown "$service_acct:$service_acct" "$ldir" || fail
+build_installed_v6.5() { #(acct, ldir, sdir)
 
-  local sddir
-  sddir="$installdir/shared"
-  mkdir "$sddir" || fail
-  chown "$service_acct:$service_acct" "$sddir" || fail
+  # build an install folder that looks like a v6.5 install
 
+  acctDo=()
+  if [ "$1" != "root" ]; then
+    acctDo=(sudo -u "$1")
+  fi
+
+  # make the container files
+  "${acctDo[@]}" touch "$installdir/nextPYP.sif" || fail
+  "${acctDo[@]}" touch "$installdir/pyp.sif" || fail
+
+  # make the config file
   local configpath
   configpath="$installdir/config.toml"
   cat - > "$configpath" << EOF
@@ -485,8 +846,8 @@ container = '$installdir/pyp.sif'
 scratch = '/tmp/pyp'
 
 [web]
-localDir = '$ldir'
-sharedDir = '$sddir'
+localDir = '$2'
+sharedDir = '$3'
 auth = "none"
 
 EOF
@@ -499,18 +860,101 @@ EOF
 #----------------------
 
 
-test_upgrade_as_root_from_v6.5() {
+test_upgrade_from_v6.5_as_root_here_folders() {
+
   mkdir_install_root
-  build_installed_v6.5 "root"
-  install "root"
+
+  # make the local,shared folders in the install folder
+  # that was the default configuration in v6.5
+
+  local ldir
+  ldir="$installdir/local"
+  mkdir_owned "$ldir" "$service_acct" || fail
+
+  local sdir
+  sddir="$installdir/shared"
+  mkdir_owned "$sddir" "$service_acct" || fail
+
+  build_installed_v6.5 "root" "$ldir" "$sddir"
+
+  # manual pre-upgrade steps
+  # TODO: explain these in the docs
+  local sedir
+  sedir="$installdir/sharedExec"
+  mkdir_owned "$sedir" "root"
+
+  install "root" \
+    PYP_SHARED_EXEC="$sedir"
   assert_succeeded $install_exit
   assert_install
+  assert_owner "$installdir/nextPYP.sif" "root"
+  assert_owner "$ldir/logs" "$service_acct"
+  assert_owner "$sddir/log" "$service_acct"
+  assert_owner "$sedir/containers/pyp.sif" "root"
+
+  uninstall "root"
+  assert_succeeded $uninstall_exit
 }
 
 
-test_upgrade_as_service_from_v6.5() {
+test_upgrade_from_v6.5_as_root_not_here_folders() {
+
+  mkdir_install_root
+
+  # make the local,shared folders outside the install folder
+  # to simulate a customized configuration
+
+  local ldir
+  ldir="$localdir/test"
+  mkdir_owned "$ldir" "$service_acct" || fail
+
+  local sdir
+  sddir="$shareddir/$service_acct/shared"
+  mkdir_owned "$sddir" "$service_acct" || fail
+
+  build_installed_v6.5 "root" "$ldir" "$sddir"
+
+  # manual pre-upgrade steps
+  # TODO: explain these in the docs
+  local sedir
+  sedir="$installdir/sharedExec"
+  mkdir_owned "$sedir" "root"
+  ln -s "$ldir" "$installdir/local"
+  ln -s "$sddir" "$installdir/shared"
+
+  install "root" \
+    PYP_SHARED_EXEC="$sedir"
+  assert_succeeded $install_exit
+  assert_install
+  assert_owner "$installdir/nextPYP.sif" "root"
+  assert_owner "$ldir/logs" "$service_acct"
+  assert_owner "$sddir/log" "$service_acct"
+  assert_owner "$sedir/containers/pyp.sif" "root"
+
+  uninstall "root"
+  assert_succeeded $uninstall_exit
+}
+
+
+test_upgrade_from_v6.5_as_service() {
+
   mkdir_install_service
-  build_installed_v6.5 "$service_acct"
+
+  # make the local,shared folders in the install folder
+  # that was only configuration in v0.6.5 for user mode
+
+  local ldir
+  ldir="$installdir/local"
+  mkdir_owned "$ldir" "$service_acct" || fail
+
+  local sdir
+  sddir="$installdir/shared"
+  mkdir_owned "$sddir" "$service_acct" || fail
+
+  build_installed_v6.5 "$service_acct" "$ldir" "$sddir"
+
+  ls -al #
+
   install "$service_acct"
   assert_succeeded $install_exit
   assert_install
@@ -524,15 +968,21 @@ echo "Running tests..."
 run_test "test_install_as_root_folder_owned_by_service"
 run_test "test_install_as_root_folder_owned_by_root"
 run_test "test_install_as_root_folder_owned_by_admin"
-run_test "test_install_as_root_with_local_owned_by_root"
 run_test "test_install_as_root_with_local_owned_by_service"
-run_test "test_install_as_root_with_shared_data_owned_by_admin"
+run_test "test_install_as_root_with_local_owned_by_root"
+run_test "test_install_as_root_with_local_owned_by_admin"
 run_test "test_install_as_root_with_shared_data_owned_by_service"
+run_test "test_install_as_root_with_shared_data_owned_by_root"
+run_test "test_install_as_root_with_shared_data_owned_by_admin"
 run_test "test_install_as_root_with_shared_exec_owned_by_service"
 run_test "test_install_as_root_with_shared_exec_owned_by_admin"
-run_test "test_install_as_root_small_local"
-run_test "test_install_as_root_small_shared_data"
-run_test "test_install_as_root_small_shared_exec"
+run_test "test_install_as_root_with_shared_exec_owned_by_root"
+run_test "test_install_as_root_small_storage"
+run_test "test_install_as_root_stoage_owned_by_service"
+run_test "test_install_as_root_stoage_owned_by_root"
+run_test "test_install_as_root_stoage_owned_by_admin"
+
+run_test "test_install_as_service_small_storage"
 run_test "test_install_as_service"
 
 # upgrade tests
@@ -540,12 +990,14 @@ run_test "test_upgrade_as_root_folder_owned_by_root"
 run_test "test_upgrade_as_root_folder_owned_by_admin"
 run_test "test_upgrade_as_root_with_local"
 run_test "test_upgrade_as_root_with_shared_data"
-run_test "test_upgrade_as_root_with_shared_exec"
+run_test "test_upgrade_as_root_with_shared_exec_owned_by_root"
+run_test "test_upgrade_as_root_with_shared_exec_owned_by_admin"
 run_test "test_upgrade_as_service"
 
 # upgrades from specific versions
-run_test "test_upgrade_as_root_from_v6.5"
-run_test "test_upgrade_as_service_from_v6.5"
+run_test "test_upgrade_from_v6.5_as_root_here_folders"
+run_test "test_upgrade_from_v6.5_as_root_not_here_folders"
+run_test "test_upgrade_from_v6.5_as_service"
 
 
 echo "Testing completed successfully! =D =D =D"

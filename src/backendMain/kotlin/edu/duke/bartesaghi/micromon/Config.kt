@@ -193,16 +193,12 @@ class Config(toml: String) {
 			val host = getString("host") ?: "127.0.0.1"
 			// NOTE: for security reasons, we should only bind to localhost by default, rather than all network iterfaces
 			val port = getInt("port") ?: 8080
-			val sharedDir = getStringOrThrow("sharedDir").toPath()
-			val sharedExecDir = getString("sharedExecDir")
-				?.toPath()
-				?: sharedDir
 			Web(
 				host = host,
 				port = port,
 				localDir = getStringOrThrow("localDir").toPath(),
-				sharedDir = sharedDir,
-				sharedExecDir = sharedExecDir,
+				sharedDir = getStringOrThrow("sharedDir").toPath(),
+				sharedExecDir = getStringOrThrow("sharedExecDir").toPath(),
 				auth = AuthType[getString("auth")] ?: AuthType.Login,
 				webhost = getString("webhost") ?: "http://$host:$port",
 				debug = getBoolean("debug") ?: false,

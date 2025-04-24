@@ -19,6 +19,7 @@ mpirun = '/usr/lib64/openmpi/bin/mpirun'
 host = '0.0.0.0'
 localDir = '/home/$user/nextPYP/local'
 sharedDir = '/home/$user/nextPYP/shared'
+sharedExecDir = '/home/$user/nextPYP/sharedExec'
 webhost = 'http://localhost:8080'
 debug = true
 auth = "none"

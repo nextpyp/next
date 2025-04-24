@@ -1,16 +1,39 @@
 #!/bin/sh
 
 
+# find the installation folder
+# NOTE: this logic is re-used in the nexpyp script, so changes here should be synchronized there too
+canonDir="/opt/nextpyp"
+scriptDir="$(dirname "$(realpath "$0")")"
+if [ -L "$canonDir" ]; then
+  # canonical location is a link: follow it
+  installDir="$(readlink "$canonDir")"
+  echo "Found installation folder from canonical link: $installDir"
+elif [ -d "$canonDir" ]; then
+  # canonical location is a real folder: just use that
+  installDir="$canonDir"
+  echo "Found installation folder in canonical location: $installDir"
+elif [ -d "$scriptDir" ] && [ "$scriptDir" != "/usr/bin" ]; then
+  # canonical location not found: use the folder containing this script
+  installDir="$scriptDir"
+  echo "Found installation folder using script location: $installDir"
+else
+  echo "ERROR: Failed to find installation folder, checked:"
+  echo " * $canonDir"
+  echo " * $scriptDir"
+  exit 1
+fi
+
+
 # determine what capabilities we have
-whoami=$(whoami)
-if [ "$whoami" = "root" ]; then
+if [ "$(whoami)" = "root" ]; then
 
   admin="$SUDO_USER"
   echo "Uninstalling in root mode (admin=$admin): Will remove OS integrations"
   oscaps="root"
 
   # remove installed binaries from the OS bin dir
-  bindir=/usr/bin
+  binDir=/usr/bin
 
 else
 
@@ -18,36 +41,12 @@ else
   oscaps="user"
 
   # remove "installed" binaries from here
-  bindir="$installdir"
+  binDir="$installDir"
 
 fi
 
 
-# find the installation folder
-# NOTE: this logic is re-used in the nexpyp script, so changes here should be synchronized there too
-canondir="/opt/nextpyp"
-scriptdir="$(dirname "$(realpath "$0")")"
-if [ -L "$canondir" ]; then
-  # canonical location is a link: follow it
-  installdir="$(readlink "$canondir")"
-  echo "Found installation folder from canonical link: $installdir"
-elif [ -d "$canondir" ]; then
-  # canonical location is a real folder: just use that
-  installdir="$canondir"
-  echo "Found installation folder in canonical location: $installdir"
-elif [ -d "$scriptdir" ] && [ "$scriptdir" != "/usr/bin" ]; then
-  # canonical location not found: use the folder containing this script
-  installdir="$scriptdir"
-  echo "Found installation folder using script location: $installdir"
-else
-  echo "ERROR: Failed to find installation folder, checked:"
-  echo " * $canondir"
-  echo " * $scriptdir"
-  exit 1
-fi
-
-
-# get the local and shared directories from the install folder (which may be symlinks)
+# get sub-folders from the install folder (which may be symlinks)
 resolve_dir() { #(path)
   if [ -L "$1" ]; then
     realpath "$1"
@@ -55,33 +54,63 @@ resolve_dir() { #(path)
     echo "$1"
   fi
 }
-sharedexecdir="$(resolve_dir "$installdir/sharedExec")"
+localDir="$(resolve_dir "$installDir/local")"
+sharedDataDir="$(resolve_dir "$installDir/shared")"
+sharedExecDir="$(resolve_dir "$installDir/sharedExec")"
 
 
-# determine filesystem capabilities
-installOwner="$(stat -c '%U' "$installdir")"
-if [ "$installOwner" = "root" ]; then
-  echo "Install folder owned by root"
-  installdo=
-else
-  echo "Install folder owned by $installOwner"
-  installdo="sudo -u $admin"
-  if [ "$installOwner" != "$admin" ]; then
-    echo "WARNING: installation files owned by $installOwner may not be modifiable by administrator $admin"
+folder_owner() { #(path)
+  stat -c '%U' -L "$1"
+}
+
+
+# look up the username from the shared data folder
+username=$(folder_owner "$sharedDataDir")
+
+
+# NOTE: shared logic with install script: keep in sync!
+folder_owner_type() { #(owner), reads: admin, username
+  if [ "$1" = "root" ]; then
+    echo "root"
+  elif [ "$1" = "$admin" ]; then
+    echo "admin"
+  elif [ "$1" = "$username" ]; then
+    echo "service"
+  else
+    echo "other"
   fi
-fi
+}
 
-sharedExecOwner="$(stat -c '%U' "$sharedexecdir")"
-if [ "$sharedExecOwner" = "root" ]; then
-  echo "Shared exec folder owned by root"
-  sharedexecdo=
-else
-  echo "Shared exec folder owned by $sharedExecOwner"
-  sharedexecdo="sudo -u $admin"
-  if [ "$sharedExecOwner" != "$admin" ]; then
-    echo "WARNING: shared exec files owned by $sharedExecOwner may not be modifiable by administrator $admin"
+
+# NOTE: shared logic with install script: keep in sync!
+folder_do() { #(path), reads: admin, oscaps, username
+  owner=$(folder_owner "$1")
+  if [ "$oscaps" = "root" ]; then
+    type=$(folder_owner_type "$owner")
+    if [ "$type" = "root" ]; then
+      echo
+    elif [ "$type" = "admin" ]; then
+      echo sudo -u "$admin"
+    elif [ "$type" = "service" ]; then
+      echo sudo -u "$username"
+    else
+      # some other user: this is an error
+      >&2 echo "ERROR: folder $1 owned by unrecognized user $owner"
+      exit 1
+    fi
+  else
+    if [ "$owner" = "$username" ]; then
+      echo
+    else
+      >&2 echo "ERROR: folder $1 owned by some other user $owner, instead of you: $username"
+      exit 1
+    fi
   fi
-fi
+}
+
+installDo=$(folder_do "$installDir")
+sharedDataDo=$(folder_do "$sharedDataDir")
+sharedExecDo=$(folder_do "$sharedExecDir")
 
 
 echo "Uninstalling nextPYP ..."
@@ -99,27 +128,34 @@ if [ "$oscaps" = "root" ]; then
   systemctl daemon-reload
 
   # delete the canonical link
-  canondir=/opt/nextpyp
-  if [ -L "$canondir" ]; then
-    rm "$canondir"
+  canonDir=/opt/nextpyp
+  if [ -L "$canonDir" ]; then
+    rm "$canonDir"
   fi
 fi
 
 
 # delete the executables from the bin dir
-rm "$bindir/nextpyp" 2> /dev/null
-rm "$bindir/nextpyp-host-processor" 2> /dev/null
+rm "$binDir/nextpyp" 2> /dev/null
+rm "$binDir/nextpyp-host-processor" 2> /dev/null
 
 
 # delete the files the installer downloaded
-$installdo rm "$installdir/nextPYP.sif" 2> /dev/null
-$installdo rm "$installdir/uninstall" 2> /dev/null
-$installdo rm "$installdir/install-rprox" 2> /dev/null
-$sharedexecdo rm -rf "$sharedexecdir/containers" 2> /dev/null
-$sharedexecdo rm -rf "$sharedexecdir/user-processors" 2> /dev/null
+$installDo rm "$installDir/nextPYP.sif" 2> /dev/null
+$installDo rm "$installDir/uninstall" 2> /dev/null
+$installDo rm "$installDir/install-rprox" 2> /dev/null
+$installDo rm "$installDir/user-processor" 2> /dev/null
+$sharedExecDo rm -rf "$sharedExecDir/containers" 2> /dev/null
+
+# remove the setuid executables
+$sharedDataDo rm -rf "$sharedDataDir/user-processors" 2> /dev/null
 
 
 echo "Finished uninstalling nextPYP"
-echo "The configuration file, config.toml, was not deleted."
-echo "Data stored in the local, shared, and workflows folders were also not deleted."
+echo "The configuration file was not deleted, at:"
+echo "  $sharedExecDir/config.toml"
+echo "Folders containing files created by users were also not deleted:"
+echo "  $localDir"
+echo "  $sharedDataDir"
+echo "  $installDir/workflows"
 echo "If you wish to delete all of these as well, then it's safe to delete them now."
