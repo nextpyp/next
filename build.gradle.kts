@@ -56,7 +56,7 @@ group = "edu.duke.bartesaghi"
  * Don't be afraid to increment the major version number!
  * It's perfectly ok if the major version number becomes some large number like 157.
  */
-val apiVersion = "2.0.0"
+val apiVersion = "2.1.0"
 
 
 repositories {
