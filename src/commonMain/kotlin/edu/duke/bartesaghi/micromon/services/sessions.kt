@@ -467,6 +467,7 @@ interface ISessionsService {
 	@KVBindingRoute("sessions/cancelExport")
 	suspend fun cancelExport(exportId: String)
 
+	@ExportServiceFunction(AppPermission.SessionCreate)
 	@KVBindingRoute("sessions/pickFolder")
 	suspend fun pickFolder(): String
 }
