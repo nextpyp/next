@@ -130,6 +130,18 @@ assert_owner() { #(path, owner)
 }
 
 
+assert_link() { #(src, dst)
+  if [ ! -L "$1" ]; then
+    fail "path was not a symlink: $1"
+  fi
+  local target
+  target=$(realpath "$1")
+  if [ "$target" != "$2" ]; then
+    fail "symlink target is $target, but it should be $2"
+  fi
+}
+
+
 mkdir_owned() { # (path, username, groupname)
   local path username groupname
   path=$1
@@ -878,7 +890,6 @@ test_upgrade_from_v6.5_as_root_here_folders() {
   build_installed_v6.5 "root" "$ldir" "$sddir"
 
   # manual pre-upgrade steps
-  # TODO: explain these in the docs
   local sedir
   sedir="$installdir/sharedExec"
   mkdir_owned "$sedir" "root"
@@ -886,11 +897,22 @@ test_upgrade_from_v6.5_as_root_here_folders() {
   install "root" \
     PYP_SHARED_EXEC="$sedir"
   assert_succeeded $install_exit
+
+  # make sure the config file got moved
+  assert_link "$installdir/config.toml" "$sedir/config.toml"
+  assert_owner "$sedir/config.toml" "root"
+
+  # manual post-upgrade steps
+  echo "sharedExecDir = \"$sedir\"" >> "$sedir/config.toml"
+
   assert_install
   assert_owner "$installdir/nextPYP.sif" "root"
   assert_owner "$ldir/logs" "$service_acct"
   assert_owner "$sddir/log" "$service_acct"
   assert_owner "$sedir/containers/pyp.sif" "root"
+
+  # now try to start
+  systemctl start nextPYP || fail
 
   uninstall "root"
   assert_succeeded $uninstall_exit
@@ -915,7 +937,6 @@ test_upgrade_from_v6.5_as_root_not_here_folders() {
   build_installed_v6.5 "root" "$ldir" "$sddir"
 
   # manual pre-upgrade steps
-  # TODO: explain these in the docs
   local sedir
   sedir="$installdir/sharedExec"
   mkdir_owned "$sedir" "root"
@@ -925,11 +946,22 @@ test_upgrade_from_v6.5_as_root_not_here_folders() {
   install "root" \
     PYP_SHARED_EXEC="$sedir"
   assert_succeeded $install_exit
+
+  # make sure the config file got moved
+  assert_link "$installdir/config.toml" "$sedir/config.toml"
+  assert_owner "$sedir/config.toml" "root"
+
+  # manual post-upgrade steps
+  echo "sharedExecDir = '$sedir'" >> "$sedir/config.toml"
+
   assert_install
   assert_owner "$installdir/nextPYP.sif" "root"
   assert_owner "$ldir/logs" "$service_acct"
   assert_owner "$sddir/log" "$service_acct"
   assert_owner "$sedir/containers/pyp.sif" "root"
+
+  # now try to start
+  systemctl start nextPYP || fail
 
   uninstall "root"
   assert_succeeded $uninstall_exit
@@ -953,11 +985,23 @@ test_upgrade_from_v6.5_as_service() {
 
   build_installed_v6.5 "$service_acct" "$ldir" "$sddir"
 
-  ls -al #
+  # no pre-upgrade steps needed here
 
   install "$service_acct"
   assert_succeeded $install_exit
+
+  # make sure the config file got moved
+  sedir="$installdir/sharedExec"
+  assert_link "$installdir/config.toml" "$sedir/config.toml"
+  assert_owner "$sedir/config.toml" "$service_acct"
+
+  # post-upgrade steps
+  echo "sharedExecDir = \"$sedir\"" >> "$sedir/config.toml"
+
   assert_install
+
+  uninstall "$service_acct"
+  assert_succeeded $uninstall_exit
 }
 
 

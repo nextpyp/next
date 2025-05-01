@@ -763,6 +763,19 @@ fi
 # make sure others can't write to the config file
 $sharedExecDo chmod ug=rw,o=r "$configPath"
 
+
+# do some testing to see if we need to do any manual post-installation steps
+
+# assume if the pyp container is in the old location, then we're upgrading from v0.6.5 to v0.7.0 (or newer)
+hasOldContainer=1
+[ -f "$here/pyp.sif" ] && hasOldContainer=0
+if [ "$hasOldContainer" = 0 ]; then
+  echo "Found old container file from v0.6.5 or earlier"
+fi
+
+needsPostUpgradeSteps=$hasOldContainer
+
+
 if [ "$oscaps" = "root" ]; then
   echo "Installing integrations with systemd ..."
 
@@ -796,27 +809,31 @@ EOF
   # poke systemd to recognize the new daemon
   systemctl daemon-reload
 
-  # (try to) start the demon now
-  if ! systemctl start $appDaemon; then
-    echo "ERROR: Looks like nextPYP failed to start the first time."
-    echo "       The first place to look for information is the systemd logs."
-    echo "       You can do that with:"
-    echo "         sudo journalctl -e -u nextPYP"
-    echo "       If there's no useful information there, the next place to look is the init log:"
-    echo "         cat \"$localDir/logs/init.log\""
-    echo "       If there's no useful in formation there, the next place to look is the supervisord log:"
-    echo "         cat \"$localDir/logs/superd\""
-    echo "       Finally, the last place to look for error information is the website log:"
-    echo "         tail -n 200 \"$localDir/logs/micromon\""
-    echo "       If any of the above log files are missing, it means nextPYP never reached that stage of the startup procedure."
-    exit 1
-  fi
-
-  # and at boot too
+  # set the service to start at boot
   systemctl enable $appDaemon
 
-  # seems to be running ok, show the status
-  systemctl --no-pager --full status $appDaemon
+  if [ "$needsPostUpgradeSteps" != 0 ]; then
+
+    # (try to) start the demon now
+    if ! systemctl start $appDaemon; then
+      echo "ERROR: Looks like nextPYP failed to start the first time."
+      echo "       The first place to look for information is the systemd logs."
+      echo "       You can do that with:"
+      echo "         sudo journalctl -e -u nextPYP"
+      echo "       If there's no useful information there, the next place to look is the init log:"
+      echo "         cat \"$localDir/logs/init.log\""
+      echo "       If there's no useful in formation there, the next place to look is the supervisord log:"
+      echo "         cat \"$localDir/logs/superd\""
+      echo "       Finally, the last place to look for error information is the website log:"
+      echo "         tail -n 200 \"$localDir/logs/micromon\""
+      echo "       If any of the above log files are missing, it means nextPYP never reached that stage of the startup procedure."
+      exit 1
+    fi
+
+    # seems to be running ok, show the status
+    systemctl --no-pager --full status $appDaemon
+
+  fi
 
 else
   echo "NOTE: Since you did not run the installer as root, nextPYP will not start automatically"
@@ -828,9 +845,9 @@ echo ""
 echo "Finished installing nextPYP $version !"
 
 
-# use the presence of the old container file to signal an upgrade from a pre-v0.7.0 version
-# then show the manual post-installation steps
-if [ -f "$here/pyp.sif" ]; then
+# show any post-upgrade steps, if needed
+
+if [ "$hasOldContainer" = 0 ]; then
   echo ""
   echo "==============================================================================="
   echo "|  BUT WAIT! There's still a bit more you need to do                          |"
@@ -851,6 +868,7 @@ if [ -f "$here/pyp.sif" ]; then
   echo "|    add the path to the new folder for shared executables and configuration: |"
   echo "|       sharedExecDir = \"$sharedExecDir\""
   echo "|                                                                             |"
+  echo "| When you've completed these steps, start nextPYP again.                     |"
   echo "| nextPYP will fail to start until these steps have been completed.           |"
   echo "==============================================================================="
 fi
