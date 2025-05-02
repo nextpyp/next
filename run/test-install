@@ -903,6 +903,7 @@ test_upgrade_from_v6.5_as_root_here_folders() {
   assert_owner "$sedir/config.toml" "root"
 
   # manual post-upgrade steps
+  rm "$installdir/pyp.sif" || fail
   echo "sharedExecDir = \"$sedir\"" >> "$sedir/config.toml"
 
   assert_install
@@ -952,6 +953,7 @@ test_upgrade_from_v6.5_as_root_not_here_folders() {
   assert_owner "$sedir/config.toml" "root"
 
   # manual post-upgrade steps
+  rm "$installdir/pyp.sif" || fail
   echo "sharedExecDir = '$sedir'" >> "$sedir/config.toml"
 
   assert_install
@@ -996,6 +998,7 @@ test_upgrade_from_v6.5_as_service() {
   assert_owner "$sedir/config.toml" "$service_acct"
 
   # post-upgrade steps
+  rm "$installdir/pyp.sif" || fail
   echo "sharedExecDir = \"$sedir\"" >> "$sedir/config.toml"
 
   assert_install
