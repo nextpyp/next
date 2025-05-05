@@ -9,7 +9,6 @@ object TomographyInitialRefinementNodeConfig : NodeConfig {
 	override val configId = "tomo_initial_refine"
 	override val name = "Ab-initio reconstruction"
 	override val hasFiles = true
-	override val status = NodeConfig.NodeStatus.Preview
 
 	val movieRefinement = NodeConfig.Data("movie-refinement", NodeConfig.Data.Type.MovieRefinement)
 
