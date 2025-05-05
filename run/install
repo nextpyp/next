@@ -638,7 +638,7 @@ download "$sharedExecDo" "pyp.sif" "$sharedExecDir/containers" u=rw,go=r
 
 # download the workflow files
 workflowDir="$here/workflows"
-mkdir_owned "$workflowDir" "$hereOwner" "" u=rwx,go=r
+mkdir_owned "$workflowDir" "$hereOwner" "" u=rwx,go=rx
 download "$hereDo" "workflows/spr_tutorial.toml" "$here" u=rw,go=r
 download "$hereDo" "workflows/tomo_tutorial.toml" "$here" u=rw,go=r
 download "$hereDo" "workflows/class_tutorial.toml" "$here" u=rw,go=r
