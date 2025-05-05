@@ -11,7 +11,7 @@ object TomographySegmentationOpenNodeConfig : NodeConfig {
 	override val hasFiles = true
 	
 	// TEMP: preview status during development
-	override val status = NodeConfig.NodeStatus.Preview
+	// override val status = NodeConfig.NodeStatus.Preview
 
 	val tomograms = NodeConfig.Data("tomograms", NodeConfig.Data.Type.Tomograms)
 	val segmentation = NodeConfig.Data("segmentation", NodeConfig.Data.Type.SegmentationOpen)
