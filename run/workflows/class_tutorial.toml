@@ -29,6 +29,7 @@ tomo_rec_thickness = 3072
 tomo_rec_erase_fiducials = true
 slurm_tasks = { ask = true }            # e.g.: 42 for pre-processing, 124 for refinement
 slurm_merge_tasks = { ask = true }      # e.g.: 13 for refinement, 100 for classification
+slurm_memory_per_task = { ask = true }
 
 [blocks.particlepicking]
 blockId = "tomo-picking"
