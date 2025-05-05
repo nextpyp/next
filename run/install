@@ -497,7 +497,7 @@ elif [ -d "$hereSharedDataDir" ]; then
 else
 
   # NOTE: we should only hit this case in a cluster installation
-  echo "ERROR: PYP_SHARED_DATA is a required option"
+  echo "ERROR: either PYP_STORAGE (for desktop workstations) or PYP_SHARED_DATA (for compute clusters) are required"
   exit 1
 fi
 
