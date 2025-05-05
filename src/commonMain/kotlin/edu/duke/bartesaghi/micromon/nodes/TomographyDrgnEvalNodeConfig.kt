@@ -9,7 +9,6 @@ object TomographyDrgnEvalNodeConfig : NodeConfig {
 	override val configId = "tomo_drgn_analyze"
 	override val name = "tomoDRGN (analyze)"
 	override val hasFiles = true
-	override val status = NodeConfig.NodeStatus.Preview
 	
 	// TEMP: preview status during development
 	// override val status = NodeConfig.NodeStatus.Preview
