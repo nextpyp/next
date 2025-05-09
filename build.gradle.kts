@@ -1324,6 +1324,24 @@ afterEvaluate {
 			}
 		}
 
+		create("vmBuildInstallgen") {
+			group = "build"
+			description = "Build the installation script generataor in the rustc container"
+			doLast {
+
+				val outDir = vmRustc(VmPath.fromRelative(
+					Paths.get("src/installgen"),
+					vmMicromonDir
+				))
+
+				// copy the executable into the run folder
+				copy {
+					from(outDir.resolve("installgen"))
+					into(runDir)
+				}
+			}
+		}
+
 		create("vmBuildMockPyp") {
 			group = "build"
 			description = "Build mock pyp in the rustc container"
