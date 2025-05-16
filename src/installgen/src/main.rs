@@ -1,8 +1,10 @@
 
 mod config;
 mod installed;
-mod install;
 mod script;
+mod commands;
+mod download;
+
 
 use std::ops::Deref;
 use std::process::ExitCode;
@@ -29,12 +31,26 @@ struct Args {
 
 #[derive(Debug, Options)]
 enum Command {
-	Install(ArgsInstall)
+	Config(ArgsConfig),
+	Install(ArgsInstall),
+	Script(ArgsScript)
+}
+
+
+#[derive(Debug, Options)]
+struct ArgsConfig {
+	// no args needed ... yet?
 }
 
 
 #[derive(Debug, Options)]
 struct ArgsInstall {
+	// no args needed ... yet?
+}
+
+
+#[derive(Debug, Options)]
+struct ArgsScript {
 	// no args needed ... yet?
 }
 
@@ -55,7 +71,9 @@ fn main() -> ExitCode {
 
 	// handle the commands
 	let result = match args.cmd {
-		Some(Command::Install(..)) => install::run(),
+		Some(Command::Config(..)) => commands::config::run(),
+		Some(Command::Install(..)) => commands::install::run(),
+		Some(Command::Script(..)) => commands::script::run(),
 		None => {
 			println!("No command given");
 			return ExitCode::FAILURE;

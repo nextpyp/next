@@ -35,6 +35,11 @@ fn generate_anything() {
 	install_dir.file_config().write(indoc!{ r#"
 		[install]
 		version = "0.8.0"
+		[pyp]
+		scratch = "/foo"
+		[web]
+		localDir = "/bar"
+		sharedDir = "/cow"
 	"# });
 	let cmd = cmd_install(&install_dir);
 	install_dir.print();
