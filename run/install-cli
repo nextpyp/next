@@ -34,31 +34,28 @@ echo "Installing PYP $version on domain $domain ..."
 echo "Downloading installation files ..."
 www="https://nextpyp.app/files/pyp/$version"
 wwwcli="$www/cli"
-wgetopts="-nv"
+wget --help | grep -q '\--show-progress' && PROGRESS_OPT="-q --show-progress" || _PROGRESS_OPT=""
+wgetopts="-nv $_PROGRESS_OPT"
 
 cli="$here/cli"
 mkdir -p "$cli"
 
-wget $wgetopts -O "$cli/launcher" "$wwwcli/launcher"
-wget $wgetopts -O "$cli/pyp_clean.sh" "$wwwcli/pyp_clean.sh"
-wget $wgetopts -O "$cli/pyp_csp.sh" "$wwwcli/pyp_csp.sh"
-wget $wgetopts -O "$cli/pyp_export.sh" "$wwwcli/pyp_export.sh"
-wget $wgetopts -O "$cli/pyp_gain.sh" "$wwwcli/pyp_gain.sh"
-wget $wgetopts -O "$cli/pyp_mask.sh" "$wwwcli/pyp_mask.sh"
-wget $wgetopts -O "$cli/pyp_prl.sh" "$wwwcli/pyp_prl.sh"
-wget $wgetopts -O "$cli/pyp_rlp.sh" "$wwwcli/pyp_rlp.sh"
-wget $wgetopts -O "pyp.sif" "$www/pyp.sif"
+download() {
+  wget $wgetopts -O "$1/$2" "$3/$2"
+  chmod "$4" "$1/$2"
+}
 
-chmod ugo+rx $cli/launcher
-chmod ugo+rx "$cli/pyp_csp.sh"
-chmod ugo+rx "$cli/pyp_gain.sh"
-chmod ugo+rx "$cli/pyp_rlp.sh"
-chmod ugo+rx "$cli/pyp_prl.sh"
-chmod ugo+rx "$cli/pyp_clean.sh"
-chmod ugo+rx "$cli/pyp_mask.sh"
-chmod ugo+rx "$cli/pyp_export.sh"
+download "$cli" "launcher" "$wwwcli" ugo=rx
+download "$cli" "pyp_clean.sh" "$wwwcli" ugo=rx
+download "$cli" "pyp_csp.sh" "$wwwcli" ugo=rx
+download "$cli" "pyp_export.sh" "$wwwcli" ugo=rx
+download "$cli" "pyp_gain.sh" "$wwwcli" ugo=rx
+download "$cli" "pyp_mask.sh" "$wwwcli" ugo=rx
+download "$cli" "pyp_prl.sh" "$wwwcli" ugo=rx
+download "$cli" "pyp_rlp.sh" "$wwwcli" ugo=rx
+download "$here" "pyp.sif" "$www" go=r
 
-# copy the executables into /usr/bin (otherwise SELinux will deny access)
+# create symlinks to executables
 ln="ln -sf"
 $ln "$cli/launcher" "pyp"
 $ln "$cli/launcher" "streampyp"
