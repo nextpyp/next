@@ -34,7 +34,7 @@ echo "Installing PYP $version on domain $domain ..."
 echo "Downloading installation files ..."
 www="https://nextpyp.app/files/pyp/$version"
 wwwcli="$www/cli"
-wget --help | grep -q '\--show-progress' && PROGRESS_OPT="-q --show-progress" || _PROGRESS_OPT=""
+wget --help | grep -q '\--show-progress' && _PROGRESS_OPT="-q --show-progress" || _PROGRESS_OPT=""
 wgetopts="-nv $_PROGRESS_OPT"
 
 cli="$here/cli"

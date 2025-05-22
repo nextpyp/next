@@ -598,7 +598,7 @@ mkdir_owned "$sharedExecDir/containers" "$sharedExecOwner" ""
 
 # configure downloads
 www="https://nextpyp.app/files/pyp/$version"
-wget --help | grep -q '\--show-progress' && PROGRESS_OPT="-q --show-progress" || _PROGRESS_OPT=""
+wget --help | grep -q '\--show-progress' && _PROGRESS_OPT="-q --show-progress" || _PROGRESS_OPT=""
 wgetopts="-nv $_PROGRESS_OPT"
 # for interactive use, it's helpful to turn on the progress bar to track long downloads
 #wgetopts="$wgetopts --progress=bar"
