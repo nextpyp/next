@@ -174,9 +174,9 @@ class TomographyMiloEvalView(val project: ProjectData, val job: TomographyMiloEv
 
 		// show the file download
 		val fileDownload = FileDownloadBadge(
-			filetype = ".gzip file",
+			filetype = ".tbz file",
 			url = ITomographyMiloEvalService.dataPath(job.jobId),
-			filename = "${job.jobId}_milo.gzip",
+			filename = "${job.jobId}_milo.tbz",
 			loader = { Services.tomographyMiloEval.data(job.jobId) }
 		)
 
