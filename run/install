@@ -655,7 +655,8 @@ install() { #(filename, dest filename)
   outpath="$bindir/$dstname"
   if [ "$here/$1" != "$outpath" ]; then
     cp -f "$here/$1" "$outpath"
-    rm "$here/$1"
+    rm "$here/$1" || true
+    # TEMP: HACKHACK: ignore errors with the above rm, since sudo doesn't have write access to some network filesystems
   fi
   chmod u=rwx,go=rx "$outpath"
 }
