@@ -698,21 +698,26 @@ else
   # prep the scratch folder
   if [ -n "$PYP_SCRATCH" ]; then
 
-    # check existence
-    if [ ! -d "$PYP_SCRATCH" ]; then
-      echo "ERROR: Folder given by PYP_SCRATCH not found"
-      echo "       PYP_SCRATCH=$PYP_SCRATCH"
-      exit 1
-    fi
-
-    # check ownership
-    scratchOwner=$(folder_owner "$PYP_SCRATCH")
-    if [ "$scratchOwner" != "$username" ]; then
-      echo "ERROR: Scratch folder given by PYP_SCRATCH should be owned by $username"
-      echo "       Instead it's owned by $scratchOwner"
-      echo "       PYP_SCRATCH=$PYP_SCRATCH"
-      exit 1
-    fi
+    # TODO: these checks will probably fail on the web server when using SLURM,
+    #       but these checks are still very valid and useful in standalone mode,
+    #       but the installer isn't smart enough to know if SLURM or standalone (yet),
+    #       so we'll just have to skip these checks entirely for now. =(
+    
+#    # check existence
+#    if [ ! -d "$PYP_SCRATCH" ]; then
+#      echo "ERROR: Folder given by PYP_SCRATCH not found"
+#      echo "       PYP_SCRATCH=$PYP_SCRATCH"
+#      exit 1
+#    fi
+#
+#    # check ownership
+#    scratchOwner=$(folder_owner "$PYP_SCRATCH")
+#    if [ "$scratchOwner" != "$username" ]; then
+#      echo "ERROR: Scratch folder given by PYP_SCRATCH should be owned by $username"
+#      echo "       Instead it's owned by $scratchOwner"
+#      echo "       PYP_SCRATCH=$PYP_SCRATCH"
+#      exit 1
+#    fi
 
     scratchDir="$PYP_SCRATCH"
 
