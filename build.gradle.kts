@@ -61,8 +61,11 @@ val apiVersion = "2.1.0"
 
 repositories {
 	mavenCentral()
-	@Suppress("DEPRECATION") // yes, we know it's deprecated, but we don't get to choose where dependencies come from
-	jcenter() // needed for some JetBrains dependencies... still works somehow
+	// NOTE: JetBrains moved some things from jcenter to their own Space instance
+	//       but tragically, it doesn't look like anything we're using is hosted there
+	//maven("https://maven.pkg.jetbrains.space")
+	// NOTE: jcenter doesn't exist anymore, even for JetBrains artifacts
+	//       now the HTTP server 301 just redirects to Maven Central
 }
 
 // Versions
@@ -232,15 +235,6 @@ kotlin {
 				implementation("io.ktor:ktor-client-websockets:$ktorVersion") // Apache 2
 				implementation("ch.qos.logback:logback-classic:$logbackVersion") // LGPL
 
-				// TODO: we don't even use these things, they were included in KVision, should we get rid of them?
-				implementation("com.h2database:h2:$h2Version")
-				implementation("org.jetbrains.exposed:exposed:$exposedVersion")
-				implementation("org.postgresql:postgresql:$pgsqlVersion")
-				implementation("com.zaxxer:HikariCP:$hikariVersion")
-				implementation("commons-codec:commons-codec:$commonsCodecVersion")
-				implementation("com.axiomalaska:jdbc-named-parameters:$jdbcNamedParametersVersion")
-				implementation("com.github.andrewoma.kwery:core:$kweryVersion")
-
 				implementation("com.github.jai-imageio:jai-imageio-core:1.3.1") // BSD 3-clause
 				implementation("org.mongodb:mongodb-driver-sync:4.4.0") // Apache 2
 				implementation("org.tomlj:tomlj:1.0.0") // Apache 2
@@ -312,7 +306,9 @@ kotlin {
 				implementation("io.kvision:kvision-richtext:$kvisionVersion")
 				implementation("io.kvision:kvision-handlebars:$kvisionVersion")
 				implementation("io.kvision:kvision-datacontainer:$kvisionVersion")
-				implementation("io.kvision:kvision-redux:$kvisionVersion")
+				// dependencies for this lib can't be downloaded from jcenter/bintray anymore,
+				// but we're not using it anyway, so just get rid of it
+				//implementation("io.kvision:kvision-redux:$kvisionVersion")
 				implementation("io.kvision:kvision-chart:$kvisionVersion")
 				implementation("io.kvision:kvision-tabulator:$kvisionVersion")
 				implementation("io.kvision:kvision-pace:$kvisionVersion")
@@ -325,7 +321,12 @@ kotlin {
 				//       because we re-wrote the KVision shim code in our project anyway.
 				implementation("io.kvision:kvision-toast:$kvisionVersion")
 
-				implementation("org.jetbrains.kotlinx:kotlinx-html-js:0.7.2") // Apache 2
+				// v0.7.2 deleted from jcenter/bintray, use v0.7.3 from Maven Central instead =(
+				implementation("org.jetbrains.kotlinx:kotlinx-html-js:0.7.3") // Apache 2
+
+				// no idea what version of `kotlin-extensions` we were using before (transitively),
+				// but try depending on the oldest version available in Maven Central for Kotlin v1.4
+				implementation("org.jetbrains.kotlin-wrappers:kotlin-extensions:1.0.1-pre.204-kotlin-1.4.32")
 
 				/* Always explicitly pick versions for all JS dependencies!!
 
