@@ -9,6 +9,7 @@ use crate::args::{Args, ArgsConfig, ArgType};
 use crate::metadata::{Micrograph, TiltSeries};
 use crate::refinement::{Histogram, Reconstruction};
 
+
 pub struct Web {
 	host: String,
 	token: String,
@@ -112,6 +113,15 @@ impl Web {
 		}
 
 		self.json_rpc("slurm_ended", request.into())?;
+
+		Ok(())
+	}
+
+	pub fn ping(&self) -> Result<()> {
+
+		let mut request = Map::<String,Value>::new();
+		request.insert("webid".to_string(), self.id.clone().into());
+		self.json_rpc("ping", request.into())?;
 
 		Ok(())
 	}

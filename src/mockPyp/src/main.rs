@@ -130,6 +130,12 @@ fn run_webrpc(args: VecDeque<String>, array_element: Option<u32>) -> Result<()> 
 			web.slurm_ended(array_element, exit_code)?;
 		}
 
+		Some("ping") => {
+
+			let web = Web::new()?;
+			web.ping()?;
+		}
+
 		_ => bail!("Unrecognized webrpc command: {:?}", cmd)
 	}
 
