@@ -104,7 +104,7 @@ class Config(toml: String) {
 
 	data class Slurm(
 		val user: String,
-		val host: String,
+		val host: String?,
 		val key: Path,
 		val port: Int,
 		val maxConnections: Int,
@@ -114,7 +114,6 @@ class Config(toml: String) {
 	) {
 
 		val commandsConfig = Commands.Config()
-		val sshPoolConfig = SshPoolConfig(user, host, key, port, maxConnections, timeoutSeconds)
 
 		fun cmd(name: String): String =
 			(path / name).toString()
@@ -261,7 +260,7 @@ class Config(toml: String) {
 		slurm = doc.getTable("slurm")?.run {
 			Slurm(
 				user = getString("user") ?: System.getProperty("user.name"),
-				host = getStringOrThrow("host"),
+				host = getString("host"),
 				key = getString("key")?.toPath() ?: SshPoolConfig.defaultKeyPath,
 				port = getInt("port") ?: SshPoolConfig.defaultPort,
 				maxConnections = getInt("maxConnections") ?: SshPoolConfig.defaultPoolSize,

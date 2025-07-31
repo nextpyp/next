@@ -2,12 +2,12 @@ package edu.duke.bartesaghi.micromon.cluster.slurm
 
 import edu.duke.bartesaghi.micromon.Backend
 import edu.duke.bartesaghi.micromon.Config
-import edu.duke.bartesaghi.micromon.SSHPool
 import edu.duke.bartesaghi.micromon.linux.Command
+import edu.duke.bartesaghi.micromon.linux.CommandExecutor
 
 
 class SQueue(
-	val sshPool: SSHPool,
+	val commandExecutor: CommandExecutor,
 	val config: Config.Slurm,
 	val osUsername: String? = null
 ) {
@@ -28,8 +28,8 @@ class SQueue(
 			cmd = Backend.instance.userProcessors.get(osUsername).wrap(cmd, quiet=true)
 		}
 
-		val lines = sshPool.connection {
-			exec(cmd.toShellSafeString())
+		val lines = commandExecutor.connection {
+			exec(cmd)
 				.console
 		}
 

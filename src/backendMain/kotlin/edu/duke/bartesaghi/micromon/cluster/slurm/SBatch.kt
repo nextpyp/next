@@ -5,6 +5,8 @@ import edu.duke.bartesaghi.micromon.cluster.Cluster
 import edu.duke.bartesaghi.micromon.cluster.ClusterJob
 import edu.duke.bartesaghi.micromon.cluster.Commands
 import edu.duke.bartesaghi.micromon.linux.Command
+import edu.duke.bartesaghi.micromon.linux.CommandExecutor
+import edu.duke.bartesaghi.micromon.linux.LocalCommandExecutor
 import edu.duke.bartesaghi.micromon.linux.userprocessor.deleteAs
 import edu.duke.bartesaghi.micromon.linux.userprocessor.readStringAs
 import edu.duke.bartesaghi.micromon.pyp.*
@@ -37,7 +39,21 @@ class SBatch(val config: Config.Slurm) : Cluster {
 	override val commandsConfig: Commands.Config get() =
 		config.commandsConfig
 
-	private val sshPool = SSHPool(config.sshPoolConfig)
+	// submit jobs over SSH if a SLURM host is configured,
+	// otherwise submit locally using the host processor
+	private val commandExecutor: CommandExecutor =
+		config.host
+			?.let {
+				SSHPool(SshPoolConfig(
+					config.user,
+					it,
+					config.key,
+					config.port,
+					config.maxConnections,
+					config.timeoutSeconds
+				))
+			}
+			?: LocalCommandExecutor()
 
 	override fun validate(job: ClusterJob) {
 
@@ -138,12 +154,8 @@ class SBatch(val config: Config.Slurm) : Cluster {
 		// add environment vars from the job submission
 		sbatch.envvars.addAll(clusterJob.env)
 
-		// render the command into something suitable for a remote shell,
-		// ie, with proper argument quoting to avoid injection attacks
-		val sbatchCmd = sbatch.toShellSafeString()
-
 		// call sbatch on the SLURM host and wait for the job to submit
-		val result = sshPool
+		val result = commandExecutor
 			.connection {
 
 				// last chance to abort submission before SLURM gets the job
@@ -152,32 +164,33 @@ class SBatch(val config: Config.Slurm) : Cluster {
 					null
 				} else {
 					// submit the command to the login node
-					exec(sbatchCmd)
+					exec(sbatch)
 				}
 			}
 			?: return null
 
 		// get the job id from sbatch stdout
 		val sbatchId = result.console
-			.lastOrNull()
+			.lastOrNull { it.isNotBlank() }
 			// NOTE: the user-processor can add messages before the sbatch output,
 			//       so just look at the last line of the console output
-			?.takeIf { it.startsWith("Submitted batch job ") }
+			?.takeIf { it.trim().startsWith("Submitted batch job ") }
+			?.trim()
 			?.split(" ")
 			?.last()
 			?.toLongOrNull()
-			?: throw ClusterJob.LaunchFailedException("unable to read job id from sbatch output", result.console, sbatchCmd)
+			?: throw ClusterJob.LaunchFailedException("unable to read job id from sbatch output", result.console, sbatch.toShellSafeString())
 
 		return ClusterJob.LaunchResult(
 			sbatchId,
 			result.console.joinToString("\n"),
-			sbatchCmd
+			sbatch.toShellSafeString()
 		)
 	}
 
 	override suspend fun waitingReason(clusterJob: ClusterJob, launchResult: ClusterJob.LaunchResult): String? =
 		launchResult.jobId
-			?.let { SQueue(sshPool, config, clusterJob.osUsername).reason(it) }
+			?.let { SQueue(commandExecutor, config, clusterJob.osUsername).reason(it) }
 			?.let { "Job has been submitted to SLURM. The SLURM status is: ${it.name}: ${it.description}" }
 
 	override suspend fun cancel(clusterJobs: List<ClusterJob>) {
@@ -214,9 +227,9 @@ class SBatch(val config: Config.Slurm) : Cluster {
 		}
 
 		// run the commands on the SLURM login node
-		val results = sshPool.connection {
+		val results = commandExecutor.connection {
 			commands.map { cmd ->
-				exec(cmd.toShellSafeString())
+				exec(cmd)
 			}
 		}
 

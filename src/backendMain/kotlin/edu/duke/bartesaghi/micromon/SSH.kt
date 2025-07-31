@@ -1,6 +1,8 @@
 package edu.duke.bartesaghi.micromon
 
 import com.jcraft.jsch.*
+import edu.duke.bartesaghi.micromon.linux.Command
+import edu.duke.bartesaghi.micromon.linux.CommandExecutor
 import java.io.InputStream
 import java.nio.file.Path
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -8,41 +10,9 @@ import java.util.concurrent.LinkedBlockingDeque
 import java.util.concurrent.atomic.AtomicLong
 
 
-object SSH {
+class SSHPool(val config: SshPoolConfig) : CommandExecutor {
 
-	interface Connection {
-
-		/**
-		 * Run a remote shell command and return the results
-		 *
-		 * IMPORTANT: user inputs should be sanitized to prevent exploits!!!
-		 */
-		fun exec(cmd: String): ExecResult
-
-		/**
-		 * Run a remote shell command and return the results,
-		 * throwing an exception if the remote process exited with a nonzero code.
-		 *
-		 * IMPORTANT: user inputs should be sanitized to prevent exploits!!!
-		 */
-		fun execOrThrow(cmd: String): ExecResult
-	}
-
-	data class ExecResult(
-		val out: List<String>,
-		val err: List<String>,
-		/** stdout and stderr, but combined together in realtime */
-		val console: List<String>,
-		val exitCode: Int
-	)
-
-	// NOTE: SFTP isn't implemented (or turned off) on some SSH daemons, so we shouldn't use it
-	//       it may also be causing some performance bottlenecks, but it's hard to be sure about that
-}
-
-class SSHPool(val config: SshPoolConfig) {
-
-	private var connections = LinkedBlockingDeque<SSH.Connection>(config.maxConnections).apply {
+	private var connections = LinkedBlockingDeque<CommandExecutor.Session>(config.maxConnections).apply {
 
 		// pre-create all the connections, but don't open them yet
 		val capacity = remainingCapacity()
@@ -51,7 +21,7 @@ class SSHPool(val config: SshPoolConfig) {
 		}
 	}
 
-	suspend fun <R> connection(block: SSH.Connection.() -> R): R =
+	override suspend fun <R> connection(block: suspend CommandExecutor.Session.() -> R): R =
 
 		// doing blocking IO, so run this on an IO thread pool
 		slowIOs ctx@{
@@ -73,7 +43,7 @@ class SSHPool(val config: SshPoolConfig) {
 class SSHConnection(
 	val id: Int,
 	val config: SshPoolConfig
-) : SSH.Connection {
+) : CommandExecutor.Session {
 
 	private val jsch = JSch().apply {
 		addIdentity(config.key.toString())
@@ -194,10 +164,13 @@ class SSHConnection(
 		}
 	}
 
-	override fun exec(cmd: String): SSH.ExecResult = session {
+	override suspend fun exec(cmd: Command): CommandExecutor.ExecResult = session {
 
 		val channel = openChannel("exec") as ChannelExec
-		channel.setCommand(cmd)
+
+		// render the command into something suitable for a remote shell,
+		// ie, with proper argument quoting to avoid injection attacks
+		channel.setCommand(cmd.toShellSafeString())
 
 		// start threads to read stdout and stderr
 		val console = ConsoleReader(channel.inputStream, channel.errStream)
@@ -212,19 +185,19 @@ class SSHConnection(
 			channel.disconnect()
 		}
 
-		return@session SSH.ExecResult(console.out.toList(), console.err.toList(), console.combined.toList(), channel.exitStatus)
+		return@session CommandExecutor.ExecResult(console.out.toList(), console.err.toList(), console.combined.toList(), channel.exitStatus)
 	}
 
-	override fun execOrThrow(cmd: String): SSH.ExecResult {
+	override suspend fun execOrThrow(cmd: Command): CommandExecutor.ExecResult {
 		val result = exec(cmd)
 		if (result.exitCode != 0) {
 			throw Exception("""
-					|SSH command failed:
-					|user:    ${config.user}
-					|host:    ${config.host}
-					|cmd:     $cmd
-					|console: ${result.console.joinToString("\n         ")}
-				""".trimMargin())
+				|SSH command failed:
+				|user:    ${config.user}
+				|host:    ${config.host}
+				|cmd:     $cmd
+				|console: ${result.console.joinToString("\n         ")}
+			""".trimMargin())
 		}
 		return result
 	}
