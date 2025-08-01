@@ -380,9 +380,9 @@ async fn dispatch_exec(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32, proce
 	};
 
 	// spawn the process
-	let result = Command::new(request.program)
+	let result = Command::new(&request.program)
 		.args(request.args)
-		.current_dir(dir)
+		.current_dir(&dir)
 		.envs(request.envvars)
 		.stdin(match &request.stdin {
 			ExecStdin::Stream => Stdio::piped(),
@@ -403,7 +403,7 @@ async fn dispatch_exec(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32, proce
 		})
 		.process_group(0) // start a new process group for this process and all its subprocesses
 		.spawn()
-		.context("Failed to spawn process")
+		.context(format!("Failed to spawn process: program=\"{}\", dir={:?}", &request.program, &dir))
 		.and_then(|proc| {
 			// lookup the pid, if any
 			// NOTE: the PID here is also the PGID, since we created a new process group
