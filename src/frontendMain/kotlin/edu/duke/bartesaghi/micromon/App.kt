@@ -36,6 +36,7 @@ class App : Application() {
 				SetPasswordView.Companion,
 				SingleParticleImportDataView.Companion,
 				SingleParticlePreprocessingView.Companion,
+				SingleParticleDrgnView.Companion,
 				SingleParticleSessionDataView.Companion,
 				SingleParticleSessionView.Companion,
 				TomographyDenoisingEvalView.Companion,

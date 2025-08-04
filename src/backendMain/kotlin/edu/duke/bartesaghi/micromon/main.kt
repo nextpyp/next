@@ -218,6 +218,7 @@ fun Application.main(config: Config.Web) {
 		TomographyDrgnTrainService.init(this)
 		TomographyDrgnEvalService.init(this)
 		TomographyDrgnEvalVolsService.init(this)
+		SingleParticleDrgnService.init(this)
 
 		// only enable the debug service in debug mode
 		if (config.debug) {

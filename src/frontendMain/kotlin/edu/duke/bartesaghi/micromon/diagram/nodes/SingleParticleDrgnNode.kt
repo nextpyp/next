@@ -10,6 +10,7 @@ import edu.duke.bartesaghi.micromon.pyp.Args
 import edu.duke.bartesaghi.micromon.revalidateDynamicImages
 import edu.duke.bartesaghi.micromon.services.*
 import edu.duke.bartesaghi.micromon.views.Viewport
+import edu.duke.bartesaghi.micromon.views.SingleParticleDrgnView
 import js.micromondiagrams.MicromonDiagrams
 import js.micromondiagrams.nodeType
 import io.kvision.form.formPanel
@@ -99,7 +100,7 @@ class SingleParticleDrgnNode(
 		content {
 			button(className = "image-button", onClick = {
 				// TODO: make a view
-				//SingleParticleDrgnView.go(viewport, project, job)
+				SingleParticleDrgnView.go(viewport, project, job)
 			}) {
 				img(job.imageUrl, className = dynamicImageClassName)
 			}

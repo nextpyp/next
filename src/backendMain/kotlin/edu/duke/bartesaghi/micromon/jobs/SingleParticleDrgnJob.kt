@@ -83,13 +83,8 @@ class SingleParticleDrgnJob(
 		update()
 	}
 
-	fun diagramImageURL(): String {
-
-		val size = ImageSize.Small
-
-		// TEMP: placeholder for now
-		return "/img/placeholder/${size.id}"
-	}
+	fun diagramImageURL(): String =
+		ISingleParticleDrgnService.plotUmapHexbin(idOrThrow)
 
 	override fun wipeData() {
 
@@ -106,4 +101,14 @@ class SingleParticleDrgnJob(
 
 	override fun finishedArgValues(): ArgValuesToml? =
 		args.finished?.values
+	
+	fun params(): SingleParticleDrgnParams? =
+		pypParameters()?.let {
+			SingleParticleDrgnParams(
+				skipumap = it.cryodrgnSkipumap,
+				pc = it.cryodrgnPc,
+				ksample = it.cryodrgnKsample,
+				epoch = it.cryodrgnEpoch
+			)
+		}
 }
