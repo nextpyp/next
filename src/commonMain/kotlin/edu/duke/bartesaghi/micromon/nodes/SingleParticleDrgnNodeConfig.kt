@@ -9,8 +9,9 @@ object SingleParticleDrgnNodeConfig : NodeConfig {
 	override val configId = "spr_drgn"
 	override val name = "Continuous Heterogeneity"
 	override val hasFiles = true
+	
 	// TEMP: preview status during development
-	override val status = NodeConfig.NodeStatus.Preview
+	// override val status = NodeConfig.NodeStatus.Preview
 
 	val inRefinements = NodeConfig.Data("inRefinements", NodeConfig.Data.Type.Refinements)
 	val outRefinements = NodeConfig.Data("outRefinements", NodeConfig.Data.Type.Refinements)
