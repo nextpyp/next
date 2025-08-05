@@ -102,7 +102,7 @@ class SingleParticleDrgnNode(
 				// TODO: make a view
 				SingleParticleDrgnView.go(viewport, project, job)
 			}) {
-				img(job.imageUrl, className = dynamicImageClassName)
+				img(job.imageUrl, className = dynamicImageClassName, width = 256)
 			}
 		}
 
