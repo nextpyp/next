@@ -434,7 +434,7 @@ val Args.cryodrgnKsample: Arg
 val ArgValues.cryodrgnKsample: Int
 	get() = (getOrDefault(args.cryodrgnKsample) as Long).toInt()
 val Args.cryodrgnEpoch: Arg
-	get() = argOrThrow("heterogeneity_cryodrgn_analysis", "epoch")
+	get() = argOrThrow("heterogeneity_cryodrgn_train", "epochs")
 val ArgValues.cryodrgnEpoch: Int
 	get() = (getOrDefault(args.cryodrgnEpoch) as Long).toInt()
 
