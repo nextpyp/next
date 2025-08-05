@@ -193,10 +193,10 @@ actual class SingleParticleDrgnService : ISingleParticleDrgnService, Service {
 		}
 
 		fun Job.kmeansDir(params: SingleParticleDrgnParams): Path =
-			dir / "train" / "analyze.${params.epoch}" / "kmeans${params.ksample}"
+			dir / "train" / "analyze.${params.epoch-1}" / "kmeans${params.ksample}"
 
 		fun Job.dimDir(dim: Int, params: SingleParticleDrgnParams): Path =
-			dir / "train" / "analyze.${params.epoch}" / "pc$dim"
+			dir / "train" / "analyze.${params.epoch-1}" / "pc$dim"
 
 		fun Int.formatCls(): String =
 			"%03d".format(this - 1)
