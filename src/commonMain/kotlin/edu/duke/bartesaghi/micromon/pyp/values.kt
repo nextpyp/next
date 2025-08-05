@@ -422,19 +422,19 @@ val ArgValues.tomodrgnAnalyzeVolumesKsample: Int
 	get() = (getOrDefault(args.tomodrgnAnalyzeVolumesKsample) as Long).toInt()
 
 val Args.cryodrgnSkipumap: Arg
-	get() = argOrThrow("heterogeneity_cryodrgn_analysis", "skipumap")
+	get() = argOrThrow("cryodrgn_analysis", "skipumap")
 val ArgValues.cryodrgnSkipumap: Boolean
 	get() = getOrDefault(args.cryodrgnSkipumap) as Boolean
 val Args.cryodrgnPc: Arg
-	get() = argOrThrow("heterogeneity_cryodrgn_analysis", "pc")
+	get() = argOrThrow("cryodrgn_analysis", "pc")
 val ArgValues.cryodrgnPc: Int
 	get() = (getOrDefault(args.cryodrgnPc) as Long).toInt()
 val Args.cryodrgnKsample: Arg
-	get() = argOrThrow("heterogeneity_cryodrgn_analysis", "ksample")
+	get() = argOrThrow("cryodrgn_analysis", "ksample")
 val ArgValues.cryodrgnKsample: Int
 	get() = (getOrDefault(args.cryodrgnKsample) as Long).toInt()
 val Args.cryodrgnEpoch: Arg
-	get() = argOrThrow("heterogeneity_cryodrgn_train", "epochs")
+	get() = argOrThrow("cryodrgn_train", "epochs")
 val ArgValues.cryodrgnEpoch: Int
 	get() = (getOrDefault(args.cryodrgnEpoch) as Long).toInt()
 
