@@ -7,7 +7,7 @@ object TomographySegmentationOpenNodeConfig : NodeConfig {
 
 	override val id = ID
 	override val configId = "tomo_segment_open"
-	override val name = "Segmentation (open surfaces)"
+	override val name = "Segmentation (open surfaces, filaments)"
 	override val hasFiles = true
 	
 	// TEMP: preview status during development
