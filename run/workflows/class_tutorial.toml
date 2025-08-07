@@ -23,7 +23,7 @@ parent = "rawdata"
 [blocks.preprocessing.args]
 movie_no_frames = true
 ctf_max_res = 5.0
-tomo_ali_format = false
+tomo_ali_square = false
 tomo_rec_binning = 12
 tomo_rec_thickness = 3072
 tomo_rec_erase_fiducials = true
