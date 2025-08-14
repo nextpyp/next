@@ -276,7 +276,7 @@ create_upexec() # depends on: usdo, installdir, updir, upexec, username
   exegid=$(stat --format '%g' "$upexec")
   if [ "$exegid" != "$srvgid" ]; then
     echo "ERROR: User-processor executable did not inherit the group ownership from the parent folder."
-    echo "       The user-processor folder should have the sticky bit set."
+    echo "       The user-processor folder should have the sgid (g+s) bit set."
     exit 1
   fi
 
