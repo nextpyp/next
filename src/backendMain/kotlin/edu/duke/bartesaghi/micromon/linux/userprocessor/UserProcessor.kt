@@ -55,7 +55,12 @@ class UserProcessor(
 			// it should have the tmpdir bit set
 			val dirStat = Filesystem.stat(dir)
 			if (!dirStat.isSticky) {
-				failures.add("Folder permissions: Should be sticky/tmpdir")
+				failures.add("Folder permissions: Should be sticky/tmpdir: $dir")
+			}
+
+			// and setgid too
+			if (!dirStat.isSetGID) {
+				failures.add("Folder permissions: Should be SetGID: $dir")
 			}
 
 			// find the uid
@@ -69,7 +74,7 @@ class UserProcessor(
 
 			// check the user executable itself:
 			if (!path.exists()) {
-				throw UserProcessorException(path, listOf("File not found: $path"))
+				throw UserProcessorException(path, listOf("User processor executable not found: $path"))
 			}
 
 			// check the unix permissions
@@ -78,31 +83,31 @@ class UserProcessor(
 			// the file should be owned by the given username
 			if (fileStat.uid != uid) {
 				val fileUsername = hostProcessor.username(fileStat.uid)
-				failures.add("File permissions: Should be owned by $username, not $fileUsername")
+				failures.add("File permissions: Should be owned by ${username.renderName()} (UID=$uid), not ${fileUsername.renderName()} (UID=${fileStat.uid})")
 			}
 
 			// owner should have: setuid
 			if (!fileStat.isSetUID) {
-				failures.add("File permissions: Should be setuid")
+				failures.add("File permissions: Should be setuid: $path")
 			}
 
 			// group should have: r-x
 			if (!fileStat.isGroupRead) {
-				failures.add("File permissions: Group should read")
+				failures.add("File permissions: Group should read: $path")
 			}
 			if (fileStat.isGroupWrite) {
-				failures.add("File permissions: Group must not write")
+				failures.add("File permissions: Group must not write: $path")
 			}
 			if (!fileStat.isGroupExecute) {
-				failures.add("File permissions: Group should execute")
+				failures.add("File permissions: Group should execute: $path")
 			}
 
 			// other should have: r-- or ---
 			if (fileStat.isOtherWrite) {
-				failures.add("File permissions: Others must not write")
+				failures.add("File permissions: Others must not write: $path")
 			}
 			if (fileStat.isOtherExecute) {
-				failures.add("File permissions: Others must not execute")
+				failures.add("File permissions: Others must not execute: $path")
 			}
 
 			// and the file should be owned by any group among this user's groups
@@ -111,7 +116,11 @@ class UserProcessor(
 			if (websiteGids == null || fileStat.gid !in websiteGids) {
 				val micromonUsername = hostProcessor.username(websiteUid)
 				val fileGroupname = hostProcessor.groupname(fileStat.gid)
-				failures.add("File permissions: website user $micromonUsername is not a member of group $fileGroupname")
+				failures.add("""
+					User configuration: Website user ${micromonUsername.renderName()} (UID=${websiteUid}) is not
+					a member of group ${fileGroupname.renderName()} (GID=${fileStat.gid}).
+					Instead the user has GIDs=${websiteGids}.
+				""")
 			}
 
 			// If the user isn't the service account already (typical for dev installations),
@@ -123,8 +132,10 @@ class UserProcessor(
 				if (userGids != null && fileStat.gid in userGids) {
 					val fileGroupname = hostProcessor.groupname(fileStat.gid)
 					failures.add("""
-						Group configuration: Regular users (eg $username) should not be members of the
-						service group ($fileGroupname), which should be only for the service account
+						Group configuration: Regular users (eg ${username.renderName()}, UID=$uid)
+						should not be members of the group of the user processor executable (${fileGroupname.renderName()}, GID=${fileStat.gid}).
+						The group of the user processor executable (which is inherited from the parent folder: $dir)
+						should not contain any regular users.
 					""".trim())
 				}
 			}
@@ -636,3 +647,11 @@ class UserProcessor(
 		return cmd.wrap(path.toString(), args)
 	}
 }
+
+
+private fun String?.renderName() =
+	if (this == null) {
+		"(null)"
+	} else {
+		"'$this'"
+	}
