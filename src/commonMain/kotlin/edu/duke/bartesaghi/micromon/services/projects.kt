@@ -374,6 +374,7 @@ interface JobData {
 					subclass(SingleParticleFlexibleRefinementData::class)
 					subclass(SingleParticlePostprocessingData::class)
 					subclass(SingleParticleMaskingData::class)
+					subclass(Tomography3DAVGData::class)
 					subclass(TomographyRawDataData::class)
 					subclass(TomographyRelionDataData::class)
 					subclass(TomographyImportDataData::class)

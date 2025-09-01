@@ -18,6 +18,7 @@ object NodeConfigs {
 		SingleParticleFlexibleRefinementNodeConfig,
 		SingleParticlePostprocessingNodeConfig,
 		SingleParticleMaskingNodeConfig,
+		Tomography3DAVGNodeConfig,
 		TomographyRawDataNodeConfig,
 		TomographyRelionDataNodeConfig,
 		TomographyImportDataNodeConfig,

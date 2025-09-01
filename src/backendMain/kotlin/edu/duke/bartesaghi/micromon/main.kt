@@ -160,6 +160,7 @@ fun Application.main(config: Config.Web) {
 		applyRoutes(SingleParticleFlexibleRefinementServiceManager)
 		applyRoutes(SingleParticlePostprocessingServiceManager)
 		applyRoutes(SingleParticleMaskingServiceManager)
+		applyRoutes(Tomography3DAVGServiceManager)
 		applyRoutes(TomographyRawDataServiceManager)
 		applyRoutes(TomographyRelionDataServiceManager)
 		applyRoutes(TomographyImportDataServiceManager)
@@ -219,6 +220,7 @@ fun Application.main(config: Config.Web) {
 		TomographyDrgnEvalService.init(this)
 		TomographyDrgnEvalVolsService.init(this)
 		SingleParticleDrgnService.init(this)
+		Tomography3DAVGService.init(this)
 
 		// only enable the debug service in debug mode
 		if (config.debug) {

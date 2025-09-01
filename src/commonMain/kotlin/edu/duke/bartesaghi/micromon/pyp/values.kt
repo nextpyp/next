@@ -438,6 +438,23 @@ val Args.cryodrgnEpoch: Arg
 val ArgValues.cryodrgnEpoch: Int
 	get() = (getOrDefault(args.cryodrgnEpoch) as Long).toInt()
 
+val Args.svaClassNum: Arg
+	get() = argOrThrow("sva_class", "num")
+val ArgValues.svaClassNum: Int
+	get() = (getOrDefault(args.svaClassNum) as Long).toInt()
+val Args.svaIterations: Arg
+	get() = argOrThrow("sva_refine", "iter")
+val ArgValues.svaIterations: Int
+	get() = (getOrDefault(args.svaIterations) as Long).toInt()
+val Args.svaCenteringIterations: Arg
+	get() = argOrThrow("sva_centering", "iterations")
+val ArgValues.svaCenteringIterations: Int
+	get() = (getOrDefault(args.svaCenteringIterations) as Long).toInt()
+val Args.svaClassSelectionFraction: Arg
+	get() = argOrThrow("sva_class", "selection_fraction")
+val ArgValues.svaClassSelectionFraction: Int
+	get() = (getOrDefault(args.svaClassSelectionFraction) as Long).toInt()
+
 /**
  * arguments for micromon itself and not pyp
  */

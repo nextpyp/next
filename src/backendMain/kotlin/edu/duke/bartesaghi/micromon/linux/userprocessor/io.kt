@@ -377,5 +377,11 @@ class WebCacheDir(val path: Path, val osUsername: String?) {
 		val miloLabels2D = Key.reserve("milo-results-2d-labels")
 		val miloResults3D = Key.reserve("milo-results-3d")
 		val tomoDrgnVolume = Key.reserve("tomodrgn-vol")
+		val ThreeDavgClass = Key.reserve("threedavg-class")
+		val ThreeDavgRefinedClass = Key.reserve("threedavg-refined-class")
+		val ThreeDavgImage = Key.reserve("threedavg-image")
+		val ThreeDavgImageSymmetrized = Key.reserve("threedavg-image-symmetrized")
+		val ThreeDavgAverage = Key.reserve("threedavg-average")
+		val ThreeDavgAverageSym = Key.reserve("threedavg-average-sym")
 	}
 }

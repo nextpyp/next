@@ -22,6 +22,7 @@ object Jobs {
 		SingleParticleFlexibleRefinementNodeConfig to SingleParticleFlexibleRefinementJob.Companion,
 		SingleParticlePostprocessingNodeConfig to SingleParticlePostprocessingJob.Companion,
 		SingleParticleMaskingNodeConfig to SingleParticleMaskingJob.Companion,
+		Tomography3DAVGNodeConfig to Tomography3DAVGJob.Companion,
 		TomographyRawDataNodeConfig to TomographyRawDataJob.Companion,
 		TomographyRelionDataNodeConfig to TomographyRelionDataJob.Companion,
 		TomographyImportDataNodeConfig to TomographyImportDataJob.Companion,

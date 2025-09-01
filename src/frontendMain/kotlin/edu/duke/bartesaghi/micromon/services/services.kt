@@ -41,6 +41,7 @@ object Services {
 	val singleParticleFlexibleRefinement = SingleParticleFlexibleRefinementService()
 	val singleParticlePostprocessing = SingleParticlePostprocessingService()
 	val singleParticleMasking = SingleParticleMaskingService()
+	val tomography3DAVG = Tomography3DAVGService()
 	val tomographyRawData = TomographyRawDataService()
 	val tomographyRelionData = TomographyRelionDataService()
 	val tomographyImportData = TomographyImportDataService()

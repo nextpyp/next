@@ -39,6 +39,7 @@ class App : Application() {
 				SingleParticleDrgnView.Companion,
 				SingleParticleSessionDataView.Companion,
 				SingleParticleSessionView.Companion,
+				Tomography3DAVGView.Companion,
 				TomographyDenoisingEvalView.Companion,
 				TomographyDenoisingTrainingView.Companion,
 				TomographyImportDataView.Companion,

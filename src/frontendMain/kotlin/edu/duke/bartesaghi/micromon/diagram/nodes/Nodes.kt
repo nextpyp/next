@@ -25,6 +25,7 @@ object Nodes {
 		SingleParticleFlexibleRefinementNodeConfig to SingleParticleFlexibleRefinementNode.Companion,
 		SingleParticlePostprocessingNodeConfig to SingleParticlePostprocessingNode.Companion,
 		SingleParticleMaskingNodeConfig to SingleParticleMaskingNode.Companion,
+		Tomography3DAVGNodeConfig to Tomography3DAVGNode.Companion,
 		TomographyRawDataNodeConfig to TomographyRawDataNode.Companion,
 		TomographyRelionDataNodeConfig to TomographyRelionDataNode.Companion,
 		TomographyImportDataNodeConfig to TomographyImportDataNode.Companion,

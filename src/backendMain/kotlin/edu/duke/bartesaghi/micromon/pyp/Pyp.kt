@@ -23,6 +23,7 @@ enum class Pyp(private val cmdName: String) {
 	rlp("rlp"),
 	pyp("pyp"),
 	csp("csp"),
+	sva("sva"),
 	pcl("pcl"),
 	pmk("pmk"),
 	psp("psp"),

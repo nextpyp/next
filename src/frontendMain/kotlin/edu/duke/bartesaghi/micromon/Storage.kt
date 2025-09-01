@@ -107,6 +107,7 @@ object Storage {
 	var singleParticleSessionDataTabIndex by IntStorageItem("singleParticleSessionDataIndex")
 	var singleParticleImportDataTabIndex by IntStorageItem("singleParticleImportDataIndex")
 	var singleParticleDrgnTabIndex by IntStorageItem("singleParticleDrgnTabIndex")
+	var tomography3DAVGTabIndex by IntStorageItem("tomography3DAVGTabIndex")
 	var tomographySessionDataTabIndex by IntStorageItem("tomographySessionDataIndex")
 	var tomographyImportDataTabIndex by IntStorageItem("tomographyImportDataIndex")
 	var tomographyImportDataPureTabIndex by IntStorageItem("tomographyImportDataPureIndex")
@@ -201,4 +202,5 @@ object Storage {
 	var singleParticleDrgnPlotPcaHexbinTraversalSize by ImageSizeStorageItem("singleParticleDrgnPlotPcaHexbinTraversalSize")
 	var singleParticleDrgnPlotUmapColorlatentpcaSize by ImageSizeStorageItem("singleParticleDrgnPlotUmapColorlatentpcaSize")
 	var singleParticleDrgnClassSize by ImageSizeStorageItem("singleParticleDrgnClassSize")
+	var Tomography3DAVGClassSize by ImageSizeStorageItem("Tomography3DAVGClassSize")
 }
