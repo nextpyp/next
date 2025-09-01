@@ -7,7 +7,7 @@ object TomographySegmentationClosedNodeConfig : NodeConfig {
 
 	override val id = ID
 	override val configId = "tomo_segment_close"
-	override val name = "Segmentation (closed surfaces)"
+	override val name = "Segmentation (min-flow/max-cut)"
 	override val hasFiles = true
 
 	val particles = NodeConfig.Data("particles", NodeConfig.Data.Type.MovieRefinement)

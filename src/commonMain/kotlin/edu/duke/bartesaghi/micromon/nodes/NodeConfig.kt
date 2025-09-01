@@ -77,10 +77,10 @@ interface NodeConfig {
 			MiloCoordinates("MiLoPYP particles"),
 
 			/** Segmentation model for open surfaces */
-			SegmentationOpen("Segmentation (open)"),
+			SegmentationOpen("Segmentation (membrain/tardis)"),
 
 			/** Segmentation model for closed surfaces */
-			SegmentationClosed("Segmentation (closed)")
+			SegmentationClosed("Segmentation (min-cut/max-flow)")
 		}
 	}
 
