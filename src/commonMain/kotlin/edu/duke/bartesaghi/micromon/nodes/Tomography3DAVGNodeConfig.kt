@@ -7,7 +7,7 @@ object Tomography3DAVGNodeConfig : NodeConfig {
 
 	override val id = ID
 	override val configId = "tomo_sva_refine"
-	override val name = "Traditional sub-volume averaging"
+	override val name = "Sub-tomogram averaging"
 	override val hasFiles = true
 	
 	// TEMP: preview status during development

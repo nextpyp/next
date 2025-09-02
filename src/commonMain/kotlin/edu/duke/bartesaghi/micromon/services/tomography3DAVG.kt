@@ -32,10 +32,10 @@ interface ITomography3DAVGService {
 	suspend fun refinedClassMrcData(jobId: String, iter: Int, classNum: Int): Option<FileDownloadData>
 
 	@KVBindingRoute("node/${Tomography3DAVGNodeConfig.ID}average/averageMrcData")
-	suspend fun averageMrcData(jobId: String, dim: Int): Option<FileDownloadData>
+	suspend fun averageMrcData(jobId: String, iter: Int): Option<FileDownloadData>
 
 	@KVBindingRoute("node/${Tomography3DAVGNodeConfig.ID}average/averageSymmetrizedMrcData")
-	suspend fun averageSymmetrizedMrcData(jobId: String, dim: Int): Option<FileDownloadData>
+	suspend fun averageSymmetrizedMrcData(jobId: String, iter: Int): Option<FileDownloadData>
 
 	companion object {
 

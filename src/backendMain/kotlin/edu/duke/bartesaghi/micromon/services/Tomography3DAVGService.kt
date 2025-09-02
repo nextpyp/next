@@ -124,7 +124,7 @@ actual class Tomography3DAVGService : ITomography3DAVGService, Service {
 
 								// serve the image
 								val imagePath = job.avgDir() / "${job.dir.fileName}_iteration_${iteration.formatIter()}_level_${params.classes}_average_${classNum.formatCls()}.webp"
-								val cacheKey = WebCacheDir.Keys.ThreeDavgClass.parameterized("$classNum")
+								val cacheKey = WebCacheDir.Keys.ThreeDavgClass.parameterized("${iteration}_${classNum}")
 								ImageType.Webp.respondSized(call, imagePath, size.info(job.wwwDir, cacheKey))
 									?.respondPlaceholder(call, size)
 							}
@@ -160,7 +160,7 @@ actual class Tomography3DAVGService : ITomography3DAVGService, Service {
 
 								// serve the image
 								val imagePath = job.avgDir() / "${job.dir.fileName}_iteration_${iteration.formatIter()}_refined_level_${params.classes}_average_${classNum.formatCls()}.webp"
-								val cacheKey = WebCacheDir.Keys.ThreeDavgRefinedClass.parameterized("$classNum")
+								val cacheKey = WebCacheDir.Keys.ThreeDavgRefinedClass.parameterized("${iteration}_${classNum}")
 								ImageType.Webp.respondSized(call, imagePath, size.info(job.wwwDir, cacheKey))
 									?.respondPlaceholder(call, size)
 							}
@@ -280,9 +280,6 @@ actual class Tomography3DAVGService : ITomography3DAVGService, Service {
 	override suspend fun averageMrcData(jobId: String, iter: Int): Option<FileDownloadData> = sanitizeExceptions {
 
 		val job = jobId.authJob(ProjectPermission.Read).job
-		val params = job.params()
-			?: throw NotFoundException()
-
 		val path = job.avgDir() / "${job.dir.fileName}_global_average_${iter}.mrc"
 		return path
 			.toFileDownloadData()
@@ -292,9 +289,6 @@ actual class Tomography3DAVGService : ITomography3DAVGService, Service {
 	override suspend fun averageSymmetrizedMrcData(jobId: String, iter: Int): Option<FileDownloadData> = sanitizeExceptions {
 
 		val job = jobId.authJob(ProjectPermission.Read).job
-		val params = job.params()
-			?: throw NotFoundException()
-
 		val path = job.avgDir() / "${job.dir.fileName}_global_average_${iter}_symmetrized.mrc"
 		return path
 			.toFileDownloadData()

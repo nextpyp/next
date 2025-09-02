@@ -89,7 +89,7 @@ class Tomography3DAVGJob(
 		val size = ImageSize.Small
 		val iter = 0
 
-		return ITomography3DAVGService.representativeClassImagePath(idOrThrow, iter, ImageSize.Small)
+		return ITomography3DAVGService.representativeClassImagePath(idOrThrow, iter, size)
 	}
 
 	override fun wipeData() {
