@@ -127,7 +127,7 @@ class Tomography3DAVGView(val project: ProjectData, val job: Tomography3DAVGData
 					}
 				}
 
-				addTab("3D view", "fas fa-cube") { lazyTab ->
+				addTab("3D view (global averages)", "fas fa-cube") { lazyTab ->
 					averagesThreeDeeTab = AveragesThreeDeeTab(evalParams.centeringIterations).also {
 						lazyTab.elem.add(it)
 					}
@@ -315,7 +315,7 @@ class Tomography3DAVGView(val project: ProjectData, val job: Tomography3DAVGData
 			.also { iterationsPanel.add(it) }
 
 		private val iterationsSymmetrizedPanel = ContentSizedPanel(
-			"Radially symmetrized",
+			"Rotationally symmetrized",
 			ImageSize.values().map { it.approxWidth },
 			(Storage.Tomography3DAVGClassSize ?: ImageSize.Small).ordinal
 		)
