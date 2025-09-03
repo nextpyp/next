@@ -15,6 +15,7 @@ import edu.duke.bartesaghi.micromon.pyp.cryodrgnSkipumap
 import edu.duke.bartesaghi.micromon.pyp.svaClassNum
 import edu.duke.bartesaghi.micromon.pyp.svaIterations
 import edu.duke.bartesaghi.micromon.pyp.svaCenteringIterations
+import edu.duke.bartesaghi.micromon.pyp.svaApplySymmetry
 import io.ktor.application.*
 import io.ktor.features.*
 import io.ktor.routing.*
@@ -262,7 +263,8 @@ actual class Tomography3DAVGService : ITomography3DAVGService, Service {
 				Tomography3DAVGParams(
 					classes = it.svaClassNum,
 					iterations = it.svaIterations,
-					centeringIterations = it.svaCenteringIterations
+					centeringIterations = it.svaCenteringIterations,
+					applySymmetry = it.svaApplySymmetry
 				)
 			}
 			.toOption()

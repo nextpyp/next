@@ -121,7 +121,7 @@ class Tomography3DAVGView(val project: ProjectData, val job: Tomography3DAVGData
 				persistence = Storage::tomography3DAVGTabIndex
 
 				addTab("Global averages", "fas fa-circle") { lazyTab ->
-					averagesMapTab = AveragesMapTab(evalParams.centeringIterations).also {
+					averagesMapTab = AveragesMapTab(evalParams.centeringIterations,evalParams.applySymmetry).also {
 						lazyTab.elem.add(it)
 						lazyTab.onActivate = { it.revalidate() }
 					}
@@ -303,7 +303,8 @@ class Tomography3DAVGView(val project: ProjectData, val job: Tomography3DAVGData
 	}
 
 	private inner class AveragesMapTab(
-		val numIter: Int
+		val numIter: Int,
+		applySymmetry: Boolean
 	) : Div(classes = setOf("reconstruction-tab")) {
 
 		private val iterationsPanel = ContentSizedPanel(
@@ -333,7 +334,9 @@ class Tomography3DAVGView(val project: ProjectData, val job: Tomography3DAVGData
 			// val self = this // Kotlin DSLs are dumb ...
 			
 			add(iterationsPanel)
-			add(iterationsSymmetrizedPanel)
+			if (applySymmetry) {
+				add(iterationsSymmetrizedPanel)
+			}
 
 			// wire up events
 			iterationsPanel.onResize = { index ->
@@ -341,13 +344,18 @@ class Tomography3DAVGView(val project: ProjectData, val job: Tomography3DAVGData
 				updateIterations()
 			}
 
-			iterationsSymmetrizedPanel.onResize = { index ->
-				Storage.Tomography3DAVGClassSize = ImageSize.values()[index]
+			if (applySymmetry) {
+				iterationsSymmetrizedPanel.onResize = { index ->
+					Storage.Tomography3DAVGClassSize = ImageSize.values()[index]
+					updateIterationsSymmetrized()
+				}
+			}
+			
+			updateIterations()
+			
+			if (applySymmetry) {
 				updateIterationsSymmetrized()
 			}
-
-			updateIterations()
-			updateIterationsSymmetrized()
 		}
 
 		fun updateIterations() {

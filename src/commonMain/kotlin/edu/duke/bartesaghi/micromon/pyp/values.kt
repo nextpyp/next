@@ -454,6 +454,10 @@ val Args.svaClassSelectionFraction: Arg
 	get() = argOrThrow("sva_class", "selection_fraction")
 val ArgValues.svaClassSelectionFraction: Int
 	get() = (getOrDefault(args.svaClassSelectionFraction) as Long).toInt()
+val Args.svaApplySymmetry: Arg
+	get() = argOrThrow("sva_centering", "symmetry")
+val ArgValues.svaApplySymmetry: Boolean
+	get() = getOrDefault(args.svaApplySymmetry) as Boolean
 
 /**
  * arguments for micromon itself and not pyp

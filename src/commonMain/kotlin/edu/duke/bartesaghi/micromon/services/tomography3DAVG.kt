@@ -105,11 +105,13 @@ data class Tomography3DAVGData(
 data class Tomography3DAVGParams(
 	val classes: Int,
 	val iterations: Int,
-	val centeringIterations: Int
+	val centeringIterations: Int,
+	val applySymmetry: Boolean
 ) {
 
 	// alias some params so they make more sense in this context
 	val numIterations: Int get() = iterations
 	val numCenteringIterations: Int get() = centeringIterations
 	val numClasses: Int get() = classes
+	val symmetryApplied: Boolean get() = applySymmetry
 }

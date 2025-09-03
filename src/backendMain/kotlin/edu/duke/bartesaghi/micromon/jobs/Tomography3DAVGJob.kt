@@ -114,6 +114,7 @@ class Tomography3DAVGJob(
 				classes = it.svaClassNum,
 				iterations = it.svaIterations,
 				centeringIterations = it.svaCenteringIterations,
+				applySymmetry = it.svaApplySymmetry
 			)
 		}
 }
