@@ -37,6 +37,9 @@ interface ITomography3DAVGService {
 	@KVBindingRoute("node/${Tomography3DAVGNodeConfig.ID}average/averageSymmetrizedMrcData")
 	suspend fun averageSymmetrizedMrcData(jobId: String, iter: Int): Option<FileDownloadData>
 
+	@KVBindingRoute("node/${Tomography3DAVGNodeConfig.ID}average/testMetricFilterMrcData")
+	suspend fun testMetricFilterMrcData(jobId: String): Option<FileDownloadData>
+
 	companion object {
 
 		fun classMrcPath(jobId: String, iter: Int, classNum: Int) =
@@ -57,11 +60,17 @@ interface ITomography3DAVGService {
 		fun averageSymmetrizedImagePath(jobId: String, iter: Int, size: ImageSize) =
 			"/kv/node/${Tomography3DAVGNodeConfig.ID}/$jobId/iter/$iter/imagesym/${size.id}"
 
+		fun testMetricFilterImagePath(jobId: String, size: ImageSize) =
+			"/kv/node/${Tomography3DAVGNodeConfig.ID}/$jobId/testmetricfilter/${size.id}"
+
 		fun averageMrcPath(jobId: String, iter: Int) =
 			"/kv/node/${Tomography3DAVGNodeConfig.ID}/$jobId/iter/$iter/mrc"
 
 		fun averageSymmetrizedMrcPath(jobId: String, iter: Int) =
 			"/kv/node/${Tomography3DAVGNodeConfig.ID}/$jobId/itersym/$iter/mrc"
+
+		fun testMetricFilterMrcPath(jobId: String) =
+			"/kv/node/${Tomography3DAVGNodeConfig.ID}/$jobId/filtered/mrc"
 
 		fun refinedClassImagePath(jobId: String, iter: Int, classNum: Int, size: ImageSize) =
 			"/kv/node/${Tomography3DAVGNodeConfig.ID}/$jobId/iter/$iter/refinedclass/$classNum/image/${size.id}"

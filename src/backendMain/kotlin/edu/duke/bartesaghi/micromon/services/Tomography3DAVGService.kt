@@ -47,7 +47,7 @@ actual class Tomography3DAVGService : ITomography3DAVGService, Service {
 						call.parameters.getOrFail("iter").toIntOrNull()
 							?: throw BadRequestException("iteration must be an integer")
 
-				get("mrc") {
+					get("mrc") {
 						call.respondExceptions {
 
 							// parse args
@@ -58,6 +58,21 @@ actual class Tomography3DAVGService : ITomography3DAVGService, Service {
 						}
 					}
 
+				}
+
+				get("testmetricfilter/{size}") {
+					call.respondExceptions {
+
+						// parse args
+						val job = authJob(ProjectPermission.Read).job
+						val size = parseSize()
+
+						// serve the image
+						val imagePath = job.avgDir() / "${job.dir.fileName}_test_metric_filtered.webp"
+						val cacheKey = WebCacheDir.Keys.ThreeDavgImage.parameterized("$job")
+						ImageType.Webp.respondSized(call, imagePath, size.info(job.wwwDir, cacheKey))
+							?.respondPlaceholder(call, size)
+					}
 				}
 
 				route("iter/{iter}") {
@@ -290,6 +305,15 @@ actual class Tomography3DAVGService : ITomography3DAVGService, Service {
 
 		val job = jobId.authJob(ProjectPermission.Read).job
 		val path = job.avgDir() / "${job.dir.fileName}_global_average_${iter}_symmetrized.mrc"
+		return path
+			.toFileDownloadData()
+			.toOption()
+	}
+
+	override suspend fun testMetricFilterMrcData(jobId: String): Option<FileDownloadData> = sanitizeExceptions {
+
+		val job = jobId.authJob(ProjectPermission.Read).job
+		val path = job.avgDir() / "${job.dir.fileName}_test_metric_filtered.mrc"
 		return path
 			.toFileDownloadData()
 			.toOption()

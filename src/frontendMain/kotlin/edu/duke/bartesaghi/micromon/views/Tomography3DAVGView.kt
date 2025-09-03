@@ -48,6 +48,10 @@ class Tomography3DAVGView(val project: ProjectData, val job: Tomography3DAVGData
 
 	private var tabs: LazyTabPanel? = null
 	private var averagesMapTab: AveragesMapTab? = null
+	private var averagesThreeDeeTab: AveragesThreeDeeTab? = null
+
+	private var testMetricFilterTab: TestMetricFilterTab? = null
+
 	private var classesMapTab: ClassesMapTab? = null
 	private var classesMovieTab: ClassesMovieTab? = null
 	private var mrcThreeDeeTab: MrcThreeDeeTab? = null
@@ -123,6 +127,19 @@ class Tomography3DAVGView(val project: ProjectData, val job: Tomography3DAVGData
 					}
 				}
 
+				addTab("3D view", "fas fa-cube") { lazyTab ->
+					averagesThreeDeeTab = AveragesThreeDeeTab(evalParams.centeringIterations).also {
+						lazyTab.elem.add(it)
+					}
+				}
+
+				addTab("Metric filter", "fas fa-filter") { lazyTab ->
+					testMetricFilterTab = TestMetricFilterTab().also {
+						lazyTab.elem.add(it)
+						lazyTab.onActivate = { it.revalidate() }
+					}
+				}
+
 				addTab("Classes", "fas fa-chart-pie") { lazyTab ->
 					classesMapTab = ClassesMapTab(evalParams.classes).also {
 						lazyTab.elem.add(it)
@@ -168,6 +185,7 @@ class Tomography3DAVGView(val project: ProjectData, val job: Tomography3DAVGData
 	override fun close() {
 		mrcThreeDeeTab?.close()
 		refinedMrcThreeDeeTab?.close()
+		averagesThreeDeeTab?.close()
 	}
 
 	private inner class ClassesMapTab(
@@ -251,7 +269,7 @@ class Tomography3DAVGView(val project: ProjectData, val job: Tomography3DAVGData
 						}
 						add(img)
 						self.classImages.add(img)
-						div("Class $classNum", classes = setOf("label"))
+						div("Class ${classNum}", classes = setOf("label"))
 					}
 
 					val formatted_iteration = "iteration_" + iter.toString().asDynamic().padStart(3, "0")
@@ -353,7 +371,7 @@ class Tomography3DAVGView(val project: ProjectData, val job: Tomography3DAVGData
 						}
 						add(img)
 						self.iterationImages.add(img)
-						div("Average (iteration $iterNum)", classes = setOf("label"))
+						div("Iteration $iterNum", classes = setOf("label"))
 					}
 
 					val mrcDownload = FileDownloadBadge(
@@ -390,7 +408,7 @@ class Tomography3DAVGView(val project: ProjectData, val job: Tomography3DAVGData
 						}
 						add(img)
 						self.iterationSymmetrizedImages.add(img)
-						div("Symmetrized average (iteration $iterNum)", classes = setOf("label"))
+						div("Iteration $iterNum", classes = setOf("label"))
 					}
 
 					val mrcDownload = FileDownloadBadge(
@@ -417,6 +435,78 @@ class Tomography3DAVGView(val project: ProjectData, val job: Tomography3DAVGData
 				download.load()
 			}
 			for (download in iterationSymmetrizedMrcDownloads) {
+				download.load()
+			}
+		}
+	}
+	
+	private inner class TestMetricFilterTab(
+	) : Div(classes = setOf("reconstruction-tab")) {
+
+		private val filteredPanel = ContentSizedPanel(
+			"Filtered",
+			ImageSize.values().map { it.approxWidth },
+			(Storage.Tomography3DAVGClassSize ?: ImageSize.Small).ordinal
+		)
+		private val filteredElem = Div(classes = setOf("classes"))
+			.also { filteredPanel.add(it) }
+
+		private val filteredImages = ArrayList<FetchImage>()
+		private val filteredMrcDownloads = ArrayList<FileDownloadBadge>()
+
+		init {
+
+			// val self = this // Kotlin DSLs are dumb ...
+			
+			add(filteredPanel)
+
+			// wire up events
+			filteredPanel.onResize = { index ->
+				Storage.Tomography3DAVGClassSize = ImageSize.values()[index]
+				updateFiltered()
+			}
+
+			updateFiltered()
+		}
+
+		fun updateFiltered() {
+
+			filteredElem.removeAll()
+			filteredImages.clear()
+			filteredMrcDownloads.clear()
+
+			val self = this // Kotlin DSLs are dumb ...
+
+			// show images for the iterations
+			val imageSize = ImageSize.values()[filteredPanel.index]
+			filteredElem.div(classes = setOf("class")) {
+				div(classes = setOf("frame")) {
+					val img = FetchImage {
+						width = imageSize.approxWidth.px
+						fetch(ITomography3DAVGService.testMetricFilterImagePath(job.jobId, imageSize))
+					}
+					add(img)
+					self.filteredImages.add(img)
+					div("Metric filter test", classes = setOf("label"))
+				}
+
+				val mrcDownload = FileDownloadBadge(
+					filetype = ".mrc file",
+					url = ITomography3DAVGService.testMetricFilterMrcPath(job.jobId),
+					filename = "${job.shortNumberedName}_test_metric_filtered.mrc",
+					loader = { Services.tomography3DAVG.testMetricFilterMrcData(job.jobId) }
+				)
+				add(mrcDownload)
+				self.filteredMrcDownloads.add(mrcDownload)
+				mrcDownload.load()
+			}
+		}
+
+		fun revalidate() {
+			for (img in filteredImages) {
+				img.revalidate()
+			}
+			for (download in filteredMrcDownloads) {
 				download.load()
 			}
 		}
@@ -503,7 +593,7 @@ class Tomography3DAVGView(val project: ProjectData, val job: Tomography3DAVGData
 						}
 						add(img)
 						self.classImages.add(img)
-						div("Class $classNum", classes = setOf("label"))
+						div("Class ${classNum}", classes = setOf("label"))
 					}
 
 					val	formatted_iteration = "iteration_" + iter.toString().asDynamic().padStart(3, "0")
@@ -653,6 +743,31 @@ class Tomography3DAVGView(val project: ProjectData, val job: Tomography3DAVGData
 							url = ITomography3DAVGService.refinedClassMrcPath(job.jobId, iter, classNum)
 						)
 					}
+				}
+			}
+
+		fun close() {
+			viewer.close()
+		}
+	}
+
+	private inner class AveragesThreeDeeTab(
+		val numIterations: Int
+	) : Div() {
+
+		private val viewer = ThreeDeeViewer()
+
+		init {
+			// layout
+			add(viewer)
+
+			// init the volumes
+			viewer.volumes =
+				(1 .. numIterations).map { iter ->
+					ThreeDeeViewer.VolumeData(
+						name = "Unsymmetrized average, Iteration $iter",
+						url = ITomography3DAVGService.averageMrcPath(job.jobId, iter)
+					)
 				}
 			}
 
