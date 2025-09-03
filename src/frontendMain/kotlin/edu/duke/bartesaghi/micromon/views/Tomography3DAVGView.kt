@@ -763,7 +763,7 @@ class Tomography3DAVGView(val project: ProjectData, val job: Tomography3DAVGData
 
 			// init the volumes
 			viewer.volumes =
-				(1 .. numIterations).map { iter ->
+				(0 .. numIterations).map { iter ->
 					ThreeDeeViewer.VolumeData(
 						name = "Unsymmetrized average, Iteration $iter",
 						url = ITomography3DAVGService.averageMrcPath(job.jobId, iter)
