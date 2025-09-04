@@ -42,6 +42,18 @@ actual class Tomography3DAVGService : ITomography3DAVGService, Service {
 					call.parameters.getOrFail("classNum").toIntOrNull()
 						?: throw BadRequestException("classNum must be an integer")
 
+				route("filtered") {
+
+					get("mrc") {
+						call.respondExceptions {
+							// parse args
+							val job = authJob(ProjectPermission.Read).job
+							call.respondFileMrc(job.avgDir() / "${job.dir.fileName}_test_metric_filtered.mrc")
+						}
+					}
+
+				}
+
 				route("itersym/{iter}") {
 
 					fun PipelineContext<Unit,ApplicationCall>.parseIteration(): Int =
