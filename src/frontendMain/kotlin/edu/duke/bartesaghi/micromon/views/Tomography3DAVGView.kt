@@ -609,7 +609,7 @@ class Tomography3DAVGView(val project: ProjectData, val job: Tomography3DAVGData
 					val mrcDownload = FileDownloadBadge(
 						filetype = ".mrc file",
 						url = ITomography3DAVGService.classMrcPath(job.jobId, iter, classNum),
-						filename = "${job.shortNumberedName}_${formatted_iteration}_level_${numClasses}_${formatted_class}.mrc",
+						filename = "${job.shortNumberedName}_${formatted_iteration}_refined_level_${numClasses}_${formatted_class}.mrc",
 						loader = { Services.tomography3DAVG.refinedClassMrcData(job.jobId, iter, classNum) }
 					)
 					add(mrcDownload)
