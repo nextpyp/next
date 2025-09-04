@@ -65,6 +65,11 @@ pub enum Request {
 	/// lookup the gids for a uid
 	Gids {
 		uid: u32
+	},
+
+	/// run stat() on a filesystem path
+	Stat {
+		path: String
 	}
 }
 
@@ -80,6 +85,7 @@ impl Request {
 	const ID_GROUPNAME: u32 = 9;
 	const ID_GID: u32 = 10;
 	const ID_GIDS: u32 = 11;
+	const ID_STAT: u32 = 12;
 }
 
 
@@ -290,6 +296,11 @@ impl RequestEnvelope {
 				out.write_u32::<BigEndian>(Request::ID_GIDS)?;
 				out.write_u32::<BigEndian>(*uid)?;
 			}
+
+			Request::Stat { path } => {
+				out.write_u32::<BigEndian>(Request::ID_STAT)?;
+				out.write_utf8(path)?;
+			}
 		}
 
 		Ok(out)
@@ -420,6 +431,10 @@ impl RequestEnvelope {
 				Request::Gids {
 					uid: reader.read_u32::<BigEndian>().map_err(|e| (e.into(), Some(request_id)))?
 				}
+			} else if type_id == Request::ID_STAT {
+				Request::Stat {
+					path: reader.read_utf8().map_err(|e| (e.into(), Some(request_id)))?
+				}
 			} else {
 				return Err((anyhow!("Unrecognized request type id: {}", type_id), Some(request_id)));
 			};
@@ -454,7 +469,8 @@ pub enum Response {
 	Uid(Option<u32>),
 	Groupname(Option<String>),
 	Gid(Option<u32>),
-	Gids(Option<Vec<u32>>)
+	Gids(Option<Vec<u32>>),
+	Stat(StatResponse),
 }
 
 impl Response {
@@ -468,6 +484,7 @@ impl Response {
 	const ID_GROUPNAME: u32 = 8;
 	const ID_GID: u32 = 9;
 	const ID_GIDS: u32 = 10;
+	const ID_STAT: u32 = 11;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -519,6 +536,56 @@ impl ConsoleKind {
 		}
 	}
 }
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum StatResponse {
+	NotFound,
+	File {
+		size: u64,
+		meta: FilesystemMetadata
+	},
+	Dir {
+		meta: FilesystemMetadata,
+	},
+	Symlink(StatSymlinkResponse),
+	Other
+}
+
+impl StatResponse {
+	const ID_NOT_FOUND: u32 = 1;
+	const ID_FILE: u32 = 2;
+	const ID_DIR: u32 = 3;
+	const ID_SYMLINK: u32 = 4;
+	const ID_OTHER: u32 = 5;
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum StatSymlinkResponse {
+	NotFound,
+	File {
+		size: u64,
+		meta: FilesystemMetadata
+	},
+	Dir {
+		meta: FilesystemMetadata,
+	},
+	Other
+}
+
+impl StatSymlinkResponse {
+	const ID_NOT_FOUND: u32 = 1;
+	const ID_FILE: u32 = 2;
+	const ID_DIR: u32 = 3;
+	const ID_OTHER: u32 = 4;
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FilesystemMetadata {
+	pub mode: u32,
+	pub uid: u32,
+	pub gid: u32
+}
+
 
 impl ResponseEnvelope {
 
@@ -617,6 +684,55 @@ impl ResponseEnvelope {
 						Ok(())
 					})
 				})?
+			}
+
+			Response::Stat(response) => {
+				out.write_u32::<BigEndian>(Response::ID_STAT)?;
+				match response {
+					StatResponse::NotFound => {
+						out.write_u32::<BigEndian>(StatResponse::ID_NOT_FOUND)?;
+					}
+					StatResponse::File { size, meta } => {
+						out.write_u32::<BigEndian>(StatResponse::ID_FILE)?;
+						out.write_u64::<BigEndian>(*size)?;
+						out.write_u32::<BigEndian>(meta.mode)?;
+						out.write_u32::<BigEndian>(meta.uid)?;
+						out.write_u32::<BigEndian>(meta.gid)?;
+					}
+					StatResponse::Dir { meta } => {
+						out.write_u32::<BigEndian>(StatResponse::ID_DIR)?;
+						out.write_u32::<BigEndian>(meta.mode)?;
+						out.write_u32::<BigEndian>(meta.uid)?;
+						out.write_u32::<BigEndian>(meta.gid)?;
+					}
+					StatResponse::Symlink(inner) => {
+						out.write_u32::<BigEndian>(StatResponse::ID_SYMLINK)?;
+						match inner {
+							StatSymlinkResponse::NotFound => {
+								out.write_u32::<BigEndian>(StatSymlinkResponse::ID_NOT_FOUND)?;
+							}
+							StatSymlinkResponse::File { size, meta } => {
+								out.write_u32::<BigEndian>(StatSymlinkResponse::ID_FILE)?;
+								out.write_u64::<BigEndian>(*size)?;
+								out.write_u32::<BigEndian>(meta.mode)?;
+								out.write_u32::<BigEndian>(meta.uid)?;
+								out.write_u32::<BigEndian>(meta.gid)?;
+							}
+							StatSymlinkResponse::Dir { meta } => {
+								out.write_u32::<BigEndian>(StatSymlinkResponse::ID_DIR)?;
+								out.write_u32::<BigEndian>(meta.mode)?;
+								out.write_u32::<BigEndian>(meta.uid)?;
+								out.write_u32::<BigEndian>(meta.gid)?;
+							}
+							StatSymlinkResponse::Other => {
+								out.write_u32::<BigEndian>(StatSymlinkResponse::ID_OTHER)?;
+							}
+						}
+					}
+					StatResponse::Other => {
+						out.write_u32::<BigEndian>(StatResponse::ID_OTHER)?;
+					}
+				}
 			}
 		}
 
@@ -720,6 +836,62 @@ impl ResponseEnvelope {
 						})
 					})?
 				)
+			} else if type_id == Response::ID_STAT {
+				Response::Stat({
+					let lstat_type_id = reader.read_u32::<BigEndian>()?;
+					if lstat_type_id == StatResponse::ID_NOT_FOUND {
+						StatResponse::NotFound
+					} else if lstat_type_id == StatResponse::ID_FILE {
+						StatResponse::File {
+							size: reader.read_u64::<BigEndian>()?,
+							meta: FilesystemMetadata {
+								mode: reader.read_u32::<BigEndian>()?,
+								uid: reader.read_u32::<BigEndian>()?,
+								gid: reader.read_u32::<BigEndian>()?
+							}
+						}
+					} else if lstat_type_id == StatResponse::ID_DIR {
+						StatResponse::Dir {
+							meta: FilesystemMetadata {
+								mode: reader.read_u32::<BigEndian>()?,
+								uid: reader.read_u32::<BigEndian>()?,
+								gid: reader.read_u32::<BigEndian>()?
+							}
+						}
+					} else if lstat_type_id == StatResponse::ID_SYMLINK {
+						StatResponse::Symlink({
+							let stat_type_id = reader.read_u32::<BigEndian>()?;
+							if stat_type_id == StatSymlinkResponse::ID_NOT_FOUND {
+								StatSymlinkResponse::NotFound
+							} else if stat_type_id == StatSymlinkResponse::ID_FILE {
+								StatSymlinkResponse::File {
+									size: reader.read_u64::<BigEndian>()?,
+									meta: FilesystemMetadata {
+										mode: reader.read_u32::<BigEndian>()?,
+										uid: reader.read_u32::<BigEndian>()?,
+										gid: reader.read_u32::<BigEndian>()?
+									}
+								}
+							} else if stat_type_id == StatSymlinkResponse::ID_DIR {
+								StatSymlinkResponse::Dir {
+									meta: FilesystemMetadata {
+										mode: reader.read_u32::<BigEndian>()?,
+										uid: reader.read_u32::<BigEndian>()?,
+										gid: reader.read_u32::<BigEndian>()?
+									}
+								}
+							} else if stat_type_id == StatSymlinkResponse::ID_OTHER {
+								StatSymlinkResponse::Other
+							} else {
+								bail!("Unrecognized stat type id: {}", stat_type_id);
+							}
+						})
+					} else if lstat_type_id == StatResponse::ID_OTHER {
+						StatResponse::Other
+					} else {
+						bail!("Unrecognized lstat type id: {}", lstat_type_id);
+					}
+				})
 			} else {
 				bail!("Unrecognized response type id: {}", type_id);
 			};
@@ -1019,6 +1191,10 @@ mod test {
 		assert_roundtrip(Request::Gids {
 			uid: 7
 		});
+
+		assert_roundtrip(Request::Stat {
+			path: "foo".to_string()
+		});
 	}
 
 
@@ -1082,5 +1258,40 @@ mod test {
 
 		assert_roundtrip(Response::Gids(Some(vec![1, 2, 3])));
 		assert_roundtrip(Response::Gids(None));
+
+		assert_roundtrip(Response::Stat(StatResponse::NotFound));
+		assert_roundtrip(Response::Stat(StatResponse::File {
+			size: 5,
+			meta: FilesystemMetadata {
+				mode: 42,
+				uid: 7,
+				gid: 9
+			}
+		}));
+		assert_roundtrip(Response::Stat(StatResponse::Dir {
+			meta: FilesystemMetadata {
+				mode: 42,
+				uid: 7,
+				gid: 9
+			}
+		}));
+		assert_roundtrip(Response::Stat(StatResponse::Symlink(StatSymlinkResponse::NotFound)));
+		assert_roundtrip(Response::Stat(StatResponse::Symlink(StatSymlinkResponse::File {
+			size: 5,
+			meta: FilesystemMetadata {
+				mode: 42,
+				uid: 7,
+				gid: 9
+			}
+		})));
+		assert_roundtrip(Response::Stat(StatResponse::Symlink(StatSymlinkResponse::Dir {
+			meta: FilesystemMetadata {
+				mode: 42,
+				uid: 7,
+				gid: 9
+			}
+		})));
+		assert_roundtrip(Response::Stat(StatResponse::Symlink(StatSymlinkResponse::Other)));
+		assert_roundtrip(Response::Stat(StatResponse::Other));
 	}
 }

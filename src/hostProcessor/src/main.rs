@@ -1,6 +1,8 @@
 
 use std::{env, fs};
+use std::io::ErrorKind;
 use std::ops::Deref;
+use std::os::linux::fs::MetadataExt;
 use std::path::PathBuf;
 use std::pin::Pin;
 use std::process::{ExitCode, Stdio};
@@ -26,7 +28,7 @@ use tracing::{debug, error_span, info, Instrument, trace, warn};
 use host_processor::framing::{AsyncReadFramed, AsyncWriteFramed};
 use host_processor::logging::{self, ResultExt};
 use host_processor::processes::Processes;
-use host_processor::proto::{ConsoleKind, ExecRequest, ExecResponse, ExecStderr, ExecStdin, ExecStdout, KillSignal, ProcessEvent, Request, RequestEnvelope, Response, ResponseEnvelope};
+use host_processor::proto::{ConsoleKind, ExecRequest, ExecResponse, ExecStderr, ExecStdin, ExecStdout, FilesystemMetadata, KillSignal, ProcessEvent, Request, RequestEnvelope, Response, ResponseEnvelope, StatResponse, StatSymlinkResponse};
 
 
 #[derive(Options)]
@@ -286,6 +288,10 @@ async fn drive_connection(socket: UnixStream, processes: Rc<Mutex<Processes>>) {
 
 					Request::Gids { uid } =>
 						dispatch_gids(socket_write, request.id, uid)
+							.await,
+					
+					Request::Stat { path } =>
+						dispatch_stat(socket_write, request.id, path)
 							.await
 				}
 
@@ -769,6 +775,100 @@ async fn dispatch_gids(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32, uid: 
 
 	// send back the response
 	write_response(&socket, request_id, Response::Gids(gids))
+		.await
+		.ok();
+}
+
+
+#[tracing::instrument(skip_all, level = 5, name = "Gid")]
+async fn dispatch_stat(socket: Rc<Mutex<OwnedWriteHalf>>, request_id: u32, path: String) {
+
+	trace!(path, "Request");
+	
+	// exists, link(recurse), dir, file(size)
+	let result = tokio::fs::symlink_metadata(&path)
+		.await;
+	let response = match result {
+
+		// if the path wasn't found, we get an error, so map that back into a NotFound response
+		Err(e) if e.kind() == ErrorKind::NotFound => StatResponse::NotFound,
+
+		// just report other errors
+		Err(e) => {
+			write_response(&socket, request_id, Response::Error {
+				reason: format!("Failed to call lstat: {}\n\tpath: {}", e, &path)
+			})
+				.await
+				.ok();
+			return;
+		}
+
+		Ok(lstat) => {
+			if lstat.is_symlink() {
+				let result = tokio::fs::metadata(&path)
+					.await;
+				StatResponse::Symlink(match result {
+
+					// if the path wasn't found, we get an error, so map that back into a NotFound response
+					Err(e) if e.kind() == ErrorKind::NotFound => StatSymlinkResponse::NotFound,
+
+					// just report other errors
+					Err(e) => {
+						write_response(&socket, request_id, Response::Error {
+							reason: format!("Failed to call stat: {}\n\tpath: {}", e, &path)
+						})
+							.await
+							.ok();
+						return;
+					}
+
+					Ok(stat) =>
+						if stat.is_file() {
+							StatSymlinkResponse::File {
+								size: stat.len(),
+								meta: FilesystemMetadata {
+									mode: stat.st_mode(),
+									uid: stat.st_uid(),
+									gid: stat.st_gid()
+								}
+							}
+						} else if stat.is_dir() {
+							StatSymlinkResponse::Dir {
+								meta: FilesystemMetadata {
+									mode: stat.st_mode(),
+									uid: stat.st_uid(),
+									gid: stat.st_gid()
+								}
+							}
+						} else {
+							StatSymlinkResponse::Other
+						}
+				})
+			} else if lstat.is_file() {
+				StatResponse::File {
+					size: lstat.len(),
+					meta: FilesystemMetadata {
+						mode: lstat.st_mode(),
+						uid: lstat.st_uid(),
+						gid: lstat.st_gid()
+					}
+				}
+			} else if lstat.is_dir() {
+				StatResponse::Dir {
+					meta: FilesystemMetadata {
+						mode: lstat.st_mode(),
+						uid: lstat.st_uid(),
+						gid: lstat.st_gid()
+					}
+				}
+			} else {
+				StatResponse::Other
+			}
+		}
+	};
+
+	// send back the response
+	write_response(&socket, request_id, Response::Stat(response))
 		.await
 		.ok();
 }

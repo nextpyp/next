@@ -14,6 +14,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeoutOrNull
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.nio.file.attribute.PosixFilePermission
 import java.util.concurrent.TimeUnit
 import kotlin.io.path.absolute
 import kotlin.io.path.div
@@ -239,6 +240,32 @@ class TestHostProcessor : DescribeSpec({
 			withHostProcessor { hostProcessor ->
 				hostProcessor.gids(0u).shouldBe(listOf(0u))
 				hostProcessor.gids(UInt.MAX_VALUE - 5u).shouldBeNull() // probably?
+			}
+		}
+
+		it("stat") {
+			withHostProcessor { hostProcessor ->
+				TempFile().use { file ->
+
+					// make a file we can stat
+					val msg = "hello"
+					file.path.writeString(msg)
+					file.path.editPermissions {
+						add(PosixFilePermission.GROUP_READ)
+						add(PosixFilePermission.OTHERS_READ)
+					}
+
+					// stat it
+					val stat = hostProcessor.stat(file.path)
+					stat.shouldBe(Response.Stat.File(Response.Stat.FileResponse(
+						size = msg.length.toULong(),
+						meta = Response.Stat.FilesystemMetadata(
+							mode = 33188.toUInt(),
+							uid = Filesystem.getUid(),
+							gid = Filesystem.getGid()
+						)
+					)))
+				}
 			}
 		}
 	}

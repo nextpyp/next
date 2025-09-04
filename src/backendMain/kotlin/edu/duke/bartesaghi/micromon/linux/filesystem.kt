@@ -28,13 +28,24 @@ object Filesystem {
 		//       So we'll have to call the symbol that's actually exported directly here
 		//       See: https://refspecs.linuxbase.org/LSB_5.0.0/LSB-Core-generic/LSB-Core-generic/baselib---xstat64.html
 		//external fun stat(path: String, stat: Stat.ByRef): Int
-		external fun __xstat64(ver: Int, path: String, stat: Stat.ByRef): Int
+		//external fun __xstat64(ver: Int, path: String, stat: Stat.ByRef): Int
+		// WARNING: Don't use stat() from inside the container!
+		//          Sometimes stat() can resolve usernames from inside the container,
+		//          and sometimes it can't.   ¯\_ (ツ)_/¯
+		//          Weirdly, even if the username can't be resolved, stat() will blank out the UID (or GID)
+		//          with the `nobody` ID, so we can't even get the raw IDs!
+		//          Meaning, stat() is totally unrelable for reading ownership metadata from the filesystem
+		//          if we're running inside the container, so don't bother using it at all.
+		//          Use the host-processor instead.
 
 		// https://man7.org/linux/man-pages/man3/getuid.3p.html
 		external fun getuid(): Int
 
 		// https://man7.org/linux/man-pages/man3/geteuid.3p.html
 		external fun geteuid(): Int
+
+		// https://man7.org/linux/man-pages/man3/getgid.3p.html
+		external fun getgid(): Int
 
 		/* NOTE:
 			User and group query functions are nearly useless inside the container,
@@ -313,77 +324,16 @@ object Filesystem {
 		}
 	}
 
-	/**
-	 * Run a real linux stat(), since the Java stdlib wrappers hide some important details,
-	 * like setuid and setgid
-	 */
-	suspend fun stat(path: Path): Stat = slowIOs {
-
-		val stat = native.Stat.ByRef()
-		val ret = native.__xstat64(1, path.pathString, stat)
-		// NOTE: the stat version should always be 1 on 64-bit platforms
-		if (ret != 0) {
-			throw NativeException()
-		}
-
-		Stat(
-			mode = stat.st_mode.toUInt(),
-			uid = stat.st_uid.toUInt(),
-			gid = stat.st_gid.toUInt()
-		)
-	}
-
-	data class Stat(
-		val mode: UInt,
-		val uid: UInt,
-		val gid: UInt
-	) {
-
-		// https://man7.org/linux/man-pages/man7/inode.7.html
-
-		val isSetUID: Boolean get() =
-			(mode and (1u shl 11)) != 0u
-
-		val isSetGID: Boolean get() =
-			(mode and (1u shl 10)) != 0u
-
-		val isSticky: Boolean get() =
-			(mode and (1u shl 9)) != 0u
-
-		val isOwnerRead: Boolean get() =
-			(mode and (1u shl 8)) != 0u
-
-		val isOwnerWrite: Boolean get() =
-			(mode and (1u shl 7)) != 0u
-
-		val isOwnerExecute: Boolean get() =
-			(mode and (1u shl 6)) != 0u
-
-		val isGroupRead: Boolean get() =
-			(mode and (1u shl 5)) != 0u
-
-		val isGroupWrite: Boolean get() =
-			(mode and (1u shl 4)) != 0u
-
-		val isGroupExecute: Boolean get() =
-			(mode and (1u shl 3)) != 0u
-
-		val isOtherRead: Boolean get() =
-			(mode and (1u shl 2)) != 0u
-
-		val isOtherWrite: Boolean get() =
-			(mode and (1u shl 1)) != 0u
-
-		val isOtherExecute: Boolean get() =
-			(mode and (1u shl 0)) != 0u
-	}
-
 	suspend fun getUid(): UInt = slowIOs {
 		native.getuid().toUInt()
 	}
 
 	suspend fun getEUid(): UInt = slowIOs {
 		native.geteuid().toUInt()
+	}
+
+	suspend fun getGid(): UInt = slowIOs {
+		native.getgid().toUInt()
 	}
 }
 

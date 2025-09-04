@@ -404,6 +404,14 @@ class HostProcessor(
 				responder.recv<Response.Gids>()
 					.gids
 			}
+
+	suspend fun stat(path: Path): Response.Stat.Response =
+		connectionOrThrow
+			.request(Request.Stat(path.toString()))
+			.use { responder ->
+				responder.recv<Response.Stat>()
+					.response
+			}
 }
 
 

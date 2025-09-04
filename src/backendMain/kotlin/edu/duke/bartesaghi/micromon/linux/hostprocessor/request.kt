@@ -171,6 +171,14 @@ sealed interface Request {
 			const val ID: UInt = 11u
 		}
 	}
+
+	class Stat(
+		val path: String
+	) : Request {
+		companion object {
+			const val ID: UInt = 12u
+		}
+	}
 }
 
 
@@ -296,6 +304,11 @@ class RequestEnvelope(
 				out.writeU32(Request.Gids.ID)
 				out.writeU32(request.uid)
 			}
+
+			is Request.Stat -> {
+				out.writeU32(Request.Stat.ID)
+				out.writeUtf8(request.path)
+			}
 		}
 
 		return bos.toByteArray()
@@ -391,6 +404,10 @@ class RequestEnvelope(
 
 				Request.Gids.ID -> Request.Gids(
 					uid = input.readU32()
+				)
+
+				Request.Stat.ID -> Request.Stat(
+					path = input.readUtf8()
 				)
 
 				else -> throw NoSuchElementException("unrecognized request type id: $typeId")

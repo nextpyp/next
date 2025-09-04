@@ -48,18 +48,20 @@ class UserProcessor(
 			val failures = ArrayList<String>()
 
 			// check the parent folder:
-			if (!dir.exists()) {
-				throw UserProcessorException(path, listOf("Folder not found: $dir"))
+			val dirStat = when (val response = hostProcessor.stat(dir)) {
+				HostProcessorResponse.Stat.NotFound ->
+					throw UserProcessorException(path, listOf("Folder not found: $dir"))
+				is HostProcessorResponse.Stat.Dir -> response.response
+				else -> throw UserProcessorException(path, listOf("$dir should be a regular folder"))
 			}
 
 			// it should have the tmpdir bit set
-			val dirStat = Filesystem.stat(dir)
-			if (!dirStat.isSticky) {
+			if (!dirStat.meta.isSticky) {
 				failures.add("Folder permissions: Should be sticky/tmpdir: $dir")
 			}
 
 			// and setgid too
-			if (!dirStat.isSetGID) {
+			if (!dirStat.meta.isSetGID) {
 				failures.add("Folder permissions: Should be SetGID: $dir")
 			}
 
@@ -73,52 +75,53 @@ class UserProcessor(
 			}
 
 			// check the user executable itself:
-			if (!path.exists()) {
-				throw UserProcessorException(path, listOf("User processor executable not found: $path"))
+			val fileStat = when (val response = hostProcessor.stat(path)) {
+				HostProcessorResponse.Stat.NotFound ->
+					throw UserProcessorException(path, listOf("User processor executable not found: $path"))
+				is HostProcessorResponse.Stat.File ->
+					response.response
+				else -> throw UserProcessorException(path, listOf("executable should be a regular file"))
 			}
 
-			// check the unix permissions
-			val fileStat = Filesystem.stat(path)
-
 			// the file should be owned by the given username
-			if (fileStat.uid != uid) {
-				val fileUsername = hostProcessor.username(fileStat.uid)
-				failures.add("File permissions: Should be owned by ${username.renderName()} (UID=$uid), not ${fileUsername.renderName()} (UID=${fileStat.uid})")
+			if (fileStat.meta.uid != uid) {
+				val fileUsername = hostProcessor.username(fileStat.meta.uid)
+				failures.add("File permissions: Should be owned by ${username.renderName()} (UID=$uid), not ${fileUsername.renderName()} (UID=${fileStat.meta.uid})")
 			}
 
 			// owner should have: setuid
-			if (!fileStat.isSetUID) {
+			if (!fileStat.meta.isSetUID) {
 				failures.add("File permissions: Should be setuid: $path")
 			}
 
 			// group should have: r-x
-			if (!fileStat.isGroupRead) {
+			if (!fileStat.meta.isGroupRead) {
 				failures.add("File permissions: Group should read: $path")
 			}
-			if (fileStat.isGroupWrite) {
+			if (fileStat.meta.isGroupWrite) {
 				failures.add("File permissions: Group must not write: $path")
 			}
-			if (!fileStat.isGroupExecute) {
+			if (!fileStat.meta.isGroupExecute) {
 				failures.add("File permissions: Group should execute: $path")
 			}
 
 			// other should have: r-- or ---
-			if (fileStat.isOtherWrite) {
+			if (fileStat.meta.isOtherWrite) {
 				failures.add("File permissions: Others must not write: $path")
 			}
-			if (fileStat.isOtherExecute) {
+			if (fileStat.meta.isOtherExecute) {
 				failures.add("File permissions: Others must not execute: $path")
 			}
 
 			// and the file should be owned by any group among this user's groups
 			val websiteUid = Filesystem.getUid()
 			val websiteGids = hostProcessor.gids(websiteUid)
-			if (websiteGids == null || fileStat.gid !in websiteGids) {
+			if (websiteGids == null || fileStat.meta.gid !in websiteGids) {
 				val micromonUsername = hostProcessor.username(websiteUid)
-				val fileGroupname = hostProcessor.groupname(fileStat.gid)
+				val fileGroupname = hostProcessor.groupname(fileStat.meta.gid)
 				failures.add("""
 					User configuration: Website user ${micromonUsername.renderName()} (UID=${websiteUid}) is not
-					a member of group ${fileGroupname.renderName()} (GID=${fileStat.gid}).
+					a member of group ${fileGroupname.renderName()} (GID=${fileStat.meta.gid}).
 					Instead the user has GIDs=${websiteGids}.
 				""")
 			}
@@ -129,11 +132,11 @@ class UserProcessor(
 			// which most definitely *is* a security violation, since it would allow regular users to impersonate each other
 			if (uid != websiteUid) {
 				val userGids = hostProcessor.gids(uid)
-				if (userGids != null && fileStat.gid in userGids) {
-					val fileGroupname = hostProcessor.groupname(fileStat.gid)
+				if (userGids != null && fileStat.meta.gid in userGids) {
+					val fileGroupname = hostProcessor.groupname(fileStat.meta.gid)
 					failures.add("""
 						Group configuration: Regular users (eg ${username.renderName()}, UID=$uid)
-						should not be members of the group of the user processor executable (${fileGroupname.renderName()}, GID=${fileStat.gid}).
+						should not be members of the group of the user processor executable (${fileGroupname.renderName()}, GID=${fileStat.meta.gid}).
 						The group of the user processor executable (which is inherited from the parent folder: $dir)
 						should not contain any regular users.
 					""".trim())
@@ -617,10 +620,8 @@ class UserProcessor(
 	suspend fun stat(path: Path): Response.Stat.Response =
 		request(Request.Stat(path.toString()))
 			.use { responder ->
-				responder.recv()
-					.cast<Response.Stat>()
+				responder.recv().cast<Response.Stat>()
 					.response
-					.cast<Response.Stat.Response>()
 			}
 
 	suspend fun rename(src: Path, dst: Path) {
