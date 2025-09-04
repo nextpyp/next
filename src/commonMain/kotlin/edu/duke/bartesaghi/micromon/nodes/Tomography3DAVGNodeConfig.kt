@@ -14,9 +14,8 @@ object Tomography3DAVGNodeConfig : NodeConfig {
 	// override val status = NodeConfig.NodeStatus.Preview
 
 	val movieRefinement = NodeConfig.Data("movie-refinement", NodeConfig.Data.Type.MovieRefinement)
-	val movieRefinementsIn = NodeConfig.Data("movie-refinements-in", NodeConfig.Data.Type.MovieRefinements)
-	val movieRefinements = NodeConfig.Data("movie-refinements", NodeConfig.Data.Type.MovieRefinements)
-
-	override val inputs = listOf(movieRefinement, movieRefinementsIn)
-	override val outputs = listOf(movieRefinements)
+	val movieRefinementOut = NodeConfig.Data("movie-refinements-out", NodeConfig.Data.Type.MovieRefinement)
+	
+	override val inputs = listOf(movieRefinement)
+	override val outputs = listOf(movieRefinementOut)
 }
