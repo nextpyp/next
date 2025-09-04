@@ -133,13 +133,6 @@ class Tomography3DAVGView(val project: ProjectData, val job: Tomography3DAVGData
 					}
 				}
 
-				addTab("Metric filter", "fas fa-filter") { lazyTab ->
-					testMetricFilterTab = TestMetricFilterTab().also {
-						lazyTab.elem.add(it)
-						lazyTab.onActivate = { it.revalidate() }
-					}
-				}
-
 				addTab("Classes", "fas fa-chart-pie") { lazyTab ->
 					classesMapTab = ClassesMapTab(evalParams.classes).also {
 						lazyTab.elem.add(it)
@@ -175,6 +168,13 @@ class Tomography3DAVGView(val project: ProjectData, val job: Tomography3DAVGData
 				addTab("3D view (aligned)", "fas fa-cube") { lazyTab ->
 					refinedMrcThreeDeeTab = RefinedMrcThreeDeeTab(evalParams.classes).also {
 						lazyTab.elem.add(it)
+					}
+				}
+
+				addTab("Test filter", "fas fa-filter") { lazyTab ->
+					testMetricFilterTab = TestMetricFilterTab().also {
+						lazyTab.elem.add(it)
+						lazyTab.onActivate = { it.revalidate() }
 					}
 				}
 
@@ -452,7 +452,7 @@ class Tomography3DAVGView(val project: ProjectData, val job: Tomography3DAVGData
 	) : Div(classes = setOf("reconstruction-tab")) {
 
 		private val filteredPanel = ContentSizedPanel(
-			"Filtered",
+			"Filtered map",
 			ImageSize.values().map { it.approxWidth },
 			(Storage.Tomography3DAVGClassSize ?: ImageSize.Small).ordinal
 		)
@@ -495,7 +495,6 @@ class Tomography3DAVGView(val project: ProjectData, val job: Tomography3DAVGData
 					}
 					add(img)
 					self.filteredImages.add(img)
-					div("Metric filter test", classes = setOf("label"))
 				}
 
 				val mrcDownload = FileDownloadBadge(
