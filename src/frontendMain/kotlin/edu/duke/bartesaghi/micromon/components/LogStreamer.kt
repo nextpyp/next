@@ -181,8 +181,9 @@ class LogStreamer(
 					Level.Critical,
 					Level.Error -> 0xcc0000
 					Level.Warning -> 0xcc6600
-					Level.Info,
-					Level.Debug -> 0x00cc00
+					Level.Info, -> 0x00cc00
+					Level.Debug -> 0x007bff
+					Level.Trace -> 0xcc00cc
 					else -> null
 				}?.let {
 					colorHex = it
@@ -306,6 +307,7 @@ enum class Level(val num: Int) {
 	Warning(30),
 	Info(20),
 	Debug(10),
+	Trace(5),
 	NotSet(0),
 
 	/**
