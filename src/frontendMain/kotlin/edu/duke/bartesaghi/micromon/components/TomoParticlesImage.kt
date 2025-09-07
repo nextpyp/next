@@ -26,7 +26,8 @@ class TomoParticlesImage(
 	val editable: Boolean,
 	val spriteUrl: String,
 	val ownerType: OwnerType,
-	val ownerId: String
+	val ownerId: String,
+	val panelName: String = "Tomogram Slices"
 ) : Div(classes = setOf("tomo-sized-panel")) {
 
 	companion object {
@@ -36,16 +37,19 @@ class TomoParticlesImage(
 			job: JobData,
 			tiltSerieses: TiltSeriesesData,
 			tiltSeries: TiltSeriesData,
-			particleControls: ParticleControls? = null
+			particleControls: ParticleControls? = null,
+			panelName: String = "Tomogram Slices",
+			spriteUrl: String = "/kv/jobs/${job.jobId}/data/${tiltSeries.id}/reconstructionTiltSeriesMontage"
 		) =
 			TomoParticlesImage(
 				tiltSerieses,
 				tiltSeries,
 				particleControls,
 				editable = project.canWrite(),
-				spriteUrl = "/kv/jobs/${job.jobId}/data/${tiltSeries.id}/reconstructionTiltSeriesMontage",
+				spriteUrl = spriteUrl,
 				ownerType = OwnerType.Project,
-				ownerId = job.jobId
+				ownerId = job.jobId,
+				panelName = panelName
 			)
 
 		fun forSession(
@@ -129,7 +133,7 @@ class TomoParticlesImage(
 
     private val playableSprite = PlayableSpritePanel(
         spriteUrl,
-        "Tomogram Slices",
+        panelName,
         Storage::spriteReconstructionTiltSeriesSize,
         onIndexChange = {
             updateParticles()

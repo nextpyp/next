@@ -99,6 +99,18 @@ class TomographyPickingView(val project: ProjectData, val job: TomographyPicking
 				elem.remove(loadingElem)
 			}
 
+			val args = try {
+				delayAtLeast(200) {
+					TomographyPickingNode.pypArgs.get()
+				}
+			} catch (t: Throwable) {
+				elem.errorMessage(t)
+				return@launch
+			} finally {
+				elem.remove(loadingElem)
+			}
+			val finishedValues = job.args.finished?.values?.toArgValues(args)
+
 			// show tilt series stats
 			val tiltSeriesStats = TiltSeriesStats()
 			tiltSeriesStats.loadCounts(data, OwnerType.Project, job.jobId, pickingControls.list)
@@ -162,7 +174,7 @@ class TomographyPickingView(val project: ProjectData, val job: TomographyPicking
 					}
 				}
 
-				liveTab = LiveTab(data, tiltSeriesStats)
+				liveTab = LiveTab(data, tiltSeriesStats, finishedValues?.tomoPickMethod)
 				liveTabId = addTab("Particles", "fas fa-crosshairs") {
 					liveTab?.show(it.elem)
 				}.id
@@ -221,7 +233,8 @@ class TomographyPickingView(val project: ProjectData, val job: TomographyPicking
 
 	private inner class LiveTab(
 		val data: TiltSeriesesData,
-		val stats: TiltSeriesStats
+		val stats: TiltSeriesStats,
+		val tomoPickMethod: TomoPickMethod?
 	) {
 
 		private val tiltSeriesesElem = Div()
@@ -256,10 +269,19 @@ class TomographyPickingView(val project: ProjectData, val job: TomographyPicking
 			}
 			tiltSeriesesElem.add(particlesImage)
 
-			tiltSeriesesElem.add(TomoSideViewImage(job.jobId, tiltSeries.id))
+			val particlesScore = TomoParticlesImage.forProject(project, job, data, tiltSeries, pickingControls, panelName="Correlation Scores", spriteUrl = "/kv/jobs/${job.jobId}/data/${tiltSeries.id}/reconstructionScoreMontage")
+			particlesScore.onParticlesChange = {
+				stats.picked(data, pickingControls)
+			}
+			if ( tomoPickMethod == TomoPickMethod.Pytom ) {
+				tiltSeriesesElem.add(particlesScore)
+			}
 
 			AppScope.launch {
 				particlesImage.load()
+				if ( tomoPickMethod == TomoPickMethod.Pytom ) {
+					particlesScore.load()
+				}
 			}
 		}
 

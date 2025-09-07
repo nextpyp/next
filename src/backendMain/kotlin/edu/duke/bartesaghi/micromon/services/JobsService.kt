@@ -190,6 +190,20 @@ actual class JobsService : IJobsService, Service {
 						}
 					}
 
+					get("reconstructionScoreMontage") {
+						call.respondExceptions {
+
+							// parse args
+							val job = authJob(ProjectPermission.Read).job.hasTiltSeriesOrThrow()
+							val dataId = parseDataId()
+
+							// serve the image
+							val imagePath = TiltSeries.reconstructionScoreMontagePath(job.dir, dataId)
+							ImageType.Webp.respond(call, imagePath)
+								?.respondNotFound(call)
+						}
+					}
+
 					get("2dCtfTiltMontage") {
 						call.respondExceptions {
 
