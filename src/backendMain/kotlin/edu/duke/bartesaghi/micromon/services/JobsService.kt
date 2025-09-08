@@ -246,6 +246,34 @@ actual class JobsService : IJobsService, Service {
 						}
 					}
 
+					get("pytomTiltSeriesExtractionGraph") {
+						call.respondExceptions {
+
+							// parse args
+							val job = authJob(ProjectPermission.Read).job.hasTiltSeriesOrThrow()
+							val dataId = parseDataId()
+
+							// serve the image
+							val imagePath = TiltSeries.pytomTiltSeriesExtractionGraphPath(job.dir, dataId)
+							ImageType.Svg.respond(call, imagePath)
+								?.respondPlaceholder(call)
+						}
+					}
+
+					get("pytomTiltSeriesRoc") {
+						call.respondExceptions {
+
+							// parse args
+							val job = authJob(ProjectPermission.Read).job.hasTiltSeriesOrThrow()
+							val dataId = parseDataId()
+
+							// serve the image
+							val imagePath = TiltSeries.pytomTiltSeriesRocPath(job.dir, dataId)
+							ImageType.Svg.respond(call, imagePath)
+								?.respondPlaceholder(call)
+						}
+					}
+
 					get("virionThresholds/{virionId}") {
 						call.respondExceptions {
 

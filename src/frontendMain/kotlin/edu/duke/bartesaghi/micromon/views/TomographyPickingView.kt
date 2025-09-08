@@ -275,6 +275,11 @@ class TomographyPickingView(val project: ProjectData, val job: TomographyPicking
 			}
 			if ( tomoPickMethod == TomoPickMethod.Pytom ) {
 				tiltSeriesesElem.add(particlesScore)
+				tiltSeriesesElem.add(TomoPytomImages("Extraction Graph", "pytomTiltSeriesExtractionGraph", job.jobId, tiltSeries.id))
+				tiltSeriesesElem.add(TomoPytomImages("ROC Estimation", "pytomTiltSeriesRoc", job.jobId, tiltSeries.id))
+			}
+			else {
+				tiltSeriesesElem.add(TomoSideViewImage(job.jobId, tiltSeries.id))
 			}
 
 			AppScope.launch {

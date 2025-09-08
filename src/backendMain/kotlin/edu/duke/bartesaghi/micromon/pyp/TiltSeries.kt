@@ -79,6 +79,12 @@ class TiltSeries(private val doc: Document) {
 		fun sidesImagePath(dir: Path, tiltSeriesId: String): Path =
 			dir / "webp" / "${tiltSeriesId}_sides.webp"
 
+		fun pytomTiltSeriesExtractionGraphPath(dir: Path, tiltSeriesId: String): Path =
+			dir / "pytom" / "${tiltSeriesId}_extraction_graph.svg"
+
+		fun pytomTiltSeriesRocPath(dir: Path, tiltSeriesId: String): Path =
+			dir / "pytom" / "${tiltSeriesId}_roc.svg"
+
 		fun virionThresholdsImagePath(dir: Path, tiltSeriesId: String, virionId: Int): Path {
 			val virionIndex = virionId - 1
 			// eg, tomo/tilt_series_vir0000_binned_nad.png

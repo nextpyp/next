@@ -235,6 +235,22 @@ interface ImageType {
 		fun placeholderUrl(): String =
 			"/images/placeholder.svgz"
 	}
+
+	object Svg : ImageType {
+
+		override val contentType = ContentType.Image.SVG
+		override val extension = "svg"
+		override val resizable = false
+
+		suspend fun respond(call: ApplicationCall, path: Path): Svg? =
+			respondPath(this, call, path)
+
+		suspend fun respondPlaceholder(call: ApplicationCall) =
+			respondBytes(this, call, Resources.placeholderSvg(), "placeholder")
+
+		fun placeholderUrl(): String =
+			"/images/placeholder.svgz"
+	}
 }
 
 

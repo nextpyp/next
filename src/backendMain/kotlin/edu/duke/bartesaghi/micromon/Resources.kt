@@ -45,4 +45,8 @@ object Resources {
 
 	fun placeholderSvgz() =
 		readBytes("/images/placeholder.svgz")
+
+	fun placeholderSvg() =
+		readBytes("/images/placeholder.svg")
+
 }
