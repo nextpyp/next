@@ -168,6 +168,8 @@ fun Application.main(config: Config.Web) {
 		applyRoutes(TomographySessionDataServiceManager)
 		applyRoutes(TomographyPreprocessingServiceManager)
 		applyRoutes(TomographyPurePreprocessingServiceManager)
+		applyRoutes(TomographyWarpPreprocessingServiceManager)
+		applyRoutes(TomographyRelionRefinementServiceManager)
 		applyRoutes(TomographyDenoisingTrainingServiceManager)
 		applyRoutes(TomographyDenoisingEvalServiceManager)
 		applyRoutes(TomographyPickingServiceManager)

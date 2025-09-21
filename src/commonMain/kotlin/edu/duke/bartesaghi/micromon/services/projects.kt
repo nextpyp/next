@@ -382,6 +382,8 @@ interface JobData {
 					subclass(TomographySessionDataData::class)
 					subclass(TomographyPreprocessingData::class)
 					subclass(TomographyPurePreprocessingData::class)
+					subclass(TomographyWarpPreprocessingData::class)
+					subclass(TomographyRelionRefinementData::class)
 					subclass(TomographyDenoisingTrainingData::class)
 					subclass(TomographyDenoisingEvalData::class)
 					subclass(TomographyPickingData::class)

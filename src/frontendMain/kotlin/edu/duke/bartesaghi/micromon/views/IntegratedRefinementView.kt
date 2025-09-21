@@ -19,6 +19,7 @@ private val refinementNodes = listOf(
 	SingleParticlePostprocessingNode,
 	SingleParticleMaskingNode,
 	TomographyInitialRefinementNode,
+	TomographyRelionRefinementNode,
 	TomographyReferenceFreeRefinementNode,
 	TomographyReferenceBasedRefinementNode,
 	TomographyNewCoarseRefinementNode,

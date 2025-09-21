@@ -114,6 +114,8 @@ object Storage {
 	var integratedRefinementTabIndex by IntStorageItem("integratedRefinementTabIndex")
 	var tomographyPreprocessingTabIndex by IntStorageItem("tomographyPreprocessingTabIndex")
 	var tomographyPurePreprocessingTabIndex by IntStorageItem("tomographyPurePreprocessingTabIndex")
+	var tomographyWarpPreprocessingTabIndex by IntStorageItem("tomographyWarpPreprocessingTabIndex")
+	var tomographyRelionRefinementTabIndex by IntStorageItem("tomographyRelionRefinementTabIndex")
 	var tomographyPreprocessingMultiPanelTabIndex by IntStorageItem("tomographyPreprocessingMultiPanelTabIndex")
 	var tomographySegmentationOpenTabIndex by IntStorageItem("tomographySegmentationOpenTabIndex")
 	var tomographySegmentationClosedTabIndex by IntStorageItem("tomographySegmentationClosedTabIndex")

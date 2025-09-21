@@ -33,6 +33,8 @@ object Nodes {
 		TomographySessionDataNodeConfig to TomographySessionDataNode.Companion,
 		TomographyPreprocessingNodeConfig to TomographyPreprocessingNode.Companion,
 		TomographyPurePreprocessingNodeConfig to TomographyPurePreprocessingNode.Companion,
+		TomographyWarpPreprocessingNodeConfig to TomographyWarpPreprocessingNode.Companion,
+		TomographyRelionRefinementNodeConfig to TomographyRelionRefinementNode.Companion,
 		TomographyDenoisingTrainingNodeConfig to TomographyDenoisingTrainingNode.Companion,
 		TomographyDenoisingEvalNodeConfig to TomographyDenoisingEvalNode.Companion,
 		TomographyPickingNodeConfig to TomographyPickingNode.Companion,

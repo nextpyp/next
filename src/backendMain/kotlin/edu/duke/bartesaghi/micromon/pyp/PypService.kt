@@ -212,7 +212,7 @@ object PypService {
 					is SingleParticleCoarseRefinementJob,
 					is SingleParticleFineRefinementJob,
 					is SingleParticleFlexibleRefinementJob,
-					is TomographyInitialRefinementJob,
+					is TomographyRelionRefinementJob,
 					is TomographyReferenceFreeRefinementJob,
 					is TomographyReferenceBasedRefinementJob,
 					is TomographyNewCoarseRefinementJob,

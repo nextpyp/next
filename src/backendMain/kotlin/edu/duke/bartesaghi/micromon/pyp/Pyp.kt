@@ -29,7 +29,8 @@ enum class Pyp(private val cmdName: String) {
 	psp("psp"),
 	pex("pex"),
 	webrpc("webrpc"),
-	streampyp("streampyp");
+	streampyp("streampyp"),
+	wrp("wrp");
 
 	fun launch(
 		/** The user for whom properties will be fetched for the cluster job launch, if any */

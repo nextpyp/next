@@ -53,6 +53,7 @@ class App : Application() {
 				TomographyPickingView.Companion,
 				TomographyPreprocessingView.Companion,
 				TomographyPurePreprocessingView.Companion,
+				TomographyWarpPreprocessingView.Companion,
 				TomographySegmentationClosedView.Companion,
 				TomographySegmentationOpenView.Companion,
 				TomographySessionDataView.Companion,

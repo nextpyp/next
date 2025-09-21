@@ -275,6 +275,7 @@ class ArgsInputs(
 							is SingleParticlePostprocessingNode,
 							is SingleParticleMaskingNode,
 							is TomographyInitialRefinementNode,
+							is TomographyRelionRefinementNode,
 							is TomographyReferenceFreeRefinementNode,
 							is TomographyReferenceBasedRefinementNode,
 							is TomographyNewCoarseRefinementNode,

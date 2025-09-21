@@ -204,6 +204,14 @@ object RealTimeService {
 			tiltSeriesesService()
 		}
 
+		routing.webSocket(RealTimeServices.tomographyWarpPreprocessing) {
+			tiltSeriesesService()
+		}
+
+		routing.webSocket(RealTimeServices.tomographyRelionRefinement) {
+			tiltSeriesesService()
+		}
+
 		routing.webSocket(RealTimeServices.tomographyDenoisingEval) {
 			tiltSeriesesService()
 		}
