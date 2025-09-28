@@ -246,4 +246,4 @@ fun Double.normalizedToUnbinnedY(dims: ImageDims) = ValueUnbinnedF(this*dims.hei
 
 fun Double.flipNormalized(): Double = 1.0 - this
 
-fun Int.sliceToUnbinnedZ(dims: ImageDims) = ValueBinnedI(dims.binningFactorZ).toUnbinned(dims.binningFactor)
+fun Int.sliceToUnbinnedZ(dims: ImageDims) = ValueBinnedI(this*dims.binningFactorZ).toUnbinned(dims.binningFactor)
