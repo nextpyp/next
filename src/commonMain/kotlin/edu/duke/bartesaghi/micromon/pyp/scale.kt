@@ -22,7 +22,9 @@ data class ImageDims(
 	/** the binning factor, same for all dimensions */
 	val binningFactor: Int,
 	/** the size of one unbinned pixel (or voxel) in a micrograph (or tilt series) */
-	val pixelA: ValueA
+	val pixelA: ValueA,
+	/** additional binning factor in Z */
+	val binningFactorZ: Int = SLICE_FACTOR,
 ) {
 
 	companion object {
@@ -36,7 +38,7 @@ data class ImageDims(
 
 	@ExportServiceProperty(skip=true)
 	val numSlices: Int get() =
-		depth.v/binningFactor/SLICE_FACTOR
+		depth.v/binningFactor/binningFactorZ
 }
 
 
@@ -244,4 +246,4 @@ fun Double.normalizedToUnbinnedY(dims: ImageDims) = ValueUnbinnedF(this*dims.hei
 
 fun Double.flipNormalized(): Double = 1.0 - this
 
-fun Int.sliceToUnbinnedZ(dims: ImageDims) = ValueBinnedI(this*ImageDims.SLICE_FACTOR).toUnbinned(dims.binningFactor)
+fun Int.sliceToUnbinnedZ(dims: ImageDims) = ValueBinnedI(dims.binningFactorZ).toUnbinned(dims.binningFactor)
