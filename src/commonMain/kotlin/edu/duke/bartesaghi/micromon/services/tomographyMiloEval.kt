@@ -34,6 +34,9 @@ interface ITomographyMiloEvalService {
 		fun results2dLabelsPath(jobId: String, size: ImageSize): String =
 			"/kv/node/${TomographyMiloEvalNodeConfig.ID}/$jobId/results_2d_labels/${size.id}"
 
+		fun results2dLabelsMatrixPath(jobId: String, size: ImageSize): String =
+			"/kv/node/${TomographyMiloEvalNodeConfig.ID}/$jobId/results_2d_labels_matrix/${size.id}"
+
 		fun results3dPath(jobId: String, size: ImageSize): String =
 			"/kv/node/${TomographyMiloEvalNodeConfig.ID}/$jobId/results_3d/${size.id}"
 

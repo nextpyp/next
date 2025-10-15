@@ -58,6 +58,21 @@ actual class TomographyMiloEvalService : ITomographyMiloEvalService, Service {
 					}
 				}
 
+				get("results_2d_labels_matrix/{size}") {
+					call.respondExceptions {
+
+						// parse args
+						val job = authJob(ProjectPermission.Read).job
+						val size = parseSize()
+
+						// serve the image
+						val imagePath = job.dir / "train" / "2d_visualization_labels_matrix.webp"
+						val cacheKey = WebCacheDir.Keys.miloLabels2D
+						ImageType.Webp.respondSized(call, imagePath, size.info(job.wwwDir, cacheKey))
+							?.respondPlaceholder(call, size)
+					}
+				}
+
 				get("results_3d/{size}") {
 					call.respondExceptions {
 

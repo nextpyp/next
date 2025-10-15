@@ -218,6 +218,17 @@ class TomographyMiloEvalView(val project: ProjectData, val job: TomographyMiloEv
 					Storage.miloResults2dSize = newSize
 				}
 			})
+
+			elem.add(SizedPanel("Nearest neighbor matrix", Storage.miloResults2dSize).apply {
+				val img = image(ITomographyMiloEvalService.results2dLabelsMatrixPath(job.jobId, size), classes = setOf("full-width-image"))
+
+				// set the panel resize handler
+				onResize = { newSize: ImageSize ->
+					img.src = ITomographyMiloEvalService.results2dLabelsMatrixPath(job.jobId, size)
+					Storage.miloResults2dSize = newSize
+				}
+			})
+
 		}
 	}
 
