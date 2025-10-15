@@ -7,7 +7,7 @@ object TomographyRelionRefinementNodeConfig : NodeConfig {
 
 	override val id = ID
 	override val configId = "tomo_relion_refine"
-	override val name = "3D refinement (relion)"
+	override val name = "Relion refinement"
 	override val hasFiles = true
 	override val status = NodeConfig.NodeStatus.Preview
 

@@ -30,6 +30,7 @@ enum class Pyp(private val cmdName: String) {
 	pex("pex"),
 	webrpc("webrpc"),
 	streampyp("streampyp"),
+	rln("rln"),
 	wrp("wrp");
 
 	fun launch(
