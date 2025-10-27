@@ -11,8 +11,9 @@ object TomographyMiloTrainNodeConfig : NodeConfig {
 	override val hasFiles = true
 
 	val tomograms = NodeConfig.Data("tomograms", NodeConfig.Data.Type.Tomograms)
+	val particles = NodeConfig.Data("particles", NodeConfig.Data.Type.MiloCoordinates)
 	val model = NodeConfig.Data("model", NodeConfig.Data.Type.MiloModel)
 
-	override val inputs = listOf(tomograms)
+	override val inputs = listOf(tomograms,particles)
 	override val outputs = listOf(model)
 }
