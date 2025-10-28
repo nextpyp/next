@@ -18,10 +18,11 @@ import kotlin.time.Duration.Companion.seconds
 class SingleParticleImportDataJob(
 	userId: String,
 	projectId: String
-) : Job(userId, projectId, config), FilteredJob {
+) : Job(userId, projectId, config), FilteredJob, MicrographsJob, CombinedManualParticlesJob {
 
 	val args = JobArgs<SingleParticleImportDataArgs>()
-	var latestMicrographId: String? = null
+	override var latestMicrographId: String? = null
+	override val eventListeners get() = Companion.eventListeners
 
 	companion object : JobInfo {
 
@@ -47,18 +48,22 @@ class SingleParticleImportDataJob(
 			SingleParticleImportDataArgs(
 				doc.getString("values")
 			)
+
+		val eventListeners = MicrographEventListeners(this)
 	}
 
 	override fun createDoc(doc: Document) {
 		super.createDoc(doc)
 		doc["finishedArgs"] = args.finished?.toDoc()
 		doc["nextArgs"] = args.next?.toDoc()
+		doc["latestMicrographId"] = null
 	}
 
 	override fun updateDoc(updates: MutableList<Bson>) {
 		super.updateDoc(updates)
 		updates.add(Updates.set("finishedArgs", args.finished?.toDoc()))
 		updates.add(Updates.set("nextArgs", args.next?.toDoc()))
+		updates.add(Updates.set("latestMicrographId", latestMicrographId))
 	}
 
 	override fun isChanged() = args.hasNext()
@@ -81,6 +86,7 @@ class SingleParticleImportDataJob(
 
 		// build the args for PYP
 		val pypArgs = launchArgValues()
+		pypArgs.dataMode = "spr"
 		pypArgs.dataImport = true
 
 		Pyp.pyp.launch(project, runId, pypArgs, "Import Single Particle", "pyp_import")
@@ -125,6 +131,7 @@ class SingleParticleImportDataJob(
 
 		// also reset the finished args
 		args.unrun()
+		latestMicrographId = null
 		update()
 	}
 

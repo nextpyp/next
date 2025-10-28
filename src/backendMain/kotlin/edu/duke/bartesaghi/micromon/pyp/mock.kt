@@ -71,6 +71,7 @@ object MockPyp {
 				+ SingleParticlePreprocessingMockArgs.all
 				+ SingleParticlePurePreprocessingMockArgs.all
 				+ SingleParticlePickingMockArgs.all
+				+ SingleParticleImportDataMockArgs.all
 				// sessions
 				+ TomographySessionMockArgs.all
 				+ SingleParticleSessionMockArgs.all
@@ -294,6 +295,14 @@ object TomographySessionMockArgs : SessionMockArgs(TomographySession) {
 	val tiltAngleMagnitde = mockArg("tilt_angle_magnitude", ArgType.TInt(), ArgValue.VInt(45))
 }
 
+
+object SingleParticleImportDataMockArgs : JobMockArgs(SingleParticleImportDataJob) {
+	val numMicrographs = mockArg("num_micrographs", ArgType.TInt(), ArgValue.VInt(4))
+	val micrographWidth = mockArg("micrograph_width", ArgType.TInt(), ArgValue.VInt(8192))
+	val micrigraphHeight = mockArg("micrograph_height", ArgType.TInt(), ArgValue.VInt(8192))
+	val numParticles = mockArg("num_particles", ArgType.TInt(), ArgValue.VInt(20))
+	val particleRadius = mockArg("particle_radius", ArgType.TFloat(), ArgValue.VFloat(100.0))
+}
 
 object SingleParticleSessionMockArgs : SessionMockArgs(SingleParticleSession) {
 	val numMicrographs = mockArg("num_micrographs", ArgType.TInt(), ArgValue.VInt(4))
