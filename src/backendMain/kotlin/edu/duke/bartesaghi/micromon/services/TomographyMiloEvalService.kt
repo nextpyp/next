@@ -67,7 +67,7 @@ actual class TomographyMiloEvalService : ITomographyMiloEvalService, Service {
 
 						// serve the image
 						val imagePath = job.dir / "train" / "2d_visualization_labels_matrix.webp"
-						val cacheKey = WebCacheDir.Keys.miloLabels2D
+						val cacheKey = WebCacheDir.Keys.miloLabels2Dmatrix
 						ImageType.Webp.respondSized(call, imagePath, size.info(job.wwwDir, cacheKey))
 							?.respondPlaceholder(call, size)
 					}

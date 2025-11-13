@@ -143,6 +143,7 @@ object Storage {
 	var particlesResults2dSize by ImageSizeStorageItem("particlesResults2dSize")
 	var miloResults2dSize by ImageSizeStorageItem("miloResults2dSize")
 	var miloResults2dLabelsSize by ImageSizeStorageItem("miloResults2dLabelsSize")
+	var miloResults2dLabelsMatrixSize by ImageSizeStorageItem("miloResults2dLabelsMatrixSize")
 	var miloResults3dSize by ImageSizeStorageItem("miloResults3dSize")
 	var miloResults3dTiltSeriesSize by ImageSizeStorageItem("miloResults3dTiltSeriesSize")
 	var miloTrainResultsSize by ImageSizeStorageItem("miloTrainResultsSize")

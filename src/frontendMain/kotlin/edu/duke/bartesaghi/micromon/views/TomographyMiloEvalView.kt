@@ -209,23 +209,23 @@ class TomographyMiloEvalView(val project: ProjectData, val job: TomographyMiloEv
 				}
 			})
 
-			elem.add(SizedPanel("UMAP embedding", Storage.miloResults2dSize).apply {
+			elem.add(SizedPanel("UMAP embedding", Storage.miloResults2dLabelsSize).apply {
 				val img = image(ITomographyMiloEvalService.results2dPath(job.jobId, size), classes = setOf("full-width-image"))
 
 				// set the panel resize handler
 				onResize = { newSize: ImageSize ->
 					img.src = ITomographyMiloEvalService.results2dPath(job.jobId, size)
-					Storage.miloResults2dSize = newSize
+					Storage.miloResults2dLabelsSize = newSize
 				}
 			})
 
-			elem.add(SizedPanel("Nearest neighbor matrix", Storage.miloResults2dSize).apply {
+			elem.add(SizedPanel("Nearest neighbor matrix", Storage.miloResults2dLabelsMatrixSize).apply {
 				val img = image(ITomographyMiloEvalService.results2dLabelsMatrixPath(job.jobId, size), classes = setOf("full-width-image"))
 
 				// set the panel resize handler
 				onResize = { newSize: ImageSize ->
 					img.src = ITomographyMiloEvalService.results2dLabelsMatrixPath(job.jobId, size)
-					Storage.miloResults2dSize = newSize
+					Storage.miloResults2dLabelsMatrixSize = newSize
 				}
 			})
 
