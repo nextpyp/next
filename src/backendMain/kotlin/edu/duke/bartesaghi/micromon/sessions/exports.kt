@@ -38,6 +38,7 @@ class SessionExport(
 			val events = when (this) {
 				is SingleParticleSession -> SingleParticleSession.events
 				is TomographySession -> TomographySession.events
+				else -> throw Error("don't know how to reference type")
 			}
 			for (listener in events.getListeners(idOrThrow)) {
 				listener.onExport?.invoke(export)
