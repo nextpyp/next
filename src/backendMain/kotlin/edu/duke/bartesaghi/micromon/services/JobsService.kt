@@ -140,6 +140,44 @@ actual class JobsService : IJobsService, Service {
 						}
 					}
 
+					get("denoised/{size}") {
+						call.respondExceptions {
+
+							// parse args
+							val job = authJob(ProjectPermission.Read).job
+							val dataId = parseDataId()
+							val size = parseSize()
+
+							// serve the image
+							val imagePath = when (job.baseConfig.jobInfo.dataType) {
+								JobInfo.DataType.TiltSeries -> TiltSeries.denoisedImagePath(job.dir, dataId)
+								else -> throw NoSuchElementException("job ${job.baseConfig.id} has no data type")
+							}
+							val cacheKey = WebCacheDir.Keys.datum.parameterized(dataId)
+							ImageType.Webp.respondSized(call, imagePath, size.info(job.wwwDir, cacheKey))
+								?.respondPlaceholder(call, size)
+						}
+					}
+
+					get("segmented/{size}") {
+						call.respondExceptions {
+
+							// parse args
+							val job = authJob(ProjectPermission.Read).job
+							val dataId = parseDataId()
+							val size = parseSize()
+
+							// serve the image
+							val imagePath = when (job.baseConfig.jobInfo.dataType) {
+								JobInfo.DataType.TiltSeries -> TiltSeries.segmentedImagePath(job.dir, dataId)
+								else -> throw NoSuchElementException("job ${job.baseConfig.id} has no data type")
+							}
+							val cacheKey = WebCacheDir.Keys.datum.parameterized(dataId)
+							ImageType.Webp.respondSized(call, imagePath, size.info(job.wwwDir, cacheKey))
+								?.respondPlaceholder(call, size)
+						}
+					}
+
 					get("ctffind/{size}") {
 						call.respondExceptions {
 
@@ -171,6 +209,34 @@ actual class JobsService : IJobsService, Service {
 
 							// serve the image
 							val imagePath = TiltSeries.alignedMontagePath(job.dir, dataId)
+							ImageType.Webp.respond(call, imagePath)
+								?.respondNotFound(call)
+						}
+					}
+
+					get("denoisedTomogramMontage") {
+						call.respondExceptions {
+
+							// parse args
+							val job = authJob(ProjectPermission.Read).job.hasTiltSeriesOrThrow()
+							val dataId = parseDataId()
+
+							// serve the image
+							val imagePath = TiltSeries.denoisedTomogramMontagePath(job.dir, dataId)
+							ImageType.Webp.respond(call, imagePath)
+								?.respondNotFound(call)
+						}
+					}
+
+					get("segmentedTomogramMontage") {
+						call.respondExceptions {
+
+							// parse args
+							val job = authJob(ProjectPermission.Read).job.hasTiltSeriesOrThrow()
+							val dataId = parseDataId()
+
+							// serve the image
+							val imagePath = TiltSeries.segmentedTomogramMontagePath(job.dir, dataId)
 							ImageType.Webp.respond(call, imagePath)
 								?.respondNotFound(call)
 						}
@@ -229,6 +295,34 @@ actual class JobsService : IJobsService, Service {
 							val imagePath = TiltSeries.rawTiltSeriesMontagePath(job.dir, dataId)
 							ImageType.Webp.respond(call, imagePath)
 								?.respondNotFound(call)
+						}
+					}
+
+					get("sidesTiltSeriesDenoiseImage") {
+						call.respondExceptions {
+
+							// parse args
+							val job = authJob(ProjectPermission.Read).job.hasTiltSeriesOrThrow()
+							val dataId = parseDataId()
+
+							// serve the image
+							val imagePath = TiltSeries.sidesDenoiseImagePath(job.dir, dataId)
+							ImageType.Webp.respond(call, imagePath)
+								?.respondPlaceholder(call, ImageSize.Medium)
+						}
+					}
+
+					get("sidesTiltSeriesSegmentImage") {
+						call.respondExceptions {
+
+							// parse args
+							val job = authJob(ProjectPermission.Read).job.hasTiltSeriesOrThrow()
+							val dataId = parseDataId()
+
+							// serve the image
+							val imagePath = TiltSeries.sidesSegmentImagePath(job.dir, dataId)
+							ImageType.Webp.respond(call, imagePath)
+								?.respondPlaceholder(call, ImageSize.Medium)
 						}
 					}
 
@@ -297,6 +391,30 @@ actual class JobsService : IJobsService, Service {
 							val dataId = parseDataId()
 
 							val path = TiltSeries.recPath(job.dir, dataId)
+							call.respondFile(path, ContentType.Application.OctetStream)
+						}
+					}
+
+					get("den") {
+						call.respondExceptions {
+
+							// parse args
+							val job = authJob(ProjectPermission.Read).job
+							val dataId = parseDataId()
+
+							val path = TiltSeries.denPath(job.dir, dataId)
+							call.respondFile(path, ContentType.Application.OctetStream)
+						}
+					}
+
+					get("seg") {
+						call.respondExceptions {
+
+							// parse args
+							val job = authJob(ProjectPermission.Read).job
+							val dataId = parseDataId()
+
+							val path = TiltSeries.segPath(job.dir, dataId)
 							call.respondFile(path, ContentType.Application.OctetStream)
 						}
 					}
@@ -420,6 +538,20 @@ actual class JobsService : IJobsService, Service {
 	override suspend fun recData(jobId: String, tiltSeriesId: String): Option<FileDownloadData> = sanitizeExceptions {
 		val job = jobId.authJob(ProjectPermission.Read).job.hasTiltSeriesOrThrow()
 		TiltSeries.recPath(job.dir, tiltSeriesId)
+			.toFileDownloadData()
+			.toOption()
+	}
+
+	override suspend fun denData(jobId: String, tiltSeriesId: String): Option<FileDownloadData> = sanitizeExceptions {
+		val job = jobId.authJob(ProjectPermission.Read).job.hasTiltSeriesOrThrow()
+		TiltSeries.denPath(job.dir, tiltSeriesId)
+			.toFileDownloadData()
+			.toOption()
+	}
+
+	override suspend fun segData(jobId: String, tiltSeriesId: String): Option<FileDownloadData> = sanitizeExceptions {
+		val job = jobId.authJob(ProjectPermission.Read).job.hasTiltSeriesOrThrow()
+		TiltSeries.segPath(job.dir, tiltSeriesId)
 			.toFileDownloadData()
 			.toOption()
 	}

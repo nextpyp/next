@@ -75,6 +75,10 @@ class TomoMultiPanel(
 		Storage::spriteAlignedTiltSeriesSize
 	)
 
+	val denoisedTomogramImage = TomoParticlesImage.forProject(project, job, tiltSerieses, tiltSeries, spriteUrl = "/kv/jobs/${job.jobId}/data/${tiltSeries.id}/denoisedTomogramMontage")
+
+	val segmentedTomogramImage = TomoParticlesImage.forProject(project, job, tiltSerieses, tiltSeries, spriteUrl = "/kv/jobs/${job.jobId}/data/${tiltSeries.id}/segmentedTomogramMontage")
+
 	private val ctf2dImage = SpritePanel(
 		ctfMultiTiltPlot.ctf2dImageSource,
 		"2D CTF Profile",
@@ -94,6 +98,20 @@ class TomoMultiPanel(
 		url = "kv/jobs/${job.jobId}/data/${tiltSeries.id}/rec",
 		filename = "${job.jobId}_${tiltSeries.id}.rec",
 		loader = { Services.jobs.recData(job.jobId, tiltSeries.id) }
+	)
+
+	private val denoisedDownloadBadge = FileDownloadBadge(
+		filetype = ".rec file",
+		url = "kv/jobs/${job.jobId}/data/${tiltSeries.id}/den",
+		filename = "${job.jobId}_${tiltSeries.id}_den.rec",
+		loader = { Services.jobs.denData(job.jobId, tiltSeries.id) }
+	)
+
+	private val segmentedDownloadBadge = FileDownloadBadge(
+		filetype = ".rec file",
+		url = "kv/jobs/${job.jobId}/data/${tiltSeries.id}/seg",
+		filename = "${job.jobId}_${tiltSeries.id}_seg.rec",
+		loader = { Services.jobs.segData(job.jobId, tiltSeries.id) }
 	)
 
 	val tabs = flatLazyTabPanel {
@@ -138,6 +156,22 @@ class TomoMultiPanel(
 				if (!self.virionThresholds.hasSelectedVirion()) {
 					self.virionThresholds.selectDefaultVirion()
 				}
+			}
+		}
+
+		if ( self.job is TomographyPreprocessingData || self.job is TomographyDenoisingEvalData ) {
+			addTab("Denoised") { lazyTab ->
+				lazyTab.elem.add(self.denoisedDownloadBadge)
+				lazyTab.elem.add(self.denoisedTomogramImage)
+				lazyTab.elem.add(TomoSideViewDenoiseImage(self.job.jobId, self.tiltSeries.id))
+			}
+		}
+
+		if ( self.job is TomographyPreprocessingData || self.job is TomographySegmentationOpenData ) {
+			addTab("Segmentation") { lazyTab ->
+				lazyTab.elem.add(self.segmentedDownloadBadge)
+				lazyTab.elem.add(self.segmentedTomogramImage)
+				lazyTab.elem.add(TomoSideViewSegImage(self.job.jobId, self.tiltSeries.id))
 			}
 		}
 	}
@@ -247,10 +281,20 @@ class TomoMultiPanel(
 			}
 		}
 
+		val condition = true
+
 		recDownloadBadge.load()
+		if ( condition == true ) {
+			denoisedDownloadBadge.load()
+			segmentedDownloadBadge.load()
+		}
 
 		// load the particles image
 		particlesImage.load()
+		if ( condition == true ){
+			denoisedTomogramImage.load()
+			segmentedTomogramImage.load()
+		}
 
 		// load thresholds for the threshold picker, if needed
 		virionThresholds.load()

@@ -24,12 +24,76 @@ class TomoSideViewImage(
     }
 }
 
+class TomoSideViewDenoiseImage(
+    jobId: String,
+    tiltSeriesId: String
+) : SizedPanel("Side View Projections", Storage.tomographyPreprocessingSideViewSize) {
+    init {
+        image("/kv/jobs/$jobId/data/$tiltSeriesId/sidesTiltSeriesDenoiseImage",
+            classes = setOf("full-width-image"))
+        // set the panel resize handler
+        onResize = { newSize: ImageSize ->
+            // save the new size
+            Storage.tomographyPreprocessingSideViewSize = newSize
+
+        }
+    }
+}
+
+class TomoSideViewSegImage(
+    jobId: String,
+    tiltSeriesId: String
+) : SizedPanel("Side View Projections", Storage.tomographyPreprocessingSideViewSize) {
+    init {
+        image("/kv/jobs/$jobId/data/$tiltSeriesId/sidesTiltSeriesSegmentImage",
+            classes = setOf("full-width-image"))
+        // set the panel resize handler
+        onResize = { newSize: ImageSize ->
+            // save the new size
+            Storage.tomographyPreprocessingSideViewSize = newSize
+
+        }
+    }
+}
+
 class SessionTomoSideViewImage(
     sessionId: String,
     tiltSeriesId: String
 ) : SizedPanel("Side View Projections", Storage.tomographyPreprocessingSideViewSize) {
     init {
         image("/kv/tomographySession/$sessionId/$tiltSeriesId/sidesTiltSeriesImage",
+            classes = setOf("full-width-image"))
+        // set the panel resize handler
+        onResize = { newSize: ImageSize ->
+            // save the new size
+            Storage.tomographyPreprocessingSideViewSize = newSize
+
+        }
+    }
+}
+
+class SessionTomoSideViewDenoiseImage(
+    sessionId: String,
+    tiltSeriesId: String
+) : SizedPanel("Side View Projections", Storage.tomographyPreprocessingSideViewSize) {
+    init {
+        image("/kv/tomographySession/$sessionId/$tiltSeriesId/sidesTiltSeriesDenoiseImage",
+            classes = setOf("full-width-image"))
+        // set the panel resize handler
+        onResize = { newSize: ImageSize ->
+            // save the new size
+            Storage.tomographyPreprocessingSideViewSize = newSize
+
+        }
+    }
+}
+
+class SessionTomoSideViewSegImage(
+    sessionId: String,
+    tiltSeriesId: String
+) : SizedPanel("Side View Projections", Storage.tomographyPreprocessingSideViewSize) {
+    init {
+        image("/kv/tomographySession/$sessionId/$tiltSeriesId/sidesTiltSeriesSegImage",
             classes = setOf("full-width-image"))
         // set the panel resize handler
         onResize = { newSize: ImageSize ->

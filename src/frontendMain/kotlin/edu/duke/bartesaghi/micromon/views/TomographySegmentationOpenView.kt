@@ -6,6 +6,7 @@ import edu.duke.bartesaghi.micromon.diagram.nodes.TomographySegmentationOpenNode
 import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.*
 import io.kvision.core.Container
+import js.getHTMLElement
 import io.kvision.core.Widget
 import io.kvision.html.*
 import io.kvision.html.div
@@ -57,7 +58,9 @@ class TomographySegmentationOpenView(val project: ProjectData, val job: Tomograp
 	private var filterTable: FilterTable<TiltSeriesData>? = null
 	private var gallery: HyperGallery<TiltSeriesData>? = null
 	private var liveTab: LiveTab? = null
+	private var liveSegmentTab: LiveSegmentTab? = null
 	private var liveTabId: Int? = null
+	private var liveSegmentTabId: Int? = null
 
 	private var connector: WebsocketConnector? = null
 
@@ -160,6 +163,12 @@ class TomographySegmentationOpenView(val project: ProjectData, val job: Tomograp
 				liveTabId = addTab("Tomograms", "fas fa-desktop") {
 					liveTab?.show(it.elem)
 				}.id
+
+				liveSegmentTab = LiveSegmentTab(data, tiltSeriesStats)
+				liveSegmentTabId = addTab("Segmentations", "fas fa-draw-polygon") {
+					liveSegmentTab?.show(it.elem)
+				}.id
+
 			}
 
 			// open the websocket connection to listen for server-side updates
@@ -267,6 +276,76 @@ class TomographySegmentationOpenView(val project: ProjectData, val job: Tomograp
 				recDownloadBadge.load()
 
 				particlesImage.load()
+			}
+		}
+
+		fun show(elem: Container) {
+
+			elem.addCssClass("live")
+
+			// layout the tab
+			elem.add(listNav)
+			elem.add(tiltSeriesesElem)
+
+			// start with the newest tilt series
+			listNav.showItem(data.tiltSerieses.size - 1, false)
+		}
+	}
+
+	private inner class LiveSegmentTab(
+		val data: TiltSeriesesData,
+		val stats: TiltSeriesStats
+	) {
+
+		private val tiltSeriesesElem = Div()
+
+		val listNav = BigListNav(data.tiltSerieses, onSearch=data::searchById) e@{ index ->
+
+			// clear the previous contents
+			tiltSeriesesElem.removeAll()
+
+			// get the indexed tilt series, if any
+			val tiltSeries = data.tiltSerieses.getOrNull(index)
+			if (tiltSeries == null) {
+				tiltSeriesesElem.div("No tilt series to show", classes = setOf("empty"))
+				return@e
+			}
+
+			// show metadata
+			tiltSeriesesElem.div(classes = setOf("stats")) {
+				div {
+					span("Name: ${tiltSeries.id}, processed on ${Date(tiltSeries.timestamp).toLocaleString()}")
+					button("Show Log", classes = setOf("log-button")).onClick {
+						LogView.showPopup("Log for Tilt Series: ${tiltSeries.id}") {
+							Services.jobs.getLog(job.jobId, tiltSeries.id)
+						}
+					}
+				}
+			}
+
+			// show the download badge
+			val segDownloadBadge = FileDownloadBadge(
+				filetype = ".rec file",
+				url = "kv/jobs/${job.jobId}/data/${tiltSeries.id}/rec",
+				filename = "${job.jobId}_${tiltSeries.id}_seg.rec",
+				loader = { Services.jobs.segData(job.jobId, tiltSeries.id) }
+			)
+			tiltSeriesesElem.div(classes = setOf("spaced")) {
+				add(segDownloadBadge)
+			}
+
+			// show the denoised reconstruction
+			val segmentedTomogramImage = TomoParticlesImage.forProject(project, job, data, tiltSeries, spriteUrl = "/kv/jobs/${job.jobId}/data/${tiltSeries.id}/segmentedTomogramMontage")
+			tiltSeriesesElem.add(segmentedTomogramImage)
+
+			// show the side view
+			tiltSeriesesElem.add(TomoSideViewSegImage(job.jobId, tiltSeries.id))
+
+			AppScope.launch {
+
+				segDownloadBadge.load()
+
+				segmentedTomogramImage.load()
 			}
 		}
 

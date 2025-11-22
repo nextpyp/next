@@ -55,7 +55,8 @@ class TomoParticlesImage(
 		fun forSession(
 			session: SessionData,
 			tiltSerieses: TiltSeriesesData,
-			tiltSeries: TiltSeriesData
+			tiltSeries: TiltSeriesData,
+			spriteUrl: String = "/kv/tomographySession/${session.sessionId}/${tiltSeries.id}/reconstructionTiltSeriesMontage"
 		) =
 			TomoParticlesImage(
 				tiltSerieses,
@@ -66,7 +67,7 @@ class TomoParticlesImage(
 					ShowListParticleControls(ParticlesList.autoParticles2D(session.sessionId))
 				},
 				editable = false,
-				spriteUrl = "/kv/tomographySession/${session.sessionId}/${tiltSeries.id}/reconstructionTiltSeriesMontage",
+				spriteUrl = spriteUrl,
 				ownerType = OwnerType.Session,
 				ownerId = session.sessionId
 			)

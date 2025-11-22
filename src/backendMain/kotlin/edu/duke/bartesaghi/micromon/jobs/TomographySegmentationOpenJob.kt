@@ -110,7 +110,7 @@ class TomographySegmentationOpenJob(
 		// find an arbitrary (but deterministic) tilt series for this job
 		// like the newest tilt series written for this job
 		return latestTiltSeriesId
-			?.let { "/kv/jobs/$idOrThrow/data/$it/image/${size.id}" }
+			?.let { "/kv/jobs/$idOrThrow/data/$it/segmented/${size.id}" }
 
 			// or just use a placeholder
 			?: return "/img/placeholder/${size.id}"

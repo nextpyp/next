@@ -58,7 +58,9 @@ class TomographyDenoisingEvalView(val project: ProjectData, val job: TomographyD
 	private var filterTable: FilterTable<TiltSeriesData>? = null
 	private var gallery: HyperGallery<TiltSeriesData>? = null
 	private var liveTab: LiveTab? = null
+	private var liveDenoiseTab: LiveDenoiseTab? = null
 	private var liveTabId: Int? = null
+	private var liveDenoiseTabId: Int? = null
 
 	private var connector: WebsocketConnector? = null
 
@@ -162,6 +164,11 @@ class TomographyDenoisingEvalView(val project: ProjectData, val job: TomographyD
 				liveTab = LiveTab(data)
 				liveTabId = addTab("Tomograms", "fas fa-crosshairs") {
 					liveTab?.show(it.elem)
+				}.id
+
+				liveDenoiseTab = LiveDenoiseTab(data)
+				liveDenoiseTabId = addTab("Denoised", "fas fa-hand-sparkles") {
+					liveDenoiseTab?.show(it.elem)
 				}.id
 			}
 
@@ -274,6 +281,80 @@ class TomographyDenoisingEvalView(val project: ProjectData, val job: TomographyD
 
 				// load the particles image
 				particlesImage.load()
+			}
+		}
+
+		fun show(elem: Container) {
+
+			elem.addCssClass("live")
+
+			// layout the tab
+			elem.add(listNav)
+			elem.add(tiltSeriesesElem)
+
+			// start with the newest tilt series
+			listNav.showItem(data.tiltSerieses.size - 1, false)
+		}
+	}
+
+	private inner class LiveDenoiseTab(
+		val data: TiltSeriesesData
+	) {
+
+		val tiltSeriesesElem = Div()
+
+		val listNav = BigListNav(data.tiltSerieses, has100 = false, onSearch=data::searchById) e@{ index ->
+
+			// clear the previous contents
+			tiltSeriesesElem.removeAll()
+
+			// some controls here only work when in the real DOM
+			if (tiltSeriesesElem.getHTMLElement() == null) {
+				return@e
+			}
+
+			// get the indexed tilt series, if any
+			val tiltSeries = data.tiltSerieses.getOrNull(index)
+			if (tiltSeries == null) {
+				tiltSeriesesElem.div("No tilt series to show", classes = setOf("empty"))
+				return@e
+			}
+
+			// show metadata
+			tiltSeriesesElem.div(classes = setOf("stats")) {
+				div {
+					span("Name: ${tiltSeries.id}, processed on ${Date(tiltSeries.timestamp).toLocaleString()}")
+					button("Show Log", classes = setOf("log-button")).onClick {
+						LogView.showPopup("Log for Tilt Series: ${tiltSeries.id}") {
+							Services.jobs.getLog(job.jobId, tiltSeries.id)
+						}
+					}
+				}
+			}
+
+			// show the download badge
+			val recDownloadBadge = FileDownloadBadge(
+				filetype = ".rec file",
+				url = "kv/jobs/${job.jobId}/data/${tiltSeries.id}/den",
+				filename = "${job.jobId}_${tiltSeries.id}_den.rec",
+				loader = { Services.jobs.denData(job.jobId, tiltSeries.id) }
+			)
+			tiltSeriesesElem.add(recDownloadBadge)
+
+			// show the denoised reconstruction
+			val denoisedTomogramImage = TomoParticlesImage.forProject(project, job, data, tiltSeries, spriteUrl = "/kv/jobs/${job.jobId}/data/${tiltSeries.id}/denoisedTomogramMontage")
+			tiltSeriesesElem.add(denoisedTomogramImage)
+
+			// show the side view
+			tiltSeriesesElem.add(TomoSideViewDenoiseImage(job.jobId, tiltSeries.id))
+
+			AppScope.launch {
+
+				// load the download info
+				recDownloadBadge.load()
+
+				// load the particles image
+				denoisedTomogramImage.load()
 			}
 		}
 

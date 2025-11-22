@@ -48,6 +48,35 @@ actual class TomographySessionService : ITomographySessionService, Service {
 						}
 					}
 
+
+					get("denoisedTomogramMontage") {
+						call.respondExceptions {
+
+							// parse args
+							val session = authSession(SessionPermission.Read).session
+							val tiltSeriesId = call.parameters.getOrFail("tiltSeriesId")
+
+							// serve the image
+							val imagePath = TiltSeries.denoisedTomogramMontagePath(session.dir, tiltSeriesId)
+							ImageType.Webp.respond(call, imagePath)
+								?.respondNotFound(call)
+						}
+					}
+
+					get("segmentedTomogramMontage") {
+						call.respondExceptions {
+
+							// parse args
+							val session = authSession(SessionPermission.Read).session
+							val tiltSeriesId = call.parameters.getOrFail("tiltSeriesId")
+
+							// serve the image
+							val imagePath = TiltSeries.segmentedTomogramMontagePath(session.dir, tiltSeriesId)
+							ImageType.Webp.respond(call, imagePath)
+								?.respondNotFound(call)
+						}
+					}
+
 					get("reconstructionTiltSeriesMontage") {
 						call.respondExceptions {
 
@@ -104,6 +133,34 @@ actual class TomographySessionService : ITomographySessionService, Service {
 						}
 					}
 
+					get("sidesTiltSeriesDenoiseImage") {
+						call.respondExceptions {
+
+							// parse args
+							val session = authSession(SessionPermission.Read).session
+							val tiltSeriesId = call.parameters.getOrFail("tiltSeriesId")
+
+							// serve the image
+							val imagePath = TiltSeries.sidesDenoiseImagePath(session.dir, tiltSeriesId)
+							ImageType.Webp.respond(call, imagePath)
+								?.respondPlaceholder(call, ImageSize.Medium)
+						}
+					}
+
+					get("sidesTiltSeriesSegImage") {
+						call.respondExceptions {
+
+							// parse args
+							val session = authSession(SessionPermission.Read).session
+							val tiltSeriesId = call.parameters.getOrFail("tiltSeriesId")
+
+							// serve the image
+							val imagePath = TiltSeries.sidesSegmentImagePath(session.dir, tiltSeriesId)
+							ImageType.Webp.respond(call, imagePath)
+								?.respondPlaceholder(call, ImageSize.Medium)
+						}
+					}
+
 					get("rec") {
 						call.respondExceptions {
 
@@ -112,6 +169,30 @@ actual class TomographySessionService : ITomographySessionService, Service {
 							val tiltSeriesId = call.parameters.getOrFail("tiltSeriesId")
 
 							val path = TiltSeries.recPath(session.dir, tiltSeriesId)
+							call.respondFile(path, ContentType.Application.OctetStream)
+						}
+					}
+
+					get("den") {
+						call.respondExceptions {
+
+							// parse args
+							val session = authSession(SessionPermission.Read).session
+							val tiltSeriesId = call.parameters.getOrFail("tiltSeriesId")
+
+							val path = TiltSeries.denPath(session.dir, tiltSeriesId)
+							call.respondFile(path, ContentType.Application.OctetStream)
+						}
+					}
+
+					get("seg") {
+						call.respondExceptions {
+
+							// parse args
+							val session = authSession(SessionPermission.Read).session
+							val tiltSeriesId = call.parameters.getOrFail("tiltSeriesId")
+
+							val path = TiltSeries.segPath(session.dir, tiltSeriesId)
 							call.respondFile(path, ContentType.Application.OctetStream)
 						}
 					}
@@ -223,6 +304,20 @@ actual class TomographySessionService : ITomographySessionService, Service {
 	override suspend fun recData(sessionId: String, tiltSeriesId: String): Option<FileDownloadData> = sanitizeExceptions {
 		val session = auth(sessionId, SessionPermission.Read).session
 		TiltSeries.recPath(session.dir, tiltSeriesId)
+			.toFileDownloadData()
+			.toOption()
+	}
+
+	override suspend fun denData(sessionId: String, tiltSeriesId: String): Option<FileDownloadData> = sanitizeExceptions {
+		val session = auth(sessionId, SessionPermission.Read).session
+		TiltSeries.denPath(session.dir, tiltSeriesId)
+			.toFileDownloadData()
+			.toOption()
+	}
+
+	override suspend fun segData(sessionId: String, tiltSeriesId: String): Option<FileDownloadData> = sanitizeExceptions {
+		val session = auth(sessionId, SessionPermission.Read).session
+		TiltSeries.segPath(session.dir, tiltSeriesId)
 			.toFileDownloadData()
 			.toOption()
 	}

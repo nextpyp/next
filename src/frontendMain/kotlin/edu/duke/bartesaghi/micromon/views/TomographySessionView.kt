@@ -539,7 +539,7 @@ class TomographySessionView(
 		}
 	}
 
-	private inner class TiltSeriesTab(val session: SessionData) : Div(classes = setOf("live")) {
+	private inner class TiltSeriesTab(val session: SessionData, val denoise: Boolean = false, val segmentation: Boolean = false) : Div(classes = setOf("live")) {
 
 		val loader = TabDataLoader<RealTimeS2C.SessionLargeData>()
 
@@ -572,7 +572,7 @@ class TomographySessionView(
 			}
 
 			// show the tomogaphy sub-tabs
-			val tomoPanel = SessionTomoMultiPanel(session, tiltSeriesesData, tiltSeries)
+			val tomoPanel = SessionTomoMultiPanel(session, tiltSeriesesData, tiltSeries, denoise, segmentation)
 			tiltSeriesElem.add(tomoPanel)
 			AppScope.launch {
 				tomoPanel.load()

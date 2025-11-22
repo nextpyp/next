@@ -39,8 +39,20 @@ class TiltSeries(private val doc: Document) {
 		fun outputImagePath(dir: Path, tiltSeriesId: String): Path =
 			dir / "webp" / "$tiltSeriesId.webp"
 
+		fun denoisedImagePath(dir: Path, tiltSeriesId: String): Path =
+			dir / "webp" / "${tiltSeriesId}_den.webp"
+
+		fun segmentedImagePath(dir: Path, tiltSeriesId: String): Path =
+			dir / "webp" / "${tiltSeriesId}_seg.webp"
+
 		fun recPath(dir: Path, tiltSeriesId: String): Path =
 			dir / "mrc" / "$tiltSeriesId.rec"
+
+		fun denPath(dir: Path, tiltSeriesId: String): Path =
+			dir / "mrc" / "${tiltSeriesId}_den.rec"
+
+		fun segPath(dir: Path, tiltSeriesId: String): Path =
+			dir / "mrc" / "${tiltSeriesId}_seg.rec"
 
 		fun metadataPath(dir: Path, tiltSeriesId: String): Path =
 			dir / "frealign" / "artiax" / "${tiltSeriesId}_K1.star"
@@ -52,6 +64,28 @@ class TiltSeries(private val doc: Document) {
 			// try webp first, fall back to png otherwise (this is done to workaround the max size limitation of the webp format)
 			val subdir = dir / "webp"
 			val filename = "${tiltSeriesId}_rec"
+			val webp = subdir / "$filename.webp"
+			if (webp.exists()) {
+				return webp
+			}
+			return subdir / "$filename.png"
+		}
+
+		fun denoisedTomogramMontagePath(dir: Path, tiltSeriesId: String): Path {
+			// try webp first, fall back to png otherwise (this is done to workaround the max size limitation of the webp format)
+			val subdir = dir / "webp"
+			val filename = "${tiltSeriesId}_den_rec"
+			val webp = subdir / "$filename.webp"
+			if (webp.exists()) {
+				return webp
+			}
+			return subdir / "$filename.png"
+		}
+
+		fun segmentedTomogramMontagePath(dir: Path, tiltSeriesId: String): Path {
+			// try webp first, fall back to png otherwise (this is done to workaround the max size limitation of the webp format)
+			val subdir = dir / "webp"
+			val filename = "${tiltSeriesId}_seg_rec"
 			val webp = subdir / "$filename.webp"
 			if (webp.exists()) {
 				return webp
@@ -78,6 +112,12 @@ class TiltSeries(private val doc: Document) {
 
 		fun sidesImagePath(dir: Path, tiltSeriesId: String): Path =
 			dir / "webp" / "${tiltSeriesId}_sides.webp"
+
+		fun sidesDenoiseImagePath(dir: Path, tiltSeriesId: String): Path =
+			dir / "webp" / "${tiltSeriesId}_den_sides.webp"
+
+		fun sidesSegmentImagePath(dir: Path, tiltSeriesId: String): Path =
+			dir / "webp" / "${tiltSeriesId}_seg_sides.webp"
 
 		fun pytomTiltSeriesExtractionGraphPath(dir: Path, tiltSeriesId: String): Path =
 			dir / "pytom" / "${tiltSeriesId}_extraction_graph.svg"

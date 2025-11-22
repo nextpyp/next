@@ -11,7 +11,9 @@ import kotlin.math.abs
 class SessionTomoMultiPanel(
 	val session: SessionData,
 	val tiltSerieses: TiltSeriesesData,
-	val tiltSeries: TiltSeriesData
+	val tiltSeries: TiltSeriesData,
+	val denoise: Boolean = false,
+	val segmentation: Boolean = false
 ): Div(classes = setOf("tomo-multipanel")) {
 
 	private var currentTiltFramesTab: Double? = null
@@ -54,6 +56,10 @@ class SessionTomoMultiPanel(
 		Storage::spriteAlignedTiltSeriesSize
 	)
 
+	val denoisedTomogramImage = TomoParticlesImage.forSession(session, tiltSerieses, tiltSeries, spriteUrl = "/kv/tomographySession/${session.sessionId}/${tiltSeries.id}/denoisedTomogramMontage")
+
+	val segmentedTomogramImage = TomoParticlesImage.forSession(session, tiltSerieses, tiltSeries, spriteUrl = "/kv/tomographySession/${session.sessionId}/${tiltSeries.id}/segmentedTomogramMontage")
+
 	private val ctf2dImage = SpritePanel(
 		ctfMultiTiltPlot.ctf2dImageSource,
 		"2D CTF Profile",
@@ -73,6 +79,20 @@ class SessionTomoMultiPanel(
 		url = "kv/tomographySession/${session.sessionId}/${tiltSeries.id}/rec",
 		filename = "${session.sessionId}_${tiltSeries.id}.rec",
 		loader = { Services.tomographySessions.recData(session.sessionId, tiltSeries.id) }
+	)
+
+	private val denoiseDownloadBadge = FileDownloadBadge(
+		filetype = ".rec file",
+		url = "kv/tomographySession/${session.sessionId}/${tiltSeries.id}/den",
+		filename = "${session.sessionId}_${tiltSeries.id}_den.rec",
+		loader = { Services.tomographySessions.denData(session.sessionId, tiltSeries.id) }
+	)
+
+	private val segDownloadBadge = FileDownloadBadge(
+		filetype = ".rec file",
+		url = "kv/tomographySession/${session.sessionId}/${tiltSeries.id}/seg",
+		filename = "${session.sessionId}_${tiltSeries.id}_seg.rec",
+		loader = { Services.tomographySessions.segData(session.sessionId, tiltSeries.id) }
 	)
 
 	val tabs = flatLazyTabPanel {
@@ -108,6 +128,22 @@ class SessionTomoMultiPanel(
 			lazyTab.elem.add(self.recDownloadBadge)
 			lazyTab.elem.add(self.particlesImage)
 			lazyTab.elem.add(SessionTomoSideViewImage(self.session.sessionId, self.tiltSeries.id))
+		}
+
+		val condition = true
+
+		if ( condition == true ) {
+			addTab("Denoised") { lazyTab ->
+				lazyTab.elem.add(self.denoiseDownloadBadge)
+				lazyTab.elem.add(self.denoisedTomogramImage)
+				lazyTab.elem.add(SessionTomoSideViewDenoiseImage(self.session.sessionId, self.tiltSeries.id))
+			}
+
+			addTab("Segmentation") { lazyTab ->
+				lazyTab.elem.add(self.segDownloadBadge)
+				lazyTab.elem.add(self.segmentedTomogramImage)
+				lazyTab.elem.add(SessionTomoSideViewSegImage(self.session.sessionId, self.tiltSeries.id))
+			}
 		}
 	}
 
@@ -176,9 +212,19 @@ class SessionTomoMultiPanel(
 			driftBarPlot.myOnClick(initialIndexToShow)
 		}
 
-		recDownloadBadge.load()
+		val condition = true
 
+		recDownloadBadge.load()
+		if ( condition == true ) {
+			denoiseDownloadBadge.load()
+			segDownloadBadge.load()
+		}
+		
 		// load the particles image
 		particlesImage.load()
+		if ( condition == true ){
+			denoisedTomogramImage.load()
+			segmentedTomogramImage.load()
+		}
 	}
 }
