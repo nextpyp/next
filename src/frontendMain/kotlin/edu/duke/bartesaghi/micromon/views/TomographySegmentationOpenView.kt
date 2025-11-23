@@ -116,7 +116,7 @@ class TomographySegmentationOpenView(val project: ProjectData, val job: Tomograp
 						goto = { _, index ->
 							showTiltSeries(index, true)
 						},
-						tooltipImageUrl = { it.imageUrl(job, ImageSize.Small) },
+						tooltipImageUrl = { it.segmentedUrl(job, ImageSize.Small) },
 					).apply {
 						lazyTab.elem.add(this)
 						load()
@@ -136,7 +136,7 @@ class TomographySegmentationOpenView(val project: ProjectData, val job: Tomograp
 								link(tiltSeries.id, classes = setOf("link"))
 									.onClick { showTiltSeries(index, true) }
 							}
-							elem.add(TiltSeriesImage(project, job, tiltSeries).apply {
+							elem.add(TiltSeriesSegmentedImage(project, job, tiltSeries).apply {
 								loadParticles()
 							})
 						}
@@ -149,7 +149,7 @@ class TomographySegmentationOpenView(val project: ProjectData, val job: Tomograp
 				addTab("Gallery", "fas fa-image") { lazyTab ->
 					gallery = HyperGallery(data.tiltSerieses, ImageSizes.from(ImageSize.Small)).apply {
 						html = { tiltSeries ->
-							listenToImageSize(document.create.img(src = tiltSeries.imageUrl(job, ImageSize.Small)))
+							listenToImageSize(document.create.img(src = tiltSeries.segmentedUrl(job, ImageSize.Small)))
 						}
 						linker = { _, index ->
 							showTiltSeries(index, true)
@@ -214,11 +214,11 @@ class TomographySegmentationOpenView(val project: ProjectData, val job: Tomograp
 	private fun showTiltSeries(index: Int, stopLive: Boolean) {
 
 		// make sure the live tab is showing
-		liveTabId?.let {
+		liveSegmentTabId?.let {
 			tabs?.showTab(it)
 		}
 
-		liveTab?.listNav?.showItem(index, stopLive)
+		liveSegmentTab?.listNav?.showItem(index, stopLive)
 	}
 
 

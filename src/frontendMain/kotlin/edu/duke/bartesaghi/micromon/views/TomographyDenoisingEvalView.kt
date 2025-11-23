@@ -118,7 +118,7 @@ class TomographyDenoisingEvalView(val project: ProjectData, val job: TomographyD
 						goto = { _, index ->
 							showTiltSeries(index, true)
 						},
-						tooltipImageUrl = { it.imageUrl(job, ImageSize.Small) },
+						tooltipImageUrl = { it.denoisedUrl(job, ImageSize.Small) },
 					).apply {
 						lazyTab.elem.add(this)
 						load()
@@ -138,7 +138,7 @@ class TomographyDenoisingEvalView(val project: ProjectData, val job: TomographyD
 								link(tiltSeries.id, classes = setOf("link"))
 									.onClick { showTiltSeries(index, true) }
 							}
-							elem.add(TiltSeriesImage(project, job, tiltSeries).apply {
+							elem.add(TiltSeriesDenoisedImage(project, job, tiltSeries).apply {
 								loadParticles()
 							})
 						}
@@ -151,7 +151,7 @@ class TomographyDenoisingEvalView(val project: ProjectData, val job: TomographyD
 				addTab("Gallery", "fas fa-image") { lazyTab ->
 					gallery = HyperGallery(data.tiltSerieses, ImageSizes.from(ImageSize.Small)).apply {
 						html = { tiltSeries ->
-							listenToImageSize(document.create.img(src = tiltSeries.imageUrl(job, ImageSize.Small)))
+							listenToImageSize(document.create.img(src = tiltSeries.denoisedUrl(job, ImageSize.Small)))
 						}
 						linker = { _, index ->
 							showTiltSeries(index, true)
@@ -215,11 +215,11 @@ class TomographyDenoisingEvalView(val project: ProjectData, val job: TomographyD
 	private fun showTiltSeries(index: Int, stopLive: Boolean) {
 
 		// make sure the live tab is showing
-		liveTabId?.let {
+		liveDenoiseTabId?.let {
 			tabs?.showTab(it)
 		}
 
-		liveTab?.listNav?.showItem(index, stopLive)
+		liveDenoiseTab?.listNav?.showItem(index, stopLive)
 	}
 
 

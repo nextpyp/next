@@ -67,6 +67,12 @@ data class TiltSeriesData(
 	fun imageUrl(session: SessionData, imageSize: ImageSize): String =
 		"/kv/sessions/${session.sessionId}/data/$id/image/${imageSize.id}"
 
+	fun denoisedUrl(job: JobData, size: ImageSize): String =
+		"/kv/jobs/${job.jobId}/data/$id/denoised/${size.id}"
+
+	fun segmentedUrl(job: JobData, size: ImageSize): String =
+		"/kv/jobs/${job.jobId}/data/$id/segmented/${size.id}"
+
 	fun ctffindUrl(job: JobData, size: ImageSize): String =
 		"/kv/jobs/${job.jobId}/data/$id/ctffind/${size.id}"
 

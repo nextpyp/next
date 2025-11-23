@@ -293,12 +293,44 @@ class MicrographImage(
 )
 
 
+class TiltSeriesDenoisedImage(
+	val project: ProjectData,
+	val job: JobData,
+	val tiltSeries: TiltSeriesData,
+) : ParticlesImage(
+	"Tilt Series",
+	Storage::tiltSeriesSize,
+	imageUrl = { size -> tiltSeries.denoisedUrl(job, size) },
+	ownerType = OwnerType.Project,
+	ownerId = job.jobId,
+	datumId = tiltSeries.id,
+	tiltSeries.imageDims,
+	NoneParticleControls(),
+	null
+)
+
+class TiltSeriesSegmentedImage(
+	val project: ProjectData,
+	val job: JobData,
+	val tiltSeries: TiltSeriesData,
+) : ParticlesImage(
+	"Tilt Series",
+	Storage::tiltSeriesSize,
+	imageUrl = { size -> tiltSeries.segmentedUrl(job, size) },
+	ownerType = OwnerType.Project,
+	ownerId = job.jobId,
+	datumId = tiltSeries.id,
+	tiltSeries.imageDims,
+	NoneParticleControls(),
+	null
+)
+
 class TiltSeriesImage(
 	val project: ProjectData,
 	val job: JobData,
 	val tiltSeries: TiltSeriesData,
 ) : ParticlesImage(
-	"TiltSeries",
+	"Tilt Series",
 	Storage::tiltSeriesSize,
 	imageUrl = { size -> tiltSeries.imageUrl(job, size) },
 	ownerType = OwnerType.Project,
