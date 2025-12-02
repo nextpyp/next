@@ -27,7 +27,8 @@ interface ISingleParticlePreprocessingService {
 
 @Serializable
 data class SingleParticlePreprocessingArgs(
-	val values: ArgValuesToml
+	val values: ArgValuesToml,
+	val particlesName: String?
 )
 
 @Serializable

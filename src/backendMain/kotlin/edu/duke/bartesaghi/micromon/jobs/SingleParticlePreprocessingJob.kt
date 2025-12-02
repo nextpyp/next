@@ -39,11 +39,13 @@ class SingleParticlePreprocessingJob(
 
 		private fun SingleParticlePreprocessingArgs.toDoc() = Document().also { doc ->
 			doc["values"] = values
+			doc["list"] = particlesName
 		}
 
 		private fun SingleParticlePreprocessingArgs.Companion.fromDoc(doc: Document) =
 			SingleParticlePreprocessingArgs(
-				doc.getString("values")
+				doc.getString("values"),
+				doc.getString("list")
 			)
 
 		val eventListeners = MicrographEventListeners(this)
@@ -83,6 +85,14 @@ class SingleParticlePreprocessingJob(
 
 		// build the args for PYP
 		val pypArgs = launchArgValues()
+
+		val newestArgs = args.newestOrThrow().args
+
+		// write out manually-picked particles, if needed
+		ParticlesJobs.clear(project.osUsername, dir)
+		manualParticlesList(newestArgs.particlesName)
+			?.let { ParticlesJobs.writeSingleParticle(project.osUsername, this, dir, it) }
+
 		pypArgs.dataMode = "spr"
 
 		Pyp.pyp.launch(project, runId, pypArgs, "Launch", "pyp_launch")

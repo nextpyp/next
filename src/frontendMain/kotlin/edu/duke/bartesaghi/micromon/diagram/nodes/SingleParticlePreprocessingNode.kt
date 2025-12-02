@@ -15,6 +15,7 @@ import edu.duke.bartesaghi.micromon.views.Viewport
 import js.micromondiagrams.MicromonDiagrams
 import js.micromondiagrams.nodeType
 import io.kvision.form.formPanel
+import io.kvision.form.select.SelectRemote
 import io.kvision.modal.Modal
 
 
@@ -39,7 +40,7 @@ class SingleParticlePreprocessingNode(
 
 		override suspend fun showUseDataForm(viewport: Viewport, diagram: Diagram, project: ProjectData, outNode: Node, input: CommonJobData.DataId, copyFrom: Node?, callback: (Node) -> Unit) {
 			val defaultArgs = (copyFrom as SingleParticlePreprocessingNode?)?.job?.args
-				?: JobArgs.fromNext(SingleParticlePreprocessingArgs(newArgValues(project, input)))
+				?: JobArgs.fromNext(SingleParticlePreprocessingArgs(newArgValues(project, input), particlesName=null))
 			form(config.name, outNode, defaultArgs, true) { args ->
 
 				// save the node to the server
@@ -57,7 +58,8 @@ class SingleParticlePreprocessingNode(
 			val input = input
 				?: throw IllegalArgumentException("input required to make job for ${config.id}")
 			val args = SingleParticlePreprocessingArgs(
-				values = argValues
+				values = argValues,
+				particlesName = null
 			)
 			return Services.singleParticlePreprocessing.addNode(project.owner.id, project.projectId, input, args)
 		}
@@ -81,12 +83,46 @@ class SingleParticlePreprocessingNode(
 			)
 
 			val form = win.formPanel<SingleParticlePreprocessingArgs>().apply {
-				add(SingleParticlePreprocessingArgs::values, ArgsForm(pypArgs, listOf(upstreamNode), enabled, config.configId))
+
+				add(SingleParticlePreprocessingArgs::particlesName,
+					if (jobId != null) {
+						SelectRemote(
+							serviceManager = ParticlesServiceManager,
+							function = IParticlesService::getListOptions,
+							stateFunction = { "${OwnerType.Project.id}/$jobId" },
+							label = "Select list of positions",
+							preload = true
+						)
+					} else {
+						HiddenString()
+					}
+				)
+
+				add(SingleParticlePreprocessingArgs::values, ArgsForm(pypArgs, emptyList(), enabled, config.configId))
 			}
 
-			form.init(args)
+			// use the none filter option for the particles name in the form,
+			// since the control can't handle nulls
+			val mapper = ArgsMapper<SingleParticlePreprocessingArgs>(
+				toForm = { args ->
+					 if (args.particlesName == null) {
+						 args.copy(particlesName = NoneFilterOption)
+					 } else {
+						 args
+					 }
+				},
+				fromForm = { args ->
+					if (args.particlesName == NoneFilterOption) {
+						args.copy(particlesName = null)
+					} else {
+						args
+					}
+				}
+			)
+
+			form.init(args, mapper)
 			if (enabled) {
-				win.addSaveResetButtons(form, args, onDone)
+				win.addSaveResetButtons(form, args, mapper, onDone)
 			}
 			win.show()
 		}
