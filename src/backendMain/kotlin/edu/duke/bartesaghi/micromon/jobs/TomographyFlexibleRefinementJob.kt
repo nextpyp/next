@@ -113,6 +113,7 @@ class TomographyFlexibleRefinementJob(
 		// remove any reconstructions and refinements
 		Database.instance.reconstructions.deleteAll(idOrThrow)
 		Database.instance.refinements.deleteAll(idOrThrow)
+		Database.instance.refinementBundles.deleteAll(idOrThrow)
 
 		// also reset the finished args
 		args.unrun()
