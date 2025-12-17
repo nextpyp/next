@@ -32,6 +32,7 @@ class LogView : Div(classes = setOf("log-view")) {
 
 		private const val nowrapClassname = "nowrap"
 		private const val showDebugClassname = "show-debug-info"
+		private const val showTimestampClassname = "show-timestamp-info"
 
 		fun fromText(text: String?) =
 			LogView().apply {
@@ -122,6 +123,24 @@ class LogView : Div(classes = setOf("log-view")) {
 		}
 	}
 
+	private val showTimestampCheck = CheckBox(
+		value = Storage.logShowTimestampInfo ?: false,
+		label = "Show date/time"
+	).apply {
+		style = CheckBoxStyle.PRIMARY
+		addCssClass("auto-scroll")
+		onEvent {
+			change = {
+				Storage.logShowTimestampInfo = value
+				if (value) {
+					lines.addCssClass(showTimestampClassname)
+				} else {
+					lines.removeCssClass(showTimestampClassname)
+				}
+			}
+		}
+	}
+
 	private val lines = Table()
 	private val scroller = Div(classes = setOf("log-scroller"))
 
@@ -135,6 +154,9 @@ class LogView : Div(classes = setOf("log-view")) {
 		if (!wrapCheck.value) {
 			lines.addCssClass(nowrapClassname)
 		}
+		if (showTimestampCheck.value) {
+			lines.addCssClass(showTimestampClassname)
+		}
 		if (showDebugCheck.value) {
 			lines.addCssClass(showDebugClassname)
 		}
@@ -142,6 +164,7 @@ class LogView : Div(classes = setOf("log-view")) {
 		// layout the elements
 		div(classes = setOf("controls")) {
 			add(this@LogView.wrapCheck)
+			add(this@LogView.showTimestampCheck)
 			add(this@LogView.showDebugCheck)
 		}
 		add(scroller)
@@ -253,6 +276,10 @@ fun Container.addParsedLogLine(text: String) {
 	if (lineInfo != null) {
 
 		// show the line as columns
+		span(classes = setOf("timestamp")) {
+			addAnsiContent(lineInfo.timestamp)
+			textNode(" ")
+		}
 		span {
 			addAnsiContent(lineInfo.prefix)
 			textNode(" ")
@@ -274,6 +301,7 @@ fun Container.addParsedLogLine(text: String) {
 
 
 data class LineInfo(
+	val timestamp: String,
 	val prefix: String,
 	val debug: String,
 	val suffix: String
@@ -289,6 +317,10 @@ data class LineInfo(
 			// `2023-10-11 10:40:42 [INFO] pyp_main.py:57 | Loading results took: 00h 00m 00s`
 			// but there are invisible ANSI character codes in there too
 
+			val preBracket = line
+				.indexOfFirst { it == '[' }
+				.takeIf { it >= 0 }
+				?: return null
 			val posBracket = line
 				.indexOfFirst { it == ']' }
 				.takeIf { it >= 0 }
@@ -299,7 +331,8 @@ data class LineInfo(
 				?: return null
 
 			return LineInfo(
-				prefix = line.substring(0 .. posBracket + 1).trimEnd(),
+				timestamp = line.substring(0 .. preBracket - 1).trimEnd(),
+				prefix = line.substring(preBracket - 1 until posBracket + 1).trimStart(),
 				debug = line.substring(posBracket + 1 until posPipe + 1).trimStart(),
 				suffix = line.substring(posPipe + 1).trimStart()
 			)

@@ -174,7 +174,10 @@ class LogStreamer(
 		val level = Level[msg.level]
 
 		logView.addLine { lineElem ->
-			lineElem.span(msg.timestamp.timestampToString())
+			val timeStampText = msg.timestamp.timestampToString()
+			lineElem.span(classes = setOf("timestamp")) {
+				span(timeStampText)
+			}
 			lineElem.span(" [")
 			lineElem.span(level.name.uppercase()) {
 				when (level) {
@@ -226,7 +229,10 @@ class LogStreamer(
 			val newBar = TQDMProgressBar(info)
 			this.progressBar = newBar
 			logView.addLine { lineElem ->
-				lineElem.span(msg.timestamp.timestampToString())
+				val timeStampText = msg.timestamp.timestampToString()
+				lineElem.span(classes = setOf("timestamp")) {
+					span(timeStampText)
+				}
 				lineElem.add(newBar)
 			}
 		}

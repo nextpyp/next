@@ -3467,6 +3467,12 @@ div.file-browser .file-browser-bottom .file-browser-controls .file-browser-glob 
 	display: inline-block;
 }
 
+.log-view table .log-line .timestamp {
+	display: none;
+}
+.log-view table.show-timestamp-info .log-line .timestamp {
+	display: inline-block;
+}
 
 .log-view .log-scroller {
 	overflow: auto;

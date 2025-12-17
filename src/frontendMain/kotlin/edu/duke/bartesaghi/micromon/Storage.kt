@@ -136,6 +136,7 @@ object Storage {
 	var tiltSeriesSort by TiltSeriesPropStorageItem("tiltSeriesSort")
 	var logWrapLines by BoolStorageItem("logWrapLines")
 	var logShowDebugInfo by BoolStorageItem("logShowDebugInfo")
+	var logShowTimestampInfo by BoolStorageItem("logShowTimestampInfo")
 	var projectSharingFilter by EnumStorageItem("projectSharingFilter", DashboardView.SharingOption.values())
 	var twodClassesImageSize by ImageSizeStorageItem("twodClassesImageSize")
 	var classesMovieSize by ImageSizeStorageItem("classesMovieSize")
