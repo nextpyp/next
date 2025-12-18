@@ -177,8 +177,9 @@ class LogStreamer(
 			val timeStampText = msg.timestamp.timestampToString()
 			lineElem.span(classes = setOf("timestamp")) {
 				span(timeStampText)
+				span(" ")
 			}
-			lineElem.span(" [")
+			lineElem.span("[")
 			lineElem.span(level.name.uppercase()) {
 				when (level) {
 					Level.Critical,
