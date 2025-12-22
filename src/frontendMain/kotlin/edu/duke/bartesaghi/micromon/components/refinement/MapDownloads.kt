@@ -23,6 +23,7 @@ class MapDownloads(
 		when (this) {
 			MRCType.FULL  -> "Full-Size Map"
 			MRCType.CROP  -> "Cropped Map"
+			MRCType.RESMAP -> "Local Resolution Map"
 			MRCType.HALF1 -> "Half-Map 1"
 			MRCType.HALF2 -> "Half-Map 2"
 		}

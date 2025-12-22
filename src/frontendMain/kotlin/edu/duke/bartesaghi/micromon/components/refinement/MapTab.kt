@@ -62,7 +62,7 @@ class MapTab(
 	private fun show(reconstruction: ReconstructionData) {
 
 		// Make the downloads button
-		add(MapDownloads(job, reconstruction, listOf(MRCType.CROP, MRCType.FULL)))
+		add(MapDownloads(job, reconstruction, listOf(MRCType.CROP, MRCType.FULL, MRCType.RESMAP)))
 
 		// show metadata
 		add(MapImage(job.jobId, reconstruction))

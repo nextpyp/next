@@ -182,7 +182,7 @@ class MapsTab(
 		val lastIteration = state.reconstructions.iterations
 			.lastOrNull()
 		contentElem.add(MapDownloads(job, reconstruction, when (reconstruction.iteration) {
-			lastIteration -> MRCType.values().toList()
+			lastIteration -> listOf(MRCType.HALF1, MRCType.HALF2, MRCType.CROP, MRCType.FULL)
 			else -> listOf(MRCType.CROP, MRCType.FULL)
 		}))
 

@@ -160,6 +160,7 @@ enum class MRCType(val id: String, val filenameFragment: String?, val usesIterat
 	HALF1("half1", "half1", false),
 	HALF2("half2", "half2", false),
 	CROP("crop","crop", true),
+	RESMAP("resmap","resmap", true),
 	FULL("full", null, true);
 
 	companion object {
