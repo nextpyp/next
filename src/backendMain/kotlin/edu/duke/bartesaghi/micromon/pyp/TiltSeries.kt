@@ -104,6 +104,17 @@ class TiltSeries(private val doc: Document) {
 			return subdir / "$filename.png"
 		}
 
+		fun predOutTiltSeriesMontagePath(dir: Path, tiltSeriesId: String): Path {
+			// try webp first, fall back to png otherwise (this is done to workaround the max size limitation of the webp format)
+			val subdir = dir / "train"
+			val filename = "${tiltSeriesId}_pred_hm"
+			val webp = subdir / "$filename.webp"
+			if (webp.exists()) {
+				return webp
+			}
+			return subdir / "$filename.png"
+		}
+
 		fun twodCtfTiltMontagePath(dir: Path, tiltSeriesId: String): Path =
 			dir / "webp" / "${tiltSeriesId}_2D_ctftilt.webp"
 

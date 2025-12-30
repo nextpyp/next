@@ -12,9 +12,11 @@ import org.bson.conversions.Bson
 class TomographyParticlesTrainJob(
 	userId: String,
 	projectId: String
-) : Job(userId, projectId, config) {
+) : Job(userId, projectId, config), TiltSeriesesJob {
 
 	val args = JobArgs<TomographyParticlesTrainArgs>()
+	override var latestTiltSeriesId: String? = null
+	override val eventListeners get() = Companion.eventListeners
 
 	var inParticles: CommonJobData.DataId? by InputProp(config.particles)
 
@@ -30,6 +32,7 @@ class TomographyParticlesTrainJob(
 		).apply {
 			args.finished = doc.getDocument("finishedArgs")?.let { TomographyParticlesTrainArgs.fromDoc(it) }
 			args.next = doc.getDocument("nextArgs")?.let { TomographyParticlesTrainArgs.fromDoc(it) }
+			latestTiltSeriesId = doc.getString("latestTiltSeriesId")
 			fromDoc(doc)
 		}
 
@@ -57,6 +60,7 @@ class TomographyParticlesTrainJob(
 		super.updateDoc(updates)
 		updates.add(Updates.set("finishedArgs", args.finished?.toDoc()))
 		updates.add(Updates.set("nextArgs", args.next?.toDoc()))
+		updates.add(Updates.set("latestTiltSeriesId", latestTiltSeriesId))
 	}
 
 	override fun isChanged() = args.hasNext()
@@ -91,6 +95,8 @@ class TomographyParticlesTrainJob(
 
 		// job was launched, move the args over
 		args.run()
+		// and wipe the latest tilt series id, so we can detect when the first one comes in next time
+		latestTiltSeriesId = null
 		update()
 	}
 
@@ -103,6 +109,7 @@ class TomographyParticlesTrainJob(
 
 		// also reset the finished args
 		args.unrun()
+		latestTiltSeriesId = null
 		update()
 	}
 
