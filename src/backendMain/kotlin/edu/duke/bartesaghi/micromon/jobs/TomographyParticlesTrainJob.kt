@@ -1,6 +1,7 @@
 package edu.duke.bartesaghi.micromon.jobs
 
 import com.mongodb.client.model.Updates
+import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.mongo.getDocument
 import edu.duke.bartesaghi.micromon.nodes.TomographyParticlesTrainNodeConfig
 import edu.duke.bartesaghi.micromon.pyp.*
@@ -106,6 +107,7 @@ class TomographyParticlesTrainJob(
 	override fun wipeData() {
 
 		// TODO: also delete any associated data?
+		Database.instance.tiltSeries.deleteAll(idOrThrow)
 
 		// also reset the finished args
 		args.unrun()
