@@ -1890,8 +1890,8 @@ div.project-view div.jobs-monitor div.runs {
 	overflow-y: auto;
 	overflow-x: clip;
 	padding-bottom: 80px;
-	padding-left: 20px;
-	padding-right: 30px; /* leave room for a scrollbar */
+	padding-left: 8px;
+	padding-right: 8px; /* leave room for a scrollbar */
 }
 
 div.project-view div.jobs-monitor div.runs div.run div.disclosure-content {
