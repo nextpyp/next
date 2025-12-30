@@ -89,17 +89,6 @@ class TomographyParticlesTrainView(val project: ProjectData, val job: Tomography
 				elem.remove(loadingElem)
 			}
 
-			val args = try {
-				delayAtLeast(200) {
-					TomographyParticlesTrainNode.pypArgs.get()
-				}
-			} catch (t: Throwable) {
-				elem.errorMessage(t)
-				return@launch
-			} finally {
-				elem.remove(loadingElem)
-			}
-
 			// show tilt series stats
 			val tiltSeriesStats = TiltSeriesStats()
 			tiltSeriesStats.loadCounts(data, OwnerType.Project, job.jobId, pickingControls.list)
@@ -224,11 +213,6 @@ class TomographyParticlesTrainView(val project: ProjectData, val job: Tomography
 			tiltSeriesesElem.div(classes = setOf("stats")) {
 				div {
 					span("Name: ${tiltSeries.id}, processed on ${Date(tiltSeries.timestamp).toLocaleString()}")
-					button("Show Log", classes = setOf("log-button")).onClick {
-						LogView.showPopup("Log for Tilt Series: ${tiltSeries.id}") {
-							Services.jobs.getLog(job.jobId, tiltSeries.id)
-						}
-					}
 				}
 			}
 
