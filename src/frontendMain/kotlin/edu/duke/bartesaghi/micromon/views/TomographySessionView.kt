@@ -89,6 +89,7 @@ class TomographySessionView(
 	private var galleryTab: GalleryTab? = null
 	private var connector: WebsocketConnector? = null
 	private val tiltSeriesesData = TiltSeriesesData()
+	private var twoDClassesTab: TwoDClassesTab? = null
 	private var sendSettingsSaved: (suspend () -> Unit)? = null
 
 
@@ -146,7 +147,13 @@ class TomographySessionView(
 			.onGoToTomographySession(viewport, session)
 
 		// add the extra tabs
-		opsTab = SessionOps(session)
+		opsTab = SessionOps(session).apply {
+			onClear = { daemon ->
+				if (daemon == SessionDaemon.Fypd) {
+					twoDClassesTab?.clearTwoDClasses()
+				}
+			}
+		}
 		val opsTabId = tabs.addTab("Operation", "fas fa-cogs") {
 			opsTab?.show(it.elem)
 		}.id
@@ -170,6 +177,11 @@ class TomographySessionView(
 		tiltSeriesTabId = tabs.addTab("Tilt Series", "fas fa-desktop") {
 			tiltSeriesTab?.show(it)
 		}.id
+
+		twoDClassesTab = TwoDClassesTab()
+		tabs.addTab("2D Classes", "fas fa-th-large") {
+			twoDClassesTab?.show(it)
+		}
 
 		// start on the ops tab
 		tabs.showTab(opsTabId)
@@ -213,6 +225,7 @@ class TomographySessionView(
 				tableTab?.loader?.setData(dataMsg)
 				galleryTab?.loader?.setData(dataMsg)
 				tiltSeriesTab?.loader?.setData(dataMsg)
+				twoDClassesTab?.loader?.setData(dataMsg)
 			} catch (t: Throwable) {
 				t.reportError()
 				Toast.error("An error occurred while loading the large session data.")
@@ -248,6 +261,9 @@ class TomographySessionView(
 								plotsTab?.onTiltSeries(msg)
 								tableTab?.onTiltSeries()
 								galleryTab?.onTiltSeries()
+							}
+							is RealTimeS2C.SessionTwoDClasses -> {
+								twoDClassesTab?.onTwoDClasses(msg)
 							}
 							is RealTimeS2C.SessionExport -> {
 								opsTab?.exportsMonitor?.update(msg)
@@ -597,6 +613,99 @@ class TomographySessionView(
 		fun show(lazyTab: LazyTabPanel.LazyTab) {
 			lazyTab.elem.add(this)
 			loader.init(lazyTab)
+		}
+	}
+
+	private inner class TwoDClassesTab : Div(classes = setOf("twod-classes")) {
+
+		val loader = TabDataLoader<RealTimeS2C.SessionLargeData>()
+
+		private val list = ArrayList<TwoDClassesData>()
+		private val descriptionElem = Div(classes = setOf("description"))
+		private val imagePanel = SizedPanel(
+			title = "2D Classes",
+			initialSize = Storage.twodClassesImageSize
+		).apply {
+			onResize = { imageSize ->
+				Storage.twodClassesImageSize = imageSize
+				this@TwoDClassesTab.update()
+			}
+		}
+		private val panelElem = Div()
+
+		private val nav = BigListNav(
+			items = list,
+			has100 = false,
+			onShow = { update() }
+		)
+
+		init {
+
+			// start with a loading message
+			loading("Loading 2D Classes ...", classes = setOf("spaced"))
+
+			// wire up events
+			loader.onData = { msg ->
+
+				removeAll()
+
+				// because kotlin DSLs are dumb sometimes
+				val me = this
+
+				// build the UI
+				div(classes = setOf("controls")) {
+					add(me.nav)
+					add(me.descriptionElem)
+				}
+				add(imagePanel)
+				imagePanel.add(panelElem)
+
+				// update the list nav
+				list.clear()
+				list.addAll(msg.twoDClasses.sortedBy { it.created })
+				nav.newItem()
+			}
+		}
+
+		fun show(lazyTab: LazyTabPanel.LazyTab) {
+			lazyTab.elem.add(this)
+			loader.init(lazyTab)
+		}
+
+		fun onTwoDClasses(msg: RealTimeS2C.SessionTwoDClasses) {
+			list.add(msg.twoDClasses)
+			nav.newItem()
+		}
+
+		private fun update() {
+
+			panelElem.removeAll()
+			descriptionElem.content = ""
+
+			if (list.isEmpty()) {
+				panelElem.div("(No 2D classes to show here)", classes = setOf("empty"))
+				return
+			}
+
+			val currentIndex = nav.currentIndex
+				?: run {
+					panelElem.div("(no iteration selected)", classes = setOf("empty"))
+					return
+				}
+			val twoDClasses = list.getOrNull(currentIndex)
+				?: run {
+					panelElem.div("(selected 2D classes not found)", classes = setOf("empty"))
+					return
+				}
+
+			descriptionElem.content = "Iteration ${currentIndex + 1} at ${Date(twoDClasses.created).toLocaleString()}"
+			panelElem.image(twoDClasses.imageUrlSession(imagePanel.size))
+		}
+
+		fun clearTwoDClasses() {
+			list.clear()
+			nav.cleared()
+			update()
 		}
 	}
 

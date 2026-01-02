@@ -675,6 +675,11 @@ object PypService {
 				// notify any listening clients
 				SingleParticleSession.events.getListeners(owner.id)
 					.forEach { it.onTwoDClasses?.invoke(twoDClasses) }
+
+				// notify any listening clients
+				TomographySession.events.getListeners(owner.id)
+					.forEach { it.onTwoDClasses?.invoke(twoDClasses) }
+
 			}
 		}
 

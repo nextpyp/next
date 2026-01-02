@@ -3,6 +3,7 @@ package edu.duke.bartesaghi.micromon.pyp
 import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.services.TwoDClassesData
 import edu.duke.bartesaghi.micromon.sessions.SingleParticleSession
+import edu.duke.bartesaghi.micromon.sessions.TomographySession
 import edu.duke.bartesaghi.micromon.sessions.pypNamesOrThrow
 import org.bson.Document
 import java.nio.file.Path
@@ -37,6 +38,9 @@ class TwoDClasses(
 			}
 
 		fun imagePath(session: SingleParticleSession, twoDClassesId: String): Path =
+			session.pypDir(session.newestArgs().pypNamesOrThrow()) / "class2d" / "${twoDClassesId}_classes.webp"
+
+		fun imagePath(session: TomographySession, twoDClassesId: String): Path =
 			session.pypDir(session.newestArgs().pypNamesOrThrow()) / "class2d" / "${twoDClassesId}_classes.webp"
 	}
 

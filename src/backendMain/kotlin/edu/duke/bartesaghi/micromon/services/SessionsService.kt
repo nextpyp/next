@@ -94,7 +94,7 @@ actual class SessionsService : ISessionsService, Service {
 
 							val imagePath = when (session) {
 								is SingleParticleSession -> TwoDClasses.imagePath(session, twoDClassesId)
-								else -> throw BadRequestException("requires a single-particle session")
+								is TomographySession -> TwoDClasses.imagePath(session, twoDClassesId)
 							}
 							val cacheKey = WebCacheDir.Keys.twodClasses.parameterized(twoDClassesId)
 							ImageType.Webp.respondSized(call, imagePath, size.info(session.wwwDir, cacheKey))

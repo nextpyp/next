@@ -429,7 +429,9 @@ object RealTimeService {
 					cursor
 						.map { it.getMetadata() }
 						.toList()
-				}
+				},
+				twoDClasses = TwoDClasses.getAll(session.idOrThrow)
+					.map { it.toData() }
 			))
 
 			// route all session events to the client
@@ -448,6 +450,9 @@ object RealTimeService {
 				outgoing.trySendMessage(RealTimeS2C.SessionTiltSeries(
 					tiltSeries = tiltSeries.getMetadata()
 				))
+			}
+			listener.onTwoDClasses = listener@{ twoDClasses ->
+				outgoing.trySendMessage(RealTimeS2C.SessionTwoDClasses(twoDClasses.toData()))
 			}
 			listener.onExport = listener@{ export ->
 				outgoing.trySendMessage(RealTimeS2C.SessionExport(export.toData()))

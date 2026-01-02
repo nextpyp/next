@@ -104,6 +104,7 @@ object RealTimeServices {
 			RealTimeS2C.SessionLargeData::class,
 			RealTimeS2C.UpdatedParameters::class,
 			RealTimeS2C.SessionTiltSeries::class,
+			RealTimeS2C.SessionTwoDClasses::class,
 			RealTimeS2C.SessionExport::class,
 			RealTimeS2C.SessionFilesystems::class,
 			RealTimeS2C.SessionTransferInit::class,
