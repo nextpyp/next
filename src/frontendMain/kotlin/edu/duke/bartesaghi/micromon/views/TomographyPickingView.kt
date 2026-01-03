@@ -263,7 +263,7 @@ class TomographyPickingView(val project: ProjectData, val job: TomographyPicking
 				}
 			}
 
-			val tomoPanel = TomoDualPanel(project, job, data, tiltSeries, showScores = tomoPickMethod == TomoPickMethod.Pytom, hideDownloadBadges = tomoPickMethod != TomoPickMethod.Pytom, pickingControls = pickingControls)			
+			val tomoPanel = TomoDualPanel(project, job, data, tiltSeries, showScores = tomoPickMethod == TomoPickMethod.Pytom || tomoPickMethod == TomoPickMethod.Auto, hideDownloadBadges = tomoPickMethod != TomoPickMethod.Pytom, showScoreMetrics = tomoPickMethod == TomoPickMethod.Pytom, pickingControls = pickingControls)			
 			tiltSeriesesElem.add(tomoPanel)
 			AppScope.launch {
 				tomoPanel.load()

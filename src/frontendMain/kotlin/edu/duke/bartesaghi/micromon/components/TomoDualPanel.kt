@@ -34,6 +34,7 @@ class TomoDualPanel(
 	val showDenoised: Boolean = false,
 	val showSegmented: Boolean = false,
 	val showScores: Boolean = false,
+	val showScoreMetrics: Boolean = true,
 	val showHeatMap: Boolean = false,
 	val hideSideViews: Boolean = true,
 	val hideDownloadBadges: Boolean = false,
@@ -120,13 +121,15 @@ class TomoDualPanel(
 		}
 
 		if ( self.showScores == true ) {
-			addTab("Correlation Scores") { lazyTab ->
+			addTab("Particle Picking") { lazyTab ->
 					if ( self.hideDownloadBadges == false ){
 						lazyTab.elem.add(self.scoresDownloadBadge)
 					}
 					lazyTab.elem.add(self.scoresTomogramImage)
-					lazyTab.elem.add(TomoPytomImages("Extraction Graph", "pytomTiltSeriesExtractionGraph", self.job.jobId, self.tiltSeries.id))
-					lazyTab.elem.add(TomoPytomImages("ROC Estimation", "pytomTiltSeriesRoc", self.job.jobId, self.tiltSeries.id))
+					if ( self.showScoreMetrics == true ){
+						lazyTab.elem.add(TomoPytomImages("Extraction Graph", "pytomTiltSeriesExtractionGraph", self.job.jobId, self.tiltSeries.id))
+						lazyTab.elem.add(TomoPytomImages("ROC Estimation", "pytomTiltSeriesRoc", self.job.jobId, self.tiltSeries.id))
+					}
 				}
 		}
 
