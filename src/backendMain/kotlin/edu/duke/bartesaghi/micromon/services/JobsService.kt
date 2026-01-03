@@ -433,6 +433,18 @@ actual class JobsService : IJobsService, Service {
 						}
 					}
 
+					get("scr") {
+						call.respondExceptions {
+
+							// parse args
+							val job = authJob(ProjectPermission.Read).job
+							val dataId = parseDataId()
+
+							val path = TiltSeries.scrPath(job.dir, dataId)
+							call.respondFile(path, ContentType.Application.OctetStream)
+						}
+					}
+
 					get("tiltSeriesMetadata") {
 						call.respondExceptions {
 
@@ -566,6 +578,13 @@ actual class JobsService : IJobsService, Service {
 	override suspend fun segData(jobId: String, tiltSeriesId: String): Option<FileDownloadData> = sanitizeExceptions {
 		val job = jobId.authJob(ProjectPermission.Read).job.hasTiltSeriesOrThrow()
 		TiltSeries.segPath(job.dir, tiltSeriesId)
+			.toFileDownloadData()
+			.toOption()
+	}
+
+	override suspend fun scrData(jobId: String, tiltSeriesId: String): Option<FileDownloadData> = sanitizeExceptions {
+		val job = jobId.authJob(ProjectPermission.Read).job.hasTiltSeriesOrThrow()
+		TiltSeries.scrPath(job.dir, tiltSeriesId)
 			.toFileDownloadData()
 			.toOption()
 	}

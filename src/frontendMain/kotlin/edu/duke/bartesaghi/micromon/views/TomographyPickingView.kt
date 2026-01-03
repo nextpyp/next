@@ -175,7 +175,7 @@ class TomographyPickingView(val project: ProjectData, val job: TomographyPicking
 				}
 
 				liveTab = LiveTab(data, tiltSeriesStats, finishedValues?.tomoPickMethod)
-				liveTabId = addTab("Particles", "fas fa-crosshairs") {
+				liveTabId = addTab("Tomograms", "fas fa-display") {
 					liveTab?.show(it.elem)
 				}.id
 			}
@@ -263,30 +263,10 @@ class TomographyPickingView(val project: ProjectData, val job: TomographyPicking
 				}
 			}
 
-			val particlesImage = TomoParticlesImage.forProject(project, job, data, tiltSeries, pickingControls)
-			particlesImage.onParticlesChange = {
-				stats.picked(data, pickingControls)
-			}
-			tiltSeriesesElem.add(particlesImage)
-
-			val particlesScore = TomoParticlesImage.forProject(project, job, data, tiltSeries, pickingControls, panelName="Correlation Scores", spriteUrl = "/kv/jobs/${job.jobId}/data/${tiltSeries.id}/reconstructionScoreMontage")
-			particlesScore.onParticlesChange = {
-				stats.picked(data, pickingControls)
-			}
-			if ( tomoPickMethod == TomoPickMethod.Pytom ) {
-				tiltSeriesesElem.add(particlesScore)
-				tiltSeriesesElem.add(TomoPytomImages("Extraction Graph", "pytomTiltSeriesExtractionGraph", job.jobId, tiltSeries.id))
-				tiltSeriesesElem.add(TomoPytomImages("ROC Estimation", "pytomTiltSeriesRoc", job.jobId, tiltSeries.id))
-			}
-			else {
-				tiltSeriesesElem.add(TomoSideViewImage(job.jobId, tiltSeries.id))
-			}
-
+			val tomoPanel = TomoDualPanel(project, job, data, tiltSeries, showScores = tomoPickMethod == TomoPickMethod.Pytom, hideDownloadBadges = tomoPickMethod != TomoPickMethod.Pytom, pickingControls = pickingControls)			
+			tiltSeriesesElem.add(tomoPanel)
 			AppScope.launch {
-				particlesImage.load()
-				if ( tomoPickMethod == TomoPickMethod.Pytom ) {
-					particlesScore.load()
-				}
+				tomoPanel.load()
 			}
 		}
 

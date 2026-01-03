@@ -120,7 +120,7 @@ class TomographyParticlesTrainView(val project: ProjectData, val job: Tomography
 				}
 
 				liveTab = LiveTab(data)
-				liveTabId = addTab("Heat Maps", "fas fa-desktop") {
+				liveTabId = addTab("Tomograms", "fas fa-desktop") {
 					liveTab?.show(it.elem)
 				}.id
 			}
@@ -216,16 +216,10 @@ class TomographyParticlesTrainView(val project: ProjectData, val job: Tomography
 				}
 			}
 
-			val particlesImage = TomoParticlesImage.forProject(project, job, data, tiltSeries, pickingControls)
-			tiltSeriesesElem.add(particlesImage)
-
-			val particlesHeatMap = TomoParticlesImage.forProject(project, job, data, tiltSeries, pickingControls, panelName="Heat Map", spriteUrl = "/kv/jobs/${job.jobId}/data/${tiltSeries.id}/predOutTiltSeriesMontage")
-
-			tiltSeriesesElem.add(particlesHeatMap)
-
+			val tomoPanel = TomoDualPanel(project, job, data, tiltSeries, showHeatMap = true, hideDownloadBadges = true, pickingControls = null)
+			tiltSeriesesElem.add(tomoPanel)
 			AppScope.launch {
-				particlesHeatMap.load()
-				particlesImage.load()
+				tomoPanel.load()
 			}
 		}
 

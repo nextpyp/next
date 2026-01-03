@@ -51,6 +51,9 @@ class TiltSeries(private val doc: Document) {
 		fun denPath(dir: Path, tiltSeriesId: String): Path =
 			dir / "mrc" / "${tiltSeriesId}_den.rec"
 
+		fun scrPath(dir: Path, tiltSeriesId: String): Path =
+			dir / "pytom" / "${tiltSeriesId}_scores.mrc"
+
 		fun segPath(dir: Path, tiltSeriesId: String): Path =
 			dir / "mrc" / "${tiltSeriesId}_seg.rec"
 
