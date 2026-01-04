@@ -117,7 +117,7 @@ class TomographyMiloEvalView(val project: ProjectData, val job: TomographyMiloEv
 				}
 
 				liveTab = LiveTab(data)
-				liveTabId = addTab("Tomograms", "fas fa-desktop") { lazyTab ->
+				liveTabId = addTab("Tomograms", "fas fa-display") { lazyTab ->
 					liveTab?.show(lazyTab.elem)
 				}.id
 			}
@@ -263,15 +263,12 @@ class TomographyMiloEvalView(val project: ProjectData, val job: TomographyMiloEv
 				}
 			}
 
-			tiltSeriesesElem.add(SizedPanel("Tomogram slice", Storage.miloResults3dTiltSeriesSize).apply {
-				val img = image(ITomographyMiloEvalService.results3dTiltSeriesPath(job.jobId, tiltSeries.id, size), classes = setOf("full-width-image"))
+			val particlesImage = TomoParticlesImage.forProject(project, job, data, tiltSeries, spriteUrl = "/kv/jobs/${job.jobId}/data/${tiltSeries.id}/milopypTomogramMontage")
+			tiltSeriesesElem.add(particlesImage)
 
-				// set the panel resize handler
-				onResize = { newSize: ImageSize ->
-					img.src = ITomographyMiloEvalService.results3dTiltSeriesPath(job.jobId, tiltSeries.id, size)
-					Storage.miloResults3dTiltSeriesSize = newSize
-				}
-			})
+			AppScope.launch {
+				particlesImage.load()
+			}
 		}
 
 		fun show(elem: Container) {

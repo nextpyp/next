@@ -242,6 +242,20 @@ actual class JobsService : IJobsService, Service {
 						}
 					}
 
+					get("milopypTomogramMontage") {
+						call.respondExceptions {
+
+							// parse args
+							val job = authJob(ProjectPermission.Read).job.hasTiltSeriesOrThrow()
+							val dataId = parseDataId()
+
+							// serve the image
+							val imagePath = TiltSeries.milopypTomogramMontagePath(job.dir, dataId)
+							ImageType.Webp.respond(call, imagePath)
+								?.respondNotFound(call)
+						}
+					}
+
 					get("reconstructionTiltSeriesMontage") {
 						call.respondExceptions {
 

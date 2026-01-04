@@ -96,6 +96,17 @@ class TiltSeries(private val doc: Document) {
 			return subdir / "$filename.png"
 		}
 
+		fun milopypTomogramMontagePath(dir: Path, tiltSeriesId: String): Path {
+			// try webp first, fall back to png otherwise (this is done to workaround the max size limitation of the webp format)
+			val subdir = dir / "train"
+			val filename = "${tiltSeriesId}_3d_visualization_montage"
+			val webp = subdir / "$filename.webp"
+			if (webp.exists()) {
+				return webp
+			}
+			return subdir / "$filename.png"
+		}
+
 		fun reconstructionScoreMontagePath(dir: Path, tiltSeriesId: String): Path {
 			// try webp first, fall back to png otherwise (this is done to workaround the max size limitation of the webp format)
 			val subdir = dir / "webp"
