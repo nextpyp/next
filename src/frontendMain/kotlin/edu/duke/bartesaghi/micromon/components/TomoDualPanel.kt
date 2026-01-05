@@ -121,7 +121,7 @@ class TomoDualPanel(
 		}
 
 		if ( self.showScores == true ) {
-			addTab("Particle Picking") { lazyTab ->
+			addTab("Particle Picking Diagnostics") { lazyTab ->
 					if ( self.hideDownloadBadges == false ){
 						lazyTab.elem.add(self.scoresDownloadBadge)
 					}

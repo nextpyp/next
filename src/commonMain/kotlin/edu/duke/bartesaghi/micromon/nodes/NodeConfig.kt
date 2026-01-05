@@ -56,22 +56,22 @@ interface NodeConfig {
 			MovieFrameAfterRefinements("Frames"),
 
 			/** Particle coordinates from Phoenix a parquet file */
-			ParticlesParquet("Particles (Parquet)"),
+			ParticlesParquet("Particles (parquet)"),
 
 			/** A trained model for picking particles */
-			ParticlesModel("Particles Model"),
+			ParticlesModel("Particles model"),
 
 			/** A trained model for denoising */
-			DenoisingModel("Denoising Model"),
+			DenoisingModel("Denoising model"),
 
 			/** A trained model for DRGN */
-			DrgnModel("DRGN Model"),
+			DrgnModel("DRGN model"),
 
 			/** A trained model for DRGN */
-			DrgnParticles("DRGN Particles"),
+			DrgnParticles("DRGN particles"),
 
 			/** A trained model for MiLoPYP */
-			MiloModel("MiLoPYP Model"),
+			MiloModel("MiLoPYP model"),
 
 			/** A trained model for MiLoPYP */
 			MiloCoordinates("MiLoPYP particles"),
