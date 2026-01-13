@@ -299,6 +299,7 @@ class ArgsInputs(
 					is ArgInput.HalfMap -> ArgInputFile(arg, "*_half1.mrc", outNodes) { Paths.join(it.jobDir, "frealign/maps") }
 					is ArgInput.TopazTrainedModel -> ArgInputFile(arg, "*.sav", outNodes) { it.jobDir }
 					is ArgInput.IsonetTrainedModel -> ArgInputFile(arg, "*.h5", outNodes) { Paths.join(it.jobDir, "train") }
+					is ArgInput.Isonet2TrainedModel -> ArgInputFile(arg, "*.pt", outNodes) { Paths.join(it.jobDir, "train") }
 					is ArgInput.CryocareTrainedModel -> ArgInputFile(arg, "*.tar.gz", outNodes) { Paths.join(it.jobDir, "train") }
 					is ArgInput.TrainedModel2D -> ArgInputFile(arg, "*.training", outNodes) { it.projectDir }
 					is ArgInput.TrainedModel3D -> ArgInputFile(arg, "*.pth", outNodes) { Paths.join(it.jobDir, "train") }

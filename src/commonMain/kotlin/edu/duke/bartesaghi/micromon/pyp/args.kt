@@ -806,6 +806,19 @@ sealed class ArgInput {
 	}
 
 	/**
+	 * Helps the user pick a pretained isonet2 model
+	 */
+	@Serializable
+	class Isonet2TrainedModel : ArgInput() {
+
+		companion object {
+			const val id = "isonet2TrainedModel"
+		}
+
+		override val argInputId = id
+	}
+
+	/**
 	 * Helps the user pick an initial model for 3D refinement from previous job outputs
 	 */
 	@Serializable
