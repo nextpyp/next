@@ -9,6 +9,7 @@ import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlin.jvm.JvmInline
+import kotlin.math.roundToInt
 
 
 @Serializable
@@ -20,7 +21,7 @@ data class ImageDims(
 	/** image depth, in unbinned pixels (or voxels) */
 	val depth: ValueUnbinnedI,
 	/** the binning factor, same for all dimensions */
-	val binningFactor: Int,
+	val binningFactor: Double,
 	/** the size of one unbinned pixel (or voxel) in a micrograph (or tilt series) */
 	val pixelA: ValueA,
 	/** additional binning factor in Z */
@@ -38,7 +39,7 @@ data class ImageDims(
 
 	@ExportServiceProperty(skip=true)
 	val numSlices: Int get() =
-		depth.v/binningFactor/binningFactorZ
+		((depth.v/binningFactor - (depth.v/binningFactor % 2))/binningFactorZ).roundToInt()
 }
 
 
@@ -88,7 +89,7 @@ value class ValueUnbinnedF(val v: Double) {
 	fun toA(dims: ImageDims): ValueA =
 		toA(dims.pixelA)
 
-	fun toBinned(binningFactor: Int): ValueBinnedF =
+	fun toBinned(binningFactor: Double): ValueBinnedF =
 		ValueBinnedF(this.v/binningFactor)
 
 	fun toBinned(dims: ImageDims): ValueBinnedF =
@@ -130,8 +131,8 @@ value class ValueUnbinnedI(val v: Int) {
 	fun toF(): ValueUnbinnedF =
 		ValueUnbinnedF(this.v.toDouble())
 
-	fun toBinned(binningFactor: Int): ValueBinnedI =
-		ValueBinnedI(this.v/binningFactor)
+	fun toBinned(binningFactor: Double): ValueBinnedI =
+		ValueBinnedI(this.v/binningFactor.roundToInt())
 
 	fun toBinned(dims: ImageDims): ValueBinnedI =
 		toBinned(dims.binningFactor)
@@ -165,7 +166,7 @@ value class ValueBinnedF(val v: Double) {
 	fun toI(): ValueBinnedI =
 		ValueBinnedI(this.v.toInt())
 
-	fun toUnbinned(binningFactor: Int): ValueUnbinnedF =
+	fun toUnbinned(binningFactor: Double): ValueUnbinnedF =
 		ValueUnbinnedF(this.v*binningFactor)
 
 	fun toUnbinned(dims: ImageDims): ValueUnbinnedF =
@@ -207,8 +208,8 @@ value class ValueBinnedI(val v: Int) {
 	fun toF(): ValueBinnedF =
 		ValueBinnedF(this.v.toDouble())
 
-	fun toUnbinned(binningFactor: Int): ValueUnbinnedI =
-		ValueUnbinnedI(this.v*binningFactor)
+	fun toUnbinned(binningFactor: Double): ValueUnbinnedI =
+		ValueUnbinnedI(this.v*binningFactor.roundToInt())
 
 	fun toUnbinned(dims: ImageDims): ValueUnbinnedI =
 		toUnbinned(dims.binningFactor)

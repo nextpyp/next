@@ -118,7 +118,7 @@ data class CTF(
 			x,
 			y,
 			z,
-			binningFactor.toInt(),
+			binningFactor,
 			pixelSize,
 			binningFactorZ = if (counts.toInt() > 2) counts.toInt() else 2
 		)

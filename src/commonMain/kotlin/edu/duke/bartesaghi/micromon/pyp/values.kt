@@ -91,10 +91,10 @@ val ArgValues.scopeDoseRateOrDefault: Double
 
 val Args.tomoRecBinning: Arg
 	get() = argOrThrow("tomo_rec", "binning")
-val ArgValues.tomoRecBinning: Int?
-	get() = (get(args.tomoRecBinning) as Long?)?.toInt()
-val ArgValues.tomoRecBinningOrDefault: Int
-	get() = (getOrDefault(args.tomoRecBinning) as Long).toInt()
+val ArgValues.tomoRecBinning: Double?
+	get() = get(args.tomoRecBinning) as Double?
+val ArgValues.tomoRecBinningOrDefault: Double
+	get() = getOrDefault(args.tomoRecBinning) as Double
 
 val Args.refineMode: Arg
 	get() = argOrThrow("refine", "mode")
