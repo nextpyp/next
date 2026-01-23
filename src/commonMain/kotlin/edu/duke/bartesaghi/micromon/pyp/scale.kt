@@ -10,6 +10,7 @@ import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlin.jvm.JvmInline
 import kotlin.math.roundToInt
+import kotlin.math.floor
 
 
 @Serializable
@@ -39,7 +40,7 @@ data class ImageDims(
 
 	@ExportServiceProperty(skip=true)
 	val numSlices: Int get() =
-		((depth.v/binningFactor - (depth.v/binningFactor % 2))/binningFactorZ).roundToInt()
+		floor((depth.v/binningFactor - (depth.v/binningFactor % 2))/binningFactorZ).toInt()
 }
 
 
