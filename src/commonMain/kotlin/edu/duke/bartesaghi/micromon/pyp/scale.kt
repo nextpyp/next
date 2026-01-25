@@ -40,7 +40,7 @@ data class ImageDims(
 
 	@ExportServiceProperty(skip=true)
 	val numSlices: Int get() =
-		floor((depth.v/binningFactor - (depth.v/binningFactor % 2))/binningFactorZ).toInt()
+		floor(depth.v/binningFactor/binningFactorZ).roundToInt()
 }
 
 
