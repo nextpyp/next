@@ -71,8 +71,9 @@ class DashboardView : View {
 		val label: String
 	) : Identified {
 
-		Number("number", "By number"),
-		Alphabetical("alphabetical", "Alphabetically");
+		Number("number", "By Number"),
+		Alphabetical("alphabetical", "By Name"),
+		Chronologically("chronologically", "By Time");
 
 		companion object {
 
@@ -534,6 +535,7 @@ class DashboardView : View {
 				compareBy<ProjectData> { it.projectNumber ?: Int.MAX_VALUE }.thenBy { it.projectName }
 			)
 			SortOrder.Alphabetical -> projects.sortedBy { it.projectName.lowercase() }
+			SortOrder.Chronologically -> projects.sortedByDescending { it.created }
 		}
 
 		// update the UI with the search results
