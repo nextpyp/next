@@ -376,7 +376,7 @@ class ProjectView(val project: ProjectData) : View {
 					val runId = try {
 						Services.projects.latestRunId(node.jobId)
 					} catch (err: dynamic) {
-						Toast.error(err)
+						Toast.error("No logs available for this block.")
 						return@launch
 					}
 					jobsMonitor.highlightJobRun(runId, node.jobId)
