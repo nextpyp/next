@@ -37,6 +37,9 @@ class TomoMultiPanel(
 	private var currentTiltFramesTab: Double? = null
 	private var currentTiltCTFTab: Double? = null
 
+	/** Called after tilt exclusions are successfully saved; parameter is tiltSeries.id. Use to refresh gallery overlay. */
+	var onTiltExclusionChanged: ((String) -> Unit)? = null
+
 	private val ctfMultiTiltPlot = CTFMultiTiltPlot("/kv/jobs/${job.jobId}/data/${tiltSeries.id}/2dCtfTiltMontage")
 	private val driftBarPlot = FrameMotionDriftPlot("/kv/jobs/${job.jobId}/data/${tiltSeries.id}/rawTiltSeriesMontage")
 
@@ -249,6 +252,7 @@ class TomoMultiPanel(
 					val toastOptions = ToastOptions(positionClass = ToastPosition.BOTTOMRIGHT)
 					try {
 						Services.jobs.setTiltExclusion(job.jobId, tiltSeries.id, index, value)
+						onTiltExclusionChanged?.invoke(tiltSeries.id)
 						Toast.success(
 							message = if (value) {
 								"Excluded tilt $index"

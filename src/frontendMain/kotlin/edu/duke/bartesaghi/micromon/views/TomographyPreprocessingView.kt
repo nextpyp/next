@@ -67,6 +67,24 @@ class TomographyPreprocessingView(val project: ProjectData, val job: TomographyP
 
 	private var connector: WebsocketConnector? = null
 
+	/** Mutable map of tilt-series id -> 1-based excluded view indexes; used by gallery overlay and refreshed when exclusions change. */
+	private val excludedIndexesByTiltSeries = mutableMapOf<String, List<Int>>()
+
+	private suspend fun refreshGalleryExclusions(tiltSeriesId: String) {
+		try {
+			val excluded = Services.jobs.getTiltExclusions(job.jobId, tiltSeriesId).exclusionsByTiltIndex
+				.filter { it.value }
+				.keys
+				.sorted()
+				.map { it + 1 }
+			excludedIndexesByTiltSeries[tiltSeriesId] = excluded
+			gallery?.update()
+		} catch (_: Throwable) {
+			excludedIndexesByTiltSeries.remove(tiltSeriesId)
+			gallery?.update()
+		}
+	}
+
 	override fun init(viewport: Viewport) {
 
 		// update the navbar
@@ -175,15 +193,36 @@ class TomographyPreprocessingView(val project: ProjectData, val job: TomographyP
 				}
 
 				addTab("Gallery", "fas fa-image") { lazyTab ->
-					gallery = HyperGallery(data.tiltSerieses, ImageSizes.from(ImageSize.Small)).apply {
-						html = { tiltSeries ->
-							listenToImageSize(document.create.img(src = tiltSeries.imageUrl(job, ImageSize.Small)))
+					val loadingPlaceholder = div("Loading gallery...", classes = setOf("empty", "spaced"))
+					lazyTab.elem.add(loadingPlaceholder)
+					AppScope.launch {
+						try {
+							data.tiltSerieses.forEach { ts ->
+								excludedIndexesByTiltSeries[ts.id] = Services.jobs.getTiltExclusions(job.jobId, ts.id).exclusionsByTiltIndex
+									.filter { it.value }
+									.keys
+									.sorted()
+									.map { it + 1 }
+							}
+						} catch (_: Throwable) {
+							excludedIndexesByTiltSeries.clear()
 						}
-						linker = { _, index ->
-							showTiltSeries(index, true)
+						lazyTab.elem.remove(loadingPlaceholder)
+						gallery = HyperGallery(data.tiltSerieses, ImageSizes.from(ImageSize.Small)).apply {
+							html = { tiltSeries ->
+								listenToImageSize(document.create.img(src = tiltSeries.imageUrl(job, ImageSize.Small)))
+							}
+							overlayLabel = { ts ->
+								excludedIndexesByTiltSeries[ts.id]
+									?.takeIf { it.isNotEmpty() }
+									?.let { indices -> indices.joinToString(", ") }
+							}
+							linker = { _, index ->
+								showTiltSeries(index, true)
+							}
 						}
-						lazyTab.elem.add(this)
-						update()
+						lazyTab.elem.add(gallery!!)
+						gallery?.update()
 					}
 				}
 
@@ -282,6 +321,9 @@ class TomographyPreprocessingView(val project: ProjectData, val job: TomographyP
 			}
 
 			val tomoPanel = TomoMultiPanel(project, job, data, tiltSeries, pickingControls)
+			tomoPanel.onTiltExclusionChanged = { tiltSeriesId ->
+				AppScope.launch { refreshGalleryExclusions(tiltSeriesId) }
+			}
 			tomoPanel.particlesImage.onParticlesChange = {
 				tiltSeriesStats.picked(data, pickingControls)
 			}

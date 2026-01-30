@@ -36,6 +36,8 @@ class HyperGallery<T:HasID>(
 	private var itemsPerRow: Int = 1
 
 	var html: (T) -> HTMLElement? = { null }
+	/** If non-null, the returned string is shown as an overlay on the thumbnail (e.g. "3 ignored"). */
+	var overlayLabel: (T) -> String? = { null }
 	var linker: (T, Int) -> Unit = { _, _ -> }
 
 	var imageSizes: ImageSizes? = null
@@ -81,6 +83,13 @@ class HyperGallery<T:HasID>(
 				// draw a label over the top of it
 				append.span(classes = "label") {
 					+datum.id
+				}
+
+				// optional overlay (e.g. ignored views count)
+				overlayLabel(datum)?.let { text ->
+					append(document.create.span(classes = "thumbnail-overlay").apply {
+						this.textContent = text
+					})
 				}
 
 				// wire up events
