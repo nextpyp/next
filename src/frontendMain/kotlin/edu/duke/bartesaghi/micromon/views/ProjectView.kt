@@ -24,6 +24,7 @@ import io.kvision.dropdown.dropDown
 import io.kvision.dropdown.header
 import io.kvision.dropdown.separator
 import io.kvision.form.check.CheckBox
+import io.kvision.form.check.CheckBoxStyle
 import io.kvision.form.check.CheckBoxInput
 import io.kvision.html.*
 import io.kvision.modal.Confirm
@@ -409,19 +410,54 @@ class ProjectView(val project: ProjectData) : View {
 				}
 
 				node.onDeleteFilesClick = {
-					Confirm(
+					val downstream = node.getDownstreamNodesIteratively()
+					val win = Modal(
 						caption = "Delete block files and data?",
-						yesCallback = {
-							node.wipe(true)
-						}
-					).apply {
-						div("Are you sure you want to delete all of the files and data for the block:")
-						unorderedList {
-							element(node.baseJob.numberedName)
-						}
-						div("The block itself and its configuration will not be deleted.")
-						show()
+						escape = true,
+						closeButton = true,
+						classes = setOf("dashboard-popup")
+					)
+					win.div("Are you sure you want to delete all of the files and data for the block:")
+					win.unorderedList {
+						element(node.baseJob.numberedName)
 					}
+					win.div(classes = setOf("spaced")) {
+						content = (
+							"The block itself and its configuration will not be deleted."
+						)
+					}
+					val includeDownstreamCheck = CheckBox(
+						value = false,
+						label = "Apply to this block and all blocks downstream"
+					).apply {
+                        style = CheckBoxStyle.PRIMARY
+						visible = downstream.isNotEmpty()
+					}
+
+					win.add(includeDownstreamCheck)
+					if (downstream.isNotEmpty()) {
+						win.div(classes = setOf("spaced")) {
+							content = (
+								"Downstream blocks that would be included:"
+							)
+						}
+						win.unorderedList {
+							for (n in downstream) {
+								element(n.baseJob.numberedName)
+							}
+						}
+					}
+					win.addButton(Button("Cancel").onClick { win.hide() })
+					win.addButton(Button("Delete").onClick {
+						win.hide()
+						val nodesToWipe = if (includeDownstreamCheck.value && downstream.isNotEmpty()) {
+							listOf(node) + downstream
+						} else {
+							listOf(node)
+						}
+						wipeNodes(nodesToWipe, true)
+					})
+					win.show()
 				}
 			}
 		}
@@ -432,23 +468,27 @@ class ProjectView(val project: ProjectData) : View {
 			// TODO: will this be too slow? Do we need to do something less stupid?
 
 		private fun Node.wipe(deleteFilesAndData: Boolean) {
+			wipeNodes(listOf(this), deleteFilesAndData)
+		}
+
+		private fun wipeNodes(nodes: List<Node>, deleteFilesAndData: Boolean) {
 			AppScope.launch e@{
 
-				// update the server
-				val newJob = try {
-					Services.projects.wipeJob(jobId, deleteFilesAndData)
-						.let { JobData.deserialize(it) }
-				} catch (t: Throwable) {
-					Toast.error("Failed to wipe job: ${t.message ?: "(unknown error)"}")
-					return@e
-				}
+				for (n in nodes) {
+					val newJob = try {
+						Services.projects.wipeJob(n.jobId, deleteFilesAndData)
+							.let { JobData.deserialize(it) }
+					} catch (t: Throwable) {
+						Toast.error("Failed to wipe job: ${t.message ?: "(unknown error)"}")
+						return@e
+					}
 
-				// update locally too
-				baseJob = newJob
-				if (deleteFilesAndData) {
-					status = Node.Status.Changed
-				} else {
-					renderButtons()
+					n.baseJob = newJob
+					if (deleteFilesAndData) {
+						n.status = Node.Status.Changed
+					} else {
+						n.renderButtons()
+					}
 				}
 				diagram.update()
 				updateRunButton()
