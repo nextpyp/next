@@ -87,6 +87,19 @@ class ArgsForm(
 			}
 		}
 
+		private val specifiedCheck = CheckBox(
+			Storage.showOnlySpecifiedArgs ?: false,
+			label = "Show non-default only"
+		).apply {
+			style = CheckBoxStyle.PRIMARY
+			addCssClass("auto-scroll")
+			onEvent {
+				change = {
+					Storage.showOnlySpecifiedArgs = value
+				}
+			}
+		}
+
 		private val tabs = HashMap<String?,ArgsInputs>()
 
 		override fun blur() {}
@@ -95,6 +108,9 @@ class ArgsForm(
 		private fun showAdvanced(): Boolean =
 			advancedCheck.value
 
+		private fun showOnlySpecified(): Boolean =
+			specifiedCheck.value
+
 		init {
 
 			// kotlin DSLs are dumb
@@ -102,6 +118,7 @@ class ArgsForm(
 
 			div(classes = setOf("options")) {
 				add(me.advancedCheck)
+				add(me.specifiedCheck)
 			}
 
 			if (form.args.groups.isNotEmpty()) {
@@ -120,7 +137,7 @@ class ArgsForm(
 							// hide empty groups
 							continue
 						}
-						val tab = ArgsInputs(groupArgs, values, controls, form.outNodes, form.enabled, ::showAdvanced)
+						val tab = ArgsInputs(groupArgs, values, controls, form.outNodes, form.enabled, ::showAdvanced, ::showOnlySpecified)
 						tabs[group.groupId] = tab
 						addTab(group.name, tab)
 					}
@@ -134,13 +151,20 @@ class ArgsForm(
 			} else {
 
 				// show all args at once
-				val tab = ArgsInputs(form.args.args, values, controls, form.outNodes, form.enabled, ::showAdvanced)
+				val tab = ArgsInputs(form.args.args, values, controls, form.outNodes, form.enabled, ::showAdvanced, ::showOnlySpecified)
 				tabs[null] = tab
 				add(tab)
 			}
 
 			// wire up events
 			advancedCheck.onEvent {
+				change = {
+					for (tab in tabs.values) {
+						tab.updateVisibility()
+					}
+				}
+			}
+			specifiedCheck.onEvent {
 				change = {
 					for (tab in tabs.values) {
 						tab.updateVisibility()
@@ -244,7 +268,8 @@ class ArgsInputs(
 	val controls: Controls,
 	val outNodes: List<Node>,
 	val enabled: Boolean,
-	val showAdvanced: () -> Boolean
+	val showAdvanced: () -> Boolean,
+	val showOnlySpecified: () -> Boolean
 ) : Div(classes = setOf("args-inputs")) {
 
 	init {
@@ -461,10 +486,11 @@ class ArgsInputs(
 	fun updateVisibility() {
 
 		val showAdvanced = showAdvanced()
+		val showOnlySpecified = showOnlySpecified()
 
 		batch {
 			for (arg in args) {
-				val control = controls[arg]
+				val info = controls[arg]
 					?: continue
 
 				// assume everything is visible by default
@@ -482,7 +508,12 @@ class ArgsInputs(
 					}
 				}
 
-				control.row.visible = visible
+				// hide default-value params when "show only specified" is on (show only green S)
+				if (showOnlySpecified && info.icon.state != ArgIcon.State.Specified) {
+					visible = false
+				}
+
+				info.row.visible = visible
 			}
 		}
 	}

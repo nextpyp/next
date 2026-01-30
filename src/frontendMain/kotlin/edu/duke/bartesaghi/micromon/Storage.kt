@@ -151,6 +151,7 @@ object Storage {
 	var miloTrainResultsSize by ImageSizeStorageItem("miloTrainResultsSize")
 	var tomographyDenoisingTrainingResultsSize by ImageSizeStorageItem("tomographyDenoisingTrainingResultsSize")
 	var showAdvancedArgs by BoolStorageItem("showAvancedArgs")
+	var showOnlySpecifiedArgs by BoolStorageItem("showOnlySpecifiedArgs")
 	var tomographyDrgnTrainPlot0Size by ImageSizeStorageItem("tomographyDrgnTrainPlot0Size")
 	var tomographyDrgnTrainPlot1Size by ImageSizeStorageItem("tomographyDrgnTrainPlot1Size")
 	var tomographyDrgnTrainPlot2Size by ImageSizeStorageItem("tomographyDrgnTrainPlot2Size")

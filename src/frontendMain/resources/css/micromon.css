@@ -2455,6 +2455,10 @@ div.args-form div.form-group label {
 	}
 
 	.options {
+		display: flex;
+		flex-direction: row;
+		flex-wrap: wrap;
+		gap: 16px;
 		margin-top: 10px;
 		margin-bottom: 10px;
 	}
