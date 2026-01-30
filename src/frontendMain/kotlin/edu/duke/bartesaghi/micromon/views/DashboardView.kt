@@ -57,18 +57,27 @@ class DashboardView : View {
 
 		All("all", "All Projects", { _, _ ->
 			true
-		}),
-
-		ByUser("byUser", "User's projects", { _, _ ->
-			// filtered by selected user id in updateSearchResults()
-			false
 		});
-
 
 		companion object {
 
 			operator fun get(id: String?): SharingOption? =
 				values().find { it.id === id }
+		}
+	}
+
+	enum class SortOrder(
+		override val id: String,
+		val label: String
+	) : Identified {
+
+		Number("number", "By number"),
+		Alphabetical("alphabetical", "Alphabetically");
+
+		companion object {
+
+			operator fun get(id: String?): SortOrder? =
+				values().find { it.id == id }
 		}
 	}
 
@@ -85,7 +94,25 @@ class DashboardView : View {
 		SharingOption.values().map { it.id to it.label },
 		classes = setOf("sharing")
 	).apply {
-		value = (Storage.projectSharingFilter ?: SharingOption.All).id
+		value = Storage.projectSharingFilter ?: SharingOption.All.id
+	}
+
+	/** Base options (My/Shared/All) plus one option per distinct project owner. Updated when projects load. */
+	private fun sharingOptions(): List<Pair<String, String>> {
+		val base = SharingOption.values().map { it.id to it.label }
+		val users = projects
+			.map { it.owner }
+			.distinctBy { it.id }
+			.sortedBy { it.name?.lowercase() ?: it.id }
+		val userOptions = users.map { it.id to ("${it.name ?: it.id}") }
+		return base + userOptions
+	}
+
+	private val sortSelect = SelectInput(
+		SortOrder.values().map { it.id to it.label },
+		classes = setOf("sort-order")
+	).apply {
+		value = (Storage.projectSortOrder ?: SortOrder.Number).id
 	}
 
 	private val projects = ArrayList<ProjectData>()
@@ -172,8 +199,20 @@ class DashboardView : View {
 		}
 		sharingSelect.onEvent {
 			change = e@{
-				Storage.projectSharingFilter = SharingOption[sharingSelect.value]
-				userSelectContainer?.visible = (sharingSelect.value == SharingOption.ByUser.id)
+				Storage.projectSharingFilter = sharingSelect.value
+				updateSearchResults()
+			}
+		}
+		sortSelect.onEvent {
+			change = {
+				Storage.projectSortOrder = SortOrder[sortSelect.value]
+				updateSearchResults()
+			}
+		}
+
+		sortSelect.onEvent {
+			change = {
+				Storage.projectSortOrder = SortOrder[sortSelect.value]
 				updateSearchResults()
 			}
 		}
@@ -211,23 +250,7 @@ class DashboardView : View {
 			}
 			div(classes = setOf("search-second-container")) {
 				add(sharingSelect)
-				userSelectContainer = div(classes = setOf("search-user-container")).apply {
-					visible = (sharingSelect.value == SharingOption.ByUser.id)
-					span("User:", classes = setOf("search-user-label"))
-					add(SelectRemoteInput(
-						FormServiceManager,
-						IFormService::users
-					).apply {
-						value = Storage.projectSharingFilterUserId
-						onEvent {
-							change = {
-								Storage.projectSharingFilterUserId = value
-								updateSearchResults()
-							}
-						}
-					})
-				}
-				add(userSelectContainer!!)
+				add(sortSelect)
 				add(searchResultsElem)
 			}
 		}
@@ -407,6 +430,14 @@ class DashboardView : View {
 				clear()
 				addAll(projects)
 			}
+			// refresh sharing dropdown with user options from loaded projects
+			sharingSelect.options = sharingOptions()
+			val currentValue = sharingSelect.value
+			val validIds = sharingOptions().map { it.first }.toSet()
+			if (currentValue != null && currentValue !in validIds) {
+				sharingSelect.value = SharingOption.All.id
+				Storage.projectSharingFilter = SharingOption.All.id
+			}
 			updateSearchResults()
 
 			block()
@@ -479,22 +510,12 @@ class DashboardView : View {
 
 		var projects: List<ProjectData> = projects
 
-		// apply the sharing filter
-		val sharingOption = SharingOption[sharingSelect.value]
-			?: SharingOption.All
+		// apply the sharing filter (My/Shared/All or a specific user id)
+		val filterValue = sharingSelect.value ?: SharingOption.All.id
 		Session.get()?.let { session ->
-			projects = when (sharingOption) {
-				SharingOption.ByUser -> {
-					val userId = Storage.projectSharingFilterUserId
-					if (userId != null) {
-						projects.filter { it.owner.id == userId }
-					} else {
-						emptyList()
-					}
-				}
-				else -> projects.filter { project ->
-					sharingOption.filter(session, project)
-				}
+			projects = when (val option = SharingOption[filterValue]) {
+				null -> projects.filter { it.owner.id == filterValue }
+				else -> projects.filter { option.filter(session, it) }
 			}
 		}
 
@@ -503,6 +524,16 @@ class DashboardView : View {
 			?.lowercase()
 		if (query != null) {
 			projects = projects.filter { query in it.numberedName.lowercase() }
+		}
+
+
+		// apply sort order
+		val sortOrder = SortOrder[sortSelect.value] ?: SortOrder.Number
+		projects = when (sortOrder) {
+			SortOrder.Number -> projects.sortedWith(
+				compareBy<ProjectData> { it.projectNumber ?: Int.MAX_VALUE }.thenBy { it.projectName }
+			)
+			SortOrder.Alphabetical -> projects.sortedBy { it.projectName.lowercase() }
 		}
 
 		// update the UI with the search results
