@@ -2974,6 +2974,16 @@ div.file-browser .file-browser-bottom .file-browser-controls .file-browser-glob 
 	font-size: 70%;
 }
 
+.hyper-gallery .thumbnails-hyperlist .thumbnail .thumbnail-overlay {
+	position: absolute;
+	top: 4px;
+	right: 4px;
+	background-color: #000000cc;
+	color: #ffffff;
+	font-size: 70%;
+	padding: 2px 6px;
+	border-radius: 4px;
+}
 
 /* MICROGRAPH/TILTSERIES PLOTS */
 

@@ -2,6 +2,7 @@ package edu.duke.bartesaghi.micromon.views
 
 import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.components.*
+import edu.duke.bartesaghi.micromon.formatWithDigitGroupsSeparator
 import edu.duke.bartesaghi.micromon.diagram.nodes.TomographyPickingNode
 import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.*
@@ -166,6 +167,9 @@ class TomographyPickingView(val project: ProjectData, val job: TomographyPicking
 						html = { tiltSeries ->
 							listenToImageSize(document.create.img(src = tiltSeries.imageUrl(job, ImageSize.Small)))
 						}
+						overlayLabel = { ts ->
+							"${ts.numAutoParticles.formatWithDigitGroupsSeparator()} particle(s)"
+						}
 						linker = { _, index ->
 							showTiltSeries(index, true)
 						}
@@ -267,6 +271,14 @@ class TomographyPickingView(val project: ProjectData, val job: TomographyPicking
 			tiltSeriesesElem.add(tomoPanel)
 			AppScope.launch {
 				tomoPanel.load()
+				try {
+					val updated = Services.jobs.getTiltSeries(job.jobId, tiltSeries.id)
+					val idx = data.tiltSerieses.indexOfFirst { it.id == tiltSeries.id }
+					if (idx >= 0) {
+						data.tiltSerieses[idx] = updated
+						gallery?.update()
+					}
+				} catch (_: Throwable) { }
 			}
 		}
 

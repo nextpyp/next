@@ -2,6 +2,7 @@ package edu.duke.bartesaghi.micromon.views
 
 import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.components.*
+import edu.duke.bartesaghi.micromon.formatWithDigitGroupsSeparator
 import edu.duke.bartesaghi.micromon.components.forms.*
 import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.*
@@ -527,6 +528,9 @@ class TomographySessionView(
 		private val gallery = HyperGallery(tiltSeriesesData.tiltSerieses, ImageSizes.from(ImageSize.Small)).apply {
 			html = { tiltSeries ->
 				listenToImageSize(document.create.img(src = tiltSeries.imageUrl(this@GalleryTab.session, ImageSize.Small)))
+			}
+			overlayLabel = { ts ->
+				"${ts.numAutoParticles.formatWithDigitGroupsSeparator()} particle(s)"
 			}
 			linker = { _, index ->
 				showTiltSeries(index, true)

@@ -2,6 +2,7 @@ package edu.duke.bartesaghi.micromon.views
 
 import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.components.*
+import edu.duke.bartesaghi.micromon.formatWithDigitGroupsSeparator
 import edu.duke.bartesaghi.micromon.diagram.nodes.TomographyParticlesEvalNode
 import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.*
@@ -154,6 +155,9 @@ class TomographyParticlesEvalView(val project: ProjectData, val job: TomographyP
 						html = { tiltSeries ->
 							listenToImageSize(document.create.img(src = tiltSeries.imageUrl(job, ImageSize.Small)))
 						}
+						overlayLabel = { ts ->
+							"${ts.numAutoParticles.formatWithDigitGroupsSeparator()} particle(s)"
+						}
 						linker = { _, index ->
 							showTiltSeries(index, true)
 						}
@@ -260,6 +264,14 @@ class TomographyParticlesEvalView(val project: ProjectData, val job: TomographyP
 
 			AppScope.launch {
 				particlesImage.load()
+				try {
+					val updated = Services.jobs.getTiltSeries(job.jobId, tiltSeries.id)
+					val idx = data.tiltSerieses.indexOfFirst { it.id == tiltSeries.id }
+					if (idx >= 0) {
+						data.tiltSerieses[idx] = updated
+						gallery?.update()
+					}
+				} catch (_: Throwable) { }
 			}
 		}
 
