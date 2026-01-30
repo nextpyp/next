@@ -139,6 +139,7 @@ object Storage {
 	var logShowDebugInfo by BoolStorageItem("logShowDebugInfo")
 	var logShowTimestampInfo by BoolStorageItem("logShowTimestampInfo")
 	var projectSharingFilter by EnumStorageItem("projectSharingFilter", DashboardView.SharingOption.values())
+	var projectSharingFilterUserId by StringStorageItem("projectSharingFilterUserId")
 	var twodClassesImageSize by ImageSizeStorageItem("twodClassesImageSize")
 	var classesMovieSize by ImageSizeStorageItem("classesMovieSize")
 	var perParticleScoresSize by ImageSizeStorageItem("perParticleScoresSize")

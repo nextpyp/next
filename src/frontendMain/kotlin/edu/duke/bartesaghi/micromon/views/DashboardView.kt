@@ -57,6 +57,11 @@ class DashboardView : View {
 
 		All("all", "All Projects", { _, _ ->
 			true
+		}),
+
+		ByUser("byUser", "User's projects", { _, _ ->
+			// filtered by selected user id in updateSearchResults()
+			false
 		});
 
 
@@ -88,6 +93,9 @@ class DashboardView : View {
 
 	/** indexed by projectId */
 	private val projectSizes = HashMap<String,ProjectSizes?>()
+
+	/** visible when sharing filter is "User's projects"; holds the user dropdown */
+	private var userSelectContainer: Div? = null
 
 	override fun init(viewport: Viewport) {
 
@@ -165,6 +173,7 @@ class DashboardView : View {
 		sharingSelect.onEvent {
 			change = e@{
 				Storage.projectSharingFilter = SharingOption[sharingSelect.value]
+				userSelectContainer?.visible = (sharingSelect.value == SharingOption.ByUser.id)
 				updateSearchResults()
 			}
 		}
@@ -202,6 +211,23 @@ class DashboardView : View {
 			}
 			div(classes = setOf("search-second-container")) {
 				add(sharingSelect)
+				userSelectContainer = div(classes = setOf("search-user-container")).apply {
+					visible = (sharingSelect.value == SharingOption.ByUser.id)
+					span("User:", classes = setOf("search-user-label"))
+					add(SelectRemoteInput(
+						FormServiceManager,
+						IFormService::users
+					).apply {
+						value = Storage.projectSharingFilterUserId
+						onEvent {
+							change = {
+								Storage.projectSharingFilterUserId = value
+								updateSearchResults()
+							}
+						}
+					})
+				}
+				add(userSelectContainer!!)
 				add(searchResultsElem)
 			}
 		}
@@ -457,8 +483,18 @@ class DashboardView : View {
 		val sharingOption = SharingOption[sharingSelect.value]
 			?: SharingOption.All
 		Session.get()?.let { session ->
-			projects = projects.filter { project ->
-				sharingOption.filter(session, project)
+			projects = when (sharingOption) {
+				SharingOption.ByUser -> {
+					val userId = Storage.projectSharingFilterUserId
+					if (userId != null) {
+						projects.filter { it.owner.id == userId }
+					} else {
+						emptyList()
+					}
+				}
+				else -> projects.filter { project ->
+					sharingOption.filter(session, project)
+				}
 			}
 		}
 

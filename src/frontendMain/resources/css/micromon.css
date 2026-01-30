@@ -1407,6 +1407,16 @@ div.dashboard {
 	vertical-align: inherit; /* need to override bootstrap default here too */
 }
 
+.dashboard .selection .search-user-container {
+	display: inline-block;
+	margin-left: 12px;
+	vertical-align: inherit;
+}
+
+.dashboard .selection .search-user-container .search-user-label {
+	margin-right: 6px;
+}
+
 .dashboard .selection .search-results {
 	margin-left: 20px;
 }
