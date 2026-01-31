@@ -41,6 +41,19 @@ data class ImageDims(
 	@ExportServiceProperty(skip=true)
 	val numSlices: Int get() =
 		floor(depth.v/binningFactor/binningFactorZ).roundToInt()
+
+	/**
+	 * ImageDims for the 2D side-view projection (width x depth in pixels).
+	 * Use when displaying the side view image so scale bar and measure tool match the image.
+	 */
+	fun sideViewDims(): ImageDims = ImageDims(
+		width = width,
+		height = depth,
+		depth = ValueUnbinnedI(1),
+		binningFactor = binningFactor,
+		pixelA = pixelA,
+		binningFactorZ = 1
+	)
 }
 
 

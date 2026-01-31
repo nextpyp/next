@@ -261,7 +261,7 @@ class TomographyParticlesEvalView(val project: ProjectData, val job: TomographyP
 			}
 			tiltSeriesesElem.add(particlesImage)
 
-			tiltSeriesesElem.add(TomoSideViewImage(job.jobId, tiltSeries.id))
+			tiltSeriesesElem.add(TomoSideViewImage(job.jobId, tiltSeries.id, tiltSeries.imageDims.sideViewDims()))
 
 			AppScope.launch {
 				particlesImage.load()

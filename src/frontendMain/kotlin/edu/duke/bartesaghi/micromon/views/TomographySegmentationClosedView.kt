@@ -269,7 +269,7 @@ class TomographySegmentationClosedView(val project: ProjectData, val job: Tomogr
 			tiltSeriesesElem.add(particlesImage)
 
 			// show the side view
-			tiltSeriesesElem.add(TomoSideViewImage(job.jobId, tiltSeries.id))
+			tiltSeriesesElem.add(TomoSideViewImage(job.jobId, tiltSeries.id, tiltSeries.imageDims.sideViewDims()))
 
 			AppScope.launch {
 				particlesImage.load()

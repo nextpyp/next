@@ -150,7 +150,7 @@ class TomoMultiPanel(
 			self.pickingControls?.let { lazyTab.elem.add(it) }
 			lazyTab.elem.add(self.recDownloadBadge)
 			lazyTab.elem.add(self.particlesImage)
-			lazyTab.elem.add(TomoSideViewImage(self.job.jobId, self.tiltSeries.id))
+			lazyTab.elem.add(TomoSideViewImage(self.job.jobId, self.tiltSeries.id, self.tiltSeries.imageDims.sideViewDims()))
 		}
 
 		if (self.tiltSerieses.particles is TiltSeriesesParticlesData.VirusMode) {
@@ -166,7 +166,7 @@ class TomoMultiPanel(
 			addTab("Denoised") { lazyTab ->
 				lazyTab.elem.add(self.denoisedDownloadBadge)
 				lazyTab.elem.add(self.denoisedTomogramImage)
-				lazyTab.elem.add(TomoSideViewDenoiseImage(self.job.jobId, self.tiltSeries.id))
+				lazyTab.elem.add(TomoSideViewDenoiseImage(self.job.jobId, self.tiltSeries.id, self.tiltSeries.imageDims.sideViewDims()))
 			}
 		}
 
@@ -174,7 +174,7 @@ class TomoMultiPanel(
 			addTab("Segmentation") { lazyTab ->
 				lazyTab.elem.add(self.segmentedDownloadBadge)
 				lazyTab.elem.add(self.segmentedTomogramImage)
-				lazyTab.elem.add(TomoSideViewSegImage(self.job.jobId, self.tiltSeries.id))
+				lazyTab.elem.add(TomoSideViewSegImage(self.job.jobId, self.tiltSeries.id, self.tiltSeries.imageDims.sideViewDims()))
 			}
 		}
 	}

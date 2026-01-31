@@ -127,7 +127,7 @@ class SessionTomoMultiPanel(
 		addTab("Reconstruction") { lazyTab ->
 			lazyTab.elem.add(self.recDownloadBadge)
 			lazyTab.elem.add(self.particlesImage)
-			lazyTab.elem.add(SessionTomoSideViewImage(self.session.sessionId, self.tiltSeries.id))
+			lazyTab.elem.add(SessionTomoSideViewImage(self.session.sessionId, self.tiltSeries.id, self.tiltSeries.imageDims.sideViewDims()))
 		}
 
 		val condition = true
@@ -136,13 +136,13 @@ class SessionTomoMultiPanel(
 			addTab("Denoised") { lazyTab ->
 				lazyTab.elem.add(self.denoiseDownloadBadge)
 				lazyTab.elem.add(self.denoisedTomogramImage)
-				lazyTab.elem.add(SessionTomoSideViewDenoiseImage(self.session.sessionId, self.tiltSeries.id))
+				lazyTab.elem.add(SessionTomoSideViewDenoiseImage(self.session.sessionId, self.tiltSeries.id, self.tiltSeries.imageDims.sideViewDims()))
 			}
 
 			addTab("Segmentation") { lazyTab ->
 				lazyTab.elem.add(self.segDownloadBadge)
 				lazyTab.elem.add(self.segmentedTomogramImage)
-				lazyTab.elem.add(SessionTomoSideViewSegImage(self.session.sessionId, self.tiltSeries.id))
+				lazyTab.elem.add(SessionTomoSideViewSegImage(self.session.sessionId, self.tiltSeries.id, self.tiltSeries.imageDims.sideViewDims()))
 			}
 		}
 	}

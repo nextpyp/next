@@ -92,7 +92,7 @@ class TomoDualPanel(
 			}
 			lazyTab.elem.add(self.particlesImage)
 			if ( self.hideSideViews == false ){
-				lazyTab.elem.add(TomoSideViewImage(self.job.jobId, self.tiltSeries.id))
+				lazyTab.elem.add(TomoSideViewImage(self.job.jobId, self.tiltSeries.id, self.tiltSeries.imageDims.sideViewDims()))
 			}
 		}
 
@@ -103,7 +103,7 @@ class TomoDualPanel(
 				}
 				lazyTab.elem.add(self.segmentedTomogramImage)
 				if ( self.hideSideViews == false ){
-					lazyTab.elem.add(TomoSideViewSegImage(self.job.jobId, self.tiltSeries.id))
+					lazyTab.elem.add(TomoSideViewSegImage(self.job.jobId, self.tiltSeries.id, self.tiltSeries.imageDims.sideViewDims()))
 				}
 			}
 		}
@@ -115,7 +115,7 @@ class TomoDualPanel(
 				}
 				lazyTab.elem.add(self.denoisedTomogramImage)
 				if ( self.hideSideViews == false ){
-					lazyTab.elem.add(TomoSideViewDenoiseImage(self.job.jobId, self.tiltSeries.id))
+					lazyTab.elem.add(TomoSideViewDenoiseImage(self.job.jobId, self.tiltSeries.id, self.tiltSeries.imageDims.sideViewDims()))
 				}
 			}
 		}
