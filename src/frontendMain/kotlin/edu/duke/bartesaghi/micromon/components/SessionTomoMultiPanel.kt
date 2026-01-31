@@ -56,9 +56,9 @@ class SessionTomoMultiPanel(
 		Storage::spriteAlignedTiltSeriesSize
 	)
 
-	val denoisedTomogramImage = TomoParticlesImage.forSession(session, tiltSerieses, tiltSeries, spriteUrl = "/kv/tomographySession/${session.sessionId}/${tiltSeries.id}/denoisedTomogramMontage")
+	val denoisedTomogramImage = TomoParticlesImage.forSession(session, tiltSerieses, tiltSeries, spriteUrl = "/kv/tomographySession/${session.sessionId}/${tiltSeries.id}/denoisedTomogramMontage", placeholderOnError = true)
 
-	val segmentedTomogramImage = TomoParticlesImage.forSession(session, tiltSerieses, tiltSeries, spriteUrl = "/kv/tomographySession/${session.sessionId}/${tiltSeries.id}/segmentedTomogramMontage")
+	val segmentedTomogramImage = TomoParticlesImage.forSession(session, tiltSerieses, tiltSeries, spriteUrl = "/kv/tomographySession/${session.sessionId}/${tiltSeries.id}/segmentedTomogramMontage", placeholderOnError = true)
 
 	private val ctf2dImage = SpritePanel(
 		ctfMultiTiltPlot.ctf2dImageSource,

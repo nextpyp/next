@@ -93,7 +93,8 @@ class SessionTomoSideViewDenoiseImage(
     init {
         addSideViewContent(
             "/kv/tomographySession/$sessionId/$tiltSeriesId/sidesTiltSeriesDenoiseImage",
-            imageDims
+            imageDims,
+            usePlaceholderOnError = true
         )
         onResize = { newSize: ImageSize ->
             // save the new size
@@ -111,7 +112,8 @@ class SessionTomoSideViewSegImage(
     init {
         addSideViewContent(
             "/kv/tomographySession/$sessionId/$tiltSeriesId/sidesTiltSeriesSegImage",
-            imageDims
+            imageDims,
+            usePlaceholderOnError = true
         )
         onResize = { newSize: ImageSize ->
             Storage.tomographyPreprocessingSideViewSize = newSize
@@ -122,11 +124,13 @@ class SessionTomoSideViewSegImage(
 /**
  * Adds the side view image to the panel. When [imageDims] is non-null,
  * wraps the image in a positioned container and adds a scale bar and measure tool.
+ * When [usePlaceholderOnError] is true, shows a placeholder image if the image fails to load.
  */
-private fun SizedPanel.addSideViewContent(imageUrl: String, imageDims: ImageDims?) {
+private fun SizedPanel.addSideViewContent(imageUrl: String, imageDims: ImageDims?, usePlaceholderOnError: Boolean = false) {
     if (imageDims != null) {
         val imageElem = Image("", classes = setOf("full-width-image"))
         imageElem.src = imageUrl
+        if (usePlaceholderOnError) imageElem.ifNonExistentUsePlaceholder(size)
         val scaleBar = ScaleBar(imageDims)
         val imageContainerElem = div {
             position = Position.RELATIVE
@@ -137,6 +141,7 @@ private fun SizedPanel.addSideViewContent(imageUrl: String, imageDims: ImageDims
         val measureTool = MeasureTool.ActivateButton(imageContainerElem, imageDims, MeasureTool.showIn(scaleBar))
         rightDiv.add(0, measureTool)
     } else {
-        image(imageUrl, classes = setOf("full-width-image"))
+        val img = image(imageUrl, classes = setOf("full-width-image"))
+        if (usePlaceholderOnError) img.ifNonExistentUsePlaceholder(size)
     }
 }

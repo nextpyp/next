@@ -397,7 +397,8 @@ class PlayableSpritePanel (
     private val boomerangByDefault: Boolean = true,
     private val autoplay: Boolean = false,
     var onIndexChange: (Int?) -> Unit = {},
-    var onImageSizeChange: (ImageSize) -> Unit = {}
+    var onImageSizeChange: (ImageSize) -> Unit = {},
+    private val placeholderOnError: Boolean = false
 ): SizedPanel(title, sizeStorage.get() ?: ImageSize.Medium) {
 
     var sprite: SpriteImage? = null
@@ -405,6 +406,7 @@ class PlayableSpritePanel (
     val container = div().apply {
         loading("Loading data...")
     }
+    private var placeholderElem: Component? = null
 
     init {
         onResize = { newSize: ImageSize ->
@@ -422,6 +424,7 @@ class PlayableSpritePanel (
 		index: Int,
 		onDone: (sprite: SpriteImage) -> Unit = { _ -> }
 	) {
+        placeholderElem = null
         val mySprite = SpriteImage(imageSrc, length, index)
         container.removeAll()
         val loadingElem = container.loading("Loading data...", classes = setOf("no-height"))
@@ -439,10 +442,19 @@ class PlayableSpritePanel (
 					onDone(mySprite)
 				}
             }
-            error = {
+            error = err@ {
                 container.remove(loadingElem)
 				errorMessage?.let { container.remove(it) }
-                errorMessage = container.errorMessage("Failed to load image")
+                if (placeholderOnError) {
+                    // Only add placeholder once; error can re-fire when tab is re-shown
+                    if (placeholderElem != null) return@err
+                    val placeholderSize = sizeStorage.get()?.id ?: ImageSize.Medium.id
+                    val placeholder = image("/img/placeholder/$placeholderSize", classes = setOf("full-width-image"))
+                    container.add(placeholder)
+                    placeholderElem = placeholder
+                } else {
+                    errorMessage = container.errorMessage("Failed to load image")
+                }
             }
         }
         sprite = mySprite

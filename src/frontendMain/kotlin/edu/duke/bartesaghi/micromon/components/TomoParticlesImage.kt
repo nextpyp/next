@@ -27,7 +27,8 @@ class TomoParticlesImage(
 	val spriteUrl: String,
 	val ownerType: OwnerType,
 	val ownerId: String,
-	val panelName: String = "Tomogram Slices"
+	val panelName: String = "Tomogram Slices",
+	val placeholderOnError: Boolean = false
 ) : Div(classes = setOf("tomo-sized-panel")) {
 
 	companion object {
@@ -56,7 +57,8 @@ class TomoParticlesImage(
 			session: SessionData,
 			tiltSerieses: TiltSeriesesData,
 			tiltSeries: TiltSeriesData,
-			spriteUrl: String = "/kv/tomographySession/${session.sessionId}/${tiltSeries.id}/reconstructionTiltSeriesMontage"
+			spriteUrl: String = "/kv/tomographySession/${session.sessionId}/${tiltSeries.id}/reconstructionTiltSeriesMontage",
+			placeholderOnError: Boolean = false
 		) =
 			TomoParticlesImage(
 				tiltSerieses,
@@ -69,7 +71,8 @@ class TomoParticlesImage(
 				editable = false,
 				spriteUrl = spriteUrl,
 				ownerType = OwnerType.Session,
-				ownerId = session.sessionId
+				ownerId = session.sessionId,
+				placeholderOnError = placeholderOnError
 			)
 	}
 
@@ -141,7 +144,8 @@ class TomoParticlesImage(
         },
         onImageSizeChange = {
 			updateParticles()
-		}
+		},
+        placeholderOnError = placeholderOnError
     )
 
     init {
