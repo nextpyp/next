@@ -216,7 +216,7 @@ class TomographyPreprocessingView(val project: ProjectData, val job: TomographyP
 							overlayLabel = { ts ->
 								excludedIndexesByTiltSeries[ts.id]
 									?.takeIf { it.isNotEmpty() }
-									?.let { indices -> indices.joinToString(", ") }
+									?.let { indices -> "${indices.joinToString(", ")} ignored" }
 							}
 							linker = { _, index ->
 								showTiltSeries(index, true)
