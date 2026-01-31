@@ -109,6 +109,11 @@ enum class MicrographProp(
 			values()
 				.find { it.id == id }
 				?: throw NoSuchElementException("no micrograph property with id $id")
+
+			/** Columns for Table view: no Time, Defocus1/Defocus2 replaced by MeanDefocus. */
+			val tableColumns: List<MicrographProp> = listOf(
+				CCC, CCCC, Defocus1, Defocus2, AngleAstig, AverageMotion, NumParticles
+			)
 	}
 }
 

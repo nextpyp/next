@@ -130,5 +130,10 @@ enum class TiltSeriesProp(
 			values()
 				.find { it.id == id }
 				?: throw NoSuchElementException("no tilt series property with id $id")
+
+		/** Columns for Table view: no Time, Defocus1/Defocus2 replaced by MeanDefocus. */
+		val tableColumns: List<TiltSeriesProp> = listOf(
+			CCC, Defocus1, Defocus2, AngleAstig, AverageMotion, NumParticles
+		)
 	}
 }

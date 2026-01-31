@@ -132,6 +132,7 @@ class SingleParticlePreprocessingView(val project: ProjectData, val job: SingleP
 					filterTable = FilterTable(
 						"Micrograph",
 						micrographs,
+						MicrographProp.tableColumns,
 						MicrographProp.values().toList(),
 						writable = project.canWrite(),
 						showDetail = { elem, index, micrograph ->

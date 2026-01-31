@@ -130,6 +130,7 @@ class TomographyPickingClosedView(val project: ProjectData, val job: TomographyP
 					filterTable = FilterTable(
 						"Tilt Series",
 						data.tiltSerieses,
+						TiltSeriesProp.tableColumns,
 						TiltSeriesProp.values().toList(),
 						writable = project.canWrite(),
 						showDetail = { elem, index, tiltSeries ->

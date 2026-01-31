@@ -32,6 +32,7 @@ import kotlinext.js.jsObject
 class FilterTable<T:PreprocessingData>(
 	val datumLabel: String,
 	val data: List<T>,
+	val dataPropsCols: List<PreprocessingDataProperty>,
 	val dataProps: List<PreprocessingDataProperty>,
 	val writable: Boolean,
 	val showDetail: (Container, Int, T) -> Unit,
@@ -331,7 +332,7 @@ class FilterTable<T:PreprocessingData>(
 			)
 		)
 
-		for (prop in dataProps) {
+		for (prop in dataPropsCols) {
 			val formatter = PreprocessingDataPropertyFormatters[prop]
 			columns.add(ColumnDefinition(
 				prop.label,
@@ -827,8 +828,11 @@ class FilterTable<T:PreprocessingData>(
 			elems.filterNameText.value = filter.name
 			elems.filterDeleteButton.enabled = writable
 			elems.filterExportButton.enabled = writable
+			val validPropIds = dataPropsCols.mapTo(HashSet()) { it.id }
 			for (range in filter.ranges) {
-				FilterElem(range)
+				if (range.propId in validPropIds) {
+					FilterElem(range)
+				}
 			}
 			excludedDatumIds.addAll(filter.excludedIds)
 

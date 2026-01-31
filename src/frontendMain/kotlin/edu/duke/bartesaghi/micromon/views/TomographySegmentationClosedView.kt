@@ -134,6 +134,7 @@ class TomographySegmentationClosedView(val project: ProjectData, val job: Tomogr
 					filterTable = FilterTable(
 						"Tilt Series",
 						data.tiltSerieses,
+						TiltSeriesProp.tableColumns,
 						TiltSeriesProp.values().toList(),
 						writable = project.canWrite(),
 						showDetail = { elem, index, tiltSeries ->

@@ -129,6 +129,7 @@ class SingleParticleSessionDataView(val project: ProjectData, val job: SinglePar
 					filterTable = FilterTable(
 						"Micrograph",
 						micrographs,
+						MicrographProp.tableColumns,
 						MicrographProp.values().toList(),
 						writable = project.canWrite(),
 						showDetail = { elem, index, micrograph ->

@@ -473,6 +473,7 @@ class TomographySessionView(
 		private val table = FilterTable(
 			"Tilt Series",
 			tiltSeriesesData.tiltSerieses,
+			TiltSeriesProp.tableColumns,
 			TiltSeriesProp.values().toList(),
 			writable = SessionPermission.Write in session.permissions,
 			showDetail = { elem, index, tiltSeries ->

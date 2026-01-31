@@ -471,6 +471,7 @@ class SingleParticleSessionView(
 		private val table = FilterTable(
 			"Micrograph",
 			micrographs,
+			MicrographProp.tableColumns,
 			MicrographProp.values().toList(),
 			writable = SessionPermission.Write in session.permissions,
 			showDetail = { elem, index, micrograph ->
