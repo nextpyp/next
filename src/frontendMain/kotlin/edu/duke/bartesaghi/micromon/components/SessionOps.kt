@@ -515,6 +515,15 @@ class SessionFilesystemMonitor : Div(classes = setOf("session-filesystem-monitor
 
 		removeAll()
 
+		// If paths share the same root, only show the shortest one
+		val filesystems = msg.filesystems.filter { fs ->
+			val p = fs.path.trimEnd('/')
+			msg.filesystems.none { other ->
+				val q = other.path.trimEnd('/')
+				q != p && (p == q || p.startsWith("$q/"))
+			}
+		}
+
 		table(classes = setOf("filesystems")) {
 			thead {
 				tr {
@@ -528,7 +537,7 @@ class SessionFilesystemMonitor : Div(classes = setOf("session-filesystem-monitor
 				}
 			}
 			tbody {
-				for (fs in msg.filesystems) {
+				for (fs in filesystems) {
 					tr {
 						td {
 							icon("fas fa-folder")
