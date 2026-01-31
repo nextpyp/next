@@ -4,6 +4,7 @@ import edu.duke.bartesaghi.micromon.AppScope
 import edu.duke.bartesaghi.micromon.components.LogView
 import edu.duke.bartesaghi.micromon.errorMessage
 import edu.duke.bartesaghi.micromon.loading
+import edu.duke.bartesaghi.micromon.onGo
 import edu.duke.bartesaghi.micromon.services.*
 import io.kvision.core.Container
 import io.kvision.html.*
@@ -67,11 +68,13 @@ class AdminJobsTab(
 			div("User Id: ${projectRun.userId}")
 			div("User Name: ${projectRun.userName}")
 			div("Project Id: ${projectRun.projectId}")
-			div("Project Name: ${projectRun.projectName}")
+			div {
+				span("Project Name: ")
+				link("${projectRun.projectName}").onGo("/project/${projectRun.userId}/${projectRun.projectId}")
+			}
 			div("Run Id: ${projectRun.data.runId}")
 			div("Started at: ${Date(projectRun.data.timestamp).toLocaleString()}")
 			div("Status: ${projectRun.data.status}")
-
 			if (projectRun.data.jobs.isEmpty()) {
 				div("(no jobs)", classes = setOf("empty"))
 			} else {
