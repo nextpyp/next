@@ -7,6 +7,7 @@ import kotlinext.js.jsObject
 import io.kvision.html.div
 import io.kvision.html.span
 import kotlin.math.abs
+import kotlinx.browser.window
 
 
 open class CTF1DPlot(
@@ -15,10 +16,15 @@ open class CTF1DPlot(
 ) : SizedPanel("1D CTF Profile", Storage.avgRotSize) {
 
 	private var avgrot: AvgRotData? = null
-	private val container = div()
+	private val container = div().apply {
+		// Constrain width so the plot cannot overflow the panel
+		setStyle("width", "100%")
+		setStyle("max-width", "100%")
+		setStyle("overflow", "hidden")
+	}
 
 	init {
-
+		add(container)
 		addHeader()
 
 		onResize = { newSize: ImageSize ->
@@ -64,7 +70,7 @@ open class CTF1DPlot(
 		}
 	}
 
-	private fun replot() {
+	private fun replot(deferred: Boolean = false) {
 
 		container.removeAll()
 		addHeader()
@@ -140,6 +146,10 @@ open class CTF1DPlot(
 				responsive = true
 			}
 		)
+		// Redraw once after layout is complete so the plot fits the panel (fixes initial overflow)
+		if (!deferred) {
+			window.setTimeout({ replot(deferred = true) }, 150)
+		}
 	}
 }
 
