@@ -96,6 +96,12 @@ val ArgValues.tomoRecBinning: Double?
 val ArgValues.tomoRecBinningOrDefault: Double
 	get() = getOrDefault(args.tomoRecBinning) as Double
 
+val Args.tomoDenoiseIsonet2Mask: Arg
+	get() = argOrThrow("tomo_denoise", "isonet2_mask")
+var ArgValues.tomoDenoiseIsonet2Mask: Boolean?
+	get() = get(args.tomoDenoiseIsonet2Mask) as Boolean?
+	set(value) { set(args.tomoDenoiseIsonet2Mask, value) }
+
 val Args.refineMode: Arg
 	get() = argOrThrow("refine", "mode")
 var ArgValues.refineMode: String?

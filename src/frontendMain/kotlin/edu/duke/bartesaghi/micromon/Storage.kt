@@ -123,6 +123,7 @@ object Storage {
 	var tomographyPickingOpenTabIndex by IntStorageItem("tomographyPickingOpenTabIndex")
 	var tomographyPickingClosedTabIndex by IntStorageItem("tomographyPickingClosedTabIndex")
 	var tomographyParticlesEvalTabIndex by IntStorageItem("tomographyParticlesEvalTabIndex")
+	var tomographyDenoisingTrainingTabIndex by IntStorageItem("tomographyDenoisingTrainingTabIndex")
 	var tomographyDenoisingEvalTabIndex by IntStorageItem("tomographyDenoisingEvalTabIndex")
 	var tomographyMiloEvalTabIndex by IntStorageItem("tomographyMiloEvalTabIndex")
 	var tomographyParticlesTrainTabIndex by IntStorageItem("tomographyParticlesTrainTabIndex")

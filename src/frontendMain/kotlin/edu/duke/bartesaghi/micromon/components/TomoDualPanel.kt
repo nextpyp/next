@@ -36,6 +36,7 @@ class TomoDualPanel(
 	val showScores: Boolean = false,
 	val showScoreMetrics: Boolean = true,
 	val showHeatMap: Boolean = false,
+	val showIsonetOutputs: Boolean = false,
 	val hideSideViews: Boolean = true,
 	val hideDownloadBadges: Boolean = false,
 	val pickingControls: SingleListParticleControls? = null
@@ -50,6 +51,10 @@ class TomoDualPanel(
 	val scoresTomogramImage = TomoParticlesImage.forProject(project, job, tiltSerieses, tiltSeries, pickingControls, panelName="Correlation Scores", spriteUrl = "/kv/jobs/${job.jobId}/data/${tiltSeries.id}/reconstructionScoreMontage")
 
 	val heatMapTomogramImage = TomoParticlesImage.forProject(project, job, tiltSerieses, tiltSeries, panelName="Heat Map", spriteUrl = "/kv/jobs/${job.jobId}/data/${tiltSeries.id}/predOutTiltSeriesMontage")
+
+	val isonetDenoisedTomogramImage = TomoParticlesImage.forProject(project, job, tiltSerieses, tiltSeries, panelName="Corrected", spriteUrl = "/kv/jobs/${job.jobId}/data/${tiltSeries.id}/isonetDenoisedTiltSeriesMontage")
+
+	val isonetMaskedTomogramImage = TomoParticlesImage.forProject(project, job, tiltSerieses, tiltSeries, panelName="Mask", spriteUrl = "/kv/jobs/${job.jobId}/data/${tiltSeries.id}/isonetMaskedTiltSeriesMontage")
 
 	private val recDownloadBadge = FileDownloadBadge(
 		filetype = ".rec file",
@@ -139,6 +144,15 @@ class TomoDualPanel(
 				}
 		}
 
+		if ( self.showIsonetOutputs == true ) {
+			addTab("Corrected") { lazyTab ->
+					lazyTab.elem.add(self.isonetDenoisedTomogramImage)
+				}
+			addTab("Masked") { lazyTab ->
+					lazyTab.elem.add(self.isonetMaskedTomogramImage)
+				}
+		}
+
 	}
 
 	suspend fun load() {
@@ -165,6 +179,11 @@ class TomoDualPanel(
 
 		if ( showHeatMap == true ) {
 			heatMapTomogramImage.load()
+		}
+
+		if ( showIsonetOutputs == true ) {
+			isonetDenoisedTomogramImage.load()
+			isonetMaskedTomogramImage.load()
 		}
     }
 }

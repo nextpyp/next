@@ -298,6 +298,34 @@ actual class JobsService : IJobsService, Service {
 						}
 					}
 
+					get("isonetDenoisedTiltSeriesMontage") {
+						call.respondExceptions {
+
+							// parse args
+							val job = authJob(ProjectPermission.Read).job.hasTiltSeriesOrThrow()
+							val dataId = parseDataId()
+
+							// serve the image
+							val imagePath = TiltSeries.isonetDenoisedTiltSeriesMontagePath(job.dir, dataId)
+							ImageType.Webp.respond(call, imagePath)
+								?.respondNotFound(call)
+						}
+					}
+
+					get("isonetMaskedTiltSeriesMontage") {
+						call.respondExceptions {
+
+							// parse args
+							val job = authJob(ProjectPermission.Read).job.hasTiltSeriesOrThrow()
+							val dataId = parseDataId()
+
+							// serve the image
+							val imagePath = TiltSeries.isonetMaskedTiltSeriesMontagePath(job.dir, dataId)
+							ImageType.Webp.respond(call, imagePath)
+								?.respondNotFound(call)
+						}
+					}
+
 					get("2dCtfTiltMontage") {
 						call.respondExceptions {
 
