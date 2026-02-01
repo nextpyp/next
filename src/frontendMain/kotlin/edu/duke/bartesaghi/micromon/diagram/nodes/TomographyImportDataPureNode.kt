@@ -30,7 +30,7 @@ class TomographyImportDataPureNode(
 		override val config = TomographyImportDataPureNodeConfig
 		override val type = MicromonDiagrams.nodeType(config, "fas fa-cubes")
 		override val jobClass = TomographyImportDataPureData::class
-		override val urlFragment = null
+		override val urlFragment = "tomographyImportDataPure"
 
 		override fun makeNode(viewport: Viewport, diagram: Diagram, project: ProjectData, job: JobData) =
 			TomographyImportDataPureNode(viewport, diagram, project, job as TomographyImportDataPureData)

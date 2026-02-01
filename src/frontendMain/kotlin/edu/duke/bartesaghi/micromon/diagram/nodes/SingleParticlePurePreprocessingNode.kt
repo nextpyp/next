@@ -31,7 +31,7 @@ class SingleParticlePurePreprocessingNode(
 		override val config = SingleParticlePurePreprocessingNodeConfig
 		override val type = MicromonDiagrams.nodeType(config, "far fa-chart-bar")
 		override val jobClass = SingleParticlePurePreprocessingData::class
-		override val urlFragment = null
+		override val urlFragment = "singleParticlePurePreprocessing"
 
 		override fun makeNode(viewport: Viewport, diagram: Diagram, project: ProjectData, job: JobData) =
 			SingleParticlePurePreprocessingNode(viewport, diagram, project, job as SingleParticlePurePreprocessingData)

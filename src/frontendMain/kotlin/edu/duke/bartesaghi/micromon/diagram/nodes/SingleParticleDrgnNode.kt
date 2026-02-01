@@ -31,7 +31,7 @@ class SingleParticleDrgnNode(
 		override val config = SingleParticleDrgnNodeConfig
 		override val type = MicromonDiagrams.nodeType(config, "fas fa-dragon") // TODO: pick an icon
 		override val jobClass = SingleParticleDrgnData::class
-		override val urlFragment = null
+		override val urlFragment = "singleParticleDrgn"
 
 		override fun makeNode(viewport: Viewport, diagram: Diagram, project: ProjectData, job: JobData) =
 			SingleParticleDrgnNode(viewport, diagram, project, job as SingleParticleDrgnData)

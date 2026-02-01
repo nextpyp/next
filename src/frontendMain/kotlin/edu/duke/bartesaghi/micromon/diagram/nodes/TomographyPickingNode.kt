@@ -38,7 +38,7 @@ class TomographyPickingNode(
 		override val config = TomographyPickingNodeConfig
 		override val type = MicromonDiagrams.nodeType(config, "fas fa-crosshairs")
 		override val jobClass = TomographyPickingData::class
-		override val urlFragment = null
+		override val urlFragment = "tomographyPicking"
 
 		override fun makeNode(viewport: Viewport, diagram: Diagram, project: ProjectData, job: JobData) =
 			TomographyPickingNode(viewport, diagram, project, job as TomographyPickingData)

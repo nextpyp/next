@@ -30,7 +30,7 @@ class SingleParticleDenoisingNode(
 		override val config = SingleParticleDenoisingNodeConfig
 		override val type = MicromonDiagrams.nodeType(config, "far fa-chart-bar") // TODO: pick an icon
 		override val jobClass = SingleParticleDenoisingData::class
-		override val urlFragment = null
+		override val urlFragment = "singleParticleDenoising"
 
 		override fun makeNode(viewport: Viewport, diagram: Diagram, project: ProjectData, job: JobData) =
 			SingleParticleDenoisingNode(viewport, diagram, project, job as SingleParticleDenoisingData)

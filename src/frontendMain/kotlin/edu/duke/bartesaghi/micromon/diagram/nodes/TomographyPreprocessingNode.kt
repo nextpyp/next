@@ -33,7 +33,7 @@ class TomographyPreprocessingNode(
 		override val config = TomographyPreprocessingNodeConfig
 		override val type = MicromonDiagrams.nodeType(config, "fas fa-chart-bar")
 		override val jobClass = TomographyPreprocessingData::class
-		override val urlFragment = null
+		override val urlFragment = "tomographyPreprocessing"
 
 		override fun makeNode(viewport: Viewport, diagram: Diagram, project: ProjectData, job: JobData) =
 			TomographyPreprocessingNode(viewport, diagram, project, job as TomographyPreprocessingData)

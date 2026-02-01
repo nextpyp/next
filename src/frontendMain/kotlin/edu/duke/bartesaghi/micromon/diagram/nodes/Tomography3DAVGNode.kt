@@ -31,7 +31,7 @@ class Tomography3DAVGNode(
 		override val config = Tomography3DAVGNodeConfig
 		override val type = MicromonDiagrams.nodeType(config, "fas fa-globe") // TODO: pick an icon
 		override val jobClass = Tomography3DAVGData::class
-		override val urlFragment = null
+		override val urlFragment = "tomography3DAVG"
 
 		override fun makeNode(viewport: Viewport, diagram: Diagram, project: ProjectData, job: JobData) =
 			Tomography3DAVGNode(viewport, diagram, project, job as Tomography3DAVGData)

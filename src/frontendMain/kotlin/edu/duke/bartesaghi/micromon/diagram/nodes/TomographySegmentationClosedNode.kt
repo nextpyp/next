@@ -33,7 +33,7 @@ class TomographySegmentationClosedNode(
 		override val config = TomographySegmentationClosedNodeConfig
 		override val type = MicromonDiagrams.nodeType(config, "fas fa-draw-polygon")
 		override val jobClass = TomographySegmentationClosedData::class
-		override val urlFragment = null
+		override val urlFragment = "tomographySegmentationClosed"
 
 		override fun makeNode(viewport: Viewport, diagram: Diagram, project: ProjectData, job: JobData) =
 			TomographySegmentationClosedNode(viewport, diagram, project, job as TomographySegmentationClosedData)

@@ -31,7 +31,7 @@ class TomographyDrgnTrainNode(
 		override val config = TomographyDrgnTrainNodeConfig
 		override val type = MicromonDiagrams.nodeType(config, "fas fa-dragon")
 		override val jobClass = TomographyDrgnTrainData::class
-		override val urlFragment = null
+		override val urlFragment = "tomographyDrgnTrain"
 
 		override fun makeNode(viewport: Viewport, diagram: Diagram, project: ProjectData, job: JobData) =
 			TomographyDrgnTrainNode(viewport, diagram, project, job as TomographyDrgnTrainData)

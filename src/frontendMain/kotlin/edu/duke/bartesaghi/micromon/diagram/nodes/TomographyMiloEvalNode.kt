@@ -32,7 +32,7 @@ class TomographyMiloEvalNode(
 		override val config = TomographyMiloEvalNodeConfig
 		override val type = MicromonDiagrams.nodeType(config, "fas fa-fingerprint")
 		override val jobClass = TomographyMiloEvalData::class
-		override val urlFragment = null
+		override val urlFragment = "tomographyMiloEval"
 
 		override fun makeNode(viewport: Viewport, diagram: Diagram, project: ProjectData, job: JobData) =
 			TomographyMiloEvalNode(viewport, diagram, project, job as TomographyMiloEvalData)

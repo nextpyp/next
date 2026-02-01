@@ -33,7 +33,7 @@ class TomographyParticlesEvalNode(
 		override val config = TomographyParticlesEvalNodeConfig
 		override val type = MicromonDiagrams.nodeType(config, "fas fa-crosshairs")
 		override val jobClass = TomographyParticlesEvalData::class
-		override val urlFragment = null
+		override val urlFragment = "tomographyParticlesEval"
 
 		override fun makeNode(viewport: Viewport, diagram: Diagram, project: ProjectData, job: JobData) =
 			TomographyParticlesEvalNode(viewport, diagram, project, job as TomographyParticlesEvalData)

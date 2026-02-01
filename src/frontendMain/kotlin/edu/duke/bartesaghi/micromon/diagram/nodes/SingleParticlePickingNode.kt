@@ -30,7 +30,7 @@ class SingleParticlePickingNode(
 		override val config = SingleParticlePickingNodeConfig
 		override val type = MicromonDiagrams.nodeType(config, "fas fa-crosshairs")
 		override val jobClass = SingleParticlePickingData::class
-		override val urlFragment = null
+		override val urlFragment = "singleParticlePicking"
 
 		override fun makeNode(viewport: Viewport, diagram: Diagram, project: ProjectData, job: JobData) =
 			SingleParticlePickingNode(viewport, diagram, project, job as SingleParticlePickingData)
