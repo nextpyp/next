@@ -1601,6 +1601,55 @@ div.project-view div.panel-project-left {
 	flex-direction: column;
 }
 
+/* View switcher: diagram and table stacked in same area; use visibility so diagram keeps dimensions */
+.project-view .project-view-switcher {
+	flex-grow: 1;
+	min-height: 0;
+	position: relative;
+}
+
+.project-view .project-view-switcher .project-view-diagram-wrap,
+.project-view .project-view-switcher .blocks-table-container {
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	/* Match diagram’s vertical edge next to Jobs panel */
+	border-top: solid 1px #848ca0;
+	border-right: solid 1px #848ca0;
+	border-bottom: solid 1px #848ca0;
+	box-shadow: inset -2px 2px 2px 0px #31344854;
+}
+
+.project-view .project-view-switcher .project-view-diagram-wrap {
+	display: flex;
+	flex-direction: column;
+}
+
+.project-view .project-view-switcher .project-view-diagram-wrap .diagram {
+	flex-grow: 1;
+	min-height: 0;
+}
+
+.project-view .project-view-switcher .blocks-table-container {
+	display: flex;
+	flex-direction: column;
+}
+
+.project-view .project-view-switcher .blocks-table-container .stage-container {
+	height: 100%;
+	flex-grow: 1;
+	min-height: 0;
+	overflow: auto;
+}
+
+.project-view .project-view-diagram-hidden,
+.project-view .project-view-table-hidden {
+	visibility: hidden;
+	pointer-events: none;
+}
+
 .project-view .panel-project-left .panel-project-bottom {
 	background-color: #f8f9fa;
     border-right: solid 1px #cccfd7;
@@ -2931,6 +2980,107 @@ div.file-browser .file-browser-bottom .file-browser-controls .file-browser-glob 
 	}
 }
 
+/* BLOCKS TABLE (project view) – filter bar: same structure and style as dashboard .selection */
+.blocks-table .selection {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	background-color: #fff;
+	border-bottom: solid 1px #dee2e6;
+	padding: 0.5em 1em;
+	min-height: 56px;
+}
+
+.blocks-table .selection .search-box-container {
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+	width: 300px;
+	margin-right: 20px;
+	margin-bottom: 0;
+}
+
+.blocks-table .selection .search-box-container .search-box {
+	padding-left: 36px;
+}
+
+.blocks-table .selection .search-box-container .search-box-icon {
+	position: absolute;
+	top: 50%;
+	left: 12px;
+	transform: translateY(-50%);
+	color: #aaaaaa;
+}
+
+.blocks-table .selection .search-second-container {
+	display: inline-flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 0 12px;
+}
+
+.blocks-table .selection .filter-type-wrap,
+.blocks-table .selection .filter-state-wrap {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5em;
+}
+
+.blocks-table .selection .filter-option-icon {
+	display: inline-flex;
+	align-items: center;
+	flex-shrink: 0;
+	min-width: 1.25em;
+	text-align: center;
+}
+
+.blocks-table .selection .sharing {
+	width: 160px !important;
+	vertical-align: inherit;
+}
+
+.blocks-table .selection .sort-order {
+	width: 140px !important;
+	vertical-align: inherit;
+	margin-left: 12px;
+}
+
+.blocks-table .selection .search-results {
+	margin-left: 20px;
+}
+
+/* BLOCKS TABLE (project view) – spacing between icons and text */
+.blocks-table .block-name-cell,
+.blocks-table .block-type-cell,
+.blocks-table .block-state-cell {
+	display: flex;
+	align-items: center;
+	gap: 0.5em;
+}
+
+.blocks-table .block-name-cell .icon,
+.blocks-table .block-type-cell .icon,
+.blocks-table .block-state-cell .icon {
+	flex-shrink: 0;
+}
+
+/* BLOCKS TABLE – filter dropdown items: icon + text (same as Type/State columns) */
+.blocks-table .dropdown-menu .dropdown-item {
+	display: flex;
+	align-items: center;
+	gap: 0.5em;
+}
+
+.blocks-table .dropdown-menu .dropdown-item .icon {
+	flex-shrink: 0;
+	min-width: 1.25em;
+	text-align: center;
+}
+
+/* Ensure Font Awesome icons in dropdown items are visible */
+.blocks-table .dropdown-menu .dropdown-item .icon i {
+	font-size: inherit;
+}
 
 /* HYPER GALLERY */
 

@@ -212,4 +212,5 @@ object Storage {
 	var singleParticleDrgnPlotUmapColorlatentpcaSize by ImageSizeStorageItem("singleParticleDrgnPlotUmapColorlatentpcaSize")
 	var singleParticleDrgnClassSize by ImageSizeStorageItem("singleParticleDrgnClassSize")
 	var Tomography3DAVGClassSize by ImageSizeStorageItem("Tomography3DAVGClassSize")
+	var projectViewTabIndex by IntStorageItem("projectViewTabIndex")
 }

@@ -1,10 +1,7 @@
 package edu.duke.bartesaghi.micromon.views
 
 import edu.duke.bartesaghi.micromon.*
-import edu.duke.bartesaghi.micromon.components.JobsMonitor
-import edu.duke.bartesaghi.micromon.components.PathPopup
-import edu.duke.bartesaghi.micromon.components.WebsocketControl
-import edu.duke.bartesaghi.micromon.components.WorkflowImportDialog
+import edu.duke.bartesaghi.micromon.components.*
 import edu.duke.bartesaghi.micromon.components.forms.*
 import edu.duke.bartesaghi.micromon.diagram.Diagram
 import edu.duke.bartesaghi.micromon.diagram.nodes.Node
@@ -69,6 +66,9 @@ class ProjectView(val project: ProjectData) : View {
 	override val elem = Div(classes = setOf("project-view"))
 
 	private var connector: WebsocketConnector? = null
+	private var blocksTable: BlocksTable? = null
+	private var tableTabElem: Div? = null
+	private var tableStageContainer: Div? = null
 
 	override fun init(viewport: Viewport) {
 
@@ -89,23 +89,72 @@ class ProjectView(val project: ProjectData) : View {
 		val toolbarCenter = toolbar.div(classes = setOf("toolbar-center"))
 		toolbar.div(classes = setOf("toolbar-fill"))
 		val toolbarRight = toolbar.div(classes = setOf("toolbar-right"))
+
+		// Create the diagram dock panel directly in the view (not inside tabs)
+		// This ensures the diagram is in the DOM when it's created
 		val dock = elem.dockPanel(classes = setOf("panel-project"))
 		val panelLeft = Div(classes = setOf("panel-project-left")).also { dock.add(it, Side.CENTER) }
 		val panelRight = Div(classes = setOf("panel-project-right")).also { dock.add(it, Side.RIGHT) }
-		val diagram = Diagram(panelLeft).apply {
+
+		// Stack diagram and table in the same area; use CSS visibility (not display:none) so the
+		// diagram canvas keeps its dimensions and renders correctly when switching back
+		val viewSwitcherContainer = panelLeft.div(classes = setOf("project-view-switcher"))
+		val diagramWrapper = viewSwitcherContainer.div(classes = setOf("project-view-diagram-wrap"))
+		val diagram = Diagram(diagramWrapper).apply {
 			// don't lock the model, so users can drag nodes around
 			//locked = true
 		}
+		val tableContainer = viewSwitcherContainer.div(classes = setOf("blocks-table-container"))
+		tableContainer.addCssClass("project-view-table-hidden")
+		tableTabElem = tableContainer
+		tableStageContainer = tableContainer.div(classes = setOf("stage-container"))
+
 		val panelBottom = Div(classes = setOf("panel-project-bottom")).also { panelLeft.add(it) }
 
 		// layout the toolbar
 		val importDataButton = toolbarLeft.button("Import Data", icon = "fas fa-microscope")
-		val importWorkflowButton = toolbarLeft.button("Import Workflow", icon = "fas fa-project-diagram")
+		val importWorkflowButton = toolbarLeft.button("Import Workflow", icon = "fas fa-forward")
 		toolbarLeft.add(PathPopup.button("Project filesystem location", project.path))
 		val selectionDropdown = toolbarLeft.dropDown("Selection", icon = "fas fa-object-ungroup")
 			.apply {
 				enabled = false
 			}
+		
+		// Add view toggle buttons to toolbar
+		val diagramViewButton = toolbarLeft.button("Tree View", icon = "fas fa-project-diagram").apply {
+			title = "Diagram View"
+			addCssClass("active")
+		}
+		val tableViewButton = toolbarLeft.button("Table View", icon = "fas fa-table").apply {
+			title = "Table View"
+		}
+
+		// Function to switch views using CSS visibility so the diagram never loses layout/dimensions
+		fun showDiagramView() {
+			diagramWrapper.removeCssClass("project-view-diagram-hidden")
+			tableContainer.addCssClass("project-view-table-hidden")
+			diagramViewButton.addCssClass("active")
+			tableViewButton.removeCssClass("active")
+			Storage.projectViewTabIndex = 0
+		}
+
+		fun showTableView() {
+			diagramWrapper.addCssClass("project-view-diagram-hidden")
+			tableContainer.removeCssClass("project-view-table-hidden")
+			diagramViewButton.removeCssClass("active")
+			tableViewButton.addCssClass("active")
+			Storage.projectViewTabIndex = 1
+		}
+
+		// Wire up view toggle events
+		diagramViewButton.onClick { showDiagramView() }
+		tableViewButton.onClick { showTableView() }
+
+		// Restore last view from storage
+		if (Storage.projectViewTabIndex == 1) {
+			showTableView()
+		}
+
 		val runButton = toolbarRight.button("Run")
 
 		val driver = DiagramDriver(viewport, diagram, runButton, panelRight, panelBottom)
@@ -267,6 +316,8 @@ class ProjectView(val project: ProjectData) : View {
 			getJobs = { diagram.nodes().map { it.baseJob } }
 		)
 		private val blocksByConfigId = HashMap<String,Block>()
+		/** Tracks the most recent run timestamp for each job */
+		private val lastRunTimestampByJobId = HashMap<String,Long>()
 
 		init {
 			// wire up events
@@ -292,10 +343,16 @@ class ProjectView(val project: ProjectData) : View {
 				}
 			}
 
-			// init the nodes
+			// init the nodes and track run timestamps
 			for (run in msg.recentRuns) {
 				for (job in run.jobs) {
 					val node = diagram.findNode(job.jobId) ?: continue
+
+					// Track the most recent run timestamp for this job
+					val existingTimestamp = lastRunTimestampByJobId[job.jobId]
+					if (existingTimestamp == null || run.timestamp > existingTimestamp) {
+						lastRunTimestampByJobId[job.jobId] = run.timestamp
+					}
 
 					// it's possible to set the status for the same node multiple times if,
 					// eg, there are multiple runs that reference this node
@@ -344,6 +401,36 @@ class ProjectView(val project: ProjectData) : View {
 
 			updateRunButton()
 			jobsMonitor.init(msg)
+
+			// Update the blocks table with current data
+			refreshBlocksTable()
+		}
+
+		/** Refreshes the blocks table with current node data */
+		fun refreshBlocksTable() {
+			val stageContainer = tableStageContainer ?: return
+
+			// Build BlockRow objects for each node
+			val rows = diagram.nodes().map { node ->
+				val job = node.baseJob
+				val urlFragment = node.config.clientInfo.urlFragment
+
+				BlockRow(
+					jobId = job.jobId,
+					blockNumber = job.common.jobNumber?.toString(),
+					blockName = job.name,
+					typeName = node.config.name,
+					typeIconClass = node.type.iconClass,
+					lastRunTimestamp = lastRunTimestampByJobId[job.jobId],
+					status = node.status,
+					blockPath = urlFragment?.let { "/project/${project.owner.id}/${project.projectId}/${it}/${job.jobId}" }
+				)
+			}.sortedWith(compareBy<BlockRow> { it.blockNumber?.toIntOrNull() ?: Int.MAX_VALUE }.thenBy { it.blockName })
+
+			// Clear and recreate the table inside the stage-container (same structure as diagram)
+			stageContainer.removeAll()
+			blocksTable = BlocksTable(project, rows)
+			stageContainer.add(blocksTable!!)
 		}
 
 		fun wireEvents(node: Node) {
@@ -379,7 +466,7 @@ class ProjectView(val project: ProjectData) : View {
 						Toast.error("No logs available for this block.")
 						return@launch
 					}
-					jobsMonitor.highlightJobRun(runId, node.jobId)
+					jobsMonitor.highlightJobRun(runId.toInt(), node.jobId)
 				}
 			}
 
@@ -589,6 +676,9 @@ class ProjectView(val project: ProjectData) : View {
 			updateRunButton()
 
 			diagram.place(node)
+
+			// Refresh the table to show the new block
+			refreshBlocksTable()
 		}
 
 		fun showImportWorkflowPopup() {
@@ -724,6 +814,9 @@ class ProjectView(val project: ProjectData) : View {
 
 			diagram.update()
 			updateRunButton()
+
+			// Refresh the table to show the new workflow blocks
+			refreshBlocksTable()
 		}
 
 		private fun showUseDataPopup(node: Node, data: NodeConfig.Data) {
@@ -870,6 +963,9 @@ class ProjectView(val project: ProjectData) : View {
 
 					// automatically position the node somewhere useful (hopefully)
 					diagram.place(inNode)
+
+					// Refresh the table to show the new block
+					refreshBlocksTable()
 				}
 			}
 		}
@@ -953,6 +1049,8 @@ class ProjectView(val project: ProjectData) : View {
 							diagram.removeLink(link)
 						}
 					}
+					// Also remove the run timestamp tracking
+					lastRunTimestampByJobId.remove(node.jobId)
 				}
 				diagram.update()
 				updateRunButton()
@@ -966,6 +1064,9 @@ class ProjectView(val project: ProjectData) : View {
 				AppScope.launch {
 					Services.projects.deleteJobs(nodesToDelete.map { it.jobId })
 				}
+
+				// Refresh the table to remove deleted blocks
+				refreshBlocksTable()
 			})
 
 			win.show()
@@ -1090,6 +1191,9 @@ class ProjectView(val project: ProjectData) : View {
 			Services.projects.positionJobs(copiedNodes.values.map {
 				JobPosition(it.jobId, it.x, it.y)
 			})
+
+			// Refresh the table to show the copied blocks
+			refreshBlocksTable()
 		}
 
 		private fun runAll() {
@@ -1308,6 +1412,11 @@ class ProjectView(val project: ProjectData) : View {
 
 		fun onRunInit(msg: RealTimeS2C.ProjectRunInit) {
 
+			// Track the run timestamp for these jobs
+			for (jobId in msg.jobIds) {
+				lastRunTimestampByJobId[jobId] = msg.timestamp
+			}
+
 			// set node statuses to waiting, if not already doing something
 			for (jobId in msg.jobIds) {
 				val node = diagram.findNode(jobId) ?: continue
@@ -1321,6 +1430,9 @@ class ProjectView(val project: ProjectData) : View {
 			updateRunButton()
 
 			jobsMonitor.initRun(msg)
+
+			// Refresh the table to show updated statuses
+			refreshBlocksTable()
 		}
 
 		fun onRunStart(msg: RealTimeS2C.ProjectRunStart) {
@@ -1343,6 +1455,9 @@ class ProjectView(val project: ProjectData) : View {
 			updateRunButton()
 
 			jobsMonitor.startJob(msg)
+
+			// Refresh the table to show updated statuses
+			refreshBlocksTable()
 		}
 
 		fun onJobUpdate(msg: RealTimeS2C.JobUpdate) {
@@ -1370,6 +1485,9 @@ class ProjectView(val project: ProjectData) : View {
 			updateRunButton()
 
 			jobsMonitor.finishJob(msg)
+
+			// Refresh the table to show updated statuses
+			refreshBlocksTable()
 		}
 
 		fun onRunFinish(msg: RealTimeS2C.ProjectRunFinish) {
