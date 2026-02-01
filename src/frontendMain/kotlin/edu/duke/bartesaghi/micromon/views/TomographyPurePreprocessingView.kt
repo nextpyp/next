@@ -178,8 +178,24 @@ class TomographyPurePreprocessingView(val project: ProjectData, val job: Tomogra
 				}
 
 				addTab("Gallery", "fas fa-image") { lazyTab ->
-					val loadingPlaceholder = div("Loading gallery...", classes = setOf("empty", "spaced"))
-					lazyTab.elem.add(loadingPlaceholder)
+					// Show gallery immediately; load ignored-views overlay in background so display is not blocked
+					gallery = HyperGallery(data.tiltSerieses, ImageSizes.from(ImageSize.Small)).apply {
+						html = { tiltSeries ->
+							listenToImageSize(document.create.img(src = tiltSeries.imageUrl(job, ImageSize.Small)))
+						}
+						overlayLabel = { ts ->
+							excludedIndexesByTiltSeries[ts.id]
+								?.takeIf { it.isNotEmpty() }
+								?.let { indices -> "${indices.joinToString(", ")} ignored" }
+								?: null
+						}
+						linker = { _, index ->
+							showTiltSeries(index, true)
+						}
+					}
+					lazyTab.elem.add(gallery!!)
+					gallery?.update()
+					// Fetch exclusion data in background and refresh overlays when ready
 					AppScope.launch {
 						try {
 							data.tiltSerieses.forEach { ts ->
@@ -192,22 +208,6 @@ class TomographyPurePreprocessingView(val project: ProjectData, val job: Tomogra
 						} catch (_: Throwable) {
 							excludedIndexesByTiltSeries.clear()
 						}
-						lazyTab.elem.remove(loadingPlaceholder)
-						gallery = HyperGallery(data.tiltSerieses, ImageSizes.from(ImageSize.Small)).apply {
-							html = { tiltSeries ->
-								listenToImageSize(document.create.img(src = tiltSeries.imageUrl(job, ImageSize.Small)))
-							}
-							overlayLabel = { ts ->
-								excludedIndexesByTiltSeries[ts.id]
-									?.takeIf { it.isNotEmpty() }
-									?.let { indices -> "${indices.joinToString(", ")} ignored" }
-									?: null
-							}
-							linker = { _, index ->
-								showTiltSeries(index, true)
-							}
-						}
-						lazyTab.elem.add(gallery!!)
 						gallery?.update()
 					}
 				}
