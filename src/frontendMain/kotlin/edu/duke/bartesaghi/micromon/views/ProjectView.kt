@@ -496,6 +496,10 @@ class ProjectView(val project: ProjectData) : View {
 					node.wipe(false)
 				}
 
+				node.onMakeUpToDateClick = {
+					setNodeUpToDate(node)
+				}
+
 				node.onDeleteFilesClick = {
 					val downstream = node.getDownstreamNodesIteratively()
 					val win = Modal(
@@ -556,6 +560,22 @@ class ProjectView(val project: ProjectData) : View {
 
 		private fun Node.wipe(deleteFilesAndData: Boolean) {
 			wipeNodes(listOf(this), deleteFilesAndData)
+		}
+
+		private fun setNodeUpToDate(node: Node) {
+			AppScope.launch {
+				val newJob = try {
+					Services.projects.setJobUpToDate(node.jobId)
+						.let { JobData.deserialize(it) }
+				} catch (t: Throwable) {
+					Toast.error("Failed to set block up to date: ${t.message ?: "(unknown error)"}")
+					return@launch
+				}
+				node.baseJob = newJob
+				node.renderButtons()
+				diagram.update()
+				updateRunButton()
+			}
 		}
 
 		private fun wipeNodes(nodes: List<Node>, deleteFilesAndData: Boolean) {

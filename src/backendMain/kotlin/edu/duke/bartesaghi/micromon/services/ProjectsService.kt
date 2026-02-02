@@ -288,6 +288,18 @@ actual class ProjectsService : IProjectsService {
 		job.data().serialize()
 	}
 
+	override suspend fun setJobUpToDate(jobId: String): String = sanitizeExceptions {
+
+		// authenticate the user for this job
+		val user = call.authOrThrow()
+		val job = user.authJobOrThrow(ProjectPermission.Write, jobId)
+
+		job.stale = false
+		job.update()
+
+		job.data().serialize()
+	}
+
 	override suspend fun olderRuns(userId: String, projectId: String): List<ProjectRunData> = sanitizeExceptions {
 
 		// authenticate the user for this project

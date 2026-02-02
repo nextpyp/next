@@ -132,6 +132,7 @@ abstract class Node(
 	var onEdited: (() -> Unit)? = null
 	var onCopyClick: (() -> Unit)? = null
 	var onMakeRunnableClick: (() -> Unit)? = null
+	var onMakeUpToDateClick: (() -> Unit)? = null
 	var onDeleteFilesClick: (() -> Unit)? = null
 	var onShowLatestLogClick: (() -> Unit)? = null
 
@@ -403,6 +404,13 @@ abstract class Node(
 					}) {
 						icon("fas fa-recycle", className = "icon")
 						text("Make runnable")
+					}
+
+					dropdownItem(enabled = project.canWrite() && baseJob.common.stale, title = "Reset runnable state and mark this block as up to date", onClick = {
+						onMakeUpToDateClick?.invoke()
+					}) {
+						icon("fas fa-check-double", className = "icon")
+						text("Make up-to-date")
 					}
 
 					dropdownItem(enabled = project.canWrite(), title = "Delete any intermediate files and data produced by this block, but keep the block configuration", onClick = {

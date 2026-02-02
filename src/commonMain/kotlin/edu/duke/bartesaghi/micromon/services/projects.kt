@@ -64,6 +64,9 @@ interface IProjectsService {
 	@KVBindingRoute("projects/wipeJob")
 	suspend fun wipeJob(jobId: String, deleteFilesAndData: Boolean): String /* JobData but serialized */
 
+	@KVBindingRoute("projects/setJobUpToDate")
+	suspend fun setJobUpToDate(jobId: String): String /* JobData but serialized */
+
 	@KVBindingRoute("projects/olderRuns")
 	suspend fun olderRuns(userId: String, projectId: String): List<ProjectRunData>
 
