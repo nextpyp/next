@@ -163,6 +163,8 @@ class Config(toml: String) {
 		val workflowDirs: List<Path>,
 		val demo: Boolean,
 		val maxProjectsPerUser: Int?,
+		/** When true, independent dependency chains can run in parallel; when false, only one job runs per project at a time. */
+		val allowParallelJobRuns: Boolean,
 		val minPasswordLength: Int
 	) {
 
@@ -227,6 +229,7 @@ class Config(toml: String) {
 				} ?: emptyList(),
 				demo = getBoolean("demo") ?: false,
 				maxProjectsPerUser = getInt("maxProjectsPerUser"),
+				allowParallelJobRuns = getBoolean("allowParallelJobRuns") ?: true,
 				minPasswordLength = getInt("minPasswordLength") ?: 12
 			)
 		}
@@ -332,6 +335,7 @@ class Config(toml: String) {
 			|   OOM heap dumps:  ${web.oomdump}
 			|    workflow dirs:  ${web.workflowDirs.joinToString("\n$indent")}
 			|        demo mode:  ${web.demo}
+			|    parallel jobs:  ${web.allowParallelJobRuns}
 		""".trimMargin())
 	}.toString()
 }

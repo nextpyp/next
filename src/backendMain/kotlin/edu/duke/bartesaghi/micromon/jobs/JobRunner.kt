@@ -1,6 +1,7 @@
 package edu.duke.bartesaghi.micromon.jobs
 
 import edu.duke.bartesaghi.micromon.Backend
+import edu.duke.bartesaghi.micromon.Config
 import edu.duke.bartesaghi.micromon.cleanupStackTrace
 import edu.duke.bartesaghi.micromon.cluster.Cluster
 import edu.duke.bartesaghi.micromon.cluster.ClusterJob
@@ -22,9 +23,28 @@ class JobRunner(val project: Project) {
 
 	constructor (userId: String, projectId: String) : this(Database.instance.projects.getProjectOrThrow(userId, projectId))
 
-	private fun isRunning(): Boolean =
+	/** All job IDs currently running in this project (across all runs). */
+	private fun getRunningJobIdsInProject(): Set<String> =
 		project.getRuns()
-			.any { it.status == RunStatus.Running }
+			.flatMap { run -> run.jobs.filter { it.status == RunStatus.Running }.map { it.jobId } }
+			.toSet()
+
+	/**
+	 * True iff [job] can run in parallel with all [runningJobIds]: neither [job] nor any of those
+	 * jobs is downstream of the other (they are in independent dependency chains).
+	 */
+	private fun isIndependentOf(job: Job, runningJobIds: Set<String>): Boolean {
+		if (runningJobIds.isEmpty()) return true
+		val downstreamInfo = project.downstreamInfo()
+		val downstreamOfJob = downstreamInfo.jobsIterative(listOf(job)).map { it.idOrThrow }.toSet()
+		for (runningId in runningJobIds) {
+			val runningJob = Job.fromId(runningId) ?: continue
+			val downstreamOfRunning = downstreamInfo.jobsIterative(listOf(runningJob)).map { it.idOrThrow }.toSet()
+			if (job.idOrThrow in downstreamOfRunning) return false
+			if (runningId in downstreamOfJob) return false
+		}
+		return true
+	}
 
 	/**
 	 * Initializes a new run, adds it to the running queue for the project
@@ -53,26 +73,116 @@ class JobRunner(val project: Project) {
 	}
 
 	/**
-	 * Call after init() to start the first job,
-	 * but don't wait for the result if you don't want to
+	 * Call after init() to start jobs that can run (including from independent chains).
+	 * Does not wait for results so the UI stays responsive.
 	 */
 	suspend fun startFistJobIfIdle() {
+		tryRunNextJobs()
+	}
 
-		// if a job isn't already running, try to start one
-		if (!isRunning()) {
-			tryRunNextJob()
+	/**
+	 * Tries to start the next job from every run whose next waiting job is independent of
+	 * all currently running jobs (and any jobs we start in this call). This allows multiple
+	 * chains to run in parallel when they have no dependency relationship.
+	 * Will start project runs as needed. Project runs are only finished when they have no jobs left.
+	 * When [Config.instance.web.allowParallelJobRuns] is false, uses serial mode (one job per project at a time).
+	 */
+	private suspend fun tryRunNextJobs() {
+
+		if (!Config.instance.web.allowParallelJobRuns) {
+			tryRunNextJobSerial()
+			return
+		}
+
+		var runningJobIds = getRunningJobIdsInProject()
+		val startedJobIds = mutableSetOf<String>()
+
+		for (run in project.getRuns()) {
+
+			if (run.status != RunStatus.Waiting && run.status != RunStatus.Running)
+				continue
+
+			// should we start this run (transition Waiting -> Running)?
+			if (run.status == RunStatus.Waiting) {
+				run.status = RunStatus.Running
+				project.updateRun(run)
+				for (listener in listeners.values) {
+					listener.onStart(project.userId, project.projectId, run.idOrThrow)
+				}
+			}
+
+			// no waiting jobs in this run; finish run if nothing running, then process other runs
+			val waitingJobs = run.jobs.filter { it.status == RunStatus.Waiting }
+			if (waitingJobs.isEmpty()) {
+				if (run.jobs.none { it.status == RunStatus.Waiting } && run.jobs.none { it.status == RunStatus.Running }) {
+					finishRun(run)
+					tryRunNextJobs()
+				}
+				continue
+			}
+
+			// try each waiting job in order; start any that are independent of running/started jobs
+			for (jobRun in waitingJobs) {
+				val job = Job.fromIdOrThrow(jobRun.jobId)
+				if (!isIndependentOf(job, runningJobIds + startedJobIds))
+					continue
+
+				// mark this job and all downstream jobs as stale
+				val jobsToUpdate = mutableListOf(job)
+				jobsToUpdate += project.downstreamInfo().jobsIterative(jobsToUpdate)
+				for (j in jobsToUpdate) {
+					if (!j.stale) {
+						j.stale = true
+						j.update()
+					}
+				}
+
+				run.getJob(job.idOrThrow).status = RunStatus.Running
+				project.updateRun(run)
+				startedJobIds.add(job.idOrThrow)
+				runningJobIds = runningJobIds + job.idOrThrow
+
+				for (listener in listeners.values) {
+					listener.onStartJob(project.userId, project.projectId, run.idOrThrow, job.idOrThrow)
+				}
+
+				try {
+					job.launch(run.idOrThrow)
+				} catch (t: Throwable) {
+					val errorMessage = when (t) {
+						is ServiceException -> {
+							Backend.log.debug("Job failed to launch with user error", t.cleanupStackTrace())
+							t.message
+						}
+						else -> {
+							Backend.log.error("Job failed to launch", t.cleanupStackTrace())
+							null
+						}
+					}
+					try {
+						finished(run.idOrThrow, job.idOrThrow, RunStatus.Failed, errorMessage)
+					} catch (t2: Throwable) {
+						Backend.log.error("Failed to finish failed job run", t2)
+					}
+				}
+			}
+		}
+
+		// if we started any job, try again to start more (e.g. another independent chain in the same run)
+		if (startedJobIds.isNotEmpty()) {
+			tryRunNextJobs()
 		}
 	}
 
 	/**
-	 * Runs the next availiable job in the queue, if any.
-	 * Will start project runs as needed.
-	 * Project runs will only be finished if they have no jobs at all.
-	 * Otherwise finishRun() must be used to finish the run.
+	 * Serial mode: only one job runs in the project at a time. Starts the first waiting job
+	 * from the first run that has one. Used when [Config.instance.web.allowParallelJobRuns] is false.
 	 */
-	private suspend fun tryRunNextJob() {
+	private suspend fun tryRunNextJobSerial() {
 
-		// get the next project run, if any
+		if (getRunningJobIdsInProject().isNotEmpty())
+			return
+
 		val run = project.getRuns()
 			.firstOrNull { it.status == RunStatus.Waiting || it.status == RunStatus.Running }
 			?: return
@@ -100,11 +210,10 @@ class JobRunner(val project: Project) {
 			.firstOrNull { it.status == RunStatus.Waiting }
 			?.let { Job.fromIdOrThrow(it.jobId) }
 			?: run {
-
-				// this run is running, but has no running or waiting jobs
-				// that must mean it has no jobs at all, so finish it now and move to the next run
-				finishRun(run)
-				tryRunNextJob()
+				if (run.jobs.none { it.status == RunStatus.Running }) {
+					finishRun(run)
+					tryRunNextJobs()
+				}
 				return
 			}
 
@@ -223,7 +332,7 @@ class JobRunner(val project: Project) {
 			finishRun(run)
 		}
 
-		tryRunNextJob()
+		tryRunNextJobs()
 	}
 
 	suspend fun cancel(runId: Int) {
@@ -287,7 +396,7 @@ class JobRunner(val project: Project) {
 		// then try to run the next job
 		if (jobsToFinish.isEmpty() && !waitingForJobs) {
 			finishRun(run)
-			tryRunNextJob()
+			tryRunNextJobs()
 		}
 
 		// otherwise, wait for the finished() calls to come in

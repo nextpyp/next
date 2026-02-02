@@ -82,12 +82,12 @@ class JobsMonitor(
 				jobEntries[jobId] = entry
 				jobsElem.add(entry.elem)
 			}
+			updateCancelable()
 		}
 
 		fun init(data: ProjectRunData) {
 
 			statusElem.icon = data.status.toIcon()
-			cancelable = data.status in listOf(RunStatus.Waiting, RunStatus.Running)
 
 			val jobs = getJobs().associateBy { it.jobId }
 			for (jobData in data.jobs) {
@@ -96,6 +96,7 @@ class JobsMonitor(
 				jobsElem.add(entry.elem)
 				entry.init(jobData)
 			}
+			updateCancelable()
 		}
 
 		init {
@@ -108,7 +109,11 @@ class JobsMonitor(
 
 		fun finish(msg: RealTimeS2C.ProjectRunFinish) {
 			statusElem.icon = msg.status.toIcon()
-			cancelable = false
+			updateCancelable()
+		}
+
+		fun updateCancelable() {
+			cancelable = jobEntries.values.any { it.status == RunStatus.Waiting || it.status == RunStatus.Running }
 		}
 
 		var cancelable: Boolean
@@ -155,6 +160,9 @@ class JobsMonitor(
 			var job: JobData? = job
 				private set
 
+			var status: RunStatus = RunStatus.Waiting
+				private set
+
 			private val clusterJobEntries = HashMap<String,ClusterJobEntry>()
 
 			val statusElem = IconStyled("", classes = setOf("status-icon"))
@@ -181,6 +189,7 @@ class JobsMonitor(
 
 			fun init(data: JobRunData) {
 
+				status = data.status
 				statusElem.icon = data.status.toIcon()
 
 				// init cluster jobs
@@ -246,10 +255,12 @@ class JobsMonitor(
 			}
 
 			fun start(msg: RealTimeS2C.JobStart) {
+				status = RunStatus.Running
 				statusElem.icon = IconRunning
 			}
 
 			fun finish(msg: RealTimeS2C.JobFinish) {
+				status = msg.status
 				statusElem.icon = msg.status.toIcon()
 
 				if (msg.errorMessage != null) {
@@ -600,11 +611,17 @@ class JobsMonitor(
 	}
 
 	fun startJob(msg: RealTimeS2C.JobStart) {
-		runEntries[msg.runId]?.jobEntries?.get(msg.jobId)?.start(msg)
+		runEntries[msg.runId]?.let { runEntry ->
+			runEntry.jobEntries[msg.jobId]?.start(msg)
+			runEntry.updateCancelable()
+		}
 	}
 
 	fun finishJob(msg: RealTimeS2C.JobFinish) {
-		runEntries[msg.runId]?.jobEntries?.get(msg.jobId)?.finish(msg)
+		runEntries[msg.runId]?.let { runEntry ->
+			runEntry.jobEntries[msg.jobId]?.finish(msg)
+			runEntry.updateCancelable()
+		}
 	}
 
 	fun finishRun(msg: RealTimeS2C.ProjectRunFinish) {
