@@ -121,12 +121,12 @@ class ProjectView(val project: ProjectData) : View {
 			}
 		
 		// Add view toggle buttons to toolbar
-		val diagramViewButton = toolbarLeft.button("Tree View", icon = "fas fa-project-diagram").apply {
-			title = "Diagram View"
+		val diagramViewButton = toolbarLeft.button("Graph View", icon = "fas fa-project-diagram").apply {
+			title = "Graph View"
 			addCssClass("active")
 		}
-		val tableViewButton = toolbarLeft.button("Table View", icon = "fas fa-table").apply {
-			title = "Table View"
+		val tableViewButton = toolbarLeft.button("List View", icon = "fas fa-table").apply {
+			title = "List View"
 		}
 
 		// Function to switch views using CSS visibility so the diagram never loses layout/dimensions
