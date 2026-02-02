@@ -33,7 +33,7 @@ class TomographySessionDataNode(
 		override val config = TomographySessionDataNodeConfig
 		override val type = MicromonDiagrams.nodeType(config, "fas fa-cubes")
 		override val jobClass = TomographySessionDataData::class
-		override val urlFragment = null
+		override val urlFragment = "tomographySessionData"
 
 		override fun makeNode(viewport: Viewport, diagram: Diagram, project: ProjectData, job: JobData) =
 			TomographySessionDataNode(viewport, diagram, project, job as TomographySessionDataData)
