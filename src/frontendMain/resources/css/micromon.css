@@ -2919,6 +2919,28 @@ div.file-browser .file-browser-bottom .file-browser-controls .file-browser-glob 
 		}
 	}
 
+	/* Exclude column header: blue toggle icon button in the title cell */
+	.exclude-column-toggle-wrap {
+		display: inline-block;
+		margin-left: 6px;
+		vertical-align: middle;
+	}
+
+	.exclude-column-toggle-btn {
+		padding: 2px 6px;
+		border: 1px solid var(--primary);
+		border-radius: 4px;
+		background: var(--primary);
+		color: white;
+		cursor: pointer;
+		font-size: 12px;
+		line-height: 1;
+	}
+
+	.exclude-column-toggle-btn:hover {
+		filter: brightness(0.9);
+	}
+
 	.columns {
 		display: flex;
 		flex-direction: row;

@@ -27,6 +27,8 @@ import io.kvision.utils.toKotlinObj
 import js.getHTMLElement
 import js.nouislider.noUiSlider
 import kotlinext.js.jsObject
+import kotlinx.browser.document
+import kotlinx.browser.window
 
 
 class FilterTable<T:PreprocessingData>(
@@ -356,7 +358,7 @@ class FilterTable<T:PreprocessingData>(
 			))
 		}
 
-		// add a checkbox to exclude individual data
+		// add a checkbox to exclude individual data (field = "exclude" for show/hide column API)
 		columns.add(ColumnDefinition(
 			"Exclude",
 			formatterComponentFunction = { _, _, p ->
@@ -378,6 +380,7 @@ class FilterTable<T:PreprocessingData>(
 					}
 				}
 			},
+			field = "exclude",
 			headerSort = false
 		))
 
@@ -481,6 +484,11 @@ class FilterTable<T:PreprocessingData>(
 			deleteButton,
 			exportButton
 		)
+
+		// Inject toggle into Exclude column header (toggle all rows between Exclude / Include)
+		window.setTimeout({
+			injectExcludeColumnHeaderToggle()
+		}, 0)
 
 		setViewNone()
 
@@ -605,6 +613,49 @@ class FilterTable<T:PreprocessingData>(
 			ReverseCheck.State.Ignored -> excludedDatumIds.remove(datum.id)
 			ReverseCheck.State.Rejected -> excludedDatumIds.add(datum.id)
 		}
+	}
+
+	/** Toggle each row's Exclude checkbox according to its current value (flip each). */
+	private fun toggleAllExcludeState() {
+		for (datum in data) {
+			val newState = if (datum.id in excludedDatumIds) {
+				ReverseCheck.State.Ignored
+			} else {
+				ReverseCheck.State.Rejected
+			}
+			when (newState) {
+				ReverseCheck.State.Ignored -> excludedDatumIds.remove(datum.id)
+				ReverseCheck.State.Rejected -> excludedDatumIds.add(datum.id)
+			}
+			excludedChecks[datum.id]?.state = newState
+		}
+	}
+
+	/** Injects a toggle button into the Exclude column header: toggles all checkboxes Exclude/Include. */
+	private fun injectExcludeColumnHeaderToggle() {
+		val jsTab = elems?.table?.jsTabulator ?: return
+		val tab = jsTab.asDynamic()
+		val col = tab.getColumn("exclude") ?: return
+		val headerEl = col.getElement()
+		if (headerEl == null || headerEl == undefined) return
+		val el = headerEl.unsafeCast<dynamic>()
+		// Remove any previously injected toggle so we don't duplicate
+		val existing = el.querySelector(".exclude-column-toggle-wrap")
+		if (existing != null) existing.parentNode?.removeChild(existing)
+		val wrap = document.createElement("span").unsafeCast<dynamic>()
+		wrap.className = "exclude-column-toggle-wrap"
+		val btn = document.createElement("button").unsafeCast<dynamic>()
+		btn["type"] = "button"
+		btn["title"] = "Toggle all: flip each row's Exclude/Include state"
+		btn.className = "exclude-column-toggle-btn"
+		btn.setAttribute("aria-label", "Toggle all Exclude checkboxes")
+		btn.innerHTML = "<i class=\"fas fa-exchange-alt\" aria-hidden=\"true\"></i>"
+		val toggleHandler: () -> Unit = {
+			toggleAllExcludeState()
+		}
+		btn["onclick"] = toggleHandler.unsafeCast<dynamic>()
+		wrap.appendChild(btn)
+		el.appendChild(wrap)
 	}
 
 	private fun setViewHurray() {
