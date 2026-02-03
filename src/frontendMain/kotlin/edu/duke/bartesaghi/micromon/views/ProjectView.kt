@@ -121,8 +121,8 @@ class ProjectView(val project: ProjectData) : View {
 			}
 		
 		// Add view toggle buttons to toolbar
-		val diagramViewButton = toolbarLeft.button("Graph View", icon = "fas fa-project-diagram").apply {
-			title = "Graph View"
+		val diagramViewButton = toolbarLeft.button("Block View", icon = "fas fa-project-diagram").apply {
+			title = "Block View"
 			addCssClass("active")
 		}
 		val tableViewButton = toolbarLeft.button("List View", icon = "fas fa-table").apply {
