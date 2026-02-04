@@ -103,6 +103,7 @@ object Storage {
 	var motionSize by ImageSizeStorageItem("motionSize")
 	var ctffindSize by ImageSizeStorageItem("ctffindSize")
 	var filterTableRows by IntStorageItem("filterTableRows")
+	var filterTableExcludeColumnVisible by BoolStorageItem("filterTableExcludeColumnVisible")
 	var singleParticlePreprocessingTabIndex by IntStorageItem("singleParticlePreprocessingTabIndex")
 	var singleParticleSessionDataTabIndex by IntStorageItem("singleParticleSessionDataIndex")
 	var singleParticleImportDataTabIndex by IntStorageItem("singleParticleImportDataIndex")
