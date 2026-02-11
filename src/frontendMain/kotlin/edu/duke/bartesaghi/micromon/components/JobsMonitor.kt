@@ -422,9 +422,19 @@ class JobsMonitor(
 	}
 
 	private val runEntries = HashMap<Int,RunEntry>()
-	private val runsElem = elem.div(classes = setOf("runs"))
+	private val runsElem = Div(classes = setOf("runs"))
 	private val periodElems = HashMap<TimePeriod,Disclosure>()
 	private val emptyMessage = Div("no jobs to display", classes = setOf("empty"))
+
+	init {
+		elem.add(
+			Disclosure(
+				label = { h1("Jobs") },
+				disclosed = { add(runsElem) },
+				classes = setOf("jobs-panel-disclosure")
+			)
+		)
+	}
 
 	fun init(msg: RealTimeS2C.ProjectStatus) {
 

@@ -1946,8 +1946,31 @@ div.project-view div.jobs-monitor {
 	flex-direction: column;
 }
 
+/* Collapsible Jobs panel: disclosure fills space so runs area can scroll */
+div.project-view div.jobs-monitor div.jobs-panel-disclosure {
+	flex-grow: 1;
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+}
+
+div.project-view div.jobs-monitor div.jobs-panel-disclosure div.disclosure-content {
+	flex-grow: 1;
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+}
+
+div.project-view div.jobs-monitor div.jobs-panel-disclosure div.disclosure-disclosed {
+	flex-grow: 1;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+}
+
 div.project-view div.jobs-monitor h1 {
 	font-size: 130%;
+	margin: 0;
 }
 
 div.project-view div.jobs-monitor div.runs {
