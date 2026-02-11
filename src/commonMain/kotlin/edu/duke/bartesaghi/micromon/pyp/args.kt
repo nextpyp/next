@@ -822,6 +822,19 @@ sealed class ArgInput {
 	 * Helps the user pick an initial model for 3D refinement from previous job outputs
 	 */
 	@Serializable
+	class MilopypEvalCoordinates : ArgInput() {
+
+		companion object {
+			const val id = "milopypEvalCoordinates"
+		}
+
+		override val argInputId = id
+	}
+
+	/**
+	 * Helps the user pick an initial model for 3D refinement from previous job outputs
+	 */
+	@Serializable
 	class CryocareTrainedModel : ArgInput() {
 
 		companion object {
