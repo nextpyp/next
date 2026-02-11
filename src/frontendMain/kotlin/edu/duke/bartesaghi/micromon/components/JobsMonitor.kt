@@ -417,10 +417,6 @@ class JobsMonitor(
 
 	} // RunEntry
 
-	init {
-		elem.h1("Jobs")
-	}
-
 	private val runEntries = HashMap<Int,RunEntry>()
 	private val runsElem = Div(classes = setOf("runs"))
 	private val periodElems = HashMap<TimePeriod,Disclosure>()
