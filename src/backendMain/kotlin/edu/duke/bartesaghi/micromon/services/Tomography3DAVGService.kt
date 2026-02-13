@@ -169,7 +169,7 @@ actual class Tomography3DAVGService : ITomography3DAVGService, Service {
 						}
 					}
 
-					get("references") {
+					get("references/mrc") {
 						call.respondExceptions {
 
 							// parse args

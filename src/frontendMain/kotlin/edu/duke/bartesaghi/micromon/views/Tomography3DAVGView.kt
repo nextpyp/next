@@ -682,7 +682,7 @@ class Tomography3DAVGView(val project: ProjectData, val job: Tomography3DAVGData
 					val mrcDownload = FileDownloadBadge(
 						filetype = ".mrc file",
 						url = ITomography3DAVGService.referencesMrcPath(job.jobId, iterNum),
-						filename = "${job.shortNumberedName}_iteration_${formatted_iteration}_refined_selected_average_0.mrc",
+						filename = "${job.shortNumberedName}_${formatted_iteration}_refined_selected_average_0.mrc",
 						loader = { Services.tomography3DAVG.referencesMrcData(job.jobId, iterNum) }
 					)
 					add(mrcDownload)
@@ -962,7 +962,7 @@ class Tomography3DAVGView(val project: ProjectData, val job: Tomography3DAVGData
 			viewer.volumes =
 				(0 .. numIterations).map { iter ->
 					ThreeDeeViewer.VolumeData(
-						name = "Unsymmetrized average, Iteration $iter",
+						name = "Unsymmetrized, Iteration $iter",
 						url = ITomography3DAVGService.averageMrcPath(job.jobId, iter)
 					)
 				}
@@ -985,9 +985,9 @@ class Tomography3DAVGView(val project: ProjectData, val job: Tomography3DAVGData
 
 			// init the volumes
 			viewer.volumes =
-				(0 .. numIterations).map { iter ->
+				(1 .. numIterations).map { iter ->
 					ThreeDeeViewer.VolumeData(
-						name = "References, Iteration $iter",
+						name = "Iteration $iter",
 						url = ITomography3DAVGService.referencesMrcPath(job.jobId, iter)
 					)
 				}
