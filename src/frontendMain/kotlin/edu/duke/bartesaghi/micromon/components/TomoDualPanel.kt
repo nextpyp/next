@@ -46,7 +46,7 @@ class TomoDualPanel(
 
 	val segmentedTomogramImage = TomoParticlesImage.forProject(project, job, tiltSerieses, tiltSeries, spriteUrl = "/kv/jobs/${job.jobId}/data/${tiltSeries.id}/segmentedTomogramMontage")
 
-	val denoisedTomogramImage = TomoParticlesImage.forProject(project, job, tiltSerieses, tiltSeries, spriteUrl = "/kv/jobs/${job.jobId}/data/${tiltSeries.id}/denoisedTomogramMontage")
+	val denoisedTomogramImage = TomoParticlesImage.forProject(project, job, tiltSerieses, tiltSeries, pickingControls, spriteUrl = "/kv/jobs/${job.jobId}/data/${tiltSeries.id}/denoisedTomogramMontage")
 
 	val scoresTomogramImage = TomoParticlesImage.forProject(project, job, tiltSerieses, tiltSeries, pickingControls, panelName="Correlation Scores", spriteUrl = "/kv/jobs/${job.jobId}/data/${tiltSeries.id}/reconstructionScoreMontage")
 
