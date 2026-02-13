@@ -117,7 +117,7 @@ class TomographyMiloEvalView(val project: ProjectData, val job: TomographyMiloEv
 				}
 
 				liveTab = LiveTab(data)
-				liveTabId = addTab("Tomograms", "fas fa-display") { lazyTab ->
+				liveTabId = addTab("Tomograms", "fas fa-tv") { lazyTab ->
 					liveTab?.show(lazyTab.elem)
 				}.id
 			}

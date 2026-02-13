@@ -180,7 +180,7 @@ class TomographyPickingView(val project: ProjectData, val job: TomographyPicking
 				}
 
 				liveTab = LiveTab(data, tiltSeriesStats, finishedValues?.tomoPickMethod)
-				liveTabId = addTab("Tomograms", "fas fa-display") {
+				liveTabId = addTab("Tomograms", "fas fa-tv") {
 					liveTab?.show(it.elem)
 				}.id
 			}

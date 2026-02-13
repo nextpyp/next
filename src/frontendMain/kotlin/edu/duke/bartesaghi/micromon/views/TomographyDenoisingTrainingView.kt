@@ -146,7 +146,7 @@ class TomographyDenoisingTrainingView(val project: ProjectData, val job: Tomogra
 				}
 
 				liveTab = LiveTab(data, tiltSeriesStats, finishedValues?.tomoDenoiseIsonet2Mask)
-				liveTabId = addTab("Tomograms", "fas fa-display") {
+				liveTabId = addTab("Tomograms", "fas fa-tv") {
 					liveTab?.show(it.elem)
 				}.id
 			}
