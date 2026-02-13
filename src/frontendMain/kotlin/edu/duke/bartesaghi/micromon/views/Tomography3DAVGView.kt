@@ -50,8 +50,6 @@ class Tomography3DAVGView(val project: ProjectData, val job: Tomography3DAVGData
 	private var averagesMapTab: AveragesMapTab? = null
 	private var averagesThreeDeeTab: AveragesThreeDeeTab? = null
 
-	private var testMetricFilterTab: TestMetricFilterTab? = null
-
 	private var classesMapTab: ClassesMapTab? = null
 	private var classesMovieTab: ClassesMovieTab? = null
 	private var mrcThreeDeeTab: MrcThreeDeeTab? = null
@@ -59,6 +57,12 @@ class Tomography3DAVGView(val project: ProjectData, val job: Tomography3DAVGData
 	private var refinedClassesMapTab: RefinedClassesMapTab? = null
 	private var refinedClassesMovieTab: RefinedClassesMovieTab? = null
 	private var refinedMrcThreeDeeTab: RefinedMrcThreeDeeTab? = null
+
+	private var referencesMapTab: ReferencesMapTab? = null
+	private var referencesMrcThreeDeeTab: ReferencesMrcThreeDeeTab? = null
+
+	private var testMetricFilterMapTab: TestMetricFilterMapTab? = null
+	private var testMetricFilterMrcThreeDeeTab: TestMetricFilterMrcThreeDeeTab? = null
 
 	// init the iteration nav
 	private val iterations = ArrayList<Int>()
@@ -85,6 +89,8 @@ class Tomography3DAVGView(val project: ProjectData, val job: Tomography3DAVGData
 					.onGoToTomography3DAVG(viewport, project, job)
 			}
 		}
+
+		elem.h1("Sub-tomogram averaging")
 
 		AppScope.launch {
 
@@ -115,66 +121,101 @@ class Tomography3DAVGView(val project: ProjectData, val job: Tomography3DAVGData
 			)
 			iterationsNav.newItem()
 
-			// make the tabs panel
+			// make the tabs panel (4 top-level tabs with nested sub-tabs where needed)
 			tabs = elem.lazyTabPanel {
 
-				persistence = Storage::tomography3DAVGTabIndex
-
-				addTab("Global averages", "fas fa-circle") { lazyTab ->
-					averagesMapTab = AveragesMapTab(evalParams.centeringIterations,evalParams.applySymmetry).also {
-						lazyTab.elem.add(it)
-						lazyTab.onActivate = { it.revalidate() }
+				// 1. Global average: Global averages + 3D view (global averages)
+				addTab("Centering", "fas fa-circle") { lazyTab ->
+					lazyTab.elem.flatLazyTabPanel {
+						addTab("Reconstruction", "fas fa-tv") { subTab ->
+							averagesMapTab = AveragesMapTab(evalParams.centeringIterations, evalParams.applySymmetry).also {
+								subTab.elem.add(it)
+								subTab.onActivate = { it.revalidate() }
+							}
+						}
+						addTab("3D view", "fas fa-cube") { subTab ->
+							averagesThreeDeeTab = AveragesThreeDeeTab(evalParams.centeringIterations).also {
+								subTab.elem.add(it)
+							}
+						}
 					}
 				}
 
-				addTab("3D view (global averages)", "fas fa-cube") { lazyTab ->
-					averagesThreeDeeTab = AveragesThreeDeeTab(evalParams.centeringIterations).also {
-						lazyTab.elem.add(it)
+				// 2. Classes: Classes + Movie view + 3D view
+				addTab("Classification", "fas fa-bars") { lazyTab ->
+					lazyTab.elem.flatLazyTabPanel {
+						addTab("Reconstruction", "fas fa-tv") { subTab ->
+							classesMapTab = ClassesMapTab(evalParams.classes).also {
+								subTab.elem.add(it)
+								subTab.onActivate = { it.revalidate() }
+							}
+						}
+						addTab("3D view", "fas fa-cube") { subTab ->
+							mrcThreeDeeTab = MrcThreeDeeTab(evalParams.classes).also {
+								subTab.elem.add(it)
+							}
+						}
+						addTab("Movie view", "fas fa-film") { subTab ->
+							classesMovieTab = ClassesMovieTab(evalParams.classes).also {
+								subTab.elem.add(it)
+							}
+						}
 					}
 				}
 
-				addTab("Classes", "fas fa-chart-pie") { lazyTab ->
-					classesMapTab = ClassesMapTab(evalParams.classes).also {
-						lazyTab.elem.add(it)
-						lazyTab.onActivate = { it.revalidate() }
+				// 3. Aligned Classes: Classes (aligned) + Movie view (aligned) + 3D view (aligned)
+				addTab("Aligned classes", "fas fa-tasks") { lazyTab ->
+					lazyTab.elem.flatLazyTabPanel {
+						addTab("Reconstruction", "fas fa-tv") { subTab ->
+							refinedClassesMapTab = RefinedClassesMapTab(evalParams.classes).also {
+								subTab.elem.add(it)
+								subTab.onActivate = { it.revalidate() }
+							}
+						}
+						addTab("3D view", "fas fa-cube") { subTab ->
+							refinedMrcThreeDeeTab = RefinedMrcThreeDeeTab(evalParams.classes).also {
+								subTab.elem.add(it)
+							}
+						}
+						addTab("Movie view", "fas fa-film") { subTab ->
+							refinedClassesMovieTab = RefinedClassesMovieTab(evalParams.classes).also {
+								subTab.elem.add(it)
+							}
+						}
 					}
 				}
 
-				addTab("Movie view", "fas fa-film") { lazyTab ->
-					classesMovieTab = ClassesMovieTab(evalParams.classes).also {
-						lazyTab.elem.add(it)
+				// 4. Reference: Test filter only
+				addTab("References", "fas fa-compass") { lazyTab ->
+					lazyTab.elem.flatLazyTabPanel {
+						addTab("Reconstruction", "fas fa-tv") { subTab ->
+							referencesMapTab = ReferencesMapTab(evalParams.numIterations).also {
+								subTab.elem.add(it)
+								subTab.onActivate = { it.revalidate() }
+							}
+						}
+						addTab("3D view", "fas fa-cube") { subTab ->
+							referencesMrcThreeDeeTab = ReferencesMrcThreeDeeTab(evalParams.numIterations).also {
+								subTab.elem.add(it)
+							}
+						}
 					}
 				}
 
-				addTab("3D view", "fas fa-cube") { lazyTab ->
-					mrcThreeDeeTab = MrcThreeDeeTab(evalParams.classes).also {
-						lazyTab.elem.add(it)
-					}
-				}
-
-				addTab("Classes (aligned)", "fas fa-chart-pie") { lazyTab ->
-					refinedClassesMapTab = RefinedClassesMapTab(evalParams.classes).also {
-						lazyTab.elem.add(it)
-						lazyTab.onActivate = { it.revalidate() }
-					}
-				}
-
-				addTab("Movie view (aligned)", "fas fa-film") { lazyTab ->
-					refinedClassesMovieTab = RefinedClassesMovieTab(evalParams.classes).also {
-						lazyTab.elem.add(it)
-					}
-				}
-
-				addTab("3D view (aligned)", "fas fa-cube") { lazyTab ->
-					refinedMrcThreeDeeTab = RefinedMrcThreeDeeTab(evalParams.classes).also {
-						lazyTab.elem.add(it)
-					}
-				}
-
+				// 4. Reference: Test filter only
 				addTab("Test filter", "fas fa-filter") { lazyTab ->
-					testMetricFilterTab = TestMetricFilterTab().also {
-						lazyTab.elem.add(it)
-						lazyTab.onActivate = { it.revalidate() }
+					lazyTab.elem.flatLazyTabPanel {
+						addTab("Reconstruction", "fas fa-tv") { subTab ->
+							testMetricFilterMapTab = TestMetricFilterMapTab().also {
+								subTab.elem.add(it)
+								subTab.onActivate = { it.revalidate() }
+							}
+						}
+						addTab("3D view", "fas fa-cube") { subTab ->
+							testMetricFilterMrcThreeDeeTab = TestMetricFilterMrcThreeDeeTab().also {
+								subTab.elem.add(it)
+							}
+						}
 					}
 				}
 
@@ -186,6 +227,8 @@ class Tomography3DAVGView(val project: ProjectData, val job: Tomography3DAVGData
 		mrcThreeDeeTab?.close()
 		refinedMrcThreeDeeTab?.close()
 		averagesThreeDeeTab?.close()
+		referencesMrcThreeDeeTab?.close()
+		testMetricFilterMrcThreeDeeTab?.close()
 	}
 
 	private inner class ClassesMapTab(
@@ -448,77 +491,6 @@ class Tomography3DAVGView(val project: ProjectData, val job: Tomography3DAVGData
 		}
 	}
 	
-	private inner class TestMetricFilterTab(
-	) : Div(classes = setOf("reconstruction-tab")) {
-
-		private val filteredPanel = ContentSizedPanel(
-			"Filtered map",
-			ImageSize.values().map { it.approxWidth },
-			(Storage.Tomography3DAVGClassSize ?: ImageSize.Small).ordinal
-		)
-		private val filteredElem = Div(classes = setOf("classes"))
-			.also { filteredPanel.add(it) }
-
-		private val filteredImages = ArrayList<FetchImage>()
-		private val filteredMrcDownloads = ArrayList<FileDownloadBadge>()
-
-		init {
-
-			// val self = this // Kotlin DSLs are dumb ...
-			
-			add(filteredPanel)
-
-			// wire up events
-			filteredPanel.onResize = { index ->
-				Storage.Tomography3DAVGClassSize = ImageSize.values()[index]
-				updateFiltered()
-			}
-
-			updateFiltered()
-		}
-
-		fun updateFiltered() {
-
-			filteredElem.removeAll()
-			filteredImages.clear()
-			filteredMrcDownloads.clear()
-
-			val self = this // Kotlin DSLs are dumb ...
-
-			// show images for the iterations
-			val imageSize = ImageSize.values()[filteredPanel.index]
-			filteredElem.div(classes = setOf("class")) {
-				div(classes = setOf("frame")) {
-					val img = FetchImage {
-						width = imageSize.approxWidth.px
-						fetch(ITomography3DAVGService.testMetricFilterImagePath(job.jobId, imageSize))
-					}
-					add(img)
-					self.filteredImages.add(img)
-				}
-
-				val mrcDownload = FileDownloadBadge(
-					filetype = ".mrc file",
-					url = ITomography3DAVGService.testMetricFilterMrcPath(job.jobId),
-					filename = "${job.shortNumberedName}_test_metric_filtered.mrc",
-					loader = { Services.tomography3DAVG.testMetricFilterMrcData(job.jobId) }
-				)
-				add(mrcDownload)
-				self.filteredMrcDownloads.add(mrcDownload)
-				mrcDownload.load()
-			}
-		}
-
-		fun revalidate() {
-			for (img in filteredImages) {
-				img.revalidate()
-			}
-			for (download in filteredMrcDownloads) {
-				download.load()
-			}
-		}
-	}
-	
 	private inner class RefinedClassesMapTab(
 		numClasses: Int
 	) : Div(classes = setOf("reconstruction-tab")) {
@@ -628,6 +600,224 @@ class Tomography3DAVGView(val project: ProjectData, val job: Tomography3DAVGData
 				img.revalidate()
 			}
 			for (download in classMrcDownloads) {
+				download.load()
+			}
+		}
+	}
+
+	private inner class ReferencesMapTab(
+		val numIter: Int,
+	) : Div(classes = setOf("reconstruction-tab")) {
+
+		private val referencesPanel = ContentSizedPanel(
+			"Unfiltered",
+			ImageSize.values().map { it.approxWidth },
+			(Storage.Tomography3DAVGClassSize ?: ImageSize.Small).ordinal
+		)
+		private val referencesElem = Div(classes = setOf("classes"))
+			.also { referencesPanel.add(it) }
+
+		private val referencesFilteredPanel = ContentSizedPanel(
+			"Filtered",
+			ImageSize.values().map { it.approxWidth },
+			(Storage.Tomography3DAVGClassSize ?: ImageSize.Small).ordinal
+		)
+		private val referencesFilteredElem = Div(classes = setOf("classes"))
+			.also { referencesFilteredPanel.add(it) }
+		
+		private val referencesImages = ArrayList<FetchImage>()
+		private val referencesMrcDownloads = ArrayList<FileDownloadBadge>()
+
+		private val referencesFilteredImages = ArrayList<FetchImage>()
+		private val referencesFilteredMrcDownloads = ArrayList<FileDownloadBadge>()
+
+		init {
+
+			// val self = this // Kotlin DSLs are dumb ...
+			
+			add(referencesPanel)
+			add(referencesFilteredPanel)
+
+			// wire up events
+			referencesPanel.onResize = { index ->
+				Storage.Tomography3DAVGClassSize = ImageSize.values()[index]
+				updateReferences()
+			}
+
+			referencesFilteredPanel.onResize = { index ->
+				Storage.Tomography3DAVGClassSize = ImageSize.values()[index]
+				updateReferencesFiltered()
+			}
+			
+			updateReferences()		
+			updateReferencesFiltered()
+		}
+
+		fun updateReferences() {
+
+			referencesElem.removeAll()
+			referencesImages.clear()
+			referencesMrcDownloads.clear()
+
+			val self = this // Kotlin DSLs are dumb ...
+
+			// show images for the iterations
+			val imageSize = ImageSize.values()[referencesPanel.index]
+			for (iterNum in 1 .. numIter) {
+
+				referencesElem.div(classes = setOf("class")) {
+
+					div(classes = setOf("frame")) {
+						val img = FetchImage {
+							width = imageSize.approxWidth.px
+							fetch(ITomography3DAVGService.referencesImagePath(job.jobId, iterNum, imageSize))
+						}
+						add(img)
+						self.referencesImages.add(img)
+						div("Iteration $iterNum", classes = setOf("label"))
+					}
+
+					val	formatted_iteration = "iteration_" + iterNum.toString().asDynamic().padStart(3, "0")
+
+					val mrcDownload = FileDownloadBadge(
+						filetype = ".mrc file",
+						url = ITomography3DAVGService.referencesMrcPath(job.jobId, iterNum),
+						filename = "${job.shortNumberedName}_${formatted_iteration}_refined_selected_average_0.mrc",
+						loader = { Services.tomography3DAVG.referencesMrcData(job.jobId, iterNum) }
+					)
+					add(mrcDownload)
+					self.referencesMrcDownloads.add(mrcDownload)
+					mrcDownload.load()
+				}
+			}
+		}
+
+		fun updateReferencesFiltered() {
+
+			referencesFilteredElem.removeAll()
+			referencesFilteredImages.clear()
+			referencesFilteredMrcDownloads.clear()
+
+			val self = this // Kotlin DSLs are dumb ...
+
+			// show images for the iterations
+			val imageSize = ImageSize.values()[referencesFilteredPanel.index]
+			for (iterNum in 1 .. numIter) {
+
+				referencesFilteredElem.div(classes = setOf("class")) {
+
+					div(classes = setOf("frame")) {
+						val img = FetchImage {
+							width = imageSize.approxWidth.px
+							fetch(ITomography3DAVGService.referencesFilteredImagePath(job.jobId, iterNum, imageSize))
+						}
+						add(img)
+						self.referencesFilteredImages.add(img)
+						div("Iteration $iterNum", classes = setOf("label"))
+					}
+
+					val	formatted_iteration = "iteration_" + iterNum.toString().asDynamic().padStart(3, "0")
+
+					val mrcDownload = FileDownloadBadge(
+						filetype = ".mrc file",
+						url = ITomography3DAVGService.referencesFilteredMrcPath(job.jobId, iterNum),
+						filename = "${job.shortNumberedName}_${formatted_iteration}_refined_selected_average_0_filtered.mrc",
+						loader = { Services.tomography3DAVG.referencesFilteredMrcData(job.jobId, iterNum) }
+					)
+					add(mrcDownload)
+					self.referencesFilteredMrcDownloads.add(mrcDownload)
+					mrcDownload.load()
+				}
+			}
+		}
+
+		fun revalidate() {
+			for (img in referencesImages) {
+				img.revalidate()
+			}
+			for (img in referencesFilteredImages) {
+				img.revalidate()
+			}
+			for (download in referencesMrcDownloads) {
+				download.load()
+			}
+			for (download in referencesFilteredMrcDownloads) {
+				download.load()
+			}
+		}
+	}
+
+	private inner class TestMetricFilterMapTab(
+	) : Div(classes = setOf("reconstruction-tab")) {
+
+		private val testMetricFilterPanel = ContentSizedPanel(
+			"Filtered",
+			ImageSize.values().map { it.approxWidth },
+			(Storage.Tomography3DAVGClassSize ?: ImageSize.Small).ordinal
+		)
+		private val testMetricFilterElem = Div(classes = setOf("classes"))
+			.also { testMetricFilterPanel.add(it) }
+		
+		private val testMetricFilterImages = ArrayList<FetchImage>()
+		
+		private val testMetricFilterMrcDownloads = ArrayList<FileDownloadBadge>()
+
+		init {
+
+			// val self = this // Kotlin DSLs are dumb ...
+			
+			add(testMetricFilterPanel)
+
+			// wire up events
+			testMetricFilterPanel.onResize = { index ->
+				Storage.Tomography3DAVGClassSize = ImageSize.values()[index]
+				updateTestMetricFilter()
+			}
+			
+			updateTestMetricFilter()		
+		}
+
+		fun updateTestMetricFilter() {
+
+			testMetricFilterElem.removeAll()
+			testMetricFilterImages.clear()
+			testMetricFilterMrcDownloads.clear()
+
+			val self = this // Kotlin DSLs are dumb ...
+
+			// show images for the iterations
+			val imageSize = ImageSize.values()[testMetricFilterPanel.index]
+
+			testMetricFilterElem.div(classes = setOf("class")) {
+
+				div(classes = setOf("frame")) {
+					val img = FetchImage {
+						width = imageSize.approxWidth.px
+						fetch(ITomography3DAVGService.testMetricFilterImagePath(job.jobId, imageSize))
+					}
+					add(img)
+					self.testMetricFilterImages.add(img)
+					div("Test metric filter", classes = setOf("label"))
+				}
+
+				val mrcDownload = FileDownloadBadge(
+					filetype = ".mrc file",
+					url = ITomography3DAVGService.testMetricFilterMrcPath(job.jobId),
+					filename = "${job.shortNumberedName}_test_metric_filtered.mrc",
+					loader = { Services.tomography3DAVG.testMetricFilterMrcData(job.jobId) }
+				)
+
+				add(mrcDownload)
+				self.testMetricFilterMrcDownloads.add(mrcDownload)
+				mrcDownload.load()
+			}
+		}
+
+		fun revalidate() {
+			for (img in testMetricFilterImages) {
+				img.revalidate()
+			}
+			for (download in testMetricFilterMrcDownloads) {
 				download.load()
 			}
 		}
@@ -774,6 +964,55 @@ class Tomography3DAVGView(val project: ProjectData, val job: Tomography3DAVGData
 					ThreeDeeViewer.VolumeData(
 						name = "Unsymmetrized average, Iteration $iter",
 						url = ITomography3DAVGService.averageMrcPath(job.jobId, iter)
+					)
+				}
+			}
+
+		fun close() {
+			viewer.close()
+		}
+	}
+
+	private inner class ReferencesMrcThreeDeeTab(
+		val numIterations: Int
+	) : Div() {
+
+		private val viewer = ThreeDeeViewer()
+
+		init {
+			// layout
+			add(viewer)
+
+			// init the volumes
+			viewer.volumes =
+				(0 .. numIterations).map { iter ->
+					ThreeDeeViewer.VolumeData(
+						name = "References, Iteration $iter",
+						url = ITomography3DAVGService.referencesMrcPath(job.jobId, iter)
+					)
+				}
+			}
+
+		fun close() {
+			viewer.close()
+		}
+	}
+
+	private inner class TestMetricFilterMrcThreeDeeTab(
+	) : Div() {
+
+		private val viewer = ThreeDeeViewer()
+
+		init {
+			// layout
+			add(viewer)
+
+			// init the volumes
+			viewer.volumes =
+				(0 .. 0).map { iter ->
+					ThreeDeeViewer.VolumeData(
+						name = "Filtered map",
+						url = ITomography3DAVGService.testMetricFilterMrcPath(job.jobId)
 					)
 				}
 			}

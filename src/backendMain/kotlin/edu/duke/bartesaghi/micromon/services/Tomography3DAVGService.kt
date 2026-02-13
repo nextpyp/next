@@ -137,6 +137,60 @@ actual class Tomography3DAVGService : ITomography3DAVGService, Service {
 						}
 					}
 
+					get("references/{size}") {
+						call.respondExceptions {
+
+							// parse args
+							val job = authJob(ProjectPermission.Read).job
+							val size = parseSize()
+							val iteration = parseIteration()
+
+							// serve the image
+							val imagePath = job.avgDir() / "${job.dir.fileName}_iteration_${iteration.formatIter()}_refined_selected_average_0.webp"
+							val cacheKey = WebCacheDir.Keys.ThreeDavgImage.parameterized("$iteration")
+							ImageType.Webp.respondSized(call, imagePath, size.info(job.wwwDir, cacheKey))
+								?.respondPlaceholder(call, size)
+						}
+					}
+
+					get("referencesFiltered/{size}") {
+						call.respondExceptions {
+
+							// parse args
+							val job = authJob(ProjectPermission.Read).job
+							val size = parseSize()
+							val iteration = parseIteration()
+
+							// serve the image
+							val imagePath = job.avgDir() / "${job.dir.fileName}_iteration_${iteration.formatIter()}_refined_selected_average_0_filtered.webp"
+							val cacheKey = WebCacheDir.Keys.ThreeDavgImageFiltered.parameterized("$iteration")
+							ImageType.Webp.respondSized(call, imagePath, size.info(job.wwwDir, cacheKey))
+								?.respondPlaceholder(call, size)
+						}
+					}
+
+					get("references") {
+						call.respondExceptions {
+
+							// parse args
+							val job = authJob(ProjectPermission.Read).job
+							val iteration = parseIteration()
+
+							call.respondFileMrc(job.avgDir() / "${job.dir.fileName}_iteration_${iteration.formatIter()}_refined_selected_average_0.mrc")
+						}
+					}
+
+					get("referencesFiltered") {
+						call.respondExceptions {
+
+							// parse args
+							val job = authJob(ProjectPermission.Read).job
+							val iteration = parseIteration()
+
+							call.respondFileMrc(job.avgDir() / "${job.dir.fileName}_iteration_${iteration.formatIter()}_refined_selected_average_0_filtered.mrc")
+						}
+					}
+
 					route("class/{classNum}") {
 
 						get("image/{size}") {
@@ -332,4 +386,29 @@ actual class Tomography3DAVGService : ITomography3DAVGService, Service {
 			.toFileDownloadData()
 			.toOption()
 	}
+
+	override suspend fun referencesMrcData(jobId: String, iter: Int): Option<FileDownloadData> = sanitizeExceptions {
+
+		val job = jobId.authJob(ProjectPermission.Read).job
+		val params = job.params()
+			?: throw NotFoundException()
+
+		val path = job.avgDir() / "${job.dir.fileName}_iteration_${iter.formatIter()}_refined_selected_average_0.mrc"
+		return path
+			.toFileDownloadData()
+			.toOption()
+	}
+
+	override suspend fun referencesFilteredMrcData(jobId: String, iter: Int): Option<FileDownloadData> = sanitizeExceptions {
+
+		val job = jobId.authJob(ProjectPermission.Read).job
+		val params = job.params()
+			?: throw NotFoundException()
+
+		val path = job.avgDir() / "${job.dir.fileName}_iteration_${iter.formatIter()}_refined_selected_average_0_filtered.mrc"
+		return path
+			.toFileDownloadData()
+			.toOption()
+	}
+
 }
