@@ -4,6 +4,7 @@ import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.components.*
 import edu.duke.bartesaghi.micromon.diagram.nodes.TomographyParticlesTrainNode
 import edu.duke.bartesaghi.micromon.pyp.TiltSeriesesData
+import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.*
 import io.kvision.core.Container
 import io.kvision.core.Widget
@@ -88,6 +89,18 @@ class TomographyParticlesTrainView(val project: ProjectData, val job: Tomography
 			} finally {
 				elem.remove(loadingElem)
 			}
+			
+			val args = try {
+				delayAtLeast(200) {
+					TomographyParticlesTrainNode.pypArgs.get()
+				}
+			} catch (t: Throwable) {
+				elem.errorMessage(t)
+				return@launch
+			} finally {
+				elem.remove(loadingElem)
+			}
+			val finishedValues = job.args.finished?.values?.toArgValues(args)
 
 			// show tilt series stats
 			val tiltSeriesStats = TiltSeriesStats()
@@ -119,7 +132,7 @@ class TomographyParticlesTrainView(val project: ProjectData, val job: Tomography
 					}
 				}
 
-				liveTab = LiveTab(data)
+				liveTab = LiveTab(data,showDenoised=finishedValues?.detectNn3dUseDenoised)
 				liveTabId = addTab("Tomograms", "fas fa-desktop") {
 					liveTab?.show(it.elem)
 				}.id
@@ -192,7 +205,8 @@ class TomographyParticlesTrainView(val project: ProjectData, val job: Tomography
 	}
 
 	private inner class LiveTab(
-		val data: TiltSeriesesData
+		val data: TiltSeriesesData,
+		val showDenoised: Boolean?
 	) {
 
 		private val tiltSeriesesElem = Div()
@@ -216,7 +230,7 @@ class TomographyParticlesTrainView(val project: ProjectData, val job: Tomography
 				}
 			}
 
-			val tomoPanel = TomoDualPanel(project, job, data, tiltSeries, showHeatMap = true, hideDownloadBadges = true, pickingControls = null)
+			val tomoPanel = TomoDualPanel(project, job, data, tiltSeries, showDenoised = showDenoised == true, showHeatMap = true, hideDownloadBadges = true, pickingControls = null)
 			tiltSeriesesElem.add(tomoPanel)
 			AppScope.launch {
 				tomoPanel.load()

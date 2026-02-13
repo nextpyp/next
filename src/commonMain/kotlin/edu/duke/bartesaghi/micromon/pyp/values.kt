@@ -164,6 +164,15 @@ val Args.defaultSharpenCistemHighResBfactor: Double
 val ArgValues.sharpenCistemHighResBfactor: Double?
 	get() = get(args.sharpenCistemHighResBfactor) as Double?
 
+val Args.detectNn3dUseDenoised: Arg
+	get() = argOrThrow("detect_nn3d", "use_denoised")
+val ArgValues.detectNn3dUseDenoised: Boolean?
+	get() = getOrDefault(args.detectNn3dUseDenoised) as Boolean
+
+val Args.detectMiloUseDenoised: Arg
+	get() = argOrThrow("detect_milo", "use_denoised")
+val ArgValues.detectMiloUseDenoised: Boolean?
+	get() = getOrDefault(args.detectMiloUseDenoised) as Boolean
 
 val Args.detectMethod: Arg
 	get() = argOrThrow("detect", "method")

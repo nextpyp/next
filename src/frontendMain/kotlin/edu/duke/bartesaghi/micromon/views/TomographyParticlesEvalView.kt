@@ -100,6 +100,18 @@ class TomographyParticlesEvalView(val project: ProjectData, val job: TomographyP
 				elem.remove(loadingElem)
 			}
 
+			val args = try {
+				delayAtLeast(200) {
+					TomographyParticlesEvalNode.pypArgs.get()
+				}
+			} catch (t: Throwable) {
+				elem.errorMessage(t)
+				return@launch
+			} finally {
+				elem.remove(loadingElem)
+			}
+			val finishedValues = job.args.finished?.values?.toArgValues(args)
+
 			// show tilt series stats
 			val tiltSeriesStats = TiltSeriesStats()
 			tiltSeriesStats.loadCounts(data, OwnerType.Project, job.jobId, pickingControls.list)
@@ -167,7 +179,7 @@ class TomographyParticlesEvalView(val project: ProjectData, val job: TomographyP
 					}
 				}
 
-				liveTab = LiveTab(data, tiltSeriesStats)
+				liveTab = LiveTab(data, tiltSeriesStats,showDenoised=finishedValues?.detectNn3dUseDenoised)
 				liveTabId = addTab("Particles", "fas fa-crosshairs") {
 					liveTab?.show(it.elem)
 				}.id
@@ -226,7 +238,8 @@ class TomographyParticlesEvalView(val project: ProjectData, val job: TomographyP
 
 	private inner class LiveTab(
 		val data: TiltSeriesesData,
-		val stats: TiltSeriesStats
+		val stats: TiltSeriesStats,
+		val showDenoised: Boolean?
 	) {
 
 		val tiltSeriesesElem = Div()
@@ -255,25 +268,12 @@ class TomographyParticlesEvalView(val project: ProjectData, val job: TomographyP
 				}
 			}
 
-			val particlesImage = TomoParticlesImage.forProject(project, job, data, tiltSeries, pickingControls)
-			particlesImage.onParticlesChange = {
-				stats.picked(data, pickingControls)
-			}
-			tiltSeriesesElem.add(particlesImage)
-
-			tiltSeriesesElem.add(TomoSideViewImage(job.jobId, tiltSeries.id, tiltSeries.imageDims.sideViewDims()))
-
+			val tomoPanel = TomoDualPanel(project, job, data, tiltSeries, pickingControls = pickingControls, showDenoised = showDenoised == true, hideSideViews = false, hideDownloadBadges = false )
+			tiltSeriesesElem.add(tomoPanel)
 			AppScope.launch {
-				particlesImage.load()
-				try {
-					val updated = Services.jobs.getTiltSeries(job.jobId, tiltSeries.id)
-					val idx = data.tiltSerieses.indexOfFirst { it.id == tiltSeries.id }
-					if (idx >= 0) {
-						data.tiltSerieses[idx] = updated
-						gallery?.update()
-					}
-				} catch (_: Throwable) { }
+				tomoPanel.load()
 			}
+
 		}
 
 		fun show(elem: Container) {
