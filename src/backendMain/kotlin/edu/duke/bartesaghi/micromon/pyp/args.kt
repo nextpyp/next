@@ -211,6 +211,7 @@ fun TomlTable.getInput(key: String): ArgInput? {
 		ArgInput.Isonet2TrainedModel.id -> ArgInput.Isonet2TrainedModel()
 		ArgInput.CryocareTrainedModel.id -> ArgInput.CryocareTrainedModel()
 		ArgInput.MilopypEvalCoordinates.id -> ArgInput.MilopypEvalCoordinates()
+		ArgInput.MilopypPatches.id -> ArgInput.MilopypPatches()
 		ArgInput.TrainedModel2D.id -> ArgInput.TrainedModel2D()
 		ArgInput.TrainedModel3D.id -> ArgInput.TrainedModel3D()
 		ArgInput.ClusterTemplate.id -> ArgInput.ClusterTemplate()

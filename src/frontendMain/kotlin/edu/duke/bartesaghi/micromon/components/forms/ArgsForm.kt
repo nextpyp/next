@@ -327,6 +327,7 @@ class ArgsInputs(
 					is ArgInput.Isonet2TrainedModel -> ArgInputFile(arg, "*.pt", outNodes) { Paths.join(it.jobDir, "train") }
 					is ArgInput.CryocareTrainedModel -> ArgInputFile(arg, "*.tar.gz", outNodes) { Paths.join(it.jobDir, "train") }
 					is ArgInput.MilopypEvalCoordinates -> ArgInputFile(arg, "*.gzip", outNodes) { Paths.join(it.jobDir, "train") }
+					is ArgInput.MilopypPatches -> ArgInputFile(arg, "*.npz", outNodes) { Paths.join(it.jobDir, "train") }
 					is ArgInput.TrainedModel2D -> ArgInputFile(arg, "*.training", outNodes) { it.projectDir }
 					is ArgInput.TrainedModel3D -> ArgInputFile(arg, "*.pth", outNodes) { Paths.join(it.jobDir, "train") }
 
