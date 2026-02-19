@@ -2,7 +2,10 @@ package edu.duke.bartesaghi.micromon.linux
 
 import com.sun.jna.*
 import edu.duke.bartesaghi.micromon.slowIOs
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.nio.file.Path
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.io.path.pathString
 
 
@@ -334,6 +337,40 @@ object Filesystem {
 
 	suspend fun getGid(): UInt = slowIOs {
 		native.getgid().toUInt()
+	}
+}
+
+
+/**
+ * A file that must be created exactly once for each instance of the website
+ */
+class InstanceFile(
+	val path: Path
+) {
+
+	private val created = AtomicBoolean(false)
+	private var mutex = Mutex()
+
+	suspend fun createIfNeeded(creator: suspend () -> Unit) {
+
+		// check if we already created the file
+		if (created.get()) {
+			return
+		}
+
+		// not created yet: try to lock the mutex
+		mutex.withLock {
+
+			// check again, in case someone else locked the mutex first
+			if (created.getAndSet(true)) {
+				return
+			}
+
+			// doesn't exist: create it
+			slowIOs {
+				creator()
+			}
+		}
 	}
 }
 

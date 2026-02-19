@@ -54,6 +54,16 @@ fn run() -> Result<()> {
 	// run the command
 	match cmd.as_str() {
 
+		"hello_world" => {
+			let web = Web::new()?;
+			let result = run_hello_world(&web, args);
+			if let Err(e) = &result {
+				// make an attempt to stream the error to the log
+				web_error!(web, "{}", e.deref().chain());
+			}
+			result
+		}
+
 		"webrpc" => run_webrpc(args, array_element),
 
 		"streampyp" => {
@@ -217,6 +227,17 @@ fn run_session(web: &Web, args: VecDeque<String>, _array_element: Option<u32>) -
 		"spr" => sessions::spr::run(web, &mut args, &args_config)?,
 		_ => bail!("unrecognized session mode: {}", data_mode)
 	}
+
+	Ok(())
+}
+
+
+fn run_hello_world(web: &Web, _args: VecDeque<String>) -> Result<()> {
+
+	web.ping()
+		.context("Failed to ping website")?;
+
+	web_info!(web, "Hello world!");
 
 	Ok(())
 }

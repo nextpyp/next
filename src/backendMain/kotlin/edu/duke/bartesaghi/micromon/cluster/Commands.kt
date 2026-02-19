@@ -1,6 +1,5 @@
 package edu.duke.bartesaghi.micromon.cluster
 
-import edu.duke.bartesaghi.micromon.Config
 import edu.duke.bartesaghi.micromon.cluster.slurm.Gres
 import edu.duke.bartesaghi.micromon.linux.userprocessor.editPermissionsAs
 import edu.duke.bartesaghi.micromon.linux.userprocessor.writeStringAs
@@ -247,23 +246,13 @@ class CommandsGrid(
 /**
  * Returns a function that wraps a command within a apptainer launch command
  */
-fun apptainerWrapper(job: ClusterJob, container: Container): (String) -> String {
+private fun apptainerWrapper(job: ClusterJob, container: Container): (String) -> String {
 
-	// build the args needed to run the apptainer container
-	val apptainerArgs = mutableListOf(
-		// don't automatically pull in random stuff from the user's home directory
-		// this confuses the hell out of Python package lookups
-		"--no-home"
+	val prefix = mutableListOf(
+		"\"\$NEXTPYP_CONTAINERIZE\"",
+		"--id", "\"${container.id}\"",
+		"--pwd", "\"${job.dir}\""
 	)
-
-	// handle the container binds
-	for (path in container.binds) {
-		apptainerArgs.add("--bind=\"$path\"")
-	}
-	apptainerArgs.add("--bind=\"${Config.instance.web.sharedDir}\"")
-
-	// set the working directory
-	apptainerArgs += listOf("--pwd \"${job.dir}\"")
 
 	// turn on NVidia support if the job requested a GPU specifically
 	val requestedGpu = job.argsParsed
@@ -272,17 +261,11 @@ fun apptainerWrapper(job: ClusterJob, container: Container): (String) -> String 
 		?.any { it.isGpu }
 		?: false
 	if (requestedGpu) {
-		apptainerArgs.add("--nv")
+		prefix.add("--nv")
 	}
 
-	// build the apptainer command
-	val prefix = mutableListOf("apptainer --quiet exec",
-		apptainerArgs.joinToString(" "),
-		"\"${container.sifPath}\"",
-	).joinToString(" ")
-
 	return { command ->
-		"$prefix $command"
+		"${prefix.joinToString(" ")} -- $command"
 	}
 }
 

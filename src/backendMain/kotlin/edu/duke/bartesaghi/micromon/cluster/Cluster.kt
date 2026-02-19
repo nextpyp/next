@@ -6,6 +6,7 @@ import com.mongodb.client.model.Updates.set
 import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.cluster.slurm.SBatch
 import edu.duke.bartesaghi.micromon.cluster.standalone.PseudoCluster
+import edu.duke.bartesaghi.micromon.linux.InstanceFile
 import edu.duke.bartesaghi.micromon.linux.userprocessor.deleteAs
 import edu.duke.bartesaghi.micromon.linux.userprocessor.editPermissionsAs
 import edu.duke.bartesaghi.micromon.linux.userprocessor.writeStringAs
@@ -13,6 +14,7 @@ import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.services.ClusterJobResultType
 import edu.duke.bartesaghi.micromon.services.ClusterMode
 import edu.duke.bartesaghi.micromon.services.StreamLog
+import kotlinx.coroutines.sync.Mutex
 import java.nio.file.Path
 import java.nio.file.attribute.PosixFilePermission
 import java.time.Instant
@@ -35,6 +37,7 @@ interface Cluster {
 	 */
 	suspend fun buildScript(clusterJob: ClusterJob, commands: String): String {
 		// by default, just wrap the commands in a simple bash script, with no other fanfare
+		// otherwise, can be overridden in subclasses (like SBatch)
 		return """
 			|#!/bin/bash
 			|
@@ -63,6 +66,8 @@ interface Cluster {
 					PseudoCluster(config.standalone ?: Config.Standalone())
 				}
 			}
+
+		private val containerizeScript = InstanceFile(ClusterJob.batchDir.resolve("containerize.sh"))
 
 		suspend fun waitingReason(clusterJob: ClusterJob): String {
 
@@ -182,6 +187,14 @@ interface Cluster {
 			// but wait until at least after the submission event went out, so failures here can be shown in the UI
 			instance.validate(clusterJob)
 
+			// write the container launcher script, if needed
+			containerizeScript.createIfNeeded {
+				containerizeScript.path.writeString(Container.launchScript())
+				containerizeScript.path.editPermissionsAs(clusterJob.osUsername) {
+					add(PosixFilePermission.OWNER_EXECUTE)
+				}
+			}
+
 			// write the script files
 			fun cmdWebrpc(vararg args: String): String =
 				if (Config.instance.pyp.mock != null) {
@@ -195,6 +208,7 @@ interface Cluster {
 				|export NEXTPYP_WEBHOST="${Config.instance.web.webhost}"
 				|export NEXTPYP_TOKEN="${JsonRpc.token}"
 				|export NEXTPYP_WEBID="$clusterJobId"
+				|export NEXTPYP_CONTAINERIZE="${containerizeScript.path}"
 				|
 				|# apptainer behaves differently when run from the home folder (like ignoring --no-home)
 				|# so start in an explicitly-defined non-home folder

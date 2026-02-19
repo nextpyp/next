@@ -23,6 +23,22 @@ pub fn run(web: &Web, args: &mut Args, args_config: &ArgsConfig) -> Result<()> {
 
 	web.write_parameters(&args, &args_config)?;
 
+	// DEBUG: try to launch a subprocess
+	// info!(&web, "Trying to subproces ...");
+	// let containerize_path = std::env::var("NEXTPYP_CONTAINERIZE")
+	// 	.context("no NEXTPYP_CONTAINERIZE")?;
+	// let hello_out = std::process::Command::new("/bin/sh")
+	// 	.args([
+	// 		containerize_path.as_str(),
+	// 		"--id", "mock-pyp",
+	// 		"--",
+	// 		"/usr/bin/mock-pyp",
+	// 		"hello_world"
+	// 	])
+	// 	.output()
+	// 	.context("Failed to run hello_world")?;
+	// info!(&web, "Done: status={}\nSTDOUT:\n{}\nSTDERR:\n{}", hello_out.status, String::from_utf8_lossy(&hello_out.stdout), String::from_utf8_lossy(&hello_out.stderr));
+
 	// create subfolders
 	fs::create_dir_all("webp")
 		.context("Failed to create webp dir")?;
