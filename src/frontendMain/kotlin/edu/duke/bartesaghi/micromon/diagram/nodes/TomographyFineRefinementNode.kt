@@ -103,7 +103,7 @@ class TomographyFineRefinementNode(
 			button(className = "image-button reconstruction-node", onClick = {
 				IntegratedRefinementView.go(viewport, project, job)
 			}) {
-				img(job.imageURL, className = dynamicImageClassName)
+				img(job.imageURL, className = "$dynamicImageClassName thumbnail")
 			}
 			if (job.jobInfoString.split(":").size > 1) {
 				div {

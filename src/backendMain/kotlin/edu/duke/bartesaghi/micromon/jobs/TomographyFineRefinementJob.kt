@@ -120,7 +120,9 @@ class TomographyFineRefinementJob(
 	}
 
 	fun diagramImageURL(): String =
-		representativeImage()?.let { representativeImageUrl(it) }
+		latestReconstruction()?.let { rec ->
+			"kv/reconstructions/$idOrThrow/${rec.classNum}/${rec.iteration}/images/perParticleScores"
+		} ?: representativeImage()?.let { representativeImageUrl(it) }
 			?: "img/placeholder/${ImageSize.Small.id}"
 
 	override fun newestArgValues(): ArgValuesToml? =
