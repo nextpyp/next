@@ -682,9 +682,40 @@ class SessionJobsMonitor(val session: SessionData) : Div(classes = setOf("sessio
 				win.remove(loading)
 			}
 
+			// If there are running jobs, offer to show the live stream for the first one
+			// (SessionRunningJob.jobId is the cluster job id on the backend)
+			val firstRunning = infos.values.firstOrNull()
+			if (firstRunning != null) {
+				win.div(classes = setOf("session-jobs-logs-running")) {
+					h2("Currently running")
+					div(classes = setOf("running-job")) {
+						span("${firstRunning.name}, size ${firstRunning.size}, ${firstRunning.status.name}")
+					}
+					val streamButton = Button("Show live stream").apply {
+						onClick {
+							win.hide()
+							ClusterJobLogViewer(
+								firstRunning.jobId,
+								"Session job: ${firstRunning.name}",
+								panelBottom = null
+							)
+						}
+					}
+					add(streamButton)
+				}
+			}
+
 			if (jobsLogs.jobs.isEmpty()) {
-				win.div("No logs to show", classes = setOf("empty"))
+				if (firstRunning == null) {
+					win.div("No logs to show", classes = setOf("empty"))
+				}
+				// Show button is only for finished jobs; leave it disabled when none
 				return@launch
+			}
+
+			// show finished jobs picker
+			if (firstRunning != null) {
+				win.h2("Finished jobs")
 			}
 
 			// find the unique job names
