@@ -18,6 +18,8 @@ import io.kvision.navbar.navLink
 import io.kvision.tabulator.*
 import io.kvision.toast.Toast
 import kotlin.js.Date
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 
 
 fun Widget.onGoToSessions() {
@@ -260,18 +262,28 @@ class SessionsView : View {
 		AppScope.launch {
 
 			var canStartSessions = false
+			var runningSessions: RunningSessions? = null
 
-			// load the sessions info
+			// load sessions list and running sessions in parallel for a consistent snapshot
 			val loadingElem = elem.loading("Fetching sessions ...")
 			try {
-				delayAtLeast(200) {
-					groupSelect.options = Services.sessions.groups()
-						.map { it.idOrThrow to it.name }
-						.let { listOf("" to "(All)") + it }
-					sessions = (Services.singleParticleSessions.list() + Services.tomographySessions.list())
-						.sortedBy { it.created }
-						.reversed()
-					canStartSessions = Services.sessions.canStart()
+				coroutineScope {
+					val runningDeferred = async { Services.sessions.running() }
+					delayAtLeast(200) {
+						groupSelect.options = Services.sessions.groups()
+							.map { it.idOrThrow to it.name }
+							.let { listOf("" to "(All)") + it }
+						sessions = (Services.singleParticleSessions.list() + Services.tomographySessions.list())
+							.sortedBy { it.created }
+							.reversed()
+						canStartSessions = Services.sessions.canStart()
+					}
+					runningSessions = try {
+						runningDeferred.await()
+					} catch (t: Throwable) {
+						Toast.error("failed to load running sessions: $t")
+						null
+					}
 				}
 			} catch (t: Throwable) {
 				elem.errorMessage(t)
@@ -298,17 +310,12 @@ class SessionsView : View {
 			updateTable()
 
 			// show the running sessions, if any
-			val runningSessions = try {
-				Services.sessions.running()
-			} catch (t: Throwable) {
-				Toast.error("failed to load running sessions: $t")
-				null
-			}
-			if (runningSessions != null && (runningSessions.singleParticle.isNotEmpty() || runningSessions.tomography.isNotEmpty())) {
+			val running = runningSessions
+			if (running != null && (running.singleParticle.isNotEmpty() || running.tomography.isNotEmpty())) {
 				elem.div(classes = setOf("running-sessions")) {
 					h1("Currently running sessions")
 					div(classes = setOf("sessions-list")) {
-						(runningSessions.singleParticle + runningSessions.tomography)
+						(running.singleParticle + running.tomography)
 							.sortedBy { it.created }
 							.forEach { runningSession ->
 								div(classes = setOf("sessions-entry")) {

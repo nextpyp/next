@@ -202,14 +202,20 @@ actual class SessionsService : ISessionsService, Service {
 
 		val user = call.authOrThrow()
 
-		// find all running streampyp daemons
-		val jobs = ClusterJob.find(clusterName = SessionDaemon.Streampyp.clusterJobClusterName)
-			.filter { it.getLog()?.status() == ClusterJob.Status.Started }
+		// find all running session daemons (Streampyp, Pypd, Fypd) so we don't miss sessions
+		// that are running e.g. only Pypd while Streampyp has stopped
+		val jobs = SessionDaemon.values().flatMap { daemon ->
+			ClusterJob.find(clusterName = daemon.clusterJobClusterName)
+				.filter { it.getLog()?.status() == ClusterJob.Status.Started }
+		}
 
-		// convert them to session data
+		// convert to session data and deduplicate by session id (same session can have multiple daemons running)
+		val seenSessionIds = mutableSetOf<String>()
 		val sessions = jobs.mapNotNull { job ->
-			job.ownerId
-				?.let { Database.instance.sessions.get(it) }
+			val sessionId = job.ownerId ?: return@mapNotNull null
+			if (sessionId in seenSessionIds) return@mapNotNull null
+			seenSessionIds.add(sessionId)
+			Database.instance.sessions.get(sessionId)
 				?.let { Session.fromDoc(it) }
 				?.data(user)
 		}
