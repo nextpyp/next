@@ -60,7 +60,9 @@ class BlocksTable(
 
 	private fun load() {
 		// Filter controls: same structure and classes as dashboard project filters
-		val typeOptions = listOf("" to "All Types") + rows.map { it.typeName }.distinct().sorted().map { it to it }
+		val typeOptions = listOf("" to "All Types") + rows.map { it.typeName }.distinct().sorted()
+			.filter { !it.equals("Time", ignoreCase = true) && !it.equals("By Time", ignoreCase = true) }
+			.map { it to it }
 		val stateOptions = listOf("" to "All States") + Node.Status.values().toList().map { statusLabel(it) to statusLabel(it) }
 
 		val typeSelect = SelectInput(typeOptions, classes = setOf("sharing")).apply {
