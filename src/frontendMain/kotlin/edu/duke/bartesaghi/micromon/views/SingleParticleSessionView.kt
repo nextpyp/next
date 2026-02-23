@@ -528,6 +528,9 @@ class SingleParticleSessionView(
 			html = { micrograph ->
 				listenToImageSize(document.create.img(src = micrograph.imageUrl(this@GalleryTab.session, ImageSize.Small)))
 			}
+			overlayLabel = { micrograph ->
+				"${micrograph.numAutoParticles.formatWithDigitGroupsSeparator()} particle(s)"
+			}
 			linker = { _, index ->
 				showMicrograph(index, true)
 			}

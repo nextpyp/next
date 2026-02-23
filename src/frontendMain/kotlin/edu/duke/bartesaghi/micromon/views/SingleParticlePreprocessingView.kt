@@ -167,6 +167,9 @@ class SingleParticlePreprocessingView(val project: ProjectData, val job: SingleP
 						html = { micrograph ->
 							listenToImageSize(document.create.img(src = micrograph.imageUrl(job, ImageSize.Small)))
 						}
+						overlayLabel = { micrograph ->
+							"${micrograph.numAutoParticles.formatWithDigitGroupsSeparator()} particle(s)"
+						}
 						linker = linker@{ _, index ->
 							showMicrograph(index, true)
 						}
