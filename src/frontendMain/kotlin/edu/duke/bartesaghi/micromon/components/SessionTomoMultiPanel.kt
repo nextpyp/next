@@ -130,15 +130,15 @@ class SessionTomoMultiPanel(
 			lazyTab.elem.add(SessionTomoSideViewImage(self.session.sessionId, self.tiltSeries.id, self.tiltSeries.imageDims.sideViewDims()))
 		}
 
-		val condition = true
-
-		if ( condition == true ) {
+		if (self.denoise) {
 			addTab("Denoised") { lazyTab ->
 				lazyTab.elem.add(self.denoiseDownloadBadge)
 				lazyTab.elem.add(self.denoisedTomogramImage)
 				lazyTab.elem.add(SessionTomoSideViewDenoiseImage(self.session.sessionId, self.tiltSeries.id, self.tiltSeries.imageDims.sideViewDims()))
 			}
+		}
 
+		if (self.segmentation) {
 			addTab("Segmentation") { lazyTab ->
 				lazyTab.elem.add(self.segDownloadBadge)
 				lazyTab.elem.add(self.segmentedTomogramImage)
@@ -212,18 +212,20 @@ class SessionTomoMultiPanel(
 			driftBarPlot.myOnClick(initialIndexToShow)
 		}
 
-		val condition = true
-
 		recDownloadBadge.load()
-		if ( condition == true ) {
+		if (denoise) {
 			denoiseDownloadBadge.load()
+		}
+		if (segmentation) {
 			segDownloadBadge.load()
 		}
-		
+
 		// load the particles image
 		particlesImage.load()
-		if ( condition == true ){
+		if (denoise) {
 			denoisedTomogramImage.load()
+		}
+		if (segmentation) {
 			segmentedTomogramImage.load()
 		}
 	}

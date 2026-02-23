@@ -174,7 +174,7 @@ class TomographySessionView(
 			galleryTab?.show(it)
 		}
 
-		tiltSeriesTab = TiltSeriesTab(session)
+		tiltSeriesTab = TiltSeriesTab(session, tiltSeriesesData)
 		tiltSeriesTabId = tabs.addTab("Tilt Series", "fas fa-desktop") {
 			tiltSeriesTab?.show(it)
 		}.id
@@ -560,7 +560,7 @@ class TomographySessionView(
 		}
 	}
 
-	private inner class TiltSeriesTab(val session: SessionData, val denoise: Boolean = false, val segmentation: Boolean = false) : Div(classes = setOf("live")) {
+	private inner class TiltSeriesTab(val session: SessionData, val tiltSeriesesData: TiltSeriesesData) : Div(classes = setOf("live")) {
 
 		val loader = TabDataLoader<RealTimeS2C.SessionLargeData>()
 
@@ -592,11 +592,20 @@ class TomographySessionView(
 				}
 			}
 
-			// show the tomogaphy sub-tabs
-			val tomoPanel = SessionTomoMultiPanel(session, tiltSeriesesData, tiltSeries, denoise, segmentation)
-			tiltSeriesElem.add(tomoPanel)
+			// show loading while checking for denoising/segmentation data
+			val loadingElem = tiltSeriesElem.loading("Loading …")
 			AppScope.launch {
-				tomoPanel.load()
+				try {
+					val hasDenoising = Services.tomographySessions.denData(session.sessionId, tiltSeries.id).isNotEmpty()
+					val hasSegmentation = Services.tomographySessions.segData(session.sessionId, tiltSeries.id).isNotEmpty()
+					tiltSeriesElem.remove(loadingElem)
+					val tomoPanel = SessionTomoMultiPanel(session, tiltSeriesesData, tiltSeries, hasDenoising, hasSegmentation)
+					tiltSeriesElem.add(tomoPanel)
+					tomoPanel.load()
+				} catch (t: Throwable) {
+					tiltSeriesElem.remove(loadingElem)
+					tiltSeriesElem.errorMessage(t)
+				}
 			}
 		}
 
