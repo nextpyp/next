@@ -129,7 +129,7 @@ class TomographyDenoisingEvalView(val project: ProjectData, val job: TomographyD
 						"Tilt Series",
 						data.tiltSerieses,
 						TiltSeriesProp.tableColumns,
-						TiltSeriesProp.values().toList(),
+						TiltSeriesProp.tableColumns,
 						writable = project.canWrite(),
 						showDetail = { elem, index, tiltSeries ->
 

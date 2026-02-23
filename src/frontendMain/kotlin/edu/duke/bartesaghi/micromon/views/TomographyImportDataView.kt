@@ -146,7 +146,7 @@ class TomographyImportDataView(val project: ProjectData, val job: TomographyImpo
 						"Tilt Series",
 						data.tiltSerieses,
 						TiltSeriesProp.tableColumns,
-						TiltSeriesProp.values().toList(),
+						TiltSeriesProp.tableColumns,
 						writable = project.canWrite(),
 						showDetail = { elem, index, tiltSeries ->
 

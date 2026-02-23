@@ -134,8 +134,14 @@ class TomographySegmentationClosedView(val project: ProjectData, val job: Tomogr
 					filterTable = FilterTable(
 						"Tilt Series",
 						data.tiltSerieses,
-						TiltSeriesProp.tableColumns,
-						TiltSeriesProp.values().toList(),
+						TiltSeriesProp.tableColumns
+							.toList()
+							// pure preprocessing doesn't have particles, so omit that column from the table
+							.filter { it != TiltSeriesProp.NumParticles },
+						TiltSeriesProp.tableColumns
+							.toList()
+							// pure preprocessing doesn't have particles, so omit that column from the table
+							.filter { it != TiltSeriesProp.NumParticles },
 						writable = project.canWrite(),
 						showDetail = { elem, index, tiltSeries ->
 

@@ -474,7 +474,7 @@ class TomographySessionView(
 			"Tilt Series",
 			tiltSeriesesData.tiltSerieses,
 			TiltSeriesProp.tableColumns,
-			TiltSeriesProp.values().toList(),
+			TiltSeriesProp.tableColumns,
 			writable = SessionPermission.Write in session.permissions,
 			showDetail = { elem, index, tiltSeries ->
 

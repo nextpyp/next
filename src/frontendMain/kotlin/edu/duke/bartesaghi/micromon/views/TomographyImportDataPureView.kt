@@ -127,7 +127,7 @@ class TomographyImportDataPureView(val project: ProjectData, val job: Tomography
 						"Tilt Series",
 						data.tiltSerieses,
 						TiltSeriesProp.tableColumns,
-						TiltSeriesProp.values().toList(),
+						TiltSeriesProp.tableColumns,
 						writable = project.canWrite(),
 						showDetail = { elem, index, tiltSeries ->
 
