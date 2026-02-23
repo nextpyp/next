@@ -179,6 +179,9 @@ class TomographyImportDataView(val project: ProjectData, val job: TomographyImpo
 						html = { tiltSeries ->
 							listenToImageSize(document.create.img(src = tiltSeries.imageUrl(job, ImageSize.Small)))
 						}
+						overlayLabel = { ts ->
+							"${ts.numAutoParticles.formatWithDigitGroupsSeparator()} particle(s)"
+						}
 						linker = { _, index ->
 							showTiltSeries(index, true)
 						}
