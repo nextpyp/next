@@ -201,6 +201,17 @@ class BlocksTable(
 				sorterFunction = { _, _, aRow, bRow, _, _, _ ->
 					rows[aRow.pointer.i].status.ordinal.compareTo(rows[bRow.pointer.i].status.ordinal)
 				}
+			),
+			ColumnDefinition<RowPointer>(
+				title = "Block ID",
+				formatterComponentFunction = { _, _, p ->
+					val row = rows[p.i]
+					Span(row.jobId)
+				},
+				field = "jobId",
+				sorterFunction = { _, _, aRow, bRow, _, _, _ ->
+					rows[aRow.pointer.i].jobId.compareTo(rows[bRow.pointer.i].jobId)
+				}
 			)
 		)
 
