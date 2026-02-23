@@ -202,20 +202,14 @@ actual class SessionsService : ISessionsService, Service {
 
 		val user = call.authOrThrow()
 
-		// find all running session daemons (Streampyp, Pypd, Fypd) so we don't miss sessions
-		// that are running e.g. only Pypd while Streampyp has stopped
-		val jobs = SessionDaemon.values().flatMap { daemon ->
-			ClusterJob.find(clusterName = daemon.clusterJobClusterName)
-				.filter { it.getLog()?.status() == ClusterJob.Status.Started }
-		}
+		// find all running streampyp daemons
+		val jobs = ClusterJob.find(clusterName = SessionDaemon.Streampyp.clusterJobClusterName)
+			.filter { it.getLog()?.status() == ClusterJob.Status.Started }
 
-		// convert to session data and deduplicate by session id (same session can have multiple daemons running)
-		val seenSessionIds = mutableSetOf<String>()
+		// convert them to session data
 		val sessions = jobs.mapNotNull { job ->
-			val sessionId = job.ownerId ?: return@mapNotNull null
-			if (sessionId in seenSessionIds) return@mapNotNull null
-			seenSessionIds.add(sessionId)
-			Database.instance.sessions.get(sessionId)
+			job.ownerId
+				?.let { Database.instance.sessions.get(it) }
 				?.let { Session.fromDoc(it) }
 				?.data(user)
 		}
@@ -244,6 +238,10 @@ actual class SessionsService : ISessionsService, Service {
 
 	override suspend fun clear(sessionId: String, daemon: SessionDaemon) = sanitizeExceptions {
 		val session = auth(sessionId, SessionPermission.Write).session
+		if (session is TomographySession && daemon == SessionDaemon.Pypd) {
+			// Data pre-processing was cleared; drift/CTF metadata is now out of date
+			Database.instance.tiltSeriesDriftMetadata.deleteAll(session.idOrThrow)
+		}
 		session.clear(daemon)
 	}
 
