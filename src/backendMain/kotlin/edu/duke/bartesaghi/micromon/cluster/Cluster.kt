@@ -190,8 +190,12 @@ interface Cluster {
 			// write the container launcher script, if needed
 			containerizeScript.createIfNeeded {
 				containerizeScript.path.writeString(Container.launchScript())
-				containerizeScript.path.editPermissionsAs(clusterJob.osUsername) {
+				containerizeScript.path.editPermissions {
 					add(PosixFilePermission.OWNER_EXECUTE)
+					add(PosixFilePermission.GROUP_READ)
+					add(PosixFilePermission.GROUP_EXECUTE)
+					add(PosixFilePermission.OTHERS_READ)
+					add(PosixFilePermission.OTHERS_EXECUTE)
 				}
 			}
 
