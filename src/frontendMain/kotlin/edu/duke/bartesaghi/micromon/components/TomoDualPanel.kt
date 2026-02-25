@@ -7,6 +7,7 @@ import edu.duke.bartesaghi.micromon.pyp.TiltSeriesesData
 import edu.duke.bartesaghi.micromon.pyp.TiltSeriesesParticlesData
 import edu.duke.bartesaghi.micromon.services.*
 import edu.duke.bartesaghi.micromon.toFixed
+import io.kvision.core.Container
 import io.kvision.html.Div
 import io.kvision.html.div
 import io.kvision.toast.Toast
@@ -39,6 +40,7 @@ class TomoDualPanel(
 	val showIsonetOutputs: Boolean = false,
 	val hideSideViews: Boolean = true,
 	val hideDownloadBadges: Boolean = false,
+	val hideOriginalTabWhenOnlyTab: Boolean = false,
 	val pickingControls: SingleListParticleControls? = null
 ): Div(classes = setOf("tomo-multipanel")) {
 
@@ -84,20 +86,20 @@ class TomoDualPanel(
 		loader = { Services.jobs.scrData(job.jobId, tiltSeries.id) }
 	)
 
-	val tabs = flatLazyTabPanel {
+	private val hasNonOriginalTabs =
+		showSegmented || showDenoised || showScores || showHeatMap || showIsonetOutputs
+	private val showOriginalAsTab = !(hideOriginalTabWhenOnlyTab && !hasNonOriginalTabs)
+
+	val tabs = if (showOriginalAsTab || hasNonOriginalTabs) flatLazyTabPanel {
 
 		// DSLs make it super annoying to get to the outer scope
 		val self = this@TomoDualPanel
 
 		persistence = Storage::tomographyPreprocessingMultiPanelTabIndex
 
-		addTab("Original") { lazyTab ->
-			if ( self.hideDownloadBadges == false ){
-				lazyTab.elem.add(self.recDownloadBadge)
-			}
-			lazyTab.elem.add(self.particlesImage)
-			if ( self.hideSideViews == false ){
-				lazyTab.elem.add(TomoSideViewImage(self.job.jobId, self.tiltSeries.id, self.tiltSeries.imageDims.sideViewDims()))
+		if (self.showOriginalAsTab) {
+			addTab("Original") { lazyTab ->
+				self.addOriginalContent(lazyTab.elem)
 			}
 		}
 
@@ -153,6 +155,22 @@ class TomoDualPanel(
 				}
 		}
 
+	} else null
+
+	init {
+		if (!showOriginalAsTab && !hasNonOriginalTabs) {
+			addOriginalContent(this)
+		}
+	}
+
+	private fun addOriginalContent(container: Container) {
+		if (hideDownloadBadges == false) {
+			container.add(recDownloadBadge)
+		}
+		container.add(particlesImage)
+		if (hideSideViews == false) {
+			container.add(TomoSideViewImage(job.jobId, tiltSeries.id, tiltSeries.imageDims.sideViewDims()))
+		}
 	}
 
 	suspend fun load() {

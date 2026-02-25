@@ -144,7 +144,7 @@ class TomographyParticlesEvalView(val project: ProjectData, val job: TomographyP
 						"Tilt Series",
 						data.tiltSerieses,
 						TiltSeriesProp.tableColumns,
-						TiltSeriesProp.tableColumns,
+						TiltSeriesProp.values().toList(),
 						writable = project.canWrite(),
 						showDetail = { elem, index, tiltSeries ->
 
@@ -243,6 +243,8 @@ class TomographyParticlesEvalView(val project: ProjectData, val job: TomographyP
 	) {
 
 		val tiltSeriesesElem = Div()
+		private val denoisedAvailabilityByTiltSeriesId = HashMap<String, Boolean>()
+		private var lastRequestedIndex: Int? = null
 
 		val listNav = BigListNav(data.tiltSerieses, onSearch=data::searchById) e@{ index ->
 
@@ -255,25 +257,57 @@ class TomographyParticlesEvalView(val project: ProjectData, val job: TomographyP
 				tiltSeriesesElem.div("No tilt series to show", classes = setOf("empty"))
 				return@e
 			}
+			tiltSeriesesElem.loading("Checking tilt-series data ...")
+			lastRequestedIndex = index
 
-			// show metadata
-			tiltSeriesesElem.div(classes = setOf("stats")) {
-				div {
-					span("Name: ${tiltSeries.id}, processed on ${Date(tiltSeries.timestamp).toLocaleString()}")
-					button("Show Log", classes = setOf("log-button")).onClick {
-						LogView.showPopup("Log for Tilt Series: ${tiltSeries.id}") {
-							Services.jobs.getLog(job.jobId, tiltSeries.id)
+			AppScope.launch {
+
+				val showDenoisedTab = if (showDenoised == true) {
+					denoisedAvailabilityByTiltSeriesId.getOrPut(tiltSeries.id) {
+						try {
+							Services.jobs.denData(job.jobId, tiltSeries.id).isNotEmpty()
+						} catch (t: Throwable) {
+							console.warn("Failed to query denoised data availability for tilt series ${tiltSeries.id}", t)
+							false
+						}
+					}
+				} else {
+					false
+				}
+
+				// Ignore stale requests if the user has already selected another tilt series.
+				if (lastRequestedIndex != index) {
+					return@launch
+				}
+
+				tiltSeriesesElem.removeAll()
+
+				// show metadata
+				tiltSeriesesElem.div(classes = setOf("stats")) {
+					div {
+						span("Name: ${tiltSeries.id}, processed on ${Date(tiltSeries.timestamp).toLocaleString()}")
+						button("Show Log", classes = setOf("log-button")).onClick {
+							LogView.showPopup("Log for Tilt Series: ${tiltSeries.id}") {
+								Services.jobs.getLog(job.jobId, tiltSeries.id)
+							}
 						}
 					}
 				}
-			}
 
-			val tomoPanel = TomoDualPanel(project, job, data, tiltSeries, pickingControls = pickingControls, showDenoised = showDenoised == true, hideSideViews = false, hideDownloadBadges = false )
-			tiltSeriesesElem.add(tomoPanel)
-			AppScope.launch {
+				val tomoPanel = TomoDualPanel(
+					project,
+					job,
+					data,
+					tiltSeries,
+					pickingControls = pickingControls,
+					showDenoised = showDenoisedTab,
+					hideSideViews = false,
+					hideDownloadBadges = false,
+					hideOriginalTabWhenOnlyTab = true
+				)
+				tiltSeriesesElem.add(tomoPanel)
 				tomoPanel.load()
 			}
-
 		}
 
 		fun show(elem: Container) {
