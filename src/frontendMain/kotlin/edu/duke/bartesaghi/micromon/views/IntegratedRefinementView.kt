@@ -409,7 +409,7 @@ class IntegratedRefinementView(
 					TomographyFineRefinementNode,
 					TomographyMovieCleaningNode
 				)) {
-				tabsPanel.addTab("Per-particle Scores", "fas fa-shart-area") { lazyTab ->
+				tabsPanel.addTab("Per-particle Scores", "fas fa-chart-area") { lazyTab ->
 					scoresTab = RefinementsTab(job, state, RefinementsTab.ImageType.Scores)
 						.addAndTrack(lazyTab)
 						.also {
