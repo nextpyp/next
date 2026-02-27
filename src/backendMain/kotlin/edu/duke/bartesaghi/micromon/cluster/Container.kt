@@ -21,9 +21,8 @@ sealed interface Container {
 		fun fromId(id: String?): Container? =
 			when (id) {
 				null -> null
-				Pyp.id -> Pyp
-				MockPyp.id -> MockPyp
-				else -> throw IllegalArgumentException("unrecognized container id: $id")
+				else -> all.find { it.id == id }
+					?: throw IllegalArgumentException("unrecognized container id: $id")
 			}
 
 		const val canonicalConfigPath = "/var/pyp/config.toml"
