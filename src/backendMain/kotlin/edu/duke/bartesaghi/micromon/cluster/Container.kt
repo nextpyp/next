@@ -71,7 +71,10 @@ sealed interface Container {
 					|
 					|${container.id})
 					|	${container.prelaunchCommands().joinToString("\n\t")}
-					|	${launchCommand(container)} --pwd="${d}pwd_path" ${d}extra_apptainer_args "${container.sifPath}" "$@"
+					|	if [ -z "${d}sif_path" ]; then
+					|		sif_path="${container.sifPath}"
+					|	fi
+					|	${launchCommand(container)} --pwd="${d}pwd_path" ${d}extra_apptainer_args "${d}sif_path" "$@"
 					|	;;
 				""".trimMargin()
 			}
@@ -81,11 +84,13 @@ sealed interface Container {
 				|
 				|show_help() {
 				|	echo "nextpyp container launcher usage:"
-				|	echo "  launcher [--id <id>] [--pwd <pwd_path>] [--nv] -- <cmd>"
+				|	echo "  launcher [--id <id>] [--sif <sif_path>] [--pwd <pwd_path>] [--nv] -- <cmd>"
 				|	echo "where:"
 				|	echo "  <id> is the id of the container"
 				|	echo "    one of: [${all.joinToString(", ") { it.id }}]"
 				|	echo "    If no id is given, \`${defaultContainer.id}\` is used."
+				|	echo "  <sif_path> is the path to the container .sif file."
+				|	echo "    If no sif_path is given, the default path for the given container id is used."
 				|	echo "  <pwd_path> is the working directory of the process to be launched."
 				|	echo "             If no path is given, the path \`/tmp\` is used."
 				|	echo "  --nv turns on apptainer's NVidia support."
@@ -99,6 +104,7 @@ sealed interface Container {
 				|
 				|# set defaults
 				|id=${defaultContainer.id}
+				|sif_path=
 				|pwd_path=/tmp
 				|use_nv=0
 				|
@@ -117,6 +123,15 @@ sealed interface Container {
 				|				shift
 				|			else
 				|				echo "ERROR: missing <id>"
+				|				exit 1
+				|			fi
+				|			;;
+				|			
+				|		--sif)
+				|			if [ -n "${d}2" ]; then
+				|				sif_path=$2
+				|			else
+				|				echo "ERROR: missing <sif_path>"
 				|				exit 1
 				|			fi
 				|			;;
