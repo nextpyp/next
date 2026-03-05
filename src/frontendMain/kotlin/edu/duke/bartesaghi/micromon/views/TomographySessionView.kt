@@ -592,14 +592,16 @@ class TomographySessionView(
 				}
 			}
 
-			// show loading while checking for denoising/segmentation data
+			// show loading while checking for denoising/segmentation/half-reconstruction data
 			val loadingElem = tiltSeriesElem.loading("Loading …")
 			AppScope.launch {
 				try {
 					val hasDenoising = Services.tomographySessions.denData(session.sessionId, tiltSeries.id).isNotEmpty()
 					val hasSegmentation = Services.tomographySessions.segData(session.sessionId, tiltSeries.id).isNotEmpty()
+					val half1Exists = Services.tomographySessions.recDataHalf1(session.sessionId, tiltSeries.id).isNotEmpty()
+					val half2Exists = Services.tomographySessions.recDataHalf2(session.sessionId, tiltSeries.id).isNotEmpty()
 					tiltSeriesElem.remove(loadingElem)
-					val tomoPanel = SessionTomoMultiPanel(session, tiltSeriesesData, tiltSeries, hasDenoising, hasSegmentation)
+					val tomoPanel = SessionTomoMultiPanel(session, tiltSeriesesData, tiltSeries, hasDenoising, hasSegmentation, half1Exists, half2Exists)
 					tiltSeriesElem.add(tomoPanel)
 					tomoPanel.load()
 				} catch (t: Throwable) {

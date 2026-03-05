@@ -544,6 +544,12 @@ interface ITomographySessionService {
 	@KVBindingRoute("session/${TomographySessionData.ID}/rec")
 	suspend fun recData(sessionId: String, tiltSeriesId: String): Option<FileDownloadData>
 
+	@KVBindingRoute("session/${TomographySessionData.ID}/recHalf1")
+	suspend fun recDataHalf1(sessionId: String, tiltSeriesId: String): Option<FileDownloadData>
+
+	@KVBindingRoute("session/${TomographySessionData.ID}/recHalf2")
+	suspend fun recDataHalf2(sessionId: String, tiltSeriesId: String): Option<FileDownloadData>
+
 	@KVBindingRoute("session/${TomographySessionData.ID}/den")
 	suspend fun denData(sessionId: String, tiltSeriesId: String): Option<FileDownloadData>
 

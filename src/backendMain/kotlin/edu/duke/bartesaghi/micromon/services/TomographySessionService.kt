@@ -91,6 +91,30 @@ actual class TomographySessionService : ITomographySessionService, Service {
 						}
 					}
 
+					get("reconstructionTiltSeriesMontageHalf1") {
+						call.respondExceptions {
+
+							val session = authSession(SessionPermission.Read).session
+							val tiltSeriesId = call.parameters.getOrFail("tiltSeriesId")
+
+							val imagePath = TiltSeries.reconstructionTiltSeriesMontagePathHalf1(session.dir, tiltSeriesId)
+							ImageType.Webp.respond(call, imagePath)
+								?.respondNotFound(call)
+						}
+					}
+
+					get("reconstructionTiltSeriesMontageHalf2") {
+						call.respondExceptions {
+
+							val session = authSession(SessionPermission.Read).session
+							val tiltSeriesId = call.parameters.getOrFail("tiltSeriesId")
+
+							val imagePath = TiltSeries.reconstructionTiltSeriesMontagePathHalf2(session.dir, tiltSeriesId)
+							ImageType.Webp.respond(call, imagePath)
+								?.respondNotFound(call)
+						}
+					}
+
 					get("2dCtfTiltMontage") {
 						call.respondExceptions {
 
@@ -133,6 +157,30 @@ actual class TomographySessionService : ITomographySessionService, Service {
 						}
 					}
 
+					get("sidesTiltSeriesImageHalf1") {
+						call.respondExceptions {
+
+							val session = authSession(SessionPermission.Read).session
+							val tiltSeriesId = call.parameters.getOrFail("tiltSeriesId")
+
+							val imagePath = TiltSeries.sidesImagePathHalf1(session.dir, tiltSeriesId)
+							ImageType.Webp.respond(call, imagePath)
+								?.respondPlaceholder(call, ImageSize.Medium)
+						}
+					}
+
+					get("sidesTiltSeriesImageHalf2") {
+						call.respondExceptions {
+
+							val session = authSession(SessionPermission.Read).session
+							val tiltSeriesId = call.parameters.getOrFail("tiltSeriesId")
+
+							val imagePath = TiltSeries.sidesImagePathHalf2(session.dir, tiltSeriesId)
+							ImageType.Webp.respond(call, imagePath)
+								?.respondPlaceholder(call, ImageSize.Medium)
+						}
+					}
+
 					get("sidesTiltSeriesDenoiseImage") {
 						call.respondExceptions {
 
@@ -169,6 +217,28 @@ actual class TomographySessionService : ITomographySessionService, Service {
 							val tiltSeriesId = call.parameters.getOrFail("tiltSeriesId")
 
 							val path = TiltSeries.recPath(session.dir, tiltSeriesId)
+							call.respondFile(path, ContentType.Application.OctetStream)
+						}
+					}
+
+					get("recHalf1") {
+						call.respondExceptions {
+
+							val session = authSession(SessionPermission.Read).session
+							val tiltSeriesId = call.parameters.getOrFail("tiltSeriesId")
+
+							val path = TiltSeries.recPathHalf1(session.dir, tiltSeriesId)
+							call.respondFile(path, ContentType.Application.OctetStream)
+						}
+					}
+
+					get("recHalf2") {
+						call.respondExceptions {
+
+							val session = authSession(SessionPermission.Read).session
+							val tiltSeriesId = call.parameters.getOrFail("tiltSeriesId")
+
+							val path = TiltSeries.recPathHalf2(session.dir, tiltSeriesId)
 							call.respondFile(path, ContentType.Application.OctetStream)
 						}
 					}
@@ -304,6 +374,20 @@ actual class TomographySessionService : ITomographySessionService, Service {
 	override suspend fun recData(sessionId: String, tiltSeriesId: String): Option<FileDownloadData> = sanitizeExceptions {
 		val session = auth(sessionId, SessionPermission.Read).session
 		TiltSeries.recPath(session.dir, tiltSeriesId)
+			.toFileDownloadData()
+			.toOption()
+	}
+
+	override suspend fun recDataHalf1(sessionId: String, tiltSeriesId: String): Option<FileDownloadData> = sanitizeExceptions {
+		val session = auth(sessionId, SessionPermission.Read).session
+		TiltSeries.recPathHalf1(session.dir, tiltSeriesId)
+			.toFileDownloadData()
+			.toOption()
+	}
+
+	override suspend fun recDataHalf2(sessionId: String, tiltSeriesId: String): Option<FileDownloadData> = sanitizeExceptions {
+		val session = auth(sessionId, SessionPermission.Read).session
+		TiltSeries.recPathHalf2(session.dir, tiltSeriesId)
 			.toFileDownloadData()
 			.toOption()
 	}

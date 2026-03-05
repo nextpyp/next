@@ -71,14 +71,20 @@ class TomoSideViewSegImage(
     }
 }
 
+/**
+ * @param pathSuffix optional suffix for the URL path (e.g. "Half1" for sidesTiltSeriesImageHalf1)
+ */
 class SessionTomoSideViewImage(
     sessionId: String,
     tiltSeriesId: String,
-    imageDims: ImageDims? = null
+    imageDims: ImageDims? = null,
+    pathSuffix: String? = null
 ) : SizedPanel("Side View Projections", Storage.tomographyPreprocessingSideViewSize) {
     init {
+        val basePath = "/kv/tomographySession/$sessionId/$tiltSeriesId/sidesTiltSeriesImage"
+        val imagePath = if (pathSuffix != null) "${basePath}${pathSuffix}" else basePath
         addSideViewContent(
-            "/kv/tomographySession/$sessionId/$tiltSeriesId/sidesTiltSeriesImage",
+            imagePath,
             imageDims
         )
         onResize = { newSize: ImageSize ->

@@ -13,7 +13,9 @@ class SessionTomoMultiPanel(
 	val tiltSerieses: TiltSeriesesData,
 	val tiltSeries: TiltSeriesData,
 	val denoise: Boolean = false,
-	val segmentation: Boolean = false
+	val segmentation: Boolean = false,
+	val half1Exists: Boolean = false,
+	val half2Exists: Boolean = false
 ): Div(classes = setOf("tomo-multipanel")) {
 
 	private var currentTiltFramesTab: Double? = null
@@ -95,6 +97,24 @@ class SessionTomoMultiPanel(
 		loader = { Services.tomographySessions.segData(session.sessionId, tiltSeries.id) }
 	)
 
+	private val recDownloadBadgeHalf1 = FileDownloadBadge(
+		filetype = "half1.rec file",
+		url = "kv/tomographySession/${session.sessionId}/${tiltSeries.id}/recHalf1",
+		filename = "${session.sessionId}_${tiltSeries.id}_half1.rec",
+		loader = { Services.tomographySessions.recDataHalf1(session.sessionId, tiltSeries.id) }
+	)
+
+	private val recDownloadBadgeHalf2 = FileDownloadBadge(
+		filetype = "half2.rec file",
+		url = "kv/tomographySession/${session.sessionId}/${tiltSeries.id}/recHalf2",
+		filename = "${session.sessionId}_${tiltSeries.id}_half2.rec",
+		loader = { Services.tomographySessions.recDataHalf2(session.sessionId, tiltSeries.id) }
+	)
+
+	private val particlesImageHalf1 = TomoParticlesImage.forSession(session, tiltSerieses, tiltSeries, spriteUrl = "/kv/tomographySession/${session.sessionId}/${tiltSeries.id}/reconstructionTiltSeriesMontageHalf1", placeholderOnError = true)
+
+	private val particlesImageHalf2 = TomoParticlesImage.forSession(session, tiltSerieses, tiltSeries, spriteUrl = "/kv/tomographySession/${session.sessionId}/${tiltSeries.id}/reconstructionTiltSeriesMontageHalf2", placeholderOnError = true)
+
 	val tabs = flatLazyTabPanel {
 
 		// DSLs make it super annoying to get to the outer scope
@@ -128,6 +148,21 @@ class SessionTomoMultiPanel(
 			lazyTab.elem.add(self.recDownloadBadge)
 			lazyTab.elem.add(self.particlesImage)
 			lazyTab.elem.add(SessionTomoSideViewImage(self.session.sessionId, self.tiltSeries.id, self.tiltSeries.imageDims.sideViewDims()))
+		}
+
+		if (self.half1Exists) {
+			addTab("Half tomogram 1") { lazyTab ->
+				lazyTab.elem.add(self.recDownloadBadgeHalf1)
+				lazyTab.elem.add(self.particlesImageHalf1)
+				lazyTab.elem.add(SessionTomoSideViewImage(self.session.sessionId, self.tiltSeries.id, self.tiltSeries.imageDims.sideViewDims(), pathSuffix = "Half1"))
+			}
+		}
+		if (self.half2Exists) {
+			addTab("Half tomogram 2") { lazyTab ->
+				lazyTab.elem.add(self.recDownloadBadgeHalf2)
+				lazyTab.elem.add(self.particlesImageHalf2)
+				lazyTab.elem.add(SessionTomoSideViewImage(self.session.sessionId, self.tiltSeries.id, self.tiltSeries.imageDims.sideViewDims(), pathSuffix = "Half2"))
+			}
 		}
 
 		if (self.denoise) {
@@ -213,6 +248,12 @@ class SessionTomoMultiPanel(
 		}
 
 		recDownloadBadge.load()
+		if (half1Exists) {
+			recDownloadBadgeHalf1.load()
+		}
+		if (half2Exists) {
+			recDownloadBadgeHalf2.load()
+		}
 		if (denoise) {
 			denoiseDownloadBadge.load()
 		}
@@ -222,6 +263,12 @@ class SessionTomoMultiPanel(
 
 		// load the particles image
 		particlesImage.load()
+		if (half1Exists) {
+			particlesImageHalf1.load()
+		}
+		if (half2Exists) {
+			particlesImageHalf2.load()
+		}
 		if (denoise) {
 			denoisedTomogramImage.load()
 		}
