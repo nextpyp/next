@@ -96,6 +96,12 @@ val ArgValues.tomoRecBinning: Double?
 val ArgValues.tomoRecBinningOrDefault: Double
 	get() = getOrDefault(args.tomoRecBinning) as Double
 
+val Args.tomoRecGenerateHalves: Arg
+	get() = argOrThrow("tomo_rec", "generate_halves")
+var ArgValues.tomoRecGenerateHalves: Boolean?
+	get() = get(args.tomoRecGenerateHalves) as Boolean?
+	set(value) { set(args.tomoRecGenerateHalves, value) }
+
 val Args.tomoDenoiseIsonet2Mask: Arg
 	get() = argOrThrow("tomo_denoise", "isonet2_mask")
 var ArgValues.tomoDenoiseIsonet2Mask: Boolean?

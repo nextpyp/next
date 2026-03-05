@@ -31,7 +31,10 @@ class TomoMultiPanel(
 	val job: JobData,
 	val tiltSerieses: TiltSeriesesData,
 	val tiltSeries: TiltSeriesData,
-	val pickingControls: MultiListParticleControls? = null
+	val pickingControls: MultiListParticleControls? = null,
+	val tomoRecGenerateHalves: Boolean? = null,
+	val half1Exists: Boolean = false,
+	val half2Exists: Boolean = false
 ): Div(classes = setOf("tomo-multipanel")) {
 
 	private var currentTiltFramesTab: Double? = null
@@ -117,6 +120,24 @@ class TomoMultiPanel(
 		loader = { Services.jobs.segData(job.jobId, tiltSeries.id) }
 	)
 
+	private val recDownloadBadgeHalf1 = FileDownloadBadge(
+		filetype = "half1.rec file",
+		url = "kv/jobs/${job.jobId}/data/${tiltSeries.id}/recHalf1",
+		filename = "${job.jobId}_${tiltSeries.id}_half1.rec",
+		loader = { Services.jobs.recDataHalf1(job.jobId, tiltSeries.id) }
+	)
+
+	private val recDownloadBadgeHalf2 = FileDownloadBadge(
+		filetype = "half2.rec file",
+		url = "kv/jobs/${job.jobId}/data/${tiltSeries.id}/recHalf2",
+		filename = "${job.jobId}_${tiltSeries.id}_half2.rec",
+		loader = { Services.jobs.recDataHalf2(job.jobId, tiltSeries.id) }
+	)
+
+	private val particlesImageHalf1 = TomoParticlesImage.forProject(project, job, tiltSerieses, tiltSeries, pickingControls, spriteUrl = "/kv/jobs/${job.jobId}/data/${tiltSeries.id}/reconstructionTiltSeriesMontageHalf1")
+
+	private val particlesImageHalf2 = TomoParticlesImage.forProject(project, job, tiltSerieses, tiltSeries, pickingControls, spriteUrl = "/kv/jobs/${job.jobId}/data/${tiltSeries.id}/reconstructionTiltSeriesMontageHalf2")
+
 	val tabs = flatLazyTabPanel {
 
 		// DSLs make it super annoying to get to the outer scope
@@ -151,6 +172,21 @@ class TomoMultiPanel(
 			lazyTab.elem.add(self.recDownloadBadge)
 			lazyTab.elem.add(self.particlesImage)
 			lazyTab.elem.add(TomoSideViewImage(self.job.jobId, self.tiltSeries.id, self.tiltSeries.imageDims.sideViewDims()))
+		}
+
+		if (self.half1Exists) {
+			addTab("Half tomogram 1") { lazyTab ->
+				lazyTab.elem.add(self.recDownloadBadgeHalf1)
+				lazyTab.elem.add(self.particlesImageHalf1)
+				lazyTab.elem.add(TomoSideViewImage(self.job.jobId, self.tiltSeries.id, self.tiltSeries.imageDims.sideViewDims(), pathSuffix = "Half1"))
+			}
+		}
+		if (self.half2Exists) {
+			addTab("Half tomogram 2") { lazyTab ->
+				lazyTab.elem.add(self.recDownloadBadgeHalf2)
+				lazyTab.elem.add(self.particlesImageHalf2)
+				lazyTab.elem.add(TomoSideViewImage(self.job.jobId, self.tiltSeries.id, self.tiltSeries.imageDims.sideViewDims(), pathSuffix = "Half2"))
+			}
 		}
 
 		if (self.tiltSerieses.particles is TiltSeriesesParticlesData.VirusMode) {
@@ -292,12 +328,24 @@ class TomoMultiPanel(
 			denoisedDownloadBadge.load()
 			segmentedDownloadBadge.load()
 		}
+		if (half1Exists) {
+			recDownloadBadgeHalf1.load()
+		}
+		if (half2Exists) {
+			recDownloadBadgeHalf2.load()
+		}
 
 		// load the particles image
 		particlesImage.load()
 		if ( condition == true ){
 			denoisedTomogramImage.load()
 			segmentedTomogramImage.load()
+		}
+		if (half1Exists) {
+			particlesImageHalf1.load()
+		}
+		if (half2Exists) {
+			particlesImageHalf2.load()
 		}
 
 		// load thresholds for the threshold picker, if needed

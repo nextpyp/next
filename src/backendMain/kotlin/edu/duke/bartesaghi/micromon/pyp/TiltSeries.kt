@@ -74,6 +74,28 @@ class TiltSeries(private val doc: Document) {
 			return subdir / "$filename.png"
 		}
 
+		fun reconstructionTiltSeriesMontagePathHalf1(dir: Path, tiltSeriesId: String): Path {
+			val subdir = dir / "webp"
+			val filename = "${tiltSeriesId}_half1_rec"
+			val webp = subdir / "$filename.webp"
+			if (webp.exists()) return webp
+			return subdir / "$filename.png"
+		}
+
+		fun reconstructionTiltSeriesMontagePathHalf2(dir: Path, tiltSeriesId: String): Path {
+			val subdir = dir / "webp"
+			val filename = "${tiltSeriesId}_half2_rec"
+			val webp = subdir / "$filename.webp"
+			if (webp.exists()) return webp
+			return subdir / "$filename.png"
+		}
+
+		fun recPathHalf1(dir: Path, tiltSeriesId: String): Path =
+			dir / "mrc" / "${tiltSeriesId}_half1.rec"
+
+		fun recPathHalf2(dir: Path, tiltSeriesId: String): Path =
+			dir / "mrc" / "${tiltSeriesId}_half2.rec"
+
 		fun denoisedTomogramMontagePath(dir: Path, tiltSeriesId: String): Path {
 			// try webp first, fall back to png otherwise (this is done to workaround the max size limitation of the webp format)
 			val subdir = dir / "webp"
@@ -159,6 +181,12 @@ class TiltSeries(private val doc: Document) {
 
 		fun sidesImagePath(dir: Path, tiltSeriesId: String): Path =
 			dir / "webp" / "${tiltSeriesId}_sides.webp"
+
+		fun sidesImagePathHalf1(dir: Path, tiltSeriesId: String): Path =
+			dir / "webp" / "${tiltSeriesId}_half1_sides.webp"
+
+		fun sidesImagePathHalf2(dir: Path, tiltSeriesId: String): Path =
+			dir / "webp" / "${tiltSeriesId}_half2_sides.webp"
 
 		fun sidesDenoiseImagePath(dir: Path, tiltSeriesId: String): Path =
 			dir / "webp" / "${tiltSeriesId}_den_sides.webp"

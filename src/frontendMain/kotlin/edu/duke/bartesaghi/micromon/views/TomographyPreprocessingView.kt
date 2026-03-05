@@ -3,6 +3,7 @@ package edu.duke.bartesaghi.micromon.views
 import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.components.*
 import edu.duke.bartesaghi.micromon.diagram.nodes.TomographyPreprocessingNode
+import edu.duke.bartesaghi.micromon.pyp.toArgValues
 import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.*
 import js.getHTMLElement
@@ -134,6 +135,16 @@ class TomographyPreprocessingView(val project: ProjectData, val job: TomographyP
 				elem.remove(loadingElem)
 			}
 
+			val args = try {
+				delayAtLeast(200) {
+					TomographyPreprocessingNode.pypArgs.get()
+				}
+			} catch (t: Throwable) {
+				elem.errorMessage(t)
+				return@launch
+			}
+			val finishedValues = job.args.finished?.values?.toArgValues(args)
+
 			// show tilt series stats
 			elem.add(tiltSeriesStats)
 
@@ -227,7 +238,7 @@ class TomographyPreprocessingView(val project: ProjectData, val job: TomographyP
 					}
 				}
 
-				liveTab = LiveTab(job, data)
+				liveTab = LiveTab(job, data, tomoRecGenerateHalves = finishedValues?.tomoRecGenerateHalves)
 				liveTabId = addTab("Tomograms", "fas fa-desktop") {
 					liveTab?.show(it.elem)
 				}.id
@@ -287,7 +298,8 @@ class TomographyPreprocessingView(val project: ProjectData, val job: TomographyP
 
 	private inner class LiveTab(
 		val job: TomographyPreprocessingData,
-		val data: TiltSeriesesData
+		val data: TiltSeriesesData,
+		val tomoRecGenerateHalves: Boolean? = null
 	) {
 
 		private val tiltSeriesesElem = Div()
@@ -321,15 +333,20 @@ class TomographyPreprocessingView(val project: ProjectData, val job: TomographyP
 				}
 			}
 
-			val tomoPanel = TomoMultiPanel(project, job, data, tiltSeries, pickingControls)
-			tomoPanel.onTiltExclusionChanged = { tiltSeriesId ->
-				AppScope.launch { refreshGalleryExclusions(tiltSeriesId) }
-			}
-			tomoPanel.particlesImage.onParticlesChange = {
-				tiltSeriesStats.picked(data, pickingControls)
-			}
-			tiltSeriesesElem.add(tomoPanel)
+			val loadingElem = tiltSeriesesElem.loading("Loading…")
+			tiltSeriesesElem.add(loadingElem)
 			AppScope.launch {
+				val half1Exists = Services.jobs.recDataHalf1(job.jobId, tiltSeries.id).isNotEmpty()
+				val half2Exists = Services.jobs.recDataHalf2(job.jobId, tiltSeries.id).isNotEmpty()
+				tiltSeriesesElem.remove(loadingElem)
+				val tomoPanel = TomoMultiPanel(project, job, data, tiltSeries, pickingControls, tomoRecGenerateHalves = tomoRecGenerateHalves, half1Exists = half1Exists, half2Exists = half2Exists)
+				tomoPanel.onTiltExclusionChanged = { tiltSeriesId ->
+					AppScope.launch { refreshGalleryExclusions(tiltSeriesId) }
+				}
+				tomoPanel.particlesImage.onParticlesChange = {
+					tiltSeriesStats.picked(data, pickingControls)
+				}
+				tiltSeriesesElem.add(tomoPanel)
 				tomoPanel.load()
 			}
 		}

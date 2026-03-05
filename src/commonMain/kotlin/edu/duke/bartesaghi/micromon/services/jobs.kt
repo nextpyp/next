@@ -39,6 +39,12 @@ interface IJobsService {
 	@KVBindingRoute("jobs/rec")
 	suspend fun recData(jobId: String, tiltSeriesId: String): Option<FileDownloadData>
 
+	@KVBindingRoute("jobs/recHalf1")
+	suspend fun recDataHalf1(jobId: String, tiltSeriesId: String): Option<FileDownloadData>
+
+	@KVBindingRoute("jobs/recHalf2")
+	suspend fun recDataHalf2(jobId: String, tiltSeriesId: String): Option<FileDownloadData>
+
 	@KVBindingRoute("jobs/den")
 	suspend fun denData(jobId: String, tiltSeriesId: String): Option<FileDownloadData>
 

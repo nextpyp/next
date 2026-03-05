@@ -12,15 +12,19 @@ import io.kvision.html.image
 /**
  * Shows the side view image in a resizable panel.
  * When [imageDims] is provided, shows a scale bar and measure tool.
+ * @param pathSuffix optional suffix for the URL path (e.g. "Half1" for sidesTiltSeriesImageHalf1)
  */
 class TomoSideViewImage(
     jobId: String,
     tiltSeriesId: String,
-    imageDims: ImageDims? = null
+    imageDims: ImageDims? = null,
+    pathSuffix: String? = null
 ) : SizedPanel("Side View Projections", Storage.tomographyPreprocessingSideViewSize) {
     init {
+        val basePath = "/kv/jobs/$jobId/data/$tiltSeriesId/sidesTiltSeriesImage"
+        val imagePath = if (pathSuffix != null) "${basePath}${pathSuffix}" else basePath
         addSideViewContent(
-            "/kv/jobs/$jobId/data/$tiltSeriesId/sidesTiltSeriesImage",
+            imagePath,
             imageDims
         )
         onResize = { newSize: ImageSize ->

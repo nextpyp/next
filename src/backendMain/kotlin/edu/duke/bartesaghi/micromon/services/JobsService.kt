@@ -270,6 +270,30 @@ actual class JobsService : IJobsService, Service {
 						}
 					}
 
+					get("reconstructionTiltSeriesMontageHalf1") {
+						call.respondExceptions {
+
+							val job = authJob(ProjectPermission.Read).job.hasTiltSeriesOrThrow()
+							val dataId = parseDataId()
+
+							val imagePath = TiltSeries.reconstructionTiltSeriesMontagePathHalf1(job.dir, dataId)
+							ImageType.Webp.respond(call, imagePath)
+								?.respondNotFound(call)
+						}
+					}
+
+					get("reconstructionTiltSeriesMontageHalf2") {
+						call.respondExceptions {
+
+							val job = authJob(ProjectPermission.Read).job.hasTiltSeriesOrThrow()
+							val dataId = parseDataId()
+
+							val imagePath = TiltSeries.reconstructionTiltSeriesMontagePathHalf2(job.dir, dataId)
+							ImageType.Webp.respond(call, imagePath)
+								?.respondNotFound(call)
+						}
+					}
+
 					get("reconstructionScoreMontage") {
 						call.respondExceptions {
 
@@ -396,6 +420,30 @@ actual class JobsService : IJobsService, Service {
 						}
 					}
 
+					get("sidesTiltSeriesImageHalf1") {
+						call.respondExceptions {
+
+							val job = authJob(ProjectPermission.Read).job.hasTiltSeriesOrThrow()
+							val dataId = parseDataId()
+
+							val imagePath = TiltSeries.sidesImagePathHalf1(job.dir, dataId)
+							ImageType.Webp.respond(call, imagePath)
+								?.respondPlaceholder(call, ImageSize.Medium)
+						}
+					}
+
+					get("sidesTiltSeriesImageHalf2") {
+						call.respondExceptions {
+
+							val job = authJob(ProjectPermission.Read).job.hasTiltSeriesOrThrow()
+							val dataId = parseDataId()
+
+							val imagePath = TiltSeries.sidesImagePathHalf2(job.dir, dataId)
+							ImageType.Webp.respond(call, imagePath)
+								?.respondPlaceholder(call, ImageSize.Medium)
+						}
+					}
+
 					get("pytomTiltSeriesExtractionGraph") {
 						call.respondExceptions {
 
@@ -447,6 +495,28 @@ actual class JobsService : IJobsService, Service {
 							val dataId = parseDataId()
 
 							val path = TiltSeries.recPath(job.dir, dataId)
+							call.respondFile(path, ContentType.Application.OctetStream)
+						}
+					}
+
+					get("recHalf1") {
+						call.respondExceptions {
+
+							val job = authJob(ProjectPermission.Read).job
+							val dataId = parseDataId()
+
+							val path = TiltSeries.recPathHalf1(job.dir, dataId)
+							call.respondFile(path, ContentType.Application.OctetStream)
+						}
+					}
+
+					get("recHalf2") {
+						call.respondExceptions {
+
+							val job = authJob(ProjectPermission.Read).job
+							val dataId = parseDataId()
+
+							val path = TiltSeries.recPathHalf2(job.dir, dataId)
 							call.respondFile(path, ContentType.Application.OctetStream)
 						}
 					}
@@ -606,6 +676,20 @@ actual class JobsService : IJobsService, Service {
 	override suspend fun recData(jobId: String, tiltSeriesId: String): Option<FileDownloadData> = sanitizeExceptions {
 		val job = jobId.authJob(ProjectPermission.Read).job.hasTiltSeriesOrThrow()
 		TiltSeries.recPath(job.dir, tiltSeriesId)
+			.toFileDownloadData()
+			.toOption()
+	}
+
+	override suspend fun recDataHalf1(jobId: String, tiltSeriesId: String): Option<FileDownloadData> = sanitizeExceptions {
+		val job = jobId.authJob(ProjectPermission.Read).job.hasTiltSeriesOrThrow()
+		TiltSeries.recPathHalf1(job.dir, tiltSeriesId)
+			.toFileDownloadData()
+			.toOption()
+	}
+
+	override suspend fun recDataHalf2(jobId: String, tiltSeriesId: String): Option<FileDownloadData> = sanitizeExceptions {
+		val job = jobId.authJob(ProjectPermission.Read).job.hasTiltSeriesOrThrow()
+		TiltSeries.recPathHalf2(job.dir, tiltSeriesId)
 			.toFileDownloadData()
 			.toOption()
 	}
