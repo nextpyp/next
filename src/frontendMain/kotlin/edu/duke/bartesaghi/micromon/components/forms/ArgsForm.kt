@@ -319,6 +319,8 @@ class ArgsInputs(
 				
 					is ArgInput.StarFile -> ArgInputFile(arg, "*.star", outNodes) { Paths.join(it.jobDir, "relion") }
 					is ArgInput.ParquetFile -> ArgInputFile(arg, "*.parquet", outNodes) { it.jobDir }
+					is ArgInput.CsFile -> ArgInputFile(arg, "*.cs", outNodes) { it.projectDir }
+					is ArgInput.PthtarFile -> ArgInputFile(arg, "*.pth.tar", outNodes) { it.projectDir }
 					is ArgInput.TxtFile -> ArgInputFile(arg, "*.txt", outNodes) { Paths.join(it.jobDir, "frealign") }
 					is ArgInput.InitialModel -> ArgInputFile(arg, "*.mrc", outNodes) { Paths.join(it.jobDir, "frealign/maps") }
 					is ArgInput.HalfMap -> ArgInputFile(arg, "*_half1.mrc", outNodes) { Paths.join(it.jobDir, "frealign/maps") }

@@ -728,6 +728,32 @@ sealed class ArgInput {
 	}
 
 	/**
+	 * Helps the user pick a parameter file for prismpyp
+	 */
+	@Serializable
+	class CsFile : ArgInput() {
+
+		companion object {
+			const val id = "csfile"
+		}
+
+		override val argInputId = id
+	}
+
+	/**
+	 * Helps the user pick a parameter file for 3D refinement from previous job outputs
+	 */
+	@Serializable
+	class PthtarFile : ArgInput() {
+
+		companion object {
+			const val id = "pthtarfile"
+		}
+
+		override val argInputId = id
+	}
+
+	/**
 	 * Helps the user pick a parameter file for 3D refinement from previous job outputs
 	 */
 	@Serializable
