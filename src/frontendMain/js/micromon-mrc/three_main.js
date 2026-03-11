@@ -548,9 +548,9 @@ export class Renderer {
 			}
 
 			const scene = new THREE.Scene();
-			const renderer = new THREE.WebGLRenderer({ alpha: true }); // Use alpha parameter to enable transparency
+			const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true }); // Use alpha for transparency; antialias for smoother edges
 			renderer.setClearColor(0x000000, 0); // second param is opacity, 0 => transparent
-			renderer.setPixelRatio(0.25 * window.devicePixelRatio);
+			renderer.setPixelRatio(Math.min(2, this.#volconfig.sharpness * window.devicePixelRatio)); // Match #updateRenderer; default sharpness gives full-quality iso-surfaces
 			renderer.setSize(size, size)
 			hostDiv.appendChild(renderer.domElement);
 
@@ -837,8 +837,9 @@ export class Renderer {
 
 	#updateRenderer() {
 
-		this.#globalRenderer1.setPixelRatio(this.#volconfig.sharpness * window.devicePixelRatio);
-		this.#globalRenderer2.setPixelRatio(this.#volconfig.sharpness * window.devicePixelRatio);
+		const pixelRatio = Math.min(2, this.#volconfig.sharpness * window.devicePixelRatio);
+		this.#globalRenderer1.setPixelRatio(pixelRatio);
+		this.#globalRenderer2.setPixelRatio(pixelRatio);
 
 		this.#render1Needed = true;
 		this.#render2Needed = true;

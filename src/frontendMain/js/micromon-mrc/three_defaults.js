@@ -7,9 +7,9 @@ export const RENDERSTYLE     = "iso"
 export const CAMERA_POSITION = [-1, -1, 1]
 export const CLIM            = [0.58, 1]
 export const CLOSE_GUI       = false
-export const SHARPNESS       = 0.50
+export const SHARPNESS       = 1.0
 export const COLORMAP        = "viridis"
-export const STEPS           = 800
+export const STEPS           = 1200
 export const GUI_HIDABLE     = true // by pressing of the 'h' key
 
 ////////////////////////////////////////////////////////////////////////////////
