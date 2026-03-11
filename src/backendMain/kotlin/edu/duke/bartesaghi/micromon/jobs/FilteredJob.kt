@@ -33,7 +33,7 @@ interface FilteredJob {
 			// class-based filter: write one file for real, one for Fourier
 			val realFile = dir / "${dir.fileName}.real.classes"
 			realFile.writeStringAs(osUsername, (realClasses ?: emptyList()).joinToString("\n"))
-			val fourierFile = dir / "${dir.fileName}.fourier.classes"
+			val fourierFile = dir / "${dir.fileName}.fft.classes"
 			fourierFile.writeStringAs(osUsername, (fourierClasses ?: emptyList()).joinToString("\n"))
 		} else {
 			// micrograph-based filter: write list of micrograph IDs

@@ -105,7 +105,7 @@ class SingleParticleCoarseRefinementNode(
 							serviceManager = BlocksServiceManager,
 							function = IBlocksService::filterOptions,
 							stateFunction = { "${upstreamNode.jobId},${PreprocessingFilterType.PRISMPYP.name}" },
-							label = "Filter micrographs (prismpyp)",
+							label = "Filter micrographs (prismPYP)",
 							preload = true
 						)
 					)

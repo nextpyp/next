@@ -25,7 +25,7 @@ import io.kvision.toast.ToastPosition
  * Filters section for the PrismPyp tab: Save/Load/Delete by name, then Real space and
  * Fourier space sub-tabs. Each sub-tab has its own round selectable class buttons (1..nClusters)
  * and the five panels. Each saved filter stores both class selections; downstream blocks
- * get two files: .real.classes and .fourier.classes.
+ * get two files: .real.classes and .fft.classes.
  */
 class PrismPypFiltersSection(
 	val jobId: String,
