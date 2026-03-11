@@ -2858,6 +2858,10 @@ div.file-browser .file-browser-bottom .file-browser-controls .file-browser-glob 
 
 /* FILTER TABLE */
 
+.filter-table.filters-only .table-section {
+	display: none;
+}
+
 .filter-table {
 
 	.filters-title {
@@ -3023,6 +3027,45 @@ div.file-browser .file-browser-bottom .file-browser-controls .file-browser-glob 
 			}
 		}
 	}
+}
+
+/* PRISMPYP FILTERS SECTION – class-based filters with round selectable buttons */
+.prismpyp-filters-section .prismpyp-section-title {
+	margin-top: 1.25rem;
+	margin-bottom: 0.5rem;
+	font-size: 22px;
+	font-weight: bold;
+}
+.prismpyp-filters-section .prismpyp-section-title:first-of-type {
+	margin-top: 0;
+}
+.prismpyp-filters-section .files {
+	display: flex;
+	flex-direction: row;
+	flex-wrap: nowrap;
+	align-items: center;
+	gap: 1.6em;
+	margin-top: 0.5em;
+	margin-bottom: 1em;
+}
+.prismpyp-filters-section .prismpyp-class-buttons {
+	margin-top: 1rem;
+	margin-bottom: 1rem;
+}
+.prismpyp-filters-section .radio-selection-check {
+	border-radius: 50%;
+}
+
+/* PRISMPYP PANELS (single-particle preprocessing) */
+.prismpyp-panels .prismpyp-panels-inner {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 1rem;
+	align-items: flex-start;
+}
+
+.prismpyp-panels .prismpyp-panels-inner .sized-panel {
+	flex-shrink: 0;
 }
 
 /* BLOCKS TABLE (project view) – filter bar: same structure and style as dashboard .selection */

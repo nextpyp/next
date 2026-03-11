@@ -89,7 +89,7 @@ class TomographyMiloEvalJob(
 
 		// write out the filter from the upstream job, if needed
 		if (upstreamJob is FilteredJob && newestArgs.filter != null) {
-			upstreamJob.writeFilter(newestArgs.filter, dir, project.osUsername)
+			upstreamJob.writeFilter(newestArgs.filter, dir, project.osUsername, PreprocessingFilterType.TABLE)
 		}
 
 		// build the args for PYP

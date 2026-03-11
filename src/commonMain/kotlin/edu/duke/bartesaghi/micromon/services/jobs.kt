@@ -57,6 +57,9 @@ interface IJobsService {
 	@KVBindingRoute("jobs/tiltSeriesMetadata")
 	suspend fun findTiltSeriesMetadataData(jobId: String, tiltSeriesId: String): Option<FileDownloadData>
 
+	@KVBindingRoute("jobs/prismpypTbzData")
+	suspend fun getPrismpypTbzData(jobId: String): Option<FileDownloadData>
+
 	@KVBindingRoute("jobs/allArgs")
 	suspend fun getAllArgs(): Serialized<Args>
 

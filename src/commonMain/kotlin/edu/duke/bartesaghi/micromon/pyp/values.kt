@@ -459,6 +459,11 @@ val Args.cryodrgnEpoch: Arg
 val ArgValues.cryodrgnEpoch: Int
 	get() = (getOrDefault(args.cryodrgnEpoch) as Long).toInt()
 
+val Args.prismTrainNClusters: Arg
+	get() = argOrThrow("prism", "train_n_clusters")
+val ArgValues.prismTrainNClusters: Int
+	get() = (getOrDefault(args.prismTrainNClusters) as Long).toInt()
+
 val Args.svaClassNum: Arg
 	get() = argOrThrow("sva_class", "num")
 val ArgValues.svaClassNum: Int

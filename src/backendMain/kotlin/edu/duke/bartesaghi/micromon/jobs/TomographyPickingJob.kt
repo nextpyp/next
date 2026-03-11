@@ -92,7 +92,7 @@ class TomographyPickingJob(
 
 		// write out the filter from the upstream job, if needed
 		if (upstreamJob is FilteredJob && newestArgs.filter != null) {
-			upstreamJob.writeFilter(newestArgs.filter, dir, project.osUsername)
+			upstreamJob.writeFilter(newestArgs.filter, dir, project.osUsername, PreprocessingFilterType.TABLE)
 		}
 
 		// write out manually-picked particles from the upstream job, if needed

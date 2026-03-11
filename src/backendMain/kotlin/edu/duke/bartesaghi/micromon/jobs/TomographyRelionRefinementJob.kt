@@ -90,7 +90,7 @@ class TomographyRelionRefinementJob(
 
 		// write out the filter from the upstream job, if needed
 		if (upstreamJob is FilteredJob && newestArgs.filter != null) {
-			upstreamJob.writeFilter(newestArgs.filter, dir, project.osUsername)
+			upstreamJob.writeFilter(newestArgs.filter, dir, project.osUsername, PreprocessingFilterType.TABLE)
 		}
 
 		// write out manual particles from the upstream job, so we can use them for training

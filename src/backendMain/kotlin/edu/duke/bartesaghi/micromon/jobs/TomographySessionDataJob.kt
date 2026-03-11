@@ -126,6 +126,7 @@ class TomographySessionDataJob(
 		Database.instance.tiltSeriesAvgRot.deleteAll(idOrThrow)
 		Database.instance.tiltSeriesDriftMetadata.deleteAll(idOrThrow)
 		Database.instance.jobPreprocessingFilters.deleteAll(idOrThrow)
+		Database.instance.jobPreprocessingFilters.deleteAll("$idOrThrow/${PreprocessingFilterType.TABLE.name}")
 		Database.instance.particleLists.deleteAll(idOrThrow)
 		Database.instance.particles.deleteAllParticles(idOrThrow)
 		Database.instance.tiltExclusions.delete(idOrThrow)
@@ -136,6 +137,7 @@ class TomographySessionDataJob(
 		update()
 	}
 
+	override val filterableJobId get() = idOrThrow
 	override val filters get() = PreprocessingFilters.ofJob(idOrThrow)
 
 	override fun resolveFilter(filter: PreprocessingFilter): List<String> =

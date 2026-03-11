@@ -132,6 +132,7 @@ class TomographyImportDataPureJob(
 		Database.instance.tiltSeriesAvgRot.deleteAll(idOrThrow)
 		Database.instance.tiltSeriesDriftMetadata.deleteAll(idOrThrow)
 		Database.instance.jobPreprocessingFilters.deleteAll(idOrThrow)
+		Database.instance.jobPreprocessingFilters.deleteAll("$idOrThrow/${PreprocessingFilterType.TABLE.name}")
 		Database.instance.particleLists.deleteAll(idOrThrow)
 		Database.instance.particles.deleteAllParticles(idOrThrow)
 		Database.instance.tiltExclusions.delete(idOrThrow)
@@ -146,6 +147,7 @@ class TomographyImportDataPureJob(
 		representativeImage()?.let { representativeImageUrl(it) }
 			?: "img/placeholder/${ImageSize.Small.id}"
 
+	override val filterableJobId get() = idOrThrow
 	override val filters get() = PreprocessingFilters.ofJob(idOrThrow)
 
 	override fun resolveFilter(filter: PreprocessingFilter): List<String> =

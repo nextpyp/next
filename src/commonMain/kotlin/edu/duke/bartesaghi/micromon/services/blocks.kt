@@ -8,21 +8,29 @@ import io.kvision.remote.RemoteOption
 import kotlinx.serialization.Serializable
 
 
+/** Filter set: Table (micrograph-based) and PrismPyp (class-based) are stored and loaded separately. */
+@Serializable
+enum class PreprocessingFilterType {
+	TABLE,
+	PRISMPYP
+}
+
 @KVService
 interface IBlocksService {
 
 	@KVBindingRoute("blocks/listFilters")
-	suspend fun listFilters(jobId: String): List<String>
+	suspend fun listFilters(jobId: String, filterType: PreprocessingFilterType): List<String>
 
 	@KVBindingRoute("blocks/getFilter")
-	suspend fun getFilter(jobId: String, name: String): PreprocessingFilter
+	suspend fun getFilter(jobId: String, name: String, filterType: PreprocessingFilterType): PreprocessingFilter
 
 	@KVBindingRoute("blocks/saveFilter")
-	suspend fun saveFilter(jobId: String, filter: PreprocessingFilter)
+	suspend fun saveFilter(jobId: String, filter: PreprocessingFilter, filterType: PreprocessingFilterType)
 
 	@KVBindingRoute("blocks/deleteFilter")
-	suspend fun deleteFilter(jobId: String, name: String)
+	suspend fun deleteFilter(jobId: String, name: String, filterType: PreprocessingFilterType)
 
+	/** state = "$jobId,$filterType" (e.g. "job123,TABLE" or "job123,PRISMPYP") */
 	@KVBindingRoute("blocks/filterOptions")
 	suspend fun filterOptions(search: String?, initial: String?, state: String?): List<RemoteOption>
 }
@@ -71,7 +79,13 @@ data class PreprocessingPropRange(
 data class PreprocessingFilter(
 	val name: String,
 	val ranges: List<PreprocessingPropRange>,
-	val excludedIds: List<String>
+	val excludedIds: List<String>,
+	/** Legacy: when present, treated as both real and fourier. Prefer selectedClassesReal/Fourier. */
+	val selectedClasses: List<Int>? = null,
+	/** Class-based filter: selected class numbers for real space. */
+	val selectedClassesReal: List<Int>? = null,
+	/** Class-based filter: selected class numbers for Fourier space. */
+	val selectedClassesFourier: List<Int>? = null
 )
 
 

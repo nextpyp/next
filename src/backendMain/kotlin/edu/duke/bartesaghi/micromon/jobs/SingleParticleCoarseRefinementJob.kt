@@ -8,6 +8,7 @@ import edu.duke.bartesaghi.micromon.projects.Project
 import edu.duke.bartesaghi.micromon.projects.RepresentativeImage
 import edu.duke.bartesaghi.micromon.projects.RepresentativeImageType
 import edu.duke.bartesaghi.micromon.pyp.*
+import edu.duke.bartesaghi.micromon.services.PreprocessingFilterType
 import edu.duke.bartesaghi.micromon.services.*
 import org.bson.Document
 import org.bson.conversions.Bson
@@ -42,14 +43,23 @@ class SingleParticleCoarseRefinementJob(
 
 		private fun SingleParticleCoarseRefinementArgs.toDoc() = Document().also { doc ->
 			doc["values"] = values
+			doc["filterTable"] = filterTable
+			doc["filterPrismpyp"] = filterPrismpyp
 			doc["filter"] = filter
 		}
 
-		private fun SingleParticleCoarseRefinementArgs.Companion.fromDoc(doc: Document) =
-			SingleParticleCoarseRefinementArgs(
-				doc.getString("values"),
-				doc.getString("filter")
+		private fun SingleParticleCoarseRefinementArgs.Companion.fromDoc(doc: Document): SingleParticleCoarseRefinementArgs {
+			val values = doc.getString("values")
+			val filterTable = doc.getString("filterTable")
+			val filterPrismpyp = doc.getString("filterPrismpyp")
+			val legacyFilter = doc.getString("filter")
+			return SingleParticleCoarseRefinementArgs(
+				values = values,
+				filterTable = filterTable ?: legacyFilter,
+				filterPrismpyp = filterPrismpyp,
+				filter = legacyFilter
 			)
+		}
 	}
 
 	override fun createDoc(doc: Document) {
@@ -87,9 +97,15 @@ class SingleParticleCoarseRefinementJob(
 		val upstreamJob = inRefinement?.resolveJob<Job>()
 			?: throw IllegalStateException("no refinement input configured")
 
-		// write out the filter from the upstream job, if needed
-		if (upstreamJob is FilteredJob && newestArgs.filter != null) {
-			upstreamJob.writeFilter(newestArgs.filter, dir, project.osUsername)
+		// write out filters from the upstream job, if needed
+		if (upstreamJob is FilteredJob) {
+			val tableName = newestArgs.filterTable ?: newestArgs.filter
+			if (tableName != null) {
+				upstreamJob.writeFilter(tableName, dir, project.osUsername, PreprocessingFilterType.TABLE)
+			}
+			newestArgs.filterPrismpyp?.let { name ->
+				upstreamJob.writeFilter(name, dir, project.osUsername, PreprocessingFilterType.PRISMPYP)
+			}
 		}
 
 		// build the args for PYP

@@ -144,6 +144,7 @@ class TomographyWarpPreprocessingJob(
 		Database.instance.tiltSeriesAvgRot.deleteAll(idOrThrow)
 		Database.instance.tiltSeriesDriftMetadata.deleteAll(idOrThrow)
 		Database.instance.jobPreprocessingFilters.deleteAll(idOrThrow)
+		Database.instance.jobPreprocessingFilters.deleteAll("$idOrThrow/${PreprocessingFilterType.TABLE.name}")
 		Database.instance.tiltExclusions.delete(idOrThrow)
 
 		// also reset the finished args
@@ -152,6 +153,7 @@ class TomographyWarpPreprocessingJob(
 		update()
 	}
 
+	override val filterableJobId get() = idOrThrow
 	override val filters get() = PreprocessingFilters.ofJob(idOrThrow)
 
 	override fun resolveFilter(filter: PreprocessingFilter): List<String> =

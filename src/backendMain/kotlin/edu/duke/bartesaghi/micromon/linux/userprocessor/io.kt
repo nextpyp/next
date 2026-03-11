@@ -385,5 +385,6 @@ class WebCacheDir(val path: Path, val osUsername: String?) {
 		val ThreeDavgImageFiltered = Key.reserve("threedavg-image-filtered")
 		val ThreeDavgAverage = Key.reserve("threedavg-average")
 		val ThreeDavgAverageSym = Key.reserve("threedavg-average-sym")
+		val prismpyp = Key.reserve("prismpyp")
 	}
 }

@@ -6,6 +6,7 @@ import edu.duke.bartesaghi.micromon.mongo.Database
 import edu.duke.bartesaghi.micromon.pyp.Micrograph
 import edu.duke.bartesaghi.micromon.pyp.TiltSeries
 import edu.duke.bartesaghi.micromon.services.PreprocessingFilter
+import edu.duke.bartesaghi.micromon.services.PreprocessingFilterType
 import edu.duke.bartesaghi.micromon.services.PreprocessingFilters
 import io.kvision.remote.ServiceException
 import java.nio.file.Path
@@ -14,20 +15,31 @@ import kotlin.io.path.div
 
 interface FilteredJob {
 
+	val filterableJobId: String
 	val filters: PreprocessingFilters
 
 	fun resolveFilter(filter: PreprocessingFilter): List<String>
 
-	suspend fun writeFilter(name: String, dir: Path, osUsername: String?) {
+	suspend fun writeFilter(name: String, dir: Path, osUsername: String?, filterType: PreprocessingFilterType) {
 
-		// look for the filter in the upstream block
-		val filter = filters[name]
+		val filtersForType = PreprocessingFilters.ofJob(filterableJobId, filterType)
+		val filter = filtersForType[name]
 			?: throw ServiceException("unrecognized filter: $name")
 
-		// write out the micrographs file to the job folder
 		dir.createDirsIfNeededAs(osUsername)
-		val file = dir / "${dir.fileName}.micrographs"
-		file.writeStringAs(osUsername, resolveFilter(filter).joinToString("\n"))
+		val realClasses = filter.selectedClassesReal ?: filter.selectedClasses
+		val fourierClasses = filter.selectedClassesFourier ?: filter.selectedClasses
+		if (realClasses != null || fourierClasses != null) {
+			// class-based filter: write one file for real, one for Fourier
+			val realFile = dir / "${dir.fileName}.real.classes"
+			realFile.writeStringAs(osUsername, (realClasses ?: emptyList()).joinToString("\n"))
+			val fourierFile = dir / "${dir.fileName}.fourier.classes"
+			fourierFile.writeStringAs(osUsername, (fourierClasses ?: emptyList()).joinToString("\n"))
+		} else {
+			// micrograph-based filter: write list of micrograph IDs
+			val file = dir / "${dir.fileName}.micrographs"
+			file.writeStringAs(osUsername, resolveFilter(filter).joinToString("\n"))
+		}
 	}
 
 	companion object {

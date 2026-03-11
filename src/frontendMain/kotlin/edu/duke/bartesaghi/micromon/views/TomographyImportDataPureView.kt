@@ -144,10 +144,10 @@ class TomographyImportDataPureView(val project: ProjectData, val job: Tomography
 							})
 						},
 						filterer = FilterTable.Filterer(
-							save = { filter -> Services.blocks.saveFilter(job.jobId, filter) },
-							delete = { name -> Services.blocks.deleteFilter(job.jobId, name) },
-							names = { Services.blocks.listFilters(job.jobId) },
-							get = { name -> Services.blocks.getFilter(job.jobId, name) }
+							save = { filter -> Services.blocks.saveFilter(job.jobId, filter, PreprocessingFilterType.TABLE) },
+							delete = { name -> Services.blocks.deleteFilter(job.jobId, name, PreprocessingFilterType.TABLE) },
+							names = { Services.blocks.listFilters(job.jobId, PreprocessingFilterType.TABLE) },
+							get = { name -> Services.blocks.getFilter(job.jobId, name, PreprocessingFilterType.TABLE) }
 						)
 					).apply {
 						lazyTab.elem.add(this)

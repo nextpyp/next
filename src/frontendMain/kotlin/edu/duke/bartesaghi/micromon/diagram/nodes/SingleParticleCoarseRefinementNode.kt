@@ -8,6 +8,7 @@ import edu.duke.bartesaghi.micromon.nodes.SingleParticleCoarseRefinementNodeConf
 import edu.duke.bartesaghi.micromon.pyp.ArgValuesToml
 import edu.duke.bartesaghi.micromon.pyp.Args
 import edu.duke.bartesaghi.micromon.revalidateDynamicImages
+import edu.duke.bartesaghi.micromon.services.PreprocessingFilterType
 import edu.duke.bartesaghi.micromon.services.*
 import edu.duke.bartesaghi.micromon.views.IntegratedRefinementView
 import edu.duke.bartesaghi.micromon.views.Viewport
@@ -39,7 +40,7 @@ class SingleParticleCoarseRefinementNode(
 
 		override suspend fun showUseDataForm(viewport: Viewport, diagram: Diagram, project: ProjectData, outNode: Node, input: CommonJobData.DataId, copyFrom: Node?, callback: (Node) -> Unit) {
 			val defaultArgs = (copyFrom as SingleParticleCoarseRefinementNode?)?.job?.args
-				?: JobArgs.fromNext(SingleParticleCoarseRefinementArgs(newArgValues(project, input), null))
+				?: JobArgs.fromNext(SingleParticleCoarseRefinementArgs(newArgValues(project, input), null, null))
 			form(config.name, outNode, defaultArgs, true) { args ->
 
 				// save the node to the server
@@ -58,7 +59,8 @@ class SingleParticleCoarseRefinementNode(
 				?: throw IllegalArgumentException("input required to make job for ${config.id}")
 			val args = SingleParticleCoarseRefinementArgs(
 				values = argValues,
-				filter = null
+				filterTable = null,
+				filterPrismpyp = null
 			)
 			return Services.singleParticleCoarseRefinement.addNode(project.owner.id, project.projectId, input, args)
 		}
@@ -88,40 +90,46 @@ class SingleParticleCoarseRefinementNode(
 					|| upstreamNode is SingleParticleImportDataNode
 					|| upstreamNode is SingleParticleSessionDataNode
 
-				add(SingleParticleCoarseRefinementArgs::filter,
-					// look for the preprocessing job in the upstream node to get the filter
-					if (upstreamIsPreprocessing) {
+				if (upstreamIsPreprocessing) {
+					add(SingleParticleCoarseRefinementArgs::filterTable,
 						SelectRemote(
 							serviceManager = BlocksServiceManager,
 							function = IBlocksService::filterOptions,
-							stateFunction = { upstreamNode.jobId },
-							label = "Filter micrographs",
+							stateFunction = { "${upstreamNode.jobId},${PreprocessingFilterType.TABLE.name}" },
+							label = "Filter micrographs (Table)",
 							preload = true
 						)
-					} else {
-						HiddenString()
-					}
-				)
+					)
+					add(SingleParticleCoarseRefinementArgs::filterPrismpyp,
+						SelectRemote(
+							serviceManager = BlocksServiceManager,
+							function = IBlocksService::filterOptions,
+							stateFunction = { "${upstreamNode.jobId},${PreprocessingFilterType.PRISMPYP.name}" },
+							label = "Filter micrographs (prismpyp)",
+							preload = true
+						)
+					)
+				} else {
+					add(SingleParticleCoarseRefinementArgs::filterTable, HiddenString())
+					add(SingleParticleCoarseRefinementArgs::filterPrismpyp, HiddenString())
+				}
 
 				add(SingleParticleCoarseRefinementArgs::values, ArgsForm(pypArgs, listOf(upstreamNode), enabled, config.configId))
 			}
 
-			// use the none filter option for the particles name in the form,
-			// since the control can't handle nulls
+			// use the none filter option for the dropdowns, since the control can't handle nulls
 			val mapper = ArgsMapper<SingleParticleCoarseRefinementArgs>(
-				toForm = { args ->
-					if (args.filter == null) {
-						args.copy(filter = NoneFilterOption)
-					} else {
-						args
-					}
+				toForm = { a ->
+					var out = a
+					if (a.filterTable == null) out = out.copy(filterTable = NoneFilterOption)
+					if (a.filterPrismpyp == null) out = out.copy(filterPrismpyp = NoneFilterOption)
+					out
 				},
-				fromForm = { args ->
-					if (args.filter == NoneFilterOption) {
-						args.copy(filter = null)
-					} else {
-						args
-					}
+				fromForm = { a ->
+					var out = a
+					if (a.filterTable == NoneFilterOption) out = out.copy(filterTable = null)
+					if (a.filterPrismpyp == NoneFilterOption) out = out.copy(filterPrismpyp = null)
+					out
 				}
 			)
 

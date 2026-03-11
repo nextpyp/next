@@ -9,7 +9,9 @@ open class RadioSelection(
 	val labelText: String,
 	initialCount: Int = 0,
 	val canMultiSelect: Boolean = false,
-	initiallyChecked: List<Int> = emptyList()
+	initiallyChecked: List<Int> = emptyList(),
+	val deselectAllLabel: String = "Hide All",
+	val selectAllLabel: String = "Show All"
 ): Div(classes  = setOf("radio-selection-nav")) {
 
 	companion object {
@@ -91,14 +93,14 @@ open class RadioSelection(
 
         if (canMultiSelect) {
 
-            button("Hide All").onClick {
+            button(me.deselectAllLabel).onClick {
                 for (check in elements) {
                     check.elem.checked = false
                 }
 				onUpdate()
             }
 
-            button("Show All").onClick {
+            button(me.selectAllLabel).onClick {
                 for (check in elements) {
 					check.elem.checked = true
                 }

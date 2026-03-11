@@ -139,6 +139,7 @@ class SingleParticleImportDataJob(
 		representativeImage()?.let { representativeImageUrl(it) }
 			?: "img/placeholder/${ImageSize.Small.id}"
 
+	override val filterableJobId get() = idOrThrow
 	override val filters get() = PreprocessingFilters.ofJob(idOrThrow)
 
 	override fun resolveFilter(filter: PreprocessingFilter): List<String> =

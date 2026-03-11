@@ -123,6 +123,8 @@ class SingleParticlePreprocessingJob(
 		Database.instance.micrographs.deleteAll(idOrThrow)
 		Database.instance.micrographsAvgRot.deleteAll(idOrThrow)
 		Database.instance.jobPreprocessingFilters.deleteAll(idOrThrow)
+		Database.instance.jobPreprocessingFilters.deleteAll("$idOrThrow/${PreprocessingFilterType.TABLE.name}")
+		Database.instance.jobPreprocessingFilters.deleteAll("$idOrThrow/${PreprocessingFilterType.PRISMPYP.name}")
 		Database.instance.particleLists.deleteAll(idOrThrow)
 		Database.instance.particles.deleteAllParticles(idOrThrow)
 
@@ -132,6 +134,7 @@ class SingleParticlePreprocessingJob(
 		update()
 	}
 
+	override val filterableJobId get() = idOrThrow
 	override val filters get() = PreprocessingFilters.ofJob(idOrThrow)
 
 	override fun resolveFilter(filter: PreprocessingFilter): List<String> =

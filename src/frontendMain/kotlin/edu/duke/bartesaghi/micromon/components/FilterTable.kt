@@ -38,8 +38,9 @@ class FilterTable<T:PreprocessingData>(
 	val dataProps: List<PreprocessingDataProperty>,
 	val writable: Boolean,
 	val showDetail: (Container, Int, T) -> Unit,
-	val filterer: Filterer? = null
-) : Div(classes = setOf("filter-table")) {
+	val filterer: Filterer? = null,
+	val filtersOnly: Boolean = false
+) : Div(classes = setOf("filter-table") + if (filtersOnly) setOf("filters-only") else emptySet()) {
 
 	companion object {
 
@@ -208,7 +209,7 @@ class FilterTable<T:PreprocessingData>(
 
 	fun load() {
 
-		div("Filters", classes = setOf("filters-title"))
+		div("Table filters", classes = setOf("filters-title"))
 
 		// add controls to load/save filters
 		val filterNameText = TextInput(classes = setOf("name")).apply {
@@ -286,6 +287,10 @@ class FilterTable<T:PreprocessingData>(
 			add(filterCountElem)
 		}
 
+		// when filtersOnly is true, the table section is hidden via CSS
+		val tableSectionDiv = div(classes = setOf("table-section"))
+		add(tableSectionDiv)
+
 		// add a dropdown to choose the number of rows to show at once
 		val defaultRows = 20
 		var currentRows = Storage.filterTableRows ?: defaultRows
@@ -301,7 +306,7 @@ class FilterTable<T:PreprocessingData>(
 		)
 
 		// layout the rows components
-		div(classes = setOf("rows")) {
+		tableSectionDiv.div(classes = setOf("rows")) {
 			add(rowsSelect)
 			span("entries at once")
 		}
@@ -310,6 +315,7 @@ class FilterTable<T:PreprocessingData>(
 		val tableContainer = div().apply {
 			position = Position.RELATIVE
 		}
+		tableSectionDiv.add(tableContainer)
 
 		// show the data as a table
 		// FYI: http://tabulator.info/docs/4.9
@@ -806,7 +812,7 @@ class FilterTable<T:PreprocessingData>(
 
 		// show a popup with the filters names
 		val win = Modal(
-			caption = "Load filters",
+			caption = "Load table filters",
 			escape = true,
 			closeButton = true,
 			classes = setOf("dashboard-popup")

@@ -134,6 +134,7 @@ class SingleParticleRelionDataJob(
 	fun diagramImageURL(): String =
 		representativeImageUrl(representativeImage())
 
+	override val filterableJobId get() = idOrThrow
 	override val filters get() = PreprocessingFilters.ofJob(idOrThrow)
 
 	override fun resolveFilter(filter: PreprocessingFilter): List<String> =

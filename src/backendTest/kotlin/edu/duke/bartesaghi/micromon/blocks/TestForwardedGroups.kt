@@ -248,7 +248,7 @@ class TestForwardedGroups : FunSpec({
 			val pickingJob = website.addBlock(project, preprocessingJob, ISingleParticlePickingService::addNode, pickingArgs)
 
 			// add a final downstream block that doesn't have the shared args
-			val refinementArgs = SingleParticleCoarseRefinementArgs("", null)
+			val refinementArgs = SingleParticleCoarseRefinementArgs("", null, null)
 			val refinementJob = website.addBlock(project, pickingJob, ISingleParticleCoarseRefinementService::addNode, refinementArgs)
 
 			// run the project

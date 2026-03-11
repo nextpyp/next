@@ -56,6 +56,7 @@ class SingleParticlePreprocessingView(val project: ProjectData, val job: SingleP
 	private var tabs: LazyTabPanel? = null
 	private var plots: PreprocessingPlots<MicrographMetadata>? = null
 	private var filterTable: FilterTable<MicrographMetadata>? = null
+	private var prismpypFiltersSection: PrismPypFiltersSection? = null
 	private var gallery: HyperGallery<MicrographMetadata>? = null
 	private var liveTab: LiveTab? = null
 	private var liveTabId: Int? = null
@@ -151,10 +152,10 @@ class SingleParticlePreprocessingView(val project: ProjectData, val job: SingleP
 							elem.add(Micrograph2DPlot(job, micrograph))
 						},
 						filterer = FilterTable.Filterer(
-							save = { filter -> Services.blocks.saveFilter(job.jobId, filter) },
-							delete = { name -> Services.blocks.deleteFilter(job.jobId, name) },
-							names = { Services.blocks.listFilters(job.jobId) },
-							get = { name -> Services.blocks.getFilter(job.jobId, name) }
+							save = { filter -> Services.blocks.saveFilter(job.jobId, filter, PreprocessingFilterType.TABLE) },
+							delete = { name -> Services.blocks.deleteFilter(job.jobId, name, PreprocessingFilterType.TABLE) },
+							names = { Services.blocks.listFilters(job.jobId, PreprocessingFilterType.TABLE) },
+							get = { name -> Services.blocks.getFilter(job.jobId, name, PreprocessingFilterType.TABLE) }
 						)
 					).apply {
 						lazyTab.elem.add(this)
@@ -182,6 +183,21 @@ class SingleParticlePreprocessingView(val project: ProjectData, val job: SingleP
 				liveTabId = addTab("Micrographs", "fas fa-desktop") {
 					liveTab?.show(it.elem)
 				}.id
+
+				addTab("prismPYP", "fas fa-gem") { lazyTab ->
+					val nClusters = try {
+						finshedValues?.prismTrainNClusters ?: 0
+					} catch (_: NoSuchElementException) {
+						0
+					}
+					prismpypFiltersSection = PrismPypFiltersSection(
+						jobId = job.jobId,
+						nClusters = nClusters,
+						writable = project.canWrite()
+					).apply {
+						lazyTab.elem.add(this)
+					}
+				}
 			}
 
 			// open the websocket connection to listen for server-side updates
@@ -247,6 +263,7 @@ class SingleParticlePreprocessingView(val project: ProjectData, val job: SingleP
 		// update tabs
 		plots?.update(micrograph)
 		filterTable?.update()
+		prismpypFiltersSection?.update()
 		gallery?.update()
 		liveTab?.listNav?.newItem()
 	}

@@ -118,6 +118,7 @@ class SingleParticleSessionDataJob(
 			?: return "/img/placeholder/${size.id}"
 	}
 
+	override val filterableJobId get() = idOrThrow
 	override val filters get() = PreprocessingFilters.ofJob(idOrThrow)
 
 	override fun resolveFilter(filter: PreprocessingFilter): List<String> =

@@ -26,7 +26,12 @@ interface ISingleParticleCoarseRefinementService {
 @Serializable
 data class SingleParticleCoarseRefinementArgs(
 	val values: ArgValuesToml,
-	val filter: String?
+	/** Table (micrograph-based) filter name; use Table dropdown. */
+	val filterTable: String? = null,
+	/** PrismPyp (class-based) filter name; use prismpyp dropdown. */
+	val filterPrismpyp: String? = null,
+	@Deprecated("Use filterTable and filterPrismpyp")
+	val filter: String? = null
 )
 
 @Serializable

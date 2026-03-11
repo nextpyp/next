@@ -22,6 +22,15 @@ interface ISingleParticlePreprocessingService {
 
 	@KVBindingRoute("node/${SingleParticlePreprocessingNodeConfig.ID}/getArgs")
 	suspend fun getArgs(): String /* Args but serialized */
+
+	companion object {
+
+		fun prismpypDataPath(jobId: String): String =
+			"/kv/jobs/$jobId/prismpyp/data"
+
+		fun prismpypUploadPath(jobId: String, space: String): String =
+			"/kv/jobs/$jobId/prismpyp/$space/upload_micrographs"
+	}
 }
 
 

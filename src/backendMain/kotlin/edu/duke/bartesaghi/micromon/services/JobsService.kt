@@ -584,6 +584,54 @@ actual class JobsService : IJobsService, Service {
 							?.respondPlaceholder(call, size)
 					}
 				}
+
+				// PrismPyp tbz download and parquet upload (real / fourier space)
+				route("prismpyp") {
+					get("data") {
+						call.respondExceptions {
+							val job = authJob(ProjectPermission.Read).job
+							val path = job.dir / "train" / "prismpyp_interactive.tbz"
+							if (path.exists()) {
+								call.respondFile(path, ContentType.Application.OctetStream)
+							} else {
+								call.respond(HttpStatusCode.NotFound)
+							}
+						}
+					}
+					route("real/upload_micrographs", FileUpload.routeHandler { permission ->
+						val job = authJob(permission).job
+						val project = job.projectOrThrow()
+						FileUpload(job.dir / "train" / "real" / "micrographs.parquet", project.osUsername)
+					})
+					route("fourier/upload_micrographs", FileUpload.routeHandler { permission ->
+						val job = authJob(permission).job
+						val project = job.projectOrThrow()
+						FileUpload(job.dir / "train" / "fft" / "micrographs.parquet", project.osUsername)
+					})
+				}
+
+				// PrismPyp panels: total_loss, collapse_level, umap use .svgz; others use .webp
+				get("prismpyp/{space}/{panelSlug}/{size}") {
+					call.respondExceptions {
+
+						val job = authJob(ProjectPermission.Read).job
+						val space = call.parameters.getOrFail("space")
+						val panelSlug = call.parameters.getOrFail("panelSlug")
+						val size = parseSize()
+
+						val svgzPanels = setOf("total_loss", "collapse_level", "scatter_plot_UMAP", "thumbnail_plot_umap", "nearest_neighbors_matrix")
+						if (panelSlug in svgzPanels) {
+							val imagePath = job.dir / "train" / space / "$panelSlug.svgz"
+							ImageType.Svgz.respond(call, imagePath)
+								?: ImageType.Svgz.respondPlaceholder(call)
+						} else {
+							val imagePath = job.dir / "train" / space / "$panelSlug.webp"
+							val cacheKey = WebCacheDir.Keys.prismpyp.parameterized("$space-$panelSlug")
+							ImageType.Webp.respondSized(call, imagePath, size.info(job.wwwDir, cacheKey))
+								?.respondPlaceholder(call, size)
+						}
+					}
+				}
 			}
 		}
 	}
@@ -730,6 +778,12 @@ actual class JobsService : IJobsService, Service {
 		return TiltSeries.metadataPath(job.dir, tiltSeriesId)
 			.toFileDownloadData()
 			.toOption()
+	}
+
+	override suspend fun getPrismpypTbzData(jobId: String): Option<FileDownloadData> = sanitizeExceptions {
+		val job = jobId.authJob(ProjectPermission.Read).job
+		val path = job.dir / "train" / "prismpyp_interactive.tbz"
+		return path.toFileDownloadData().toOption()
 	}
 
 	override suspend fun getAllArgs(): Serialized<Args> = sanitizeExceptions {
