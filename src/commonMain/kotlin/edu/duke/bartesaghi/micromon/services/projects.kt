@@ -26,7 +26,10 @@ interface IProjectsService {
 	suspend fun list(userId: String): List<ProjectData>
 
 	@KVBindingRoute("projects/create")
-	suspend fun create(name: String): ProjectData
+	suspend fun create(name: String, path: String? = null): ProjectData
+
+	@KVBindingRoute("projects/pickFolder")
+	suspend fun pickFolder(): String
 
 	@KVBindingRoute("projects/delete")
 	suspend fun delete(userId: String, projectId: String)

@@ -15,6 +15,7 @@ import edu.duke.bartesaghi.micromon.services.ProjectData
 import edu.duke.bartesaghi.micromon.services.UserData
 import org.bson.Document
 import java.nio.file.Path
+import java.nio.file.Paths
 import java.time.*
 import java.time.temporal.TemporalAdjusters
 import java.time.temporal.WeekFields
@@ -29,7 +30,9 @@ class Project(
 	val projectNumber: Int?,
 	var name: String,
 	val created: Instant,
-	val readerUserIds: Set<String> = emptySet()
+	val readerUserIds: Set<String> = emptySet(),
+	/** When set, project data is stored at this path; otherwise at default User.dir/projects/projectId */
+	val path: String? = null
 ) {
 
 	constructor (doc: Document) : this(
@@ -41,7 +44,8 @@ class Project(
 		created = Instant.ofEpochMilli(doc.getLong("created")),
 		readerUserIds = doc.getKeySet("readerUserIds")
 			.map { it.fromMongoSafeKey() }
-			.toSet()
+			.toSet(),
+		path = doc.getString("path")
 	)
 
 	companion object {
@@ -149,7 +153,7 @@ class Project(
 	}
 
 	val dir: Path get() =
-		dir(userId, osUsername, projectId)
+		path?.let { Paths.get(it) } ?: dir(userId, osUsername, projectId)
 
 	suspend fun create() {
 
@@ -159,6 +163,7 @@ class Project(
 			set("name", name)
 			set("projectNumber", projectNumber)
 			set("created", created.toEpochMilli())
+			path?.let { set("path", it) }
 		}
 
 		// create the folder

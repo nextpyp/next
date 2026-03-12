@@ -96,6 +96,17 @@ class CreateFolderChooser(
 			parse()
 		}
 
+	/** Set only the folder name (last path component), keeping the current parent. */
+	fun setFolderName(name: String?) {
+		parsing = true
+		try {
+			nameText.value = name
+			assemble()
+		} finally {
+			parsing = false
+		}
+	}
+
 	override var enabled: Boolean = true
 		set(value) {
 			field = value

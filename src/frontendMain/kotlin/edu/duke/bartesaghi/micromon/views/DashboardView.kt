@@ -266,27 +266,44 @@ class DashboardView : View {
 				caption = "Create new project",
 				escape = true,
 				closeButton = true,
-				classes = setOf("dashboard-popup")
+				classes = setOf("dashboard-popup", "create-project-popup")
 			)
 
 			val nameText = win.text(label = "Name")
+			val folderChooser = CreateFolderChooser().control("Folder")
+			win.add(folderChooser)
 			val errorsElem = win.div()
 			val createButton = Button("Create")
 				.also { win.addButton(it) }
+
+			// sync folder name with project name as the user types
+			nameText.onEvent {
+				input = {
+					folderChooser.input.setFolderName(nameText.value ?: "")
+				}
+			}
+
+			// load default project location when modal opens
+			AppScope.launch {
+				folderChooser.value = Services.projects.pickFolder()
+				folderChooser.input.setFolderName(nameText.value ?: "")
+			}
 
 			fun submit() {
 
 				// make sure we have valid input
 				val name = nameText.value
+					?.takeIf { it.isNotBlank() }
 					?: return
+				val path = folderChooser.value?.takeIf { it.isNotBlank() }
 
 				createButton.disabled = true
 
 				AppScope.launch {
 
-					// create the project on the server
+					// create the project on the server (path = null uses default location)
 					val project = try {
-						Services.projects.create(name)
+						Services.projects.create(name, path)
 					} catch (t: Throwable) {
 						errorsElem.removeAll()
 						errorsElem.errorMessage(t)

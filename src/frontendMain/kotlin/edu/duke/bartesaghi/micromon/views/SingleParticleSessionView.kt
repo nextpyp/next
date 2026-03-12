@@ -6,6 +6,7 @@ import edu.duke.bartesaghi.micromon.components.forms.*
 import edu.duke.bartesaghi.micromon.pyp.*
 import edu.duke.bartesaghi.micromon.services.*
 import io.kvision.core.Container
+import io.kvision.core.onEvent
 import io.kvision.core.Widget
 import io.kvision.form.formPanel
 import io.kvision.form.select.SelectRemote
@@ -335,6 +336,15 @@ class SingleParticleSessionView(
 					}
 				}
 
+				// sync folder name with session name as the user types (when creating)
+				if (session == null) {
+					nameText.onEvent {
+						input = {
+							folderChooser.input.setFolderName(nameText.value ?: "")
+						}
+					}
+				}
+
 				val extraTab = ArgsForm.ExtraTab(
 					"Session",
 					ArgsForm.ExtraTab.Position.Before,
@@ -359,6 +369,7 @@ class SingleParticleSessionView(
 					// generate form defaults
 					nameText.value = "New Session"
 					folderChooser.value = Services.sessions.pickFolder()
+					folderChooser.input.setFolderName(nameText.value ?: "")
 				}
 
 				if (writeable) {

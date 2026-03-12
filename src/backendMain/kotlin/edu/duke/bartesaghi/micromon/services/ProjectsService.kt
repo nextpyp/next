@@ -2,6 +2,7 @@ package edu.duke.bartesaghi.micromon.services
 
 import com.google.inject.Inject
 import edu.duke.bartesaghi.micromon.*
+import edu.duke.bartesaghi.micromon.auth.allowedPathOrThrow
 import edu.duke.bartesaghi.micromon.projects.Project
 import edu.duke.bartesaghi.micromon.auth.authOrThrow
 import edu.duke.bartesaghi.micromon.cluster.Cluster
@@ -18,6 +19,7 @@ import io.ktor.application.ApplicationCall
 import io.kvision.remote.ServiceException
 import kotlinx.coroutines.launch
 import java.time.Instant
+import kotlin.io.path.div
 
 
 actual class ProjectsService : IProjectsService {
@@ -70,11 +72,14 @@ actual class ProjectsService : IProjectsService {
 		return projects.sortedByDescending { it.created }
 	}
 
-	override suspend fun create(name: String): ProjectData = sanitizeExceptions {
+	override suspend fun create(name: String, path: String?): ProjectData = sanitizeExceptions {
 
 		// authenticate the user
 		val user = call.authOrThrow()
 		user.notDemoOrThrow()
+
+		// validate custom path if provided
+		path?.let { it.allowedPathOrThrow(user) }
 
 		// check project limits, if any
 		Config.instance.web.maxProjectsPerUser
@@ -107,13 +112,39 @@ actual class ProjectsService : IProjectsService {
 				projectId = projectId,
 				projectNumber = projectNumber,
 				name = name,
-				created = Instant.now()
+				created = Instant.now(),
+				path = path
 			)
 		}
 
 		project.create()
 
 		return project.toData(user)
+	}
+
+	override suspend fun pickFolder(): String = sanitizeExceptions {
+
+		val user = call.authOrThrow()
+		user.notDemoOrThrow()
+
+		val baseName = "new_project"
+		fun makePath(name: String) =
+			Project.dir(user.id, user.osUsername) / name
+
+		var path = makePath(baseName)
+		var counter = 1
+		val numTries = 1000
+		for (i in 0 until numTries) {
+
+			if (!path.exists()) {
+				return path.toString()
+			}
+
+			counter += 1
+			path = makePath("${baseName}_$counter")
+		}
+
+		throw ServiceException("Failed to find a unique folder for the project after $numTries attempts")
 	}
 
 	override suspend fun delete(userId: String, projectId: String) = sanitizeExceptions {

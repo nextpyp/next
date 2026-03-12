@@ -3781,6 +3781,14 @@ div.file-browser .file-browser-bottom .file-browser-controls .file-browser-glob 
 }
 
 
+/* CREATE PROJECT POPUP - wider so long default folder paths fit on one line */
+
+.create-project-popup .modal-dialog {
+	min-width: 400px;
+	max-width: 50%;
+}
+
+
 /* PROJECT SHARING POPUP */
 
 .project-sharing-popup .modal-body h1 {
