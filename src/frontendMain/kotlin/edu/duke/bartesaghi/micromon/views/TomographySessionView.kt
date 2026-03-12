@@ -336,11 +336,19 @@ class TomographySessionView(
 					}
 				}
 
-				// sync folder name with session name as the user types (when creating)
+				// sync folder name with session name using backend's toSafeFileName rule (when creating)
 				if (session == null) {
 					nameText.onEvent {
 						input = {
-							folderChooser.input.setFolderName(nameText.value ?: "")
+							val name = nameText.value ?: ""
+							AppScope.launch {
+								if (name.isNotBlank()) {
+									val suggested = Services.sessions.suggestFolderName(name)
+									folderChooser.input.setFolderName(suggested)
+								} else {
+									folderChooser.input.setFolderName("")
+								}
+							}
 						}
 					}
 				}
@@ -368,8 +376,11 @@ class TomographySessionView(
 
 					// generate form defaults
 					nameText.value = "New Session"
-					folderChooser.value = Services.sessions.pickFolder()
-					folderChooser.input.setFolderName(nameText.value ?: "")
+					AppScope.launch {
+						folderChooser.value = Services.sessions.pickFolder()
+						val suggested = Services.sessions.suggestFolderName(nameText.value ?: "")
+						folderChooser.input.setFolderName(suggested)
+					}
 				}
 
 				if (writeable) {

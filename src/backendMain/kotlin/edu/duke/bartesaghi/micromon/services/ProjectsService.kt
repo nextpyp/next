@@ -81,6 +81,14 @@ actual class ProjectsService : IProjectsService {
 		// validate custom path if provided
 		path?.let { it.allowedPathOrThrow(user) }
 
+		// ensure the folder doesn't already exist
+		path?.let { p ->
+			val pathObj = java.nio.file.Paths.get(p)
+			if (pathObj.exists()) {
+				throw ServiceException("The selected folder already exists. Please choose a different location or folder name.")
+			}
+		}
+
 		// check project limits, if any
 		Config.instance.web.maxProjectsPerUser
 			?.let { limit ->
@@ -145,6 +153,11 @@ actual class ProjectsService : IProjectsService {
 		}
 
 		throw ServiceException("Failed to find a unique folder for the project after $numTries attempts")
+	}
+
+	override suspend fun suggestFolderName(name: String): String = sanitizeExceptions {
+		call.authOrThrow()
+		return name.toSafeFileName()
 	}
 
 	override suspend fun delete(userId: String, projectId: String) = sanitizeExceptions {

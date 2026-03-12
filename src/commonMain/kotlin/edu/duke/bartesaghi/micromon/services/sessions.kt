@@ -470,6 +470,10 @@ interface ISessionsService {
 	@ExportServiceFunction(AppPermission.SessionCreate)
 	@KVBindingRoute("sessions/pickFolder")
 	suspend fun pickFolder(): String
+
+	@ExportServiceFunction(AppPermission.SessionCreate)
+	@KVBindingRoute("sessions/suggestFolderName")
+	suspend fun suggestFolderName(name: String): String
 }
 
 

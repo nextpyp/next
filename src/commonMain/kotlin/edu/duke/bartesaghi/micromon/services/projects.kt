@@ -31,6 +31,9 @@ interface IProjectsService {
 	@KVBindingRoute("projects/pickFolder")
 	suspend fun pickFolder(): String
 
+	@KVBindingRoute("projects/suggestFolderName")
+	suspend fun suggestFolderName(name: String): String
+
 	@KVBindingRoute("projects/delete")
 	suspend fun delete(userId: String, projectId: String)
 

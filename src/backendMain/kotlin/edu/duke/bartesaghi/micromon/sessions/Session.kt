@@ -156,7 +156,7 @@ sealed class Session(
 
 		// make sure the folder doesn't already exist
 		if (dir.exists()) {
-			throw ServiceException("Session folder already exists: $dir")
+			throw ServiceException("The selected folder already exists. Please choose a different location or folder name.")
 		}
 
 		created = Instant.now()

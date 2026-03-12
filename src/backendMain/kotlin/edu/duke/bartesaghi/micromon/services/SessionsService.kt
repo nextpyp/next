@@ -455,4 +455,10 @@ actual class SessionsService : ISessionsService, Service {
 		// no unique name found after a lot of tries
 		throw ServiceException("Failed to find a unique folder for the session after $numTries attempts")
 	}
+
+	override suspend fun suggestFolderName(name: String): String = sanitizeExceptions {
+		val user = call.authOrThrow()
+		user.authPermissionOrThrow(User.Permission.EditSession)
+		return name.toSafeFileName()
+	}
 }

@@ -276,17 +276,29 @@ class DashboardView : View {
 			val createButton = Button("Create")
 				.also { win.addButton(it) }
 
-			// sync folder name with project name as the user types
+			// sync folder name with project name using backend's toSafeFileName rule (name + "-" + base62)
 			nameText.onEvent {
 				input = {
-					folderChooser.input.setFolderName(nameText.value ?: "")
+					val name = nameText.value ?: ""
+					AppScope.launch {
+						if (name.isNotBlank()) {
+							val suggested = Services.projects.suggestFolderName(name)
+							folderChooser.input.setFolderName(suggested)
+						} else {
+							folderChooser.input.setFolderName("")
+						}
+					}
 				}
 			}
 
 			// load default project location when modal opens
 			AppScope.launch {
 				folderChooser.value = Services.projects.pickFolder()
-				folderChooser.input.setFolderName(nameText.value ?: "")
+				val name = nameText.value ?: ""
+				if (name.isNotBlank()) {
+					val suggested = Services.projects.suggestFolderName(name)
+					folderChooser.input.setFolderName(suggested)
+				}
 			}
 
 			fun submit() {
