@@ -10,12 +10,15 @@ class ClassesRadio(
 	label: String,
 	canMultiSelect: Boolean,
 	deselectAllLabel: String = "Hide All",
-	selectAllLabel: String = "Show All"
+	selectAllLabel: String = "Show All",
+	/** If true, button labels are 0-based (0, 1, 2, ...); otherwise 1-based (1, 2, 3, ...). */
+	val startAtZero: Boolean = false
 ) : RadioSelection(
 	labelText = "$label: ",
 	canMultiSelect = canMultiSelect,
 	deselectAllLabel = deselectAllLabel,
-	selectAllLabel = selectAllLabel
+	selectAllLabel = selectAllLabel,
+	labelOffset = if (startAtZero) 0 else 1
 ) {
 
 	var checkedClasses: List<Int>

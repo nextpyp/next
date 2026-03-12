@@ -107,7 +107,7 @@ class PrismPypFiltersSection(
 		// Real space and Fourier space; each has class selector + Training section (Total loss, Collapse level) + Evaluation section (Clustering, UMAP, Nearest neighbors)
 		flatLazyTabPanel {
 			addTab("Real space") { subTab ->
-				val radio = ClassesRadio("Classes", canMultiSelect = true, deselectAllLabel = "Deselect all", selectAllLabel = "Select All")
+				val radio = ClassesRadio("Classes", canMultiSelect = true, deselectAllLabel = "Deselect all", selectAllLabel = "Select All", startAtZero = true)
 				radio.count = this@PrismPypFiltersSection.nClusters
 				if (this@PrismPypFiltersSection.nClusters > 0) {
 					radio.checkedClasses = (this@PrismPypFiltersSection.currentFilter?.selectedClassesReal ?: radio.allClasses()).filter { it in 1..this@PrismPypFiltersSection.nClusters }
@@ -140,7 +140,7 @@ class PrismPypFiltersSection(
 				))
 			}
 			addTab("Fourier space") { subTab ->
-				val radio = ClassesRadio("Classes", canMultiSelect = true, deselectAllLabel = "Deselect all", selectAllLabel = "Select All")
+				val radio = ClassesRadio("Classes", canMultiSelect = true, deselectAllLabel = "Deselect all", selectAllLabel = "Select All", startAtZero = true)
 				radio.count = this@PrismPypFiltersSection.nClusters
 				if (this@PrismPypFiltersSection.nClusters > 0) {
 					radio.checkedClasses = (this@PrismPypFiltersSection.currentFilter?.selectedClassesFourier ?: radio.allClasses()).filter { it in 1..this@PrismPypFiltersSection.nClusters }

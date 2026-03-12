@@ -11,7 +11,9 @@ open class RadioSelection(
 	val canMultiSelect: Boolean = false,
 	initiallyChecked: List<Int> = emptyList(),
 	val deselectAllLabel: String = "Hide All",
-	val selectAllLabel: String = "Show All"
+	val selectAllLabel: String = "Show All",
+	/** Offset added to index for button label; 0 = 0-based labels, 1 = 1-based (default). */
+	val labelOffset: Int = 1
 ): Div(classes  = setOf("radio-selection-nav")) {
 
 	companion object {
@@ -82,7 +84,7 @@ open class RadioSelection(
 
 							add(check)
 							me.elements.add(check)
-							span((index + 1).toString())
+							span((index + me.labelOffset).toString())
 						}
 					}
 				}
