@@ -12,16 +12,21 @@ import io.kvision.html.image
 enum class PrismPypPanel(val title: String, val slug: String) {
 	TotalLoss("Total loss", "total_loss"),
 	CollapseLevel("Collapse level", "collapse_level"),
-	Umap("UMAP", "thumbnail_plot_umap"),
+	Umap("Thumbnails", "thumbnail_plot_umap"),
 	NearestNeighbors("Nearest neighbors", "nearest_neighbors_matrix"),
-	Clustering("Clustering", "scatter_plot_UMAP");
+	Clustering("UMAP Embedding", "scatter_plot_UMAP");
 }
 
 /**
- * Path for a prismpyp webp image. Backend should serve the image at this path.
+ * Path for a prismpyp image. Backend should serve the image at this path.
  */
 fun prismpypImagePath(jobId: String, space: String, panel: PrismPypPanel, size: ImageSize): String =
 	"/kv/jobs/$jobId/prismpyp/$space/${panel.slug}/${size.id}"
+
+/** Panel slugs that use svgz (backend mirrors this set); others use webp. */
+private val prismpypSvgzSlugs = setOf(
+	"total_loss", "collapse_level", "scatter_plot_UMAP", "thumbnail_plot_umap", "nearest_neighbors_matrix"
+)
 
 /** Which panels to show; null = all five. */
 private val allPanels = listOf(
