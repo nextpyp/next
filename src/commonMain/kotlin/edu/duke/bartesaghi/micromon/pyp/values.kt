@@ -468,6 +468,16 @@ val Args.prismTrainNClusters: Arg
 	get() = argOrThrow("prism", "train_n_clusters")
 val ArgValues.prismTrainNClusters: Int
 	get() = (getOrDefault(args.prismTrainNClusters) as Long).toInt()
+val Args.prismTrainReal: Arg
+	get() = argOrThrow("prism", "train_real")
+var ArgValues.prismTrainReal: Boolean?
+	get() = get(args.prismTrainReal) as Boolean?
+	set(value) { set(args.prismTrainReal, value) }
+val Args.prismTrainFft: Arg
+	get() = argOrThrow("prism", "train_fft")
+var ArgValues.prismTrainFft: Boolean?
+	get() = get(args.prismTrainFft) as Boolean?
+	set(value) { set(args.prismTrainFft, value) }
 
 val Args.svaClassNum: Arg
 	get() = argOrThrow("sva_class", "num")

@@ -190,6 +190,17 @@ class SingleParticlePreprocessingView(val project: ProjectData, val job: SingleP
 					false
 				}
 				if (prismEnable) {
+					// Default to true when arg not in schema so both tabs show; only hide when explicitly false
+					val prismTrainReal = try {
+						finshedValues?.prismTrainReal != false
+					} catch (_: NoSuchElementException) {
+						true
+					}
+					val prismTrainFft = try {
+						finshedValues?.prismTrainFft != false
+					} catch (_: NoSuchElementException) {
+						true
+					}
 					addTab("prismPYP", "fas fa-gem") { lazyTab ->
 						val nClusters = try {
 							finshedValues?.prismTrainNClusters ?: 0
@@ -199,7 +210,9 @@ class SingleParticlePreprocessingView(val project: ProjectData, val job: SingleP
 						prismpypFiltersSection = PrismPypFiltersSection(
 							jobId = job.jobId,
 							nClusters = nClusters,
-							writable = project.canWrite()
+							writable = project.canWrite(),
+							prismTrainReal = prismTrainReal,
+							prismTrainFft = prismTrainFft
 						).apply {
 							lazyTab.elem.add(this)
 						}

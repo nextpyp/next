@@ -31,6 +31,8 @@ class PrismPypFiltersSection(
 	val jobId: String,
 	val nClusters: Int,
 	val writable: Boolean,
+	val prismTrainReal: Boolean = false,
+	val prismTrainFft: Boolean = false,
 	classes: Set<String> = emptySet()
 ) : Div(classes = setOf("prismpyp-filters-section", "filter-table") + classes) {
 
@@ -106,8 +108,9 @@ class PrismPypFiltersSection(
 
 		// Real space and Fourier space; each has class selector + Training section (Total loss, Collapse level) + Evaluation section (Clustering, UMAP, Nearest neighbors)
 		flatLazyTabPanel {
+			if (this@PrismPypFiltersSection.prismTrainReal) {
 			addTab("Real space") { subTab ->
-				val radio = ClassesRadio("Classes", canMultiSelect = true, deselectAllLabel = "Deselect all", selectAllLabel = "Select All", startAtZero = true)
+				val radio = ClassesRadio("Classes", canMultiSelect = true, deselectAllLabel = "Deselect all", selectAllLabel = "Select All")
 				radio.count = this@PrismPypFiltersSection.nClusters
 				if (this@PrismPypFiltersSection.nClusters > 0) {
 					radio.checkedClasses = (this@PrismPypFiltersSection.currentFilter?.selectedClassesReal ?: radio.allClasses()).filter { it in 1..this@PrismPypFiltersSection.nClusters }
@@ -139,8 +142,10 @@ class PrismPypFiltersSection(
 					panels = listOf(PrismPypPanel.TotalLoss, PrismPypPanel.CollapseLevel)
 				))
 			}
+			}
+			if (this@PrismPypFiltersSection.prismTrainFft) {
 			addTab("Fourier space") { subTab ->
-				val radio = ClassesRadio("Classes", canMultiSelect = true, deselectAllLabel = "Deselect all", selectAllLabel = "Select All", startAtZero = true)
+				val radio = ClassesRadio("Classes", canMultiSelect = true, deselectAllLabel = "Deselect all", selectAllLabel = "Select All")
 				radio.count = this@PrismPypFiltersSection.nClusters
 				if (this@PrismPypFiltersSection.nClusters > 0) {
 					radio.checkedClasses = (this@PrismPypFiltersSection.currentFilter?.selectedClassesFourier ?: radio.allClasses()).filter { it in 1..this@PrismPypFiltersSection.nClusters }
@@ -171,6 +176,7 @@ class PrismPypFiltersSection(
 					"fft",
 					panels = listOf(PrismPypPanel.TotalLoss, PrismPypPanel.CollapseLevel)
 				))
+			}
 			}
 		}
 	}
