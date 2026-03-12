@@ -390,8 +390,6 @@ actual class Tomography3DAVGService : ITomography3DAVGService, Service {
 	override suspend fun referencesMrcData(jobId: String, iter: Int): Option<FileDownloadData> = sanitizeExceptions {
 
 		val job = jobId.authJob(ProjectPermission.Read).job
-		val params = job.params()
-			?: throw NotFoundException()
 
 		val path = job.avgDir() / "${job.dir.fileName}_iteration_${iter.formatIter()}_refined_selected_average_0.mrc"
 		return path
@@ -402,8 +400,6 @@ actual class Tomography3DAVGService : ITomography3DAVGService, Service {
 	override suspend fun referencesFilteredMrcData(jobId: String, iter: Int): Option<FileDownloadData> = sanitizeExceptions {
 
 		val job = jobId.authJob(ProjectPermission.Read).job
-		val params = job.params()
-			?: throw NotFoundException()
 
 		val path = job.avgDir() / "${job.dir.fileName}_iteration_${iter.formatIter()}_refined_selected_average_0_filtered.mrc"
 		return path

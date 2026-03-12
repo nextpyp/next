@@ -73,8 +73,6 @@ actual class TomographyDrgnEvalVolsService : ITomographyDrgnEvalVolsService, Ser
 								val job = authJob(ProjectPermission.Read).job
 
 								val imageType = ImageType.Svgz
-								val params = job.params()
-									?: return@respondExceptions imageType.respondPlaceholder(call)
 
 								// serve the image
 								imageType.respond(call, job.dimDir(dim) / "${basenamer(key)}.svgz")
