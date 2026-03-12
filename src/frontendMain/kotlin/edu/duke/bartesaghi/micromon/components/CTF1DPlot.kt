@@ -127,6 +127,7 @@ open class CTF1DPlot(
 					ImageSize.Small -> 250
 					ImageSize.Medium -> 300
 					ImageSize.Large -> 350
+					ImageSize.XLarge -> 400
 				}
 				yaxis = jsObject {
 					range = arrayOf(0.0, 1.2)

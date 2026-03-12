@@ -69,7 +69,8 @@ class PrismPypPanels(
 	): SizedPanel {
 		val jId = jobId
 		val sp = space
-		return SizedPanel(panel.title, getSize()).apply {
+		val useXLarge = (panel == PrismPypPanel.NearestNeighbors || panel == PrismPypPanel.Umap)
+		return SizedPanel(panel.title, getSize(), includeXLarge = useXLarge).apply {
 			val img = image(prismpypImagePath(jId, sp, panel, this.size), classes = setOf("full-width-image"))
 			add(img)
 			onResize = { newSize: ImageSize ->

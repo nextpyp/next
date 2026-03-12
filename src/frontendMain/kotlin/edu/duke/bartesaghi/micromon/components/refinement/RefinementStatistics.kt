@@ -93,6 +93,7 @@ open class RefinementStatistics : SizedPanel("Refinement Statistics", Storage.PR
                     ImageSize.Small -> 250
                     ImageSize.Medium -> 300
                     ImageSize.Large -> 350
+                    ImageSize.XLarge -> 400
                 }
 
                 margin = jsObject {

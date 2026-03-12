@@ -7,7 +7,8 @@ enum class ImageSize(override val id: String, val approxWidth: Int): Identified 
 
 	Small("small", 256),
 	Medium("medium", 512),
-	Large("large", 1024);
+	Large("large", 1024),
+	XLarge("xlarge", 2048);
 
 	companion object {
 

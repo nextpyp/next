@@ -72,6 +72,7 @@ open class OrientationDefocusPlots : SizedPanel("Orientation/Defocus Distributio
 			ImageSize.Small -> 150
 			ImageSize.Medium -> 240
 			ImageSize.Large -> 480
+			ImageSize.XLarge -> 600
 		}
 
         container.plot(

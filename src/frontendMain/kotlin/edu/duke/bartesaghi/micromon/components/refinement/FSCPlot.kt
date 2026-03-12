@@ -73,6 +73,7 @@ open class FSCPlot : SizedPanel("Resolution", Storage.FSCPlotSize) {
 					ImageSize.Small -> 250
 					ImageSize.Medium -> 300
 					ImageSize.Large -> 350
+					ImageSize.XLarge -> 400
 				}
 				xaxis = jsObject {
 					title = jsObject<TitleFormat> {

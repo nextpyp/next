@@ -17,6 +17,7 @@ open class SizedPanel(
 	val defaultToLarge: Boolean = true,
 	val includeLarge: Boolean = true,
 	val includeSmall: Boolean = true,
+	val includeXLarge: Boolean = false,
 	classes: Set<String> = emptySet()
 ) : Div(classes = setOf("sized-panel") + classes) {
 
@@ -41,7 +42,12 @@ open class SizedPanel(
 				} else {
 					Unit
 				}
-				ImageSize.Large -> Unit
+				ImageSize.Large -> if (includeXLarge) {
+					this@SizedPanel.size = ImageSize.XLarge
+				} else {
+					Unit
+				}
+				ImageSize.XLarge -> Unit
 			}
 		}
 
@@ -55,6 +61,7 @@ open class SizedPanel(
 					Unit
 				}
 				ImageSize.Large -> this@SizedPanel.size = ImageSize.Medium
+				ImageSize.XLarge -> this@SizedPanel.size = ImageSize.Large
 			}
 		}
 
@@ -62,10 +69,10 @@ open class SizedPanel(
 	val defaultSize = when (window.innerWidth) {
 		in 0 until 600 -> ImageSize.Small
 		in 600 until 1200 -> ImageSize.Medium
-		else -> if (includeLarge && defaultToLarge) {
-			ImageSize.Large
-		} else {
-			ImageSize.Medium
+		else -> when {
+			includeXLarge && defaultToLarge -> ImageSize.XLarge
+			includeLarge && defaultToLarge -> ImageSize.Large
+			else -> ImageSize.Medium
 		}
 	}
 
@@ -86,10 +93,10 @@ open class SizedPanel(
 
 		// update the buttons
 		plusButton.disabled =
-			if (includeLarge) {
-				size == ImageSize.Large
-			} else {
-				size == ImageSize.Medium
+			when {
+				includeXLarge -> size == ImageSize.XLarge
+				includeLarge -> size == ImageSize.Large
+				else -> size == ImageSize.Medium
 			}
 		minusButton.disabled =
 			if (includeSmall) {
