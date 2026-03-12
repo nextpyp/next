@@ -459,6 +459,11 @@ val Args.cryodrgnEpoch: Arg
 val ArgValues.cryodrgnEpoch: Int
 	get() = (getOrDefault(args.cryodrgnEpoch) as Long).toInt()
 
+val Args.prismEnable: Arg
+	get() = argOrThrow("prism", "enable")
+var ArgValues.prismEnable: Boolean?
+	get() = get(args.prismEnable) as Boolean?
+	set(value) { set(args.prismEnable, value) }
 val Args.prismTrainNClusters: Arg
 	get() = argOrThrow("prism", "train_n_clusters")
 val ArgValues.prismTrainNClusters: Int

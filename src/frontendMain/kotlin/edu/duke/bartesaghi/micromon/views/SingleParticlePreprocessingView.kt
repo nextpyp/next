@@ -184,18 +184,25 @@ class SingleParticlePreprocessingView(val project: ProjectData, val job: SingleP
 					liveTab?.show(it.elem)
 				}.id
 
-				addTab("prismPYP", "fas fa-gem") { lazyTab ->
-					val nClusters = try {
-						finshedValues?.prismTrainNClusters ?: 0
-					} catch (_: NoSuchElementException) {
-						0
-					}
-					prismpypFiltersSection = PrismPypFiltersSection(
-						jobId = job.jobId,
-						nClusters = nClusters,
-						writable = project.canWrite()
-					).apply {
-						lazyTab.elem.add(this)
+				val prismEnable = try {
+					finshedValues?.prismEnable == true
+				} catch (_: NoSuchElementException) {
+					false
+				}
+				if (prismEnable) {
+					addTab("prismPYP", "fas fa-gem") { lazyTab ->
+						val nClusters = try {
+							finshedValues?.prismTrainNClusters ?: 0
+						} catch (_: NoSuchElementException) {
+							0
+						}
+						prismpypFiltersSection = PrismPypFiltersSection(
+							jobId = job.jobId,
+							nClusters = nClusters,
+							writable = project.canWrite()
+						).apply {
+							lazyTab.elem.add(this)
+						}
 					}
 				}
 			}
