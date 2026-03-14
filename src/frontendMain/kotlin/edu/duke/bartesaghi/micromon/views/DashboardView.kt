@@ -6,6 +6,8 @@ import edu.duke.bartesaghi.micromon.components.forms.*
 import edu.duke.bartesaghi.micromon.services.*
 import edu.duke.bartesaghi.micromon.views.admin.Admin
 import io.kvision.core.*
+import io.kvision.form.check.CheckBox
+import io.kvision.form.check.CheckBoxStyle
 import io.kvision.form.select.SelectInput
 import io.kvision.form.select.SelectRemoteInput
 import io.kvision.form.text.TextInput
@@ -271,7 +273,21 @@ class DashboardView : View {
 
 			val nameText = win.text(label = "Name")
 			val folderChooser = CreateFolderChooser().control("Folder")
-			win.add(folderChooser)
+			val advancedCheck = CheckBox(
+				value = false,
+				label = "Choose folder location (advanced)"
+			).apply {
+				style = CheckBoxStyle.PRIMARY
+			}
+			val advancedSection = Div(classes = setOf("create-project-advanced")).apply {
+				visible = false
+				add(folderChooser)
+			}
+			win.add(advancedCheck)
+			win.add(advancedSection)
+			advancedCheck.onEvent {
+				change = { advancedSection.visible = advancedCheck.value }
+			}
 			val errorsElem = win.div()
 			val createButton = Button("Create")
 				.also { win.addButton(it) }
@@ -291,14 +307,10 @@ class DashboardView : View {
 				}
 			}
 
-			// load default project location when modal opens
+			// load default project location when modal opens (parent only; folder name empty by default)
 			AppScope.launch {
 				folderChooser.value = Services.projects.pickFolder()
-				val name = nameText.value ?: ""
-				if (name.isNotBlank()) {
-					val suggested = Services.projects.suggestFolderName(name)
-					folderChooser.input.setFolderName(suggested)
-				}
+				folderChooser.input.setFolderName("")
 			}
 
 			fun submit() {
