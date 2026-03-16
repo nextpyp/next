@@ -23,6 +23,7 @@ import io.kvision.dropdown.separator
 import io.kvision.form.check.CheckBox
 import io.kvision.form.check.CheckBoxStyle
 import io.kvision.form.check.CheckBoxInput
+import io.kvision.form.text.TextInput
 import io.kvision.html.*
 import io.kvision.modal.Confirm
 import io.kvision.modal.Modal
@@ -36,6 +37,8 @@ import io.kvision.window.window
 import js.getHTMLElementOrThrow
 import js.micromondiagrams.allSized
 import js.values
+import kotlin.js.Date
+import kotlinx.coroutines.delay
 
 
 fun Widget.onGoToProject(project: ProjectData) {
@@ -67,8 +70,10 @@ class ProjectView(val project: ProjectData) : View {
 
 	private var connector: WebsocketConnector? = null
 	private var blocksTable: BlocksTable? = null
+	private var blocksCardView: BlocksCardView? = null
 	private var tableTabElem: Div? = null
 	private var tableStageContainer: Div? = null
+	private var cardStageContainer: Div? = null
 
 	override fun init(viewport: Viewport) {
 
@@ -83,7 +88,7 @@ class ProjectView(val project: ProjectData) : View {
 		}
 
 		// layout the root elements
-		val toolbar = elem.div(classes = setOf("toolbar"))
+		val toolbar = elem.div(classes = setOf("toolbar", "dock-window"))
 		val toolbarLeft = toolbar.div(classes = setOf("toolbar-left"))
 		toolbar.div(classes = setOf("toolbar-fill"))
 		val toolbarCenter = toolbar.div(classes = setOf("toolbar-center"))
@@ -109,6 +114,10 @@ class ProjectView(val project: ProjectData) : View {
 		tableTabElem = tableContainer
 		tableStageContainer = tableContainer.div(classes = setOf("stage-container"))
 
+		val cardContainer = viewSwitcherContainer.div(classes = setOf("blocks-card-container"))
+		cardContainer.addCssClass("project-view-gallery-hidden")
+		cardStageContainer = cardContainer.div(classes = setOf("stage-container"))
+
 		val panelBottom = Div(classes = setOf("panel-project-bottom")).also { panelLeft.add(it) }
 
 		// layout the toolbar
@@ -121,38 +130,57 @@ class ProjectView(val project: ProjectData) : View {
 			}
 		
 		// Add view toggle buttons to toolbar
-		val diagramViewButton = toolbarLeft.button("Block View", icon = "fas fa-project-diagram").apply {
-			title = "Block View"
+		val diagramViewButton = toolbarLeft.button("Graph View", icon = "fas fa-project-diagram").apply {
+			title = "Graph View"
 			addCssClass("active")
 		}
 		val tableViewButton = toolbarLeft.button("List View", icon = "fas fa-table").apply {
 			title = "List View"
+		}
+		val galleryViewButton = toolbarLeft.button("Gallery View", icon = "fas fa-th-large").apply {
+			title = "Gallery View"
 		}
 
 		// Function to switch views using CSS visibility so the diagram never loses layout/dimensions
 		fun showDiagramView() {
 			diagramWrapper.removeCssClass("project-view-diagram-hidden")
 			tableContainer.addCssClass("project-view-table-hidden")
+			cardContainer.addCssClass("project-view-gallery-hidden")
 			diagramViewButton.addCssClass("active")
 			tableViewButton.removeCssClass("active")
+			galleryViewButton.removeCssClass("active")
 			Storage.projectViewTabIndex = 0
 		}
 
 		fun showTableView() {
 			diagramWrapper.addCssClass("project-view-diagram-hidden")
 			tableContainer.removeCssClass("project-view-table-hidden")
+			cardContainer.addCssClass("project-view-gallery-hidden")
 			diagramViewButton.removeCssClass("active")
 			tableViewButton.addCssClass("active")
+			galleryViewButton.removeCssClass("active")
 			Storage.projectViewTabIndex = 1
+		}
+
+		fun showGalleryView() {
+			diagramWrapper.addCssClass("project-view-diagram-hidden")
+			tableContainer.addCssClass("project-view-table-hidden")
+			cardContainer.removeCssClass("project-view-gallery-hidden")
+			diagramViewButton.removeCssClass("active")
+			tableViewButton.removeCssClass("active")
+			galleryViewButton.addCssClass("active")
+			Storage.projectViewTabIndex = 2
 		}
 
 		// Wire up view toggle events
 		diagramViewButton.onClick { showDiagramView() }
 		tableViewButton.onClick { showTableView() }
+		galleryViewButton.onClick { showGalleryView() }
 
 		// Restore last view from storage
-		if (Storage.projectViewTabIndex == 1) {
-			showTableView()
+		when (Storage.projectViewTabIndex) {
+			1 -> showTableView()
+			2 -> showGalleryView()
 		}
 
 		val runButton = toolbarRight.button("Run")
@@ -289,6 +317,8 @@ class ProjectView(val project: ProjectData) : View {
 				.map { it.model }
 				.allSized { diagram.zoomOutToFitNodes() }
 
+			driver.refreshBlocksCardView()
+
 			connector.connect()
 		}
 	}
@@ -402,8 +432,13 @@ class ProjectView(val project: ProjectData) : View {
 			updateRunButton()
 			jobsMonitor.init(msg)
 
-			// Update the blocks table with current data
+			// Update all views with current data
+			refreshAllViews()
+		}
+
+		fun refreshAllViews() {
 			refreshBlocksTable()
+			blocksCardView?.setNodes(diagram.nodes().toList())
 		}
 
 		/** Refreshes the blocks table with current node data */
@@ -423,14 +458,234 @@ class ProjectView(val project: ProjectData) : View {
 					typeIconClass = node.type.iconClass,
 					lastRunTimestamp = lastRunTimestampByJobId[job.jobId],
 					status = node.status,
-					blockPath = urlFragment?.let { "/project/${project.owner.id}/${project.projectId}/${it}/${job.jobId}" }
+					blockPath = urlFragment?.let { "/project/${project.owner.id}/${project.projectId}/${it}/${job.jobId}" },
+					filesystemPath = job.common.path
 				)
 			}.sortedWith(compareBy<BlockRow> { it.blockNumber?.toIntOrNull() ?: Int.MAX_VALUE }.thenBy { it.blockName })
 
 			// Clear and recreate the table inside the stage-container (same structure as diagram)
 			stageContainer.removeAll()
-			blocksTable = BlocksTable(project, rows)
+			blocksTable = BlocksTable(
+				project,
+				rows,
+				onRename = { jobId, currentName ->
+					val node = diagram.findNode(jobId) ?: return@BlocksTable
+					val win = Modal(
+						caption = "Rename",
+						escape = true,
+						closeButton = true,
+						classes = setOf("dashboard-popup")
+					)
+					val nameText = TextInput(value = currentName)
+					win.add(nameText)
+					val renameButton = Button("Rename")
+					win.addButton(renameButton)
+					fun submit() {
+						val name = nameText.value ?: return
+						win.hide()
+						AppScope.launch {
+							node.baseJob = JobData.deserialize(Services.projects.renameJob(node.jobId, name))
+							diagram.update()
+							refreshBlocksTable()
+							blocksCardView?.refreshCards()
+						}
+					}
+					renameButton.onClick { submit() }
+					nameText.onEnter { submit() }
+					win.show()
+				},
+				onCopy = { jobId ->
+					diagram.findNode(jobId)?.onCopyClick?.invoke()
+				},
+				onEdit = { jobId ->
+					diagram.findNode(jobId)?.onEdit(enabled = project.canWrite())
+				},
+				onErase = { jobId ->
+					diagram.findNode(jobId)?.onDeleteFilesClick?.invoke()
+				},
+				onDelete = { jobId ->
+					diagram.findNode(jobId)?.onDeleteClick?.invoke()
+				}
+			)
 			stageContainer.add(blocksTable!!)
+		}
+
+		fun refreshBlocksCardView() {
+			val stageContainer = cardStageContainer ?: return
+
+			val cardView = BlocksCardView(project, getLastRunTimestamp = { lastRunTimestampByJobId[it] })
+			cardView.setNodes(diagram.nodes().toList())
+			cardView.onSelectionChanged = { node ->
+				buildCardContextMenu(cardView, node)
+			}
+
+			stageContainer.removeAll()
+			blocksCardView = cardView
+			stageContainer.add(cardView)
+		}
+
+		private fun buildCardContextMenu(cardView: BlocksCardView, node: Node?) {
+			val ctx = cardView.contextMenuElem
+			ctx.removeAll()
+
+			if (node == null) {
+				jobsMonitor.filterByJob(null)
+				return
+			}
+
+			val job = node.baseJob
+
+			// 1. Rename (icon only)
+			ctx.button("", icon = "fas fa-tag").apply {
+				title = "Rename this block"
+				enableClickIf(project.canWrite()) {
+					val win = Modal(
+						caption = "Rename",
+						escape = true,
+						closeButton = true,
+						classes = setOf("dashboard-popup")
+					)
+					val nameText = TextInput(value = job.name)
+					win.add(nameText)
+					val renameButton = Button("Rename")
+					win.addButton(renameButton)
+
+					fun submit() {
+						val name = nameText.value ?: return
+						win.hide()
+						AppScope.launch {
+							node.baseJob = JobData.deserialize(Services.projects.renameJob(node.jobId, name))
+							diagram.update()
+							cardView.refreshCards()
+						}
+					}
+					renameButton.onClick { submit() }
+					nameText.onEnter { submit() }
+					win.show()
+				}
+			}
+
+			// 2. Copy (icon only)
+			ctx.button("", icon = "far fa-clone").apply {
+				title = "Make a copy of this block"
+				enableClickIf(project.canWrite() && node.onCopyClick != null) {
+					node.onCopyClick?.invoke()
+				}
+			}
+
+			// 3. Edit (icon only)
+			ctx.button("", icon = "fas fa-edit").apply {
+				title = "Edit this block's settings"
+				onClick { node.onEdit(enabled = project.canWrite()) }
+			}
+
+			// 4. Location (icon only)
+			ctx.add(PathPopup.button("", job.common.path))
+
+			// 5. Runnable
+			ctx.button("Runnable", icon = "fas fa-recycle").apply {
+				title = "Make this block runnable"
+				enableClickIf(project.canWrite() && !job.common.stale) {
+					node.onMakeRunnableClick?.invoke()
+					AppScope.launch {
+						delay(500)
+						cardView.refreshCards()
+						buildCardContextMenu(cardView, node)
+					}
+				}
+			}
+
+			// 6. Up-to-date
+			ctx.button("Up-to-date", icon = "fas fa-check-double").apply {
+				title = "Mark this block as up to date"
+				enableClickIf(project.canWrite() && job.common.stale) {
+					node.onMakeUpToDateClick?.invoke()
+					AppScope.launch {
+						delay(500)
+						cardView.refreshCards()
+						buildCardContextMenu(cardView, node)
+					}
+				}
+			}
+
+			// 7. Erase (icon only)
+			ctx.button("", icon = "fas fa-eraser").apply {
+				title = "Delete files and data produced by this block, but keep the block configuration"
+				enableClickIf(project.canWrite()) {
+					node.onDeleteFilesClick?.invoke()
+				}
+			}
+
+			// 8. Delete (icon only)
+			ctx.button("", icon = "fas fa-trash").apply {
+				title = "Delete this block"
+				enableClickIf(project.canWrite()) {
+					node.onDeleteClick?.invoke()
+				}
+			}
+
+			// 9. Run Block
+			val isUpToDate = node.status == Node.Status.Ended && !job.common.stale && node.getUpstreamNodesIteratively().none { it.baseJob.isChanged() }
+			ctx.button("Run Block", icon = "fas fa-play").apply {
+				title = if (isUpToDate) "Block is already up to date" else "Run this block immediately"
+				addCssClass("btn-primary")
+				enableClickIf(project.canWrite() && !isUpToDate) {
+					AppScope.launch {
+						try {
+							Services.projects.run(project.owner.id, project.projectId, listOf(node.jobId))
+						} catch (t: Throwable) {
+							Toast.error(t.message ?: "(Unknown error)")
+						}
+					}
+				}
+			}
+
+			// 10. Add Block dropdown
+			val outputDatas = node.config.outputs
+			if (outputDatas.isNotEmpty() && project.canWrite()) {
+				data class AddBlockEntry(
+					val outData: NodeConfig.Data,
+					val inData: NodeConfig.Data,
+					val inConfig: NodeConfig
+				)
+				val entries = mutableListOf<AddBlockEntry>()
+				for (data in outputDatas) {
+					for ((nodeConfig, usingInputs) in NodeConfigs.findNodesUsing(data)) {
+						if (nodeConfig.enabled && nodeConfig.status == NodeConfig.NodeStatus.Regular) {
+							entries.add(AddBlockEntry(data, usingInputs.first(), nodeConfig))
+						}
+					}
+				}
+				if (entries.isNotEmpty()) {
+					ctx.dropDown("Add Block", icon = "fas fa-plus") {
+						for (entry in entries.distinctBy { it.inConfig.configId }.sortedBy { it.inConfig.name }) {
+							ddLink(entry.inConfig.name, icon = entry.inConfig.clientInfo.type.iconClass).onClick {
+								AppScope.launch {
+									showUseDataForm(node, entry.outData, entry.inData, entry.inConfig)
+								}
+							}
+						}
+					}
+				}
+			}
+
+			// Date modified and size
+			val infoElem = ctx.div(classes = setOf("card-job-info"))
+			AppScope.launch {
+				val info = try {
+					Services.projects.getJobInfo(node.jobId)
+				} catch (t: Throwable) {
+					null
+				}
+				infoElem.removeAll()
+				val dateStr = info?.createdMs?.let { Date(it.toDouble()).toLocaleString() } ?: "—"
+				val sizeStr = info?.sizeBytes?.toBytesString() ?: "—"
+				infoElem.span("Modified: $dateStr", classes = setOf("card-info-field"))
+				infoElem.span("Size: $sizeStr", classes = setOf("card-info-field"))
+			}
+
+			// Filter JobsMonitor to only show logs for this block
+			jobsMonitor.filterByJob(node.jobId)
 		}
 
 		fun wireEvents(node: Node) {
@@ -697,8 +952,7 @@ class ProjectView(val project: ProjectData) : View {
 
 			diagram.place(node)
 
-			// Refresh the table to show the new block
-			refreshBlocksTable()
+			refreshAllViews()
 		}
 
 		fun showImportWorkflowPopup() {
@@ -835,8 +1089,7 @@ class ProjectView(val project: ProjectData) : View {
 			diagram.update()
 			updateRunButton()
 
-			// Refresh the table to show the new workflow blocks
-			refreshBlocksTable()
+			refreshAllViews()
 		}
 
 		private fun showUseDataPopup(node: Node, data: NodeConfig.Data) {
@@ -984,8 +1237,7 @@ class ProjectView(val project: ProjectData) : View {
 					// automatically position the node somewhere useful (hopefully)
 					diagram.place(inNode)
 
-					// Refresh the table to show the new block
-					refreshBlocksTable()
+					refreshAllViews()
 				}
 			}
 		}
@@ -1085,8 +1337,7 @@ class ProjectView(val project: ProjectData) : View {
 					Services.projects.deleteJobs(nodesToDelete.map { it.jobId })
 				}
 
-				// Refresh the table to remove deleted blocks
-				refreshBlocksTable()
+				refreshAllViews()
 			})
 
 			win.show()
@@ -1212,8 +1463,7 @@ class ProjectView(val project: ProjectData) : View {
 				JobPosition(it.jobId, it.x, it.y)
 			})
 
-			// Refresh the table to show the copied blocks
-			refreshBlocksTable()
+			refreshAllViews()
 		}
 
 		private fun runAll() {
@@ -1451,8 +1701,7 @@ class ProjectView(val project: ProjectData) : View {
 
 			jobsMonitor.initRun(msg)
 
-			// Refresh the table to show updated statuses
-			refreshBlocksTable()
+			refreshAllViews()
 		}
 
 		fun onRunStart(msg: RealTimeS2C.ProjectRunStart) {
@@ -1476,8 +1725,7 @@ class ProjectView(val project: ProjectData) : View {
 
 			jobsMonitor.startJob(msg)
 
-			// Refresh the table to show updated statuses
-			refreshBlocksTable()
+			refreshAllViews()
 		}
 
 		fun onJobUpdate(msg: RealTimeS2C.JobUpdate) {
@@ -1506,8 +1754,7 @@ class ProjectView(val project: ProjectData) : View {
 
 			jobsMonitor.finishJob(msg)
 
-			// Refresh the table to show updated statuses
-			refreshBlocksTable()
+			refreshAllViews()
 		}
 
 		fun onRunFinish(msg: RealTimeS2C.ProjectRunFinish) {

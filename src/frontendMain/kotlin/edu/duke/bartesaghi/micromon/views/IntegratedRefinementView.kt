@@ -28,7 +28,8 @@ private val refinementNodes = listOf(
 	TomographyFlexibleRefinementNode,
 	TomographyAfterFlexibleRefinementNode,
 	TomographyFineRefinementNode,
-	TomographyMovieCleaningNode
+	TomographyMovieCleaningNode,
+	TomographyDrgnFilteringNode
 )
 
 

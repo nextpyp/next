@@ -18,6 +18,8 @@ import edu.duke.bartesaghi.micromon.pyp.Workflows
 import io.ktor.application.ApplicationCall
 import io.kvision.remote.ServiceException
 import kotlinx.coroutines.launch
+import java.nio.file.Files
+import java.nio.file.attribute.BasicFileAttributes
 import java.time.Instant
 import kotlin.io.path.div
 
@@ -363,6 +365,41 @@ actual class ProjectsService : IProjectsService {
 		// calculate the sizes
 		ProjectSizes(
 			filesystemBytes = DU.countBytes(project.dir)
+		)
+	}
+
+	override suspend fun getProjectStats(userId: String, projectId: String): ProjectStats = sanitizeExceptions {
+
+		val user = call.authOrThrow()
+		val project = user.authProjectOrThrow(ProjectPermission.Read, userId, projectId)
+
+		val blockCount = Job.allFromProject(userId, projectId).size
+		val lastRunTimestampMs = project.getRuns()
+			.maxOfOrNull { it.timestamp.toEpochMilli() }
+
+		return ProjectStats(
+			blockCount = blockCount,
+			lastRunTimestampMs = lastRunTimestampMs
+		)
+	}
+
+	override suspend fun getJobInfo(jobId: String): BlockJobStats = sanitizeExceptions {
+
+		val user = call.authOrThrow()
+		val job = user.authJobOrThrow(ProjectPermission.Read, jobId)
+
+		val modifiedMs = try {
+			Files.readAttributes(job.dir, BasicFileAttributes::class.java)
+				.lastModifiedTime()
+				.toMillis()
+				.takeIf { it > 0L }
+		} catch (e: Exception) {
+			null
+		}
+
+		BlockJobStats(
+			createdMs = modifiedMs,
+			sizeBytes = DU.countBytes(job.dir)
 		)
 	}
 

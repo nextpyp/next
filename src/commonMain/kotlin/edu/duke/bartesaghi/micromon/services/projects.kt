@@ -79,6 +79,12 @@ interface IProjectsService {
 	@KVBindingRoute("projects/countSizes")
 	suspend fun countSizes(userId: String, projectId: String): ProjectSizes
 
+	@KVBindingRoute("projects/stats")
+	suspend fun getProjectStats(userId: String, projectId: String): ProjectStats
+
+	@KVBindingRoute("projects/jobInfo")
+	suspend fun getJobInfo(jobId: String): BlockJobStats
+
 	@KVBindingRoute("projects/sharedUsers/get")
 	suspend fun getSharedUsers(userId: String, projectId: String): List<UserData>
 
@@ -119,6 +125,12 @@ data class ProjectData(
 }
 
 @Serializable
+data class ProjectStats(
+	val blockCount: Int,
+	val lastRunTimestampMs: Long?
+)
+
+@Serializable
 data class ProjectSizes(
 	/**
 	 * The number of bytes used by the project in files and folders in the filesystem
@@ -132,6 +144,12 @@ data class ProjectSizes(
 			ProjectSizes(null)
 	}
 }
+
+@Serializable
+data class BlockJobStats(
+	val createdMs: Long?,
+	val sizeBytes: Long?
+)
 
 
 @Serializable

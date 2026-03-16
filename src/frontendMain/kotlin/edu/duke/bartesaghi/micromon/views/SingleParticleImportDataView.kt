@@ -40,7 +40,7 @@ class SingleParticleImportDataView(val project: ProjectData, val job: SinglePart
 			}
 		}
 
-		fun path(project: ProjectData, job: SingleParticleImportDataData) = "/project/${project.owner.id}/${project.projectId}/sp-import-${job.jobId}"
+		fun path(project: ProjectData, job: SingleParticleImportDataData) = "/project/${project.owner.id}/${project.projectId}/singleParticleImportData/${job.jobId}"
 
 		fun go(viewport: Viewport, project: ProjectData, job: SingleParticleImportDataData) {
 			routing.show(path(project, job))

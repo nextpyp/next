@@ -5,6 +5,7 @@ import edu.duke.bartesaghi.micromon.diagram.nodes.Node
 import edu.duke.bartesaghi.micromon.iconStyled
 import edu.duke.bartesaghi.micromon.onGo
 import edu.duke.bartesaghi.micromon.services.ProjectData
+import edu.duke.bartesaghi.micromon.components.PathPopup
 import io.kvision.core.onEvent
 import io.kvision.core.Position
 import io.kvision.form.select.SelectInput
@@ -31,16 +32,23 @@ data class BlockRow(
 	val lastRunTimestamp: Long?,
 	val status: Node.Status,
 	/** URL path to block view, or null if this block has no dedicated view */
-	val blockPath: String?
+	val blockPath: String?,
+	/** Filesystem path of the block (job directory) */
+	val filesystemPath: String
 )
 
 /**
  * Table listing all blocks in a project, using the same Tabulator primitives as the
- * pre-processing FilterTable. Columns: Name (with link), Type, Last run, State.
+ * pre-processing FilterTable. Columns: Name (with link), Type, Last run, State, Location, Actions, Block ID.
  */
 class BlocksTable(
 	val project: ProjectData,
-	val rows: List<BlockRow>
+	val rows: List<BlockRow>,
+	val onRename: ((jobId: String, currentName: String) -> Unit)? = null,
+	val onCopy: ((jobId: String) -> Unit)? = null,
+	val onEdit: ((jobId: String) -> Unit)? = null,
+	val onErase: ((jobId: String) -> Unit)? = null,
+	val onDelete: ((jobId: String) -> Unit)? = null
 ) : Div(classes = setOf("filter-table", "blocks-table")) {
 
 	/**
@@ -63,7 +71,9 @@ class BlocksTable(
 		val typeOptions = listOf("" to "All Types") + rows.map { it.typeName }.distinct().sorted()
 			.filter { !it.equals("Time", ignoreCase = true) && !it.equals("By Time", ignoreCase = true) }
 			.map { it to it }
-		val stateOptions = listOf("" to "All States") + Node.Status.values().toList().map { statusLabel(it) to statusLabel(it) }
+		val stateOptions = listOf("" to "All States") + Node.Status.values().toList()
+			.filter { it != Node.Status.Unknown }
+			.map { statusLabel(it) to statusLabel(it) }
 
 		val typeSelect = SelectInput(typeOptions, classes = setOf("sharing")).apply {
 			value = ""
@@ -73,10 +83,10 @@ class BlocksTable(
 		}
 
 		val nameSearchInput = TextInput(classes = setOf("search-box")).apply {
-			placeholder = "Search blocks by name"
+			placeholder = "Search blocks..."
 		}
 
-		val filterCountSpan = Span("${rows.size} blocks", classes = setOf("search-results"))
+		val filterCountSpan = Span("Showing ${rows.size} of ${rows.size} blocks", classes = setOf("search-results"))
 
 		fun updateFilter() {
 			val typeVal = typeSelect.value ?: ""
@@ -89,7 +99,7 @@ class BlocksTable(
 					(nameQuery == "" || r.blockName.lowercase().contains(nameQuery))
 			}
 			tableRef?.setData(filtered.map { RowPointer(it) }.toTypedArray())
-			filterCountSpan.content = "${filtered.size} of ${rows.size} blocks"
+			filterCountSpan.content = "Showing ${filtered.size} of ${rows.size} blocks"
 		}
 
 		// Match dashboard .selection layout: search-box-container (search + icon), then search-second-container (dropdowns + count)
@@ -106,7 +116,7 @@ class BlocksTable(
 		}
 		add(selectionBar)
 
-		val tableContainer = div().apply {
+		val tableContainer = div(classes = setOf("blocks-table-body")).apply {
 			position = Position.RELATIVE
 		}
 
@@ -122,6 +132,55 @@ class BlocksTable(
 		}
 
 		val columns = listOf(
+			ColumnDefinition<RowPointer>(
+				title = "",
+				cssClass = "blocks-table-actions-col",
+				formatterComponentFunction = { _, _, p ->
+					val row = rows[p.i]
+					Div(classes = setOf("blocks-table-actions")).apply {
+						add(PathPopup.button("${row.blockName} filesystem location", row.filesystemPath))
+						this@BlocksTable.onRename?.let { cb ->
+							button("", icon = "fas fa-tag").apply {
+								title = "Rename this block"
+								onClick { cb(row.jobId, row.blockName) }
+							}
+						}
+						this@BlocksTable.onCopy?.let { cb ->
+							button("", icon = "far fa-clone").apply {
+								title = "Make a copy of this block"
+								onClick { cb(row.jobId) }
+							}
+						}
+						this@BlocksTable.onEdit?.let { cb ->
+							button("", icon = "fas fa-edit").apply {
+								title = "Edit this block's settings"
+								onClick { cb(row.jobId) }
+							}
+						}
+						this@BlocksTable.onErase?.let { cb ->
+							button("", icon = "fas fa-eraser").apply {
+								title = "Erase files and data"
+								onClick { cb(row.jobId) }
+							}
+						}
+						this@BlocksTable.onDelete?.let { cb ->
+							button("", icon = "fas fa-trash").apply {
+								title = "Delete this block"
+								onClick { cb(row.jobId) }
+							}
+						}
+						if (row.blockPath != null) {
+							button("", icon = "fas fa-eye").apply {
+								title = "View this block"
+								onClick { onGo(row.blockPath!!) }
+							}
+						}
+					}
+				},
+				field = "actions",
+				headerSort = false,
+				sorterFunction = { _, _, _, _, _, _, _ -> 0 }
+			),
 			ColumnDefinition<RowPointer>(
 				title = "Number",
 				formatterComponentFunction = { _, _, p ->
@@ -155,15 +214,7 @@ class BlocksTable(
 				title = "Name",
 				formatterComponentFunction = { _, _, p ->
 					val row = rows[p.i]
-					Div(classes = setOf("block-name-cell")).apply {
-						if (row.blockPath != null) {
-							link(row.blockName, classes = setOf("link")).apply {
-								onGo(row.blockPath!!)
-							}
-						} else {
-							span(row.blockName)
-						}
-					}
+					Span(row.blockName)
 				},
 				field = "blockName",
 				sorterFunction = { _, _, aRow, bRow, _, _, _ ->
@@ -200,17 +251,6 @@ class BlocksTable(
 				field = "status",
 				sorterFunction = { _, _, aRow, bRow, _, _, _ ->
 					rows[aRow.pointer.i].status.ordinal.compareTo(rows[bRow.pointer.i].status.ordinal)
-				}
-			),
-			ColumnDefinition<RowPointer>(
-				title = "Block ID",
-				formatterComponentFunction = { _, _, p ->
-					val row = rows[p.i]
-					Span(row.jobId)
-				},
-				field = "jobId",
-				sorterFunction = { _, _, aRow, bRow, _, _, _ ->
-					rows[aRow.pointer.i].jobId.compareTo(rows[bRow.pointer.i].jobId)
 				}
 			)
 		)

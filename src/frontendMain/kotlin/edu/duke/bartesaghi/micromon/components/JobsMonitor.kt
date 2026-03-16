@@ -553,10 +553,9 @@ class JobsMonitor(
 	private val TimePeriod.elem: Disclosure get() =
 		periodElems.getOrPut(this) {
 			runsElem.disclosure(label = { span(this@elem.display) })
-				.apply {
-					// show today's entries by default
-					open = this@elem == TimePeriod.Today
-				}
+			.apply {
+				open = this@elem != TimePeriod.Older
+			}
 		}
 
 	private fun addRun(entry: RunEntry, now: Date) {
@@ -669,6 +668,38 @@ class JobsMonitor(
 	fun highlightJobRun(runId: Int, jobId: String) {
 		runEntries[runId]?.jobEntries?.get(jobId)?.highlight()
 			?: Toast.error("No logs to highlight, job run is too old")
+	}
+
+	/**
+	 * Filter the Jobs panel to only show entries for the given jobId.
+	 * Pass null to remove the filter and show all entries.
+	 */
+	fun filterByJob(jobId: String?) {
+		for ((_, runEntry) in runEntries) {
+			if (jobId == null) {
+				runEntry.elem.visible = true
+				for ((_, jobEntry) in runEntry.jobEntries) {
+					jobEntry.elem.visible = true
+				}
+			} else {
+				var hasMatch = false
+				for ((jid, jobEntry) in runEntry.jobEntries) {
+					val matches = jid == jobId
+					jobEntry.elem.visible = matches
+					if (matches) hasMatch = true
+				}
+				runEntry.elem.visible = hasMatch
+			}
+		}
+
+		for ((_, periodElem) in periodElems) {
+			if (jobId == null) {
+				periodElem.visible = true
+			} else {
+				val hasVisibleRun = periodElem.disclosedElem.getChildren().any { it.visible }
+				periodElem.visible = hasVisibleRun
+			}
+		}
 	}
 }
 

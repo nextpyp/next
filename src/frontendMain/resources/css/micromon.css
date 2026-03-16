@@ -151,6 +151,9 @@ form,
 	flex-direction: row;
 	align-items: center;
     background-color: #f8f9fa;
+	box-shadow: 0 2px 4px 0px rgba(49, 52, 72, 0.18);
+	z-index: 10;
+	position: relative;
 }
 
 .viewport .navbar {
@@ -1461,12 +1464,12 @@ div.dashboard div.projects div.empty {
 .dashboard .projects .project.selected:after {
 	content: '';
 	position: absolute;
-	top: -8px;
-	bottom: -8px;
-	left: -8px;
-	right: -8px;
+	top: -2px;
+	bottom: -2px;
+	left: -2px;
+	right: -2px;
 	border: solid 3px #007bff;
-	border-radius: 6px;
+	border-radius: 8px;
 }
 
 .dashboard .projects .project .project-title {
@@ -1585,10 +1588,7 @@ div.project-view div.panel-project > div > div {
 	height: 100%;
 }
 
-/* HACKHACK: KVision's internal divs for the StackPanel widget need some tweaking to get scrolling working properly */
-div.project-view div.panel-project-right > div {
-	height: 100%;
-}
+/* KVision's StackPanel wrapper inside panel-project-right is styled via the flex rules below */
 
 /* HACKHACK: needed so flexbox will enforce width restrictions on the project panel */
 .project-view .panel-project > div > div > div > div:first-child { /* container of .panel-project-left */
@@ -1609,17 +1609,13 @@ div.project-view div.panel-project-left {
 }
 
 .project-view .project-view-switcher .project-view-diagram-wrap,
-.project-view .project-view-switcher .blocks-table-container {
+.project-view .project-view-switcher .blocks-table-container,
+.project-view .project-view-switcher .blocks-card-container {
 	position: absolute;
 	top: 0;
 	left: 0;
 	right: 0;
 	bottom: 0;
-	/* Match diagram’s vertical edge next to Jobs panel */
-	border-top: solid 1px #848ca0;
-	border-right: solid 1px #848ca0;
-	border-bottom: solid 1px #848ca0;
-	box-shadow: inset -2px 2px 2px 0px #31344854;
 }
 
 .project-view .project-view-switcher .project-view-diagram-wrap {
@@ -1652,20 +1648,22 @@ div.project-view div.panel-project-left {
 
 .project-view .panel-project-left .panel-project-bottom {
 	background-color: #f8f9fa;
-    border-right: solid 1px #cccfd7;
 }
 
 div.project-view div.panel-project-right {
 	height: 100%;
-	background-color: #f8f9fa;
-	border-top: solid 1px #cccfd7;
+	background-color: transparent;
+	display: flex;
+	flex-direction: column;
+}
+div.project-view div.panel-project-right > div {
+	flex-grow: 1;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
 }
 
 div.project-view div.diagram {
-	border-top: solid 1px #848ca0;
-	border-right: solid 1px #848ca0;
-	border-bottom: solid 1px #848ca0;
-	box-shadow: inset -2px 2px 2px 0px #31344854;
 	position: relative; /* so popups can be absolutely positioned on diagram elements */
 	flex-grow: 1;
 }
@@ -1937,13 +1935,17 @@ div.import-data-popup h1 {
 /* PROJECT VIEW - JOBS MONITOR */
 
 div.project-view div.jobs-monitor {
-	padding-left: 6px;
-	padding-right: 6px;
-	padding-top: 10px;
-	padding-bottom: 10px;
-	height: 100%;
+	padding: 10px 6px;
+	flex-grow: 1;
+	min-height: 0;
 	display: flex;
 	flex-direction: column;
+	margin: 7px;
+	background-color: #ffffff;
+	border-radius: 6px;
+	border: solid 1px #bdc1da;
+	box-shadow: 1px 2px 2px 0px #31344854;
+	box-sizing: border-box;
 }
 
 /* Collapsible Jobs panel: disclosure fills space so runs area can scroll */
@@ -3068,15 +3070,14 @@ div.file-browser .file-browser-bottom .file-browser-controls .file-browser-glob 
 	flex-shrink: 0;
 }
 
-/* BLOCKS TABLE (project view) – filter bar: same structure and style as dashboard .selection */
+/* BLOCKS TABLE (project view) – filter bar */
 .blocks-table .selection {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
-	background-color: #fff;
-	border-bottom: solid 1px #dee2e6;
-	padding: 0.5em 1em;
-	min-height: 56px;
+	box-sizing: border-box;
+	height: var(--project-filter-bar-height);
+	padding: 0 1em;
 }
 
 .blocks-table .selection .search-box-container {
@@ -3150,6 +3151,31 @@ div.file-browser .file-browser-bottom .file-browser-controls .file-browser-glob 
 .blocks-table .block-type-cell .icon,
 .blocks-table .block-state-cell .icon {
 	flex-shrink: 0;
+}
+
+/* Actions column – sessions-style icon buttons in a single row */
+.blocks-table .blocks-table-actions-col {
+	overflow: visible !important;
+}
+
+.blocks-table .blocks-table-actions .btn {
+	width: 28px;
+	height: 28px;
+	padding: 0;
+	margin: 0 2px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	vertical-align: middle;
+	flex-shrink: 0;
+}
+
+.blocks-table .blocks-table-actions {
+	display: inline-flex;
+	align-items: center;
+	flex-wrap: nowrap;
+	gap: 0;
+	white-space: nowrap;
 }
 
 /* BLOCKS TABLE – filter dropdown items: icon + text (same as Type/State columns) */
@@ -4376,4 +4402,348 @@ select.native {
 			}
 		}
 	}
+}
+
+
+/* ========== PROJECT CARD/GALLERY VIEW CHANGES ========== */
+
+/* Allow dropdowns in tab content to extend outside the tab pane */
+.tab-content,
+.tab-pane,
+.kv-tab-content,
+.kv-tabpane {
+	overflow: visible !important;
+}
+
+/* Gallery view: let dropdowns in the context menu bar overflow naturally */
+.blocks-card-view,
+.blocks-card-view .selection,
+.blocks-card-view .card-context-menu {
+	overflow: visible !important;
+}
+.blocks-card-view .card-context-menu .dropdown-menu {
+	max-height: 70vh;
+	overflow-y: auto;
+}
+
+/* Project view: spacing below navbar, bottom-of-bar style to match dashboard */
+div.project-view {
+	--project-filter-bar-height: 52px;
+	padding-top: 4px;
+	border-top: solid 1px #848ca0;
+	box-shadow: inset 0px 2px 2px 0px #31344854;
+}
+
+/* Project toolbar (Import Data, Import Workflow, etc.) floating like dashboard */
+div.project-view div.toolbar {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	margin: 7px;
+	padding: 8px;
+}
+
+/* Gallery view: card container/view overflow */
+.project-view .project-view-switcher .blocks-card-container {
+	overflow: visible;
+}
+
+/* Gallery card context menu: block modified date and size */
+.blocks-card-view .card-context-menu .card-job-info {
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	gap: 1px;
+	margin-left: 10px;
+	padding-left: 10px;
+	border-left: solid 1px #dee2e6;
+	flex-shrink: 0;
+}
+.blocks-card-view .card-context-menu .card-job-info .card-info-field {
+	font-size: 85%;
+	color: #6c757d;
+	white-space: nowrap;
+	line-height: 1.4;
+}
+
+/* List view filters bar: floating panel */
+.blocks-table {
+	--list-floating-panel-inset-x: 7px;
+}
+.blocks-table .selection {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	box-sizing: border-box;
+	height: var(--project-filter-bar-height);
+	padding: 0 8px;
+	margin: 7px var(--list-floating-panel-inset-x);
+	width: calc(100% - 14px);
+	flex-shrink: 0;
+	background-color: #ffffff;
+	border-radius: 6px;
+	border: solid 1px #bdc1da;
+	box-shadow: 1px 2px 2px 0px #31344854;
+}
+/* List view table body: floating panel — top margin so filters-to-table gap matches gallery (filters bar margin 7px + cards padding 4px = 11px) */
+.blocks-table .blocks-table-body {
+	flex-grow: 1;
+	min-height: 0;
+	overflow: auto;
+	box-sizing: border-box;
+	margin: 11px var(--list-floating-panel-inset-x) 7px;
+	width: calc(100% - 14px);
+	background-color: #ffffff;
+	border-radius: 6px;
+	border: solid 1px #bdc1da;
+	box-shadow: 1px 2px 2px 0px #31344854;
+}
+
+/* List view: stage container and table flex layout */
+.project-view .project-view-switcher .blocks-table-container .stage-container {
+	flex-grow: 1;
+	min-height: 0;
+	overflow: hidden;
+	display: flex;
+	flex-direction: column;
+}
+.project-view .project-view-switcher .blocks-table-container .stage-container .blocks-table {
+	display: flex;
+	flex-direction: column;
+	flex-grow: 1;
+	min-height: 0;
+}
+
+/* Gallery view: view switching (hidden state) */
+.project-view-gallery-hidden {
+	display: none !important;
+}
+
+/* Gallery view: card container layout */
+.project-view .project-view-switcher .blocks-card-container {
+	display: flex;
+	flex-direction: column;
+	flex-grow: 1;
+	min-height: 0;
+	overflow: visible;
+}
+.project-view .project-view-switcher .blocks-card-container .stage-container {
+	display: flex;
+	flex-direction: column;
+	flex-grow: 1;
+	min-height: 0;
+	overflow: visible;
+}
+
+/* Gallery view: BlocksCardView layout */
+.blocks-card-view {
+	display: flex;
+	flex-direction: column;
+	flex-grow: 1;
+	min-height: 0;
+	overflow: visible;
+}
+
+/* Gallery view: fixed-height selection/context bar */
+.blocks-card-view .selection {
+	flex-shrink: 0;
+	box-sizing: border-box;
+	overflow: visible;
+	--gallery-topbar-height: var(--project-filter-bar-height);
+}
+
+/* Gallery view: filters bar — same layout as list view filter bar */
+.blocks-card-view .card-filters {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	align-content: center;
+	gap: 8px;
+	padding: 0.5em 8px;
+	box-sizing: border-box;
+	height: var(--gallery-topbar-height);
+}
+/* Gallery view: vertically center form controls in the filter bar */
+.blocks-card-view .card-filters .search-box-container,
+.blocks-card-view .card-filters .type-filter,
+.blocks-card-view .card-filters .state-filter,
+.blocks-card-view .card-filters .sort-order {
+	display: inline-flex;
+	align-items: center;
+}
+.blocks-card-view .card-filters .form-control {
+	margin-top: 0;
+	margin-bottom: 0;
+}
+
+/* Gallery view: search box with magnifying glass (same as list view) */
+.blocks-card-view .card-filters .search-box-container {
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+	width: 160px;
+	min-width: 160px;
+	box-sizing: border-box;
+}
+.blocks-card-view .card-filters .search-box-container .search-box {
+	padding-left: 36px;
+	width: 100%;
+	box-sizing: border-box;
+}
+.blocks-card-view .card-filters .search-box-container .search-box .form-control {
+	width: 100%;
+	box-sizing: border-box;
+}
+.blocks-card-view .card-filters .search-box-container .search-box-icon {
+	position: absolute;
+	top: 50%;
+	left: 12px;
+	transform: translateY(-50%);
+	color: #aaaaaa;
+}
+
+/* Gallery view: equal-width filter controls to avoid mismatch */
+.blocks-card-view .card-filters .type-filter,
+.blocks-card-view .card-filters .state-filter,
+.blocks-card-view .card-filters .sort-order {
+	width: 160px;
+	min-width: 160px;
+	box-sizing: border-box;
+}
+.blocks-card-view .card-filters .type-filter .form-control,
+.blocks-card-view .card-filters .state-filter .form-control,
+.blocks-card-view .card-filters .sort-order .form-control {
+	width: 100%;
+	box-sizing: border-box;
+}
+
+/* Gallery view: context menu bar — fixed height to prevent flicker when switching blocks */
+.blocks-card-view .card-context-menu {
+	display: flex;
+	flex-wrap: nowrap;
+	align-items: center;
+	gap: 6px;
+	padding: 0.5em 8px;
+	box-sizing: border-box;
+	margin: 7px;
+	background-color: #ffffff;
+	border-radius: 6px;
+	border: solid 1px #bdc1da;
+	box-shadow: 1px 2px 2px 0px #31344854;
+	height: var(--gallery-topbar-height);
+	overflow-x: auto;
+	overflow-y: hidden;
+}
+.blocks-card-view .card-context-menu .btn {
+	box-sizing: border-box;
+}
+
+/* Gallery view: cards grid container */
+.blocks-card-view .cards-container {
+	display: flex;
+	flex-wrap: wrap;
+	align-content: flex-start;
+	gap: 4px;
+	padding: 4px 4px 4px 0;
+	flex-grow: 1;
+	min-height: 0;
+	overflow-y: auto;
+	overflow-x: hidden;
+}
+
+/* Gallery view: individual block card */
+.blocks-card-view .block-card {
+	width: 280px;
+	cursor: pointer;
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	transition: box-shadow 0.15s ease;
+}
+.blocks-card-view .block-card:hover {
+	box-shadow: 1px 2px 6px 0px rgba(49, 52, 72, 0.3);
+}
+
+/* Gallery view: selected card blue outline (same as dashboard) */
+.blocks-card-view .block-card.selected::after {
+	content: '';
+	position: absolute;
+	top: -2px;
+	bottom: -2px;
+	left: -2px;
+	right: -2px;
+	border: solid 3px #007bff;
+	border-radius: 8px;
+	pointer-events: none;
+}
+
+/* Gallery view: card header — plain, no background */
+.blocks-card-view .block-card-header {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 6px 8px 2px;
+}
+.blocks-card-view .block-card-header .block-type-icon {
+	color: #495057;
+	flex-shrink: 0;
+}
+.blocks-card-view .block-card-header .block-card-title {
+	font-weight: normal;
+	color: #212529;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	flex-grow: 1;
+	min-width: 0;
+}
+.blocks-card-view .block-card-header .block-card-status {
+	flex-shrink: 0;
+	color: #6c757d;
+	margin-left: auto;
+}
+
+/* Gallery view: card body (thumbnail area) */
+.blocks-card-view .block-card-body {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 80px;
+	padding: 8px;
+	cursor: pointer;
+	overflow: hidden;
+}
+.blocks-card-view .block-card-body .block-card-thumbnail {
+	max-width: 100%;
+	max-height: 160px;
+	object-fit: contain;
+	border-radius: 3px;
+}
+.blocks-card-view .block-card-body .block-card-icon-large {
+	font-size: 36px;
+	color: #adb5bd;
+}
+.blocks-card-view .block-card-body:hover .block-card-icon-large {
+	color: #007bff;
+}
+
+/* Gallery view: card footer (type name + metadata text) */
+.blocks-card-view .block-card-footer {
+	padding: 4px 8px 6px;
+}
+.blocks-card-view .block-card-footer .block-card-type {
+	display: block;
+	font-weight: 500;
+	color: #212529;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.blocks-card-view .block-card-footer .block-card-meta {
+	font-size: 85%;
+	color: #6c757d;
+	line-height: 1.4;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }

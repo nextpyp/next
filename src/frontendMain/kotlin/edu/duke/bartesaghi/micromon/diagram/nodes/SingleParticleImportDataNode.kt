@@ -32,7 +32,7 @@ class SingleParticleImportDataNode(
 		override val config = SingleParticleImportDataNodeConfig
 		override val type = MicromonDiagrams.nodeType(config, "fas fa-layer-group")
 		override val jobClass = SingleParticleImportDataData::class
-		override val urlFragment = null
+		override val urlFragment = "singleParticleImportData"
 
 		override fun makeNode(viewport: Viewport, diagram: Diagram, project: ProjectData, job: JobData) =
 			SingleParticleImportDataNode(viewport, diagram, project, job as SingleParticleImportDataData)

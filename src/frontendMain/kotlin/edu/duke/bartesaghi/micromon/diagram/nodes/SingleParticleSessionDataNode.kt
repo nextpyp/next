@@ -33,7 +33,7 @@ class SingleParticleSessionDataNode(
 		override val config = SingleParticleSessionDataNodeConfig
 		override val type = MicromonDiagrams.nodeType(config, "fas fa-layer-group")
 		override val jobClass = SingleParticleSessionDataData::class
-		override val urlFragment = null
+		override val urlFragment = "singleParticleSessionData"
 
 		override fun makeNode(viewport: Viewport, diagram: Diagram, project: ProjectData, job: JobData) =
 			SingleParticleSessionDataNode(viewport, diagram, project, job as SingleParticleSessionDataData)

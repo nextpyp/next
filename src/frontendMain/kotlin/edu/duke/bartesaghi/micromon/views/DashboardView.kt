@@ -395,6 +395,23 @@ class DashboardView : View {
 				content = Date(project.created).toLocaleString()
 			}
 
+			val blocksSpan = span("")
+			val lastRunSpan = span("")
+			val statsLoading = loading()
+			entry("Blocks") {
+				add(statsLoading)
+				add(blocksSpan)
+			}
+			entry("Last run") {
+				add(lastRunSpan)
+			}
+			AppScope.launch {
+				val stats = Services.projects.getProjectStats(project.owner.id, project.projectId)
+				statsLoading.parent?.remove(statsLoading)
+				blocksSpan.content = stats.blockCount.toString()
+				lastRunSpan.content = stats.lastRunTimestampMs?.let { Date(it).toLocaleString() } ?: "Never"
+			}
+
 			entry("Size") {
 				val loading = loading()
 				AppScope.launch {
