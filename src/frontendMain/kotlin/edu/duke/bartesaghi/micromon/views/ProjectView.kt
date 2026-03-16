@@ -126,9 +126,6 @@ class ProjectView(val project: ProjectData) : View {
 		val importWorkflowButton = toolbarLeft.button("Import Workflow", icon = "fas fa-forward")
 		toolbarLeft.add(PathPopup.button("Project filesystem location", project.path))
 		val selectionDropdown = toolbarLeft.dropDown("Selection", icon = "fas fa-object-ungroup")
-			.apply {
-				enabled = false
-			}
 		
 		// Add view toggle buttons to toolbar
 		val diagramViewButton = toolbarLeft.button("Graph View", icon = "fas fa-project-diagram").apply {
@@ -150,6 +147,7 @@ class ProjectView(val project: ProjectData) : View {
 			diagramViewButton.addCssClass("active")
 			tableViewButton.removeCssClass("active")
 			galleryViewButton.removeCssClass("active")
+			selectionDropdown.enabled = true
 			Storage.projectViewTabIndex = 0
 		}
 
@@ -160,6 +158,7 @@ class ProjectView(val project: ProjectData) : View {
 			diagramViewButton.removeCssClass("active")
 			tableViewButton.addCssClass("active")
 			galleryViewButton.removeCssClass("active")
+			selectionDropdown.enabled = false
 			Storage.projectViewTabIndex = 1
 		}
 
@@ -170,6 +169,7 @@ class ProjectView(val project: ProjectData) : View {
 			diagramViewButton.removeCssClass("active")
 			tableViewButton.removeCssClass("active")
 			galleryViewButton.addCssClass("active")
+			selectionDropdown.enabled = false
 			Storage.projectViewTabIndex = 2
 		}
 
@@ -198,29 +198,39 @@ class ProjectView(val project: ProjectData) : View {
 		diagram.onSelectionChanged = { selectedNodes ->
 
 			// rebuild the selection menu
-			selectionDropdown.enabled = selectedNodes.isNotEmpty()
 			selectionDropdown.removeAll()
 
-			selectionDropdown.header("Selected: ${selectedNodes.size}")
-
-			selectionDropdown.separator()
-
-			selectionDropdown.ddLink("Deselect All").onClick {
-				selectedNodes.forEach { it.selected = false }
+			selectionDropdown.ddLink("Select All").onClick {
+				diagram.nodes().forEach { it.selected = true }
 				diagram.update()
-				diagram.onSelectionChanged(emptyList())
+				diagram.onSelectionChanged(diagram.nodes().filter { it.selected })
 			}
-			selectionDropdown.separator()
 
-			selectionDropdown.ddLink("Copy All").enableClickIf(project.canWrite()) {
-				AppScope.launch {
-					driver.copySelectedNodes(selectedNodes)
+			if (selectedNodes.isNotEmpty()) {
+				selectionDropdown.header("Selected: ${selectedNodes.size}")
+
+				selectionDropdown.separator()
+
+				selectionDropdown.ddLink("Deselect All").onClick {
+					selectedNodes.forEach { it.selected = false }
+					diagram.update()
+					diagram.onSelectionChanged(emptyList())
+				}
+				selectionDropdown.separator()
+
+				selectionDropdown.ddLink("Copy All").enableClickIf(project.canWrite()) {
+					AppScope.launch {
+						driver.copySelectedNodes(selectedNodes)
+					}
+				}
+				selectionDropdown.ddLink("Delete All ...").enableClickIf(project.canWrite()) {
+					driver.showDeleteForm(selectedNodes)
 				}
 			}
-			selectionDropdown.ddLink("Delete All ...").enableClickIf(project.canWrite()) {
-				driver.showDeleteForm(selectedNodes)
-			}
 		}
+
+		// Initialize the dropdown with the Select All option
+		diagram.onSelectionChanged(emptyList())
 
 		// implement the realtime connection protocol
 		val connector = WebsocketConnector(RealTimeServices.project) { signaler, input, output ->
