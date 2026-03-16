@@ -24,6 +24,10 @@ class BlocksCardView(
 	var selectedNode: Node? = null
 		private set
 
+	// Keep track of the currently selected card element so we can
+	// toggle selection styles without re-rendering all cards.
+	private var selectedCardElem: Div? = null
+
 	val contextMenuElem = Div(classes = setOf("card-context-menu"))
 
 	var onSelectionChanged: ((Node?) -> Unit)? = null
@@ -105,16 +109,21 @@ class BlocksCardView(
 	}
 
 	fun select(node: Node) {
-		selectedNode = node
-		showContextMenu()
-		renderCards()
-		onSelectionChanged?.invoke(node)
+		// Called from outside (e.g., programmatic selection). Find the card for this node
+		// and update selection without rebuilding all cards.
+		val cardForNode = cardsContainer.getChildren()
+			.filterIsInstance<Div>()
+			.firstOrNull { it.getAttribute("data-job-id") == node.jobId }
+
+		updateSelection(cardForNode, node)
 	}
 
 	fun deselect() {
+		// Clear selection styles without re-rendering all cards.
+		selectedCardElem?.removeCssClass("selected")
+		selectedCardElem = null
 		selectedNode = null
 		showFilters()
-		renderCards()
 		onSelectionChanged?.invoke(null)
 	}
 
@@ -146,6 +155,10 @@ class BlocksCardView(
 
 	private fun renderCards() {
 		cardsContainer.removeAll()
+
+		// Clear cached selected element; we'll repopulate it if the selected node
+		// is still visible after filtering.
+		selectedCardElem = null
 
 		var filtered = nodes.toList()
 
@@ -194,6 +207,7 @@ class BlocksCardView(
 			}
 
 			val card = cardsContainer.div(classes = setOf("block-card", "dock-window")) {
+				setAttribute("data-job-id", job.jobId)
 
 				div(classes = setOf("block-card-header")) {
 					iconStyled(node.type.iconClass, classes = setOf("block-type-icon"))
@@ -246,13 +260,33 @@ class BlocksCardView(
 
 			card.onClick { event ->
 				event.stopPropagation()
-				select(node)
+				updateSelection(card, node)
 			}
 
 			if (node.jobId == selectedNode?.jobId) {
 				card.addCssClass("selected")
+				selectedCardElem = card
 			}
 		}
+	}
+
+	private fun updateSelection(card: Div?, node: Node) {
+
+		// If we couldn't find the card (e.g. filtered out), just clear selection.
+		if (card == null) {
+			deselect()
+			return
+		}
+
+		// Update visual selection
+		selectedCardElem?.removeCssClass("selected")
+		card.addCssClass("selected")
+		selectedCardElem = card
+
+		// Update state and notify listeners
+		selectedNode = node
+		showContextMenu()
+		onSelectionChanged?.invoke(node)
 	}
 
 	companion object {
