@@ -326,34 +326,10 @@ class ClusterJobLogViewer(
 					inline = true
 					enabled = clusterJobLog.failedArrayIds.isNotEmpty()
 				}
+
 				val loadButton = Button("Load")
 
-				// layout the UI
-				add(idContainer)
-				span("of ${clusterJobLog.arraySize}")
-				add(loadButton)
-				add(showOnlyFailuresCheck)
-
-				// wire up events
-				fun updateVisibility() {
-					idContainer.removeAll()
-					if (showOnlyFailuresCheck.value) {
-						idContainer.span {
-							// NOTE: surround in a span to work around an apparent bug in snabdom
-							//       where the dropdown can't be removed from the real DOM
-							add(failedArrayIdDropdown)
-						}
-					} else {
-						idContainer.add(arrayIdSpinner)
-					}
-				}
-				showOnlyFailuresCheck.onEvent {
-					change = {
-						updateVisibility()
-					}
-				}
-				loadButton.onClick {
-
+				fun loadSelectedArrayLog() {
 					val arrayId: Int? =
 						if (showOnlyFailuresCheck.value) {
 							failedArrayIdDropdown.value
@@ -364,6 +340,39 @@ class ClusterJobLogViewer(
 						}
 					if (arrayId != null) {
 						loadArrayLog(arrayId)
+					}
+				}
+
+				// layout the UI
+				add(idContainer)
+				span("of ${clusterJobLog.arraySize}")
+				add(loadButton)
+				add(showOnlyFailuresCheck)
+
+				// wire up events
+				fun updateVisibility() {
+					idContainer.removeAll()
+					loadButton.visible = !showOnlyFailuresCheck.value
+					if (showOnlyFailuresCheck.value) {
+						idContainer.span {
+							// NOTE: surround in a span to work around an apparent bug in snabdom
+							//       where the dropdown can't be removed from the real DOM
+							add(failedArrayIdDropdown)
+						}
+						loadSelectedArrayLog()
+					} else {
+						idContainer.add(arrayIdSpinner)
+					}
+				}
+				loadButton.onClick {
+					loadSelectedArrayLog()
+				}
+				failedArrayIdDropdown.onEvent {
+					change = { loadSelectedArrayLog() }
+				}
+				showOnlyFailuresCheck.onEvent {
+					change = {
+						updateVisibility()
 					}
 				}
 
