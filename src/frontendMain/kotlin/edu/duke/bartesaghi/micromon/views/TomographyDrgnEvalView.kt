@@ -110,49 +110,60 @@ class TomographyDrgnEvalView(val project: ProjectData, val job: TomographyDrgnEv
 			)
 			dimensionsNav.newItem()
 
-			// make the tabs panel
+			// make the tabs panel with two top-level tabs
 			tabs = elem.lazyTabPanel {
 
 				persistence = Storage::tomographyDrgnEvalTabIndex
 
 				if (!evalParams.skipumap) {
+					addTab("K-means", "fas fa-chart-pie") { lazyTab ->
+						lazyTab.elem.flatLazyTabPanel {
+							persistence = Storage::tomographyDrgnEvalKmeansSubTabIndex
 
-					addTab("K-means (classes)", "fas fa-chart-pie") { lazyTab ->
-						umapReconstructionTab = UmapReconstructionTab(evalParams.numClasses).also {
-							lazyTab.elem.add(it)
-							lazyTab.onActivate = { it.revalidate() }
-						}
-					}
+							addTab("Classes", "fas fa-chart-pie") { subTab ->
+								umapReconstructionTab = UmapReconstructionTab(evalParams.numClasses).also {
+									subTab.elem.add(it)
+									subTab.onActivate = { it.revalidate() }
+								}
+							}
 
-					addTab("K-means (movie)", "fas fa-film") { lazyTab ->
-						umapClassesMovieTab = UmapClassesMovieTab(evalParams.numClasses).also {
-							lazyTab.elem.add(it)
-						}
-					}
+							addTab("Movie", "fas fa-film") { subTab ->
+								umapClassesMovieTab = UmapClassesMovieTab(evalParams.numClasses).also {
+									subTab.elem.add(it)
+								}
+							}
 
-					addTab("K-means (3D view)", "fas fa-cube") { lazyTab ->
-						umapThreeDeeTab = UmapThreeDeeTab(evalParams.numClasses).also {
-							lazyTab.elem.add(it)
+							addTab("3D View", "fas fa-cube") { subTab ->
+								umapThreeDeeTab = UmapThreeDeeTab(evalParams.numClasses).also {
+									subTab.elem.add(it)
+								}
+							}
 						}
 					}
 				}
 
-				addTab("PC sampling (classes)", "fas fa-ruler-horizontal") { lazyTab ->
-					pcaReconstructionTab = PcaReconstructionTab(10).also {
-						lazyTab.elem.add(it)
-						lazyTab.onActivate = { it.revalidate() }
-					}
-				}
+				addTab("PC sampling", "fas fa-ruler-horizontal") { lazyTab ->
+					lazyTab.elem.flatLazyTabPanel {
+						persistence = Storage::tomographyDrgnEvalPcaSubTabIndex
 
-				addTab("PC sampling (movie)", "fas fa-film") { lazyTab ->
-					pcaClassesMovieTab = PcaClassesMovieTab(10).also {
-						lazyTab.elem.add(it)
-					}
-				}
+						addTab("Classes", "fas fa-ruler-horizontal") { subTab ->
+							pcaReconstructionTab = PcaReconstructionTab(10).also {
+								subTab.elem.add(it)
+								subTab.onActivate = { it.revalidate() }
+							}
+						}
 
-				addTab("PC sampling (3D view)", "fas fa-cube") { lazyTab ->
-					pcaThreeDeeTab = PcaThreeDeeTab(10).also {
-						lazyTab.elem.add(it)
+						addTab("Movie", "fas fa-film") { subTab ->
+							pcaClassesMovieTab = PcaClassesMovieTab(10).also {
+								subTab.elem.add(it)
+							}
+						}
+
+						addTab("3D View", "fas fa-cube") { subTab ->
+							pcaThreeDeeTab = PcaThreeDeeTab(10).also {
+								subTab.elem.add(it)
+							}
+						}
 					}
 				}
 			}
