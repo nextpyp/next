@@ -1577,6 +1577,8 @@ div.project-view div.toolbar {
 	padding: 8px;
 	display: flex;
 	flex-direction: row;
+	flex-wrap: nowrap;
+	overflow: hidden;
 }
 
 .project-view .toolbar-left,
@@ -1584,7 +1586,13 @@ div.project-view div.toolbar {
 .project-view .toolbar-right {
 	display: flex;
 	flex-direction: row;
+	flex-wrap: nowrap;
 	gap: 10px;
+}
+
+div.project-view div.toolbar .btn {
+	white-space: nowrap;
+	flex-shrink: 0;
 }
 
 div.project-view div.toolbar-fill {
@@ -3086,11 +3094,12 @@ div.file-browser .file-browser-bottom .file-browser-controls .file-browser-glob 
 /* BLOCKS TABLE (project view) – filter bar */
 .blocks-table .selection {
 	display: flex;
-	flex-wrap: wrap;
+	flex-wrap: nowrap;
 	align-items: center;
 	box-sizing: border-box;
 	height: var(--project-filter-bar-height);
 	padding: 0 1em;
+	overflow: hidden;
 }
 
 .blocks-table .selection .search-box-container {
@@ -3098,6 +3107,8 @@ div.file-browser .file-browser-bottom .file-browser-controls .file-browser-glob 
 	display: inline-flex;
 	align-items: center;
 	width: 300px;
+	min-width: 100px;
+	flex-shrink: 1;
 	margin-right: 20px;
 	margin-bottom: 0;
 }
@@ -3117,8 +3128,11 @@ div.file-browser .file-browser-bottom .file-browser-controls .file-browser-glob 
 .blocks-table .selection .search-second-container {
 	display: inline-flex;
 	align-items: center;
-	flex-wrap: wrap;
+	flex-wrap: nowrap;
 	gap: 0 12px;
+	flex-shrink: 1;
+	min-width: 0;
+	overflow: hidden;
 }
 
 .blocks-table .selection .filter-type-wrap,
@@ -3149,6 +3163,11 @@ div.file-browser .file-browser-bottom .file-browser-controls .file-browser-glob 
 
 .blocks-table .selection .search-results {
 	margin-left: 20px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	flex-shrink: 1;
+	min-width: 0;
 }
 
 /* BLOCKS TABLE (project view) – spacing between icons and text */
@@ -4485,7 +4504,7 @@ div.project-view div.toolbar {
 }
 .blocks-table .selection {
 	display: flex;
-	flex-wrap: wrap;
+	flex-wrap: nowrap;
 	align-items: center;
 	box-sizing: border-box;
 	height: var(--project-filter-bar-height);
@@ -4493,6 +4512,7 @@ div.project-view div.toolbar {
 	margin: 7px var(--list-floating-panel-inset-x);
 	width: calc(100% - 14px);
 	flex-shrink: 0;
+	overflow: hidden;
 	background-color: #ffffff;
 	border-radius: 6px;
 	border: solid 1px #bdc1da;
@@ -4568,13 +4588,14 @@ div.project-view div.toolbar {
 /* Gallery view: filters bar — same layout as list view filter bar */
 .blocks-card-view .card-filters {
 	display: flex;
-	flex-wrap: wrap;
+	flex-wrap: nowrap;
 	align-items: center;
 	align-content: center;
 	gap: 8px;
 	padding: 0.5em 8px;
 	box-sizing: border-box;
 	height: var(--gallery-topbar-height);
+	overflow: hidden;
 }
 /* Gallery view: vertically center form controls in the filter bar */
 .blocks-card-view .card-filters .search-box-container,
@@ -4594,6 +4615,7 @@ div.project-view div.toolbar {
 	position: relative;
 	display: inline-flex;
 	align-items: center;
+	flex-shrink: 1;
 	width: 160px;
 	min-width: 160px;
 	box-sizing: border-box;
@@ -4620,7 +4642,8 @@ div.project-view div.toolbar {
 .blocks-card-view .card-filters .state-filter,
 .blocks-card-view .card-filters .sort-order {
 	width: 160px;
-	min-width: 160px;
+	min-width: 80px;
+	flex-shrink: 1;
 	box-sizing: border-box;
 }
 .blocks-card-view .card-filters .type-filter .form-control,
@@ -4649,6 +4672,8 @@ div.project-view div.toolbar {
 }
 .blocks-card-view .card-context-menu .btn {
 	box-sizing: border-box;
+	white-space: nowrap;
+	flex-shrink: 0;
 }
 
 /* Gallery view: cards grid container */
