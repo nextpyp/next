@@ -38,6 +38,7 @@ import js.getHTMLElementOrThrow
 import js.micromondiagrams.allSized
 import js.values
 import kotlin.js.Date
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 
 
@@ -348,6 +349,7 @@ class ProjectView(val project: ProjectData) : View {
 		private val blocksByConfigId = HashMap<String,Block>()
 		/** Tracks the most recent run timestamp for each job */
 		private val lastRunTimestampByJobId = HashMap<String,Long>()
+		private var contextMenuBuildJob: Job? = null
 
 		init {
 			// wire up events
@@ -525,6 +527,8 @@ class ProjectView(val project: ProjectData) : View {
 		}
 
 		private fun buildCardContextMenu(cardView: BlocksCardView, node: Node?) {
+			contextMenuBuildJob?.cancel()
+
 			val ctx = cardView.contextMenuElem
 			ctx.removeAll()
 
@@ -533,145 +537,145 @@ class ProjectView(val project: ProjectData) : View {
 				return
 			}
 
-			val job = node.baseJob
+			contextMenuBuildJob = AppScope.launch {
+				val job = node.baseJob
 
-			// 1. Rename (icon only)
-			ctx.button("", icon = "fas fa-tag").apply {
-				title = "Rename this block"
-				enableClickIf(project.canWrite()) {
-					val win = Modal(
-						caption = "Rename",
-						escape = true,
-						closeButton = true,
-						classes = setOf("dashboard-popup")
-					)
-					val nameText = TextInput(value = job.name)
-					win.add(nameText)
-					val renameButton = Button("Rename")
-					win.addButton(renameButton)
+				// 1. Rename (icon only)
+				ctx.button("", icon = "fas fa-tag").apply {
+					title = "Rename this block"
+					enableClickIf(project.canWrite()) {
+						val win = Modal(
+							caption = "Rename",
+							escape = true,
+							closeButton = true,
+							classes = setOf("dashboard-popup")
+						)
+						val nameText = TextInput(value = job.name)
+						win.add(nameText)
+						val renameButton = Button("Rename")
+						win.addButton(renameButton)
 
-					fun submit() {
-						val name = nameText.value ?: return
-						win.hide()
+						fun submit() {
+							val name = nameText.value ?: return
+							win.hide()
+							AppScope.launch {
+								node.baseJob = JobData.deserialize(Services.projects.renameJob(node.jobId, name))
+								diagram.update()
+								cardView.refreshCards()
+							}
+						}
+						renameButton.onClick { submit() }
+						nameText.onEnter { submit() }
+						win.show()
+					}
+				}
+
+				// 2. Copy (icon only)
+				ctx.button("", icon = "far fa-clone").apply {
+					title = "Make a copy of this block"
+					enableClickIf(project.canWrite() && node.onCopyClick != null) {
+						node.onCopyClick?.invoke()
+					}
+				}
+
+				// 3. Edit (icon only)
+				ctx.button("", icon = "fas fa-edit").apply {
+					title = "Edit this block's settings"
+					onClick { node.onEdit(enabled = project.canWrite()) }
+				}
+
+				// 4. Location (icon only)
+				ctx.add(PathPopup.button("", job.common.path))
+
+				// 5. Runnable
+				ctx.button("Runnable", icon = "fas fa-recycle").apply {
+					title = "Make this block runnable"
+					enableClickIf(project.canWrite() && !job.common.stale) {
+						node.onMakeRunnableClick?.invoke()
 						AppScope.launch {
-							node.baseJob = JobData.deserialize(Services.projects.renameJob(node.jobId, name))
-							diagram.update()
+							delay(500)
 							cardView.refreshCards()
-						}
-					}
-					renameButton.onClick { submit() }
-					nameText.onEnter { submit() }
-					win.show()
-				}
-			}
-
-			// 2. Copy (icon only)
-			ctx.button("", icon = "far fa-clone").apply {
-				title = "Make a copy of this block"
-				enableClickIf(project.canWrite() && node.onCopyClick != null) {
-					node.onCopyClick?.invoke()
-				}
-			}
-
-			// 3. Edit (icon only)
-			ctx.button("", icon = "fas fa-edit").apply {
-				title = "Edit this block's settings"
-				onClick { node.onEdit(enabled = project.canWrite()) }
-			}
-
-			// 4. Location (icon only)
-			ctx.add(PathPopup.button("", job.common.path))
-
-			// 5. Runnable
-			ctx.button("Runnable", icon = "fas fa-recycle").apply {
-				title = "Make this block runnable"
-				enableClickIf(project.canWrite() && !job.common.stale) {
-					node.onMakeRunnableClick?.invoke()
-					AppScope.launch {
-						delay(500)
-						cardView.refreshCards()
-						buildCardContextMenu(cardView, node)
-					}
-				}
-			}
-
-			// 6. Up-to-date
-			ctx.button("Up-to-date", icon = "fas fa-check-double").apply {
-				title = "Mark this block as up to date"
-				enableClickIf(project.canWrite() && job.common.stale) {
-					node.onMakeUpToDateClick?.invoke()
-					AppScope.launch {
-						delay(500)
-						cardView.refreshCards()
-						buildCardContextMenu(cardView, node)
-					}
-				}
-			}
-
-			// 7. Erase (icon only)
-			ctx.button("", icon = "fas fa-eraser").apply {
-				title = "Delete files and data produced by this block, but keep the block configuration"
-				enableClickIf(project.canWrite()) {
-					node.onDeleteFilesClick?.invoke()
-				}
-			}
-
-			// 8. Delete (icon only)
-			ctx.button("", icon = "fas fa-trash").apply {
-				title = "Delete this block"
-				enableClickIf(project.canWrite()) {
-					node.onDeleteClick?.invoke()
-				}
-			}
-
-			// 9. Run Block
-			val isUpToDate = node.status == Node.Status.Ended && !job.common.stale && node.getUpstreamNodesIteratively().none { it.baseJob.isChanged() }
-			ctx.button("Run Block", icon = "fas fa-play").apply {
-				title = if (isUpToDate) "Block is already up to date" else "Run this block immediately"
-				addCssClass("btn-primary")
-				enableClickIf(project.canWrite() && !isUpToDate) {
-					AppScope.launch {
-						try {
-							Services.projects.run(project.owner.id, project.projectId, listOf(node.jobId))
-						} catch (t: Throwable) {
-							Toast.error(t.message ?: "(Unknown error)")
+							buildCardContextMenu(cardView, node)
 						}
 					}
 				}
-			}
 
-			// 10. Add Block dropdown
-			val outputDatas = node.config.outputs
-			if (outputDatas.isNotEmpty() && project.canWrite()) {
-				data class AddBlockEntry(
-					val outData: NodeConfig.Data,
-					val inData: NodeConfig.Data,
-					val inConfig: NodeConfig
-				)
-				val entries = mutableListOf<AddBlockEntry>()
-				for (data in outputDatas) {
-					for ((nodeConfig, usingInputs) in NodeConfigs.findNodesUsing(data)) {
-						if (nodeConfig.enabled && nodeConfig.status == NodeConfig.NodeStatus.Regular) {
-							entries.add(AddBlockEntry(data, usingInputs.first(), nodeConfig))
+				// 6. Up-to-date
+				ctx.button("Up-to-date", icon = "fas fa-check-double").apply {
+					title = "Mark this block as up to date"
+					enableClickIf(project.canWrite() && job.common.stale) {
+						node.onMakeUpToDateClick?.invoke()
+						AppScope.launch {
+							delay(500)
+							cardView.refreshCards()
+							buildCardContextMenu(cardView, node)
 						}
 					}
 				}
-				if (entries.isNotEmpty()) {
-					ctx.dropDown("Add Block", icon = "fas fa-plus") {
-						for (entry in entries.distinctBy { it.inConfig.configId }.sortedBy { it.inConfig.name }) {
-							ddLink(entry.inConfig.name, icon = entry.inConfig.clientInfo.type.iconClass).onClick {
-								AppScope.launch {
-									showUseDataForm(node, entry.outData, entry.inData, entry.inConfig)
+
+				// 7. Erase (icon only)
+				ctx.button("", icon = "fas fa-eraser").apply {
+					title = "Delete files and data produced by this block, but keep the block configuration"
+					enableClickIf(project.canWrite()) {
+						node.onDeleteFilesClick?.invoke()
+					}
+				}
+
+				// 8. Delete (icon only)
+				ctx.button("", icon = "fas fa-trash").apply {
+					title = "Delete this block"
+					enableClickIf(project.canWrite()) {
+						node.onDeleteClick?.invoke()
+					}
+				}
+
+				// 9. Run Block — compute up-to-date check lazily
+				val isUpToDate = node.status == Node.Status.Ended && !job.common.stale && node.getUpstreamNodesIteratively().none { it.baseJob.isChanged() }
+				ctx.button("Run Block", icon = "fas fa-play").apply {
+					title = if (isUpToDate) "Block is already up to date" else "Run this block immediately"
+					addCssClass("btn-primary")
+					enableClickIf(project.canWrite() && !isUpToDate) {
+						AppScope.launch {
+							try {
+								Services.projects.run(project.owner.id, project.projectId, listOf(node.jobId))
+							} catch (t: Throwable) {
+								Toast.error(t.message ?: "(Unknown error)")
+							}
+						}
+					}
+				}
+
+				// 10. Add Block dropdown
+				val outputDatas = node.config.outputs
+				if (outputDatas.isNotEmpty() && project.canWrite()) {
+					data class AddBlockEntry(
+						val outData: NodeConfig.Data,
+						val inData: NodeConfig.Data,
+						val inConfig: NodeConfig
+					)
+					val entries = mutableListOf<AddBlockEntry>()
+					for (data in outputDatas) {
+						for ((nodeConfig, usingInputs) in NodeConfigs.findNodesUsing(data)) {
+							if (nodeConfig.enabled && nodeConfig.status == NodeConfig.NodeStatus.Regular) {
+								entries.add(AddBlockEntry(data, usingInputs.first(), nodeConfig))
+							}
+						}
+					}
+					if (entries.isNotEmpty()) {
+						ctx.dropDown("Add Block", icon = "fas fa-plus") {
+							for (entry in entries.distinctBy { it.inConfig.configId }.sortedBy { it.inConfig.name }) {
+								ddLink(entry.inConfig.name, icon = entry.inConfig.clientInfo.type.iconClass).onClick {
+									AppScope.launch {
+										showUseDataForm(node, entry.outData, entry.inData, entry.inConfig)
+									}
 								}
 							}
 						}
 					}
 				}
-			}
 
-			// Date modified and size
-			val infoElem = ctx.div(classes = setOf("card-job-info"))
-			AppScope.launch {
+				// Date modified and size
+				val infoElem = ctx.div(classes = setOf("card-job-info"))
 				val info = try {
 					Services.projects.getJobInfo(node.jobId)
 				} catch (t: Throwable) {
@@ -682,10 +686,10 @@ class ProjectView(val project: ProjectData) : View {
 				val sizeStr = info?.sizeBytes?.toBytesString() ?: "—"
 				infoElem.span("Modified: $dateStr", classes = setOf("card-info-field"))
 				infoElem.span("Size: $sizeStr", classes = setOf("card-info-field"))
-			}
 
-			// Filter JobsMonitor to only show logs for this block
-			jobsMonitor.filterByJob(node.jobId)
+				// Filter JobsMonitor to only show logs for this block
+				jobsMonitor.filterByJob(node.jobId)
+			}
 		}
 
 		fun wireEvents(node: Node) {
