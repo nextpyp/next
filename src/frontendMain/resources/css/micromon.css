@@ -1543,6 +1543,19 @@ div.running-project-grid {
 	padding: 6px;
 }
 
+div.job-stats {
+	font-size: 90%;
+	color: var(--text-muted, #888);
+	padding: 6px 0;
+	border-top: 1px solid var(--border-color, #333);
+	margin-top: 6px;
+}
+
+div.project-view div.jobs-monitor div.job-stats {
+	margin: 6px 0 0 10px;
+	flex-shrink: 0;
+}
+
 div.dashboard .not-logged-in {
 	text-align: center;
 	margin-top: 60px;

@@ -421,15 +421,30 @@ class JobsMonitor(
 	private val runsElem = Div(classes = setOf("runs"))
 	private val periodElems = HashMap<TimePeriod,Disclosure>()
 	private val emptyMessage = Div("no jobs to display", classes = setOf("empty"))
+	private val statsElem = Div(classes = setOf("job-stats"))
 
 	init {
 		elem.add(
 			Disclosure(
 				label = { h1("Jobs") },
-				disclosed = { add(runsElem) },
+				disclosed = {
+					add(runsElem)
+					add(statsElem)
+				},
 				classes = setOf("jobs-panel-disclosure")
 			)
 		)
+	}
+
+	private fun updateStats() {
+		val allJobs = runEntries.values.flatMap { it.jobEntries.values }
+		val totalRunning = allJobs.count { it.status == RunStatus.Running }
+		val totalWaiting = allJobs.count { it.status == RunStatus.Waiting }
+		val parts = mutableListOf<String>()
+		if (totalRunning > 0) parts.add("$totalRunning running")
+		if (totalWaiting > 0) parts.add("$totalWaiting queued")
+		statsElem.content = if (parts.isNotEmpty()) parts.joinToString(", ") else ""
+		statsElem.visible = parts.isNotEmpty()
 	}
 
 	fun init(msg: RealTimeS2C.ProjectStatus) {
@@ -483,6 +498,8 @@ class JobsMonitor(
 			// no history, show a placeholder
 			runsElem.add(emptyMessage)
 		}
+
+		updateStats()
 	}
 
 	private fun addRuns(runs: List<ProjectRunData>, now: Date) {
@@ -510,6 +527,7 @@ class JobsMonitor(
 		runEntries[msg.runId] = entry
 		entry.init(msg)
 		addRun(entry, Date())
+		updateStats()
 	}
 
 	private enum class TimePeriod(val display: String) {
@@ -620,6 +638,7 @@ class JobsMonitor(
 			runEntry.jobEntries[msg.jobId]?.start(msg)
 			runEntry.updateCancelable()
 		}
+		updateStats()
 	}
 
 	fun finishJob(msg: RealTimeS2C.JobFinish) {
@@ -627,10 +646,12 @@ class JobsMonitor(
 			runEntry.jobEntries[msg.jobId]?.finish(msg)
 			runEntry.updateCancelable()
 		}
+		updateStats()
 	}
 
 	fun finishRun(msg: RealTimeS2C.ProjectRunFinish) {
 		runEntries[msg.runId]?.finish(msg)
+		updateStats()
 	}
 
 	fun submitClusterJob(msg: RealTimeS2C.ClusterJobSubmit) {
@@ -663,6 +684,7 @@ class JobsMonitor(
 				removeRun(run)
 			}
 		}
+		updateStats()
 	}
 
 	fun highlightJobRun(runId: Int, jobId: String) {

@@ -618,13 +618,33 @@ class DashboardView : View {
 
 		val session = Session.get() ?: return
 
+		val statsElem = Div(classes = setOf("job-stats"))
+
 		AppScope.launch {
 
 			// find out which projects, if any, have running jobs
 			val runningProjects = Services.projects.listRunning(session.id)
-			for (project in runningProjects) {
-				runningJobsElem.add(RunningProject(project))
+			val widgets = mutableListOf<RunningProject>()
+
+			fun updateStats() {
+				val totalRunning = widgets.sumOf { it.runningJobCount }
+				val totalWaiting = widgets.sumOf { it.waitingJobCount }
+				statsElem.removeAll()
+				val parts = mutableListOf<String>()
+				if (totalRunning > 0) parts.add("$totalRunning running")
+				if (totalWaiting > 0) parts.add("$totalWaiting queued")
+				statsElem.content = if (parts.isNotEmpty()) parts.joinToString(", ") else ""
 			}
+
+			for (project in runningProjects) {
+				val widget = RunningProject(project).apply {
+					onCountsChanged = { updateStats() }
+				}
+				widgets.add(widget)
+				runningJobsElem.add(widget)
+			}
+
+			runningJobsElem.add(statsElem)
 
 			// if we got any running projects, show the UI
 			if (runningProjects.isNotEmpty()) {

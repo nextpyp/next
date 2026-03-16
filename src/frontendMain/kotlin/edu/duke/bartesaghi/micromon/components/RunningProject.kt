@@ -21,6 +21,12 @@ class RunningProject(val project: ProjectData) : Div(classes = setOf("running-pr
 	private val jobs = HashMap<String,JobData>()
 	private var connector: WebsocketConnector? = null
 
+	var runningJobCount: Int = 0
+		private set
+	var waitingJobCount: Int = 0
+		private set
+	var onCountsChanged: (() -> Unit)? = null
+
 	init {
 
 		// finish layout
@@ -78,10 +84,17 @@ class RunningProject(val project: ProjectData) : Div(classes = setOf("running-pr
 		// get the most recent running run, if any
 		val run = msg.recentRuns.lastOrNull { it.status == RunStatus.Running }
 		if (run == null) {
+			runningJobCount = 0
+			waitingJobCount = 0
+			onCountsChanged?.invoke()
 			iconElem.icon = RunStatus.Canceled.toIcon()
 			statusElem.div("(nothing currently running)")
 			return
 		}
+
+		runningJobCount = run.jobs.count { it.status == RunStatus.Running }
+		waitingJobCount = run.jobs.count { it.status == RunStatus.Waiting }
+		onCountsChanged?.invoke()
 
 		// briefly show the status
 		timestampElem.content = "Run started at ${Date(run.timestamp).toLocaleString()}"
@@ -103,6 +116,10 @@ class RunningProject(val project: ProjectData) : Div(classes = setOf("running-pr
 
 	private fun jobStart(msg: RealTimeS2C.JobStart) {
 
+		if (waitingJobCount > 0) waitingJobCount--
+		runningJobCount = 1
+		onCountsChanged?.invoke()
+
 		// update the currently running job
 		val name = jobName(msg.jobId)
 		jobElem.apply {
@@ -113,6 +130,10 @@ class RunningProject(val project: ProjectData) : Div(classes = setOf("running-pr
 	}
 
 	private fun runFinish(msg: RealTimeS2C.ProjectRunFinish) {
+
+		runningJobCount = 0
+		waitingJobCount = 0
+		onCountsChanged?.invoke()
 
 		// set to finished state
 		iconElem.icon = msg.status.toIcon()
