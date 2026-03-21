@@ -3099,7 +3099,8 @@ div.file-browser .file-browser-bottom .file-browser-controls .file-browser-glob 
 	box-sizing: border-box;
 	height: var(--project-filter-bar-height);
 	padding: 0 1em;
-	overflow: hidden;
+	/* visible so filter dropdown menus are not clipped */
+	overflow: visible;
 }
 
 .blocks-table .selection .search-box-container {
@@ -3132,7 +3133,7 @@ div.file-browser .file-browser-bottom .file-browser-controls .file-browser-glob 
 	gap: 0 12px;
 	flex-shrink: 1;
 	min-width: 0;
-	overflow: hidden;
+	overflow: visible;
 }
 
 .blocks-table .selection .filter-type-wrap,
@@ -4512,7 +4513,7 @@ div.project-view div.toolbar {
 	margin: 7px var(--list-floating-panel-inset-x);
 	width: calc(100% - 14px);
 	flex-shrink: 0;
-	overflow: hidden;
+	overflow: visible;
 	background-color: #ffffff;
 	border-radius: 6px;
 	border: solid 1px #bdc1da;
@@ -4595,7 +4596,7 @@ div.project-view div.toolbar {
 	padding: 0.5em 8px;
 	box-sizing: border-box;
 	height: var(--gallery-topbar-height);
-	overflow: hidden;
+	overflow: visible;
 }
 /* Gallery view: vertically center form controls in the filter bar */
 .blocks-card-view .card-filters .search-box-container,
