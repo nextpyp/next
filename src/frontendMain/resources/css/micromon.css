@@ -2383,7 +2383,6 @@ img.large-scale-down {
 	since Bootstrap has top-level CSS classes named exactly that.
 */
 .log-streamer .tqdm-progress {
-	margin-left: 10px;
 }
 
 .log-streamer .tqdm-progress .box {

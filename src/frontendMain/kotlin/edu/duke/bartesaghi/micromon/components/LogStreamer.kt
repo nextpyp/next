@@ -233,6 +233,7 @@ class LogStreamer(
 				val timeStampText = msg.timestamp.timestampToString()
 				lineElem.span(classes = setOf("timestamp")) {
 					span(timeStampText)
+					span(" ")
 				}
 				lineElem.add(newBar)
 			}
