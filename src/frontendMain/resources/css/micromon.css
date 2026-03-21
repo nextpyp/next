@@ -1578,7 +1578,8 @@ div.project-view div.toolbar {
 	display: flex;
 	flex-direction: row;
 	flex-wrap: nowrap;
-	overflow: hidden;
+	/* visible so Bootstrap dropdown menus (e.g. Selection) are not clipped by this bar */
+	overflow: visible;
 }
 
 .project-view .toolbar-left,
