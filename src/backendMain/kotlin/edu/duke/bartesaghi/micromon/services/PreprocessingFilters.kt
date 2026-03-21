@@ -10,39 +10,72 @@ import org.bson.Document
 
 open class PreprocessingFilters private constructor(
 	val ownerId: String,
-	val db: PreprocessingFiltersDB
+	val db: PreprocessingFiltersDB,
+	/**
+	 * Before per-type namespaces, table filters lived under the bare preprocessing [jobId] in Mongo.
+	 * We merge reads from [ownerId] (`jobId/TABLE`) and this legacy id; saves go to [ownerId] and
+	 * remove a same-named legacy row so lists do not duplicate.
+	 */
+	private val legacyTableOwnerId: String? = null
 ) {
 
 	companion object {
 
 		fun ofJob(jobId: String, filterType: PreprocessingFilterType = PreprocessingFilterType.TABLE) =
-			PreprocessingFilters("$jobId/${filterType.name}", Database.instance.jobPreprocessingFilters)
+			PreprocessingFilters(
+				ownerId = "$jobId/${filterType.name}",
+				db = Database.instance.jobPreprocessingFilters,
+				legacyTableOwnerId = if (filterType == PreprocessingFilterType.TABLE) jobId else null
+			)
 
 		fun ofSession(sessionId: String) =
 			PreprocessingFilters(sessionId, Database.instance.sessionPreprocessingFilters)
 	}
 
 	fun getAll(): List<PreprocessingFilter> {
-		return db.getAll(ownerId) { cursor ->
+		val current = db.getAll(ownerId) { cursor ->
 			cursor
 				.map { PreprocessingFilter.fromDoc(it) }
 				.toList()
 		}
+		val legacy = legacyTableOwnerId?.let { lid ->
+			db.getAll(lid) { cursor ->
+				cursor
+					.map { PreprocessingFilter.fromDoc(it) }
+					.toList()
+			}
+		} ?: emptyList()
+		if (legacy.isEmpty()) {
+			return current
+		}
+		val currentNames = current.map { it.name }.toSet()
+		return current + legacy.filter { it.name !in currentNames }
 	}
 
 	operator fun get(name: String): PreprocessingFilter? {
 		return db.get(ownerId, name)
 			?.let { PreprocessingFilter.fromDoc(it) }
+			?: legacyTableOwnerId?.let { lid ->
+				db.get(lid, name)?.let { PreprocessingFilter.fromDoc(it) }
+			}
 	}
 
 	fun save(filter: PreprocessingFilter) {
 		db.write(ownerId, filter.name) {
 			filter.toDoc(it)
 		}
+		legacyTableOwnerId?.let { lid ->
+			if (db.get(lid, filter.name) != null) {
+				db.delete(lid, filter.name)
+			}
+		}
 	}
 
 	fun delete(name: String) {
 		db.delete(ownerId, name)
+		legacyTableOwnerId?.let { lid ->
+			db.delete(lid, name)
+		}
 	}
 }
 

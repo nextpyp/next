@@ -76,10 +76,14 @@ actual class BlocksService : IBlocksService, Service {
 	}
 
 	private fun parseFilterOptionsState(state: String?): Pair<String, PreprocessingFilterType> {
-		val parts = state?.split(",", limit = 2) ?: throw BadRequestException("no state given")
-		if (parts.size != 2) throw BadRequestException("state must be jobId,filterType")
-		val jobId = parts[0].trim()
-		val type = when (parts[1].trim().uppercase()) {
+		val raw = state?.trim() ?: throw BadRequestException("no state given")
+		val comma = raw.indexOf(',')
+		// Legacy: nodes passed only the preprocessing job id (table filters); default to TABLE.
+		if (comma < 0) {
+			return raw to PreprocessingFilterType.TABLE
+		}
+		val jobId = raw.substring(0, comma).trim()
+		val type = when (raw.substring(comma + 1).trim().uppercase()) {
 			"TABLE" -> PreprocessingFilterType.TABLE
 			"PRISMPYP" -> PreprocessingFilterType.PRISMPYP
 			else -> throw BadRequestException("filterType must be TABLE or PRISMPYP")
