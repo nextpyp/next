@@ -1740,10 +1740,20 @@ div.project-view div.diagram div.node div.css-pnz53c:after {
 	border-radius: 6px;
 }
 
+/* Match dashboard project-card selection ring style exactly */
 div.project-view div.diagram div.node .selected {
-	outline: solid 6px #007bff;
-	outline-offset: 10px;
-	border-radius: 6px;
+	position: relative;
+}
+div.project-view div.diagram div.node .selected::after {
+	content: '';
+	position: absolute;
+	top: -2px;
+	bottom: -2px;
+	left: -2px;
+	right: -2px;
+	border: solid 4px #007bff;
+	border-radius: 8px;
+	pointer-events: none;
 }
 
 div.project-view div.diagram div.node div.title {
@@ -4698,6 +4708,9 @@ div.project-view div.toolbar {
 	display: flex;
 	flex-direction: column;
 	transition: box-shadow 0.15s ease;
+	/* Override shared .dock-window padding so the title bar is flush like graph nodes */
+	padding: 0;
+	overflow: visible;
 }
 .blocks-card-view .block-card:hover {
 	box-shadow: 1px 2px 6px 0px rgba(49, 52, 72, 0.3);
@@ -4711,35 +4724,42 @@ div.project-view div.toolbar {
 	bottom: -2px;
 	left: -2px;
 	right: -2px;
-	border: solid 3px #007bff;
+	border: solid 4px #007bff;
 	border-radius: 8px;
 	pointer-events: none;
 }
 
-/* Gallery view: card header — plain, no background */
+/* Gallery view: card header — use original markup, but mirror graph node title styling */
 .blocks-card-view .block-card-header {
+	background: linear-gradient(to bottom, #d9dfe6 0%, #b5bcc4 100%);
+	padding-right: 6px;
+	border: none;
+	border-top-left-radius: 3px;
+	border-top-right-radius: 3px;
 	display: flex;
-	align-items: center;
-	gap: 6px;
-	padding: 6px 8px 2px;
+	flex-direction: row;
+	cursor: pointer;
 }
 .blocks-card-view .block-card-header .block-type-icon {
-	color: #495057;
+	margin-right: 4px;
+	background-color: #69696942;
+	padding-left: 4px;
+	padding-right: 4px;
+	line-height: 22px;
+	border-top-left-radius: 3px;
 	flex-shrink: 0;
 }
 .blocks-card-view .block-card-header .block-card-title {
-	font-weight: normal;
-	color: #212529;
+	flex-grow: 1;
+	min-width: 0;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
-	flex-grow: 1;
-	min-width: 0;
 }
 .blocks-card-view .block-card-header .block-card-status {
+	line-height: 22px;
+	margin-left: 6px;
 	flex-shrink: 0;
-	color: #6c757d;
-	margin-left: auto;
 }
 
 /* Gallery view: card body (thumbnail area) */
