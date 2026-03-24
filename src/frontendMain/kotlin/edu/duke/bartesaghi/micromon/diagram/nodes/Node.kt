@@ -350,7 +350,7 @@ abstract class Node(
 					dropdownItem(enabled = project.canWrite(), title = "Rename this block", onClick = {
 						showRename()
 					}) {
-						icon("fas fa-tag", className = "icon")
+						icon("fas fa-i-cursor", className = "icon")
 						text("Rename")
 					}
 

@@ -562,7 +562,7 @@ class ProjectView(val project: ProjectData) : View {
 				val job = node.baseJob
 
 				// 1. Rename (icon only)
-				ctx.button("", icon = "fas fa-tag").apply {
+				ctx.button("", icon = "fas fa-i-cursor").apply {
 					title = "Rename this block"
 					enableClickIf(project.canWrite()) {
 						val win = Modal(
