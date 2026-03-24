@@ -143,7 +143,7 @@ class BlocksTable(
 					Div(classes = setOf("blocks-table-actions")).apply {
 						add(PathPopup.button("${row.blockName} filesystem location", row.filesystemPath))
 						this@BlocksTable.onRename?.let { cb ->
-							button("", icon = "fas fa-tag").apply {
+							button("", icon = "fas fa-i-cursor").apply {
 								title = "Rename this block"
 								onClick { cb(row.jobId, row.blockName) }
 							}
