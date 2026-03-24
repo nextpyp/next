@@ -1584,8 +1584,10 @@ div.project-view div.toolbar {
 	column-gap: 10px;
 	box-sizing: border-box;
 	min-width: 0;
-	width: 100%;
-	max-width: 100%;
+	/* margin:7px + width:100% overflows; Jobs card uses margin:7px — fit box so right edges line up */
+	margin: 7px;
+	width: calc(100% - 14px);
+	max-width: calc(100% - 14px);
 	/* visible so Bootstrap dropdown menus (e.g. Selection) are not clipped by this bar */
 	overflow: visible;
 }
@@ -4557,15 +4559,6 @@ div.project-view {
 	padding-top: 4px;
 	border-top: solid 1px #848ca0;
 	box-shadow: inset 0px 2px 2px 0px #31344854;
-}
-
-/* Project toolbar (Import Data, Import Workflow, etc.) floating like dashboard */
-div.project-view div.toolbar {
-	display: flex;
-	flex-direction: row;
-	align-items: center;
-	margin: 7px;
-	padding: 8px;
 }
 
 /* Gallery view: card container/view overflow */
