@@ -3,7 +3,7 @@ package edu.duke.bartesaghi.micromon.components
 import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.diagram.nodes.Node
 import edu.duke.bartesaghi.micromon.iconStyled
-import edu.duke.bartesaghi.micromon.onGo
+import edu.duke.bartesaghi.micromon.routing
 import edu.duke.bartesaghi.micromon.services.ProjectData
 import edu.duke.bartesaghi.micromon.components.PathPopup
 import io.kvision.core.onEvent
@@ -16,6 +16,9 @@ import io.kvision.tabulator.*
 import io.kvision.tabulator.js.Tabulator.RowComponent
 import io.kvision.utils.toKotlinObj
 import kotlin.js.Date
+import org.w3c.dom.Element
+import org.w3c.dom.Node as DomNode
+import org.w3c.dom.events.Event
 
 /**
  * Row data for one block (job) in the project blocks table.
@@ -133,7 +136,7 @@ class BlocksTable(
 
 		val columns = listOf(
 			ColumnDefinition<RowPointer>(
-				title = "",
+				title = "Actions",
 				cssClass = "blocks-table-actions-col",
 				formatterComponentFunction = { _, _, p ->
 					val row = rows[p.i]
@@ -167,12 +170,6 @@ class BlocksTable(
 							button("", icon = "fas fa-trash").apply {
 								title = "Delete this block"
 								onClick { cb(row.jobId) }
-							}
-						}
-						if (row.blockPath != null) {
-							button("", icon = "fas fa-eye").apply {
-								title = "View this block"
-								onClick { onGo(row.blockPath!!) }
 							}
 						}
 					}
@@ -266,7 +263,12 @@ class BlocksTable(
 					layout = Layout.FITDATA,
 					columns = columns,
 					pagination = PaginationMode.LOCAL,
-					paginationSize = 20
+					paginationSize = 20,
+					rowClick = { e, row ->
+						if (!shouldIgnoreRowClickForOpenBlock(e)) {
+							rows[row.pointer.i].blockPath?.let { routing.go(it) }
+						}
+					}
 				)
 			)
 			updateFilter()
@@ -279,6 +281,27 @@ class BlocksTable(
 		Node.Status.Waiting -> "fas fa-clock"
 		Node.Status.Running -> "fas fa-cog fa-spin"
 		Node.Status.Ended -> "fas fa-check"
+	}
+
+	/**
+	 * Row clicks open the block view; ignore clicks on action buttons and the actions column
+	 * so those keep their own behavior.
+	 */
+	private fun shouldIgnoreRowClickForOpenBlock(event: Event): Boolean {
+		var node: DomNode? = event.target.unsafeCast<DomNode?>()
+		while (node != null) {
+			(node as? Element)?.let { el ->
+				val tag = el.tagName.lowercase()
+				if (tag == "button" || tag == "a" || tag == "input" || tag == "select" || tag == "textarea") {
+					return true
+				}
+				if (el.classList.contains("blocks-table-actions")) {
+					return true
+				}
+			}
+			node = node.parentNode
+		}
+		return false
 	}
 
 	private fun statusLabel(status: Node.Status): String = when (status) {

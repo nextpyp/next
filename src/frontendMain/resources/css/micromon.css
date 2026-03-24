@@ -1468,7 +1468,7 @@ div.dashboard div.projects div.empty {
 	bottom: -2px;
 	left: -2px;
 	right: -2px;
-	border: solid 3px #007bff;
+	border: solid 4px #007bff;
 	border-radius: 8px;
 }
 
@@ -1577,7 +1577,15 @@ div.project-view div.toolbar {
 	padding: 8px;
 	display: flex;
 	flex-direction: row;
-	flex-wrap: nowrap;
+	flex-wrap: wrap;
+	align-items: center;
+	align-content: center;
+	row-gap: 8px;
+	column-gap: 10px;
+	box-sizing: border-box;
+	min-width: 0;
+	width: 100%;
+	max-width: 100%;
 	/* visible so Bootstrap dropdown menus (e.g. Selection) are not clipped by this bar */
 	overflow: visible;
 }
@@ -1587,8 +1595,16 @@ div.project-view div.toolbar {
 .project-view .toolbar-right {
 	display: flex;
 	flex-direction: row;
-	flex-wrap: nowrap;
+	flex-wrap: wrap;
+	align-items: center;
+	align-content: center;
 	gap: 10px;
+	min-width: 0;
+}
+
+.project-view .toolbar-center,
+.project-view .toolbar-right {
+	flex-shrink: 0;
 }
 
 div.project-view div.toolbar .btn {
@@ -1596,8 +1612,30 @@ div.project-view div.toolbar .btn {
 	flex-shrink: 0;
 }
 
+/* Keep dropdowns from collapsing (Selection, etc.) */
+.project-view .toolbar .dropdown {
+	flex-shrink: 0;
+}
+
 div.project-view div.toolbar-fill {
-	flex-grow: 1;
+	flex: 1 1 32px;
+	min-width: 0;
+}
+
+/* Very narrow: stack tool groups; hide flex spacers so Run / websocket stay usable */
+@media (max-width: 560px) {
+	div.project-view div.toolbar {
+		flex-direction: column;
+		align-items: stretch;
+	}
+	div.project-view div.toolbar-fill {
+		display: none;
+	}
+	.project-view .toolbar-left,
+	.project-view .toolbar-center,
+	.project-view .toolbar-right {
+		justify-content: flex-start;
+	}
 }
 
 div.project-view div.panel-project {
@@ -1732,12 +1770,12 @@ div.project-view div.diagram div.node div.css-pnz53c { /* selected node */
 div.project-view div.diagram div.node div.css-pnz53c:after {
 	content: '';
 	position: absolute;
-	top: -8px;
-	bottom: -8px;
-	left: -8px;
-	right: -8px;
+	top: -10px;
+	bottom: -10px;
+	left: -10px;
+	right: -10px;
 	border: solid 3px #007bff;
-	border-radius: 6px;
+	border-radius: 8px;
 }
 
 /* Match dashboard project-card selection ring style exactly */
@@ -1747,12 +1785,12 @@ div.project-view div.diagram div.node .selected {
 div.project-view div.diagram div.node .selected::after {
 	content: '';
 	position: absolute;
-	top: -2px;
-	bottom: -2px;
-	left: -2px;
-	right: -2px;
+	top: -6px;
+	bottom: -6px;
+	left: -6px;
+	right: -6px;
 	border: solid 4px #007bff;
-	border-radius: 8px;
+	border-radius: 10px;
 	pointer-events: none;
 }
 
@@ -4500,7 +4538,8 @@ div.project-view div.toolbar {
 	margin-left: 10px;
 	padding-left: 10px;
 	border-left: solid 1px #dee2e6;
-	flex-shrink: 0;
+	flex: 1 1 180px;
+	min-width: 0;
 }
 .blocks-card-view .card-context-menu .card-job-info .card-info-field {
 	font-size: 85%;
@@ -4588,10 +4627,13 @@ div.project-view div.toolbar {
 	overflow: visible;
 }
 
-/* Gallery view: fixed-height selection/context bar */
+/* Gallery view: selection/context bar — min height; grows when controls wrap */
 .blocks-card-view .selection {
 	flex-shrink: 0;
 	box-sizing: border-box;
+	min-width: 0;
+	width: 100%;
+	max-width: 100%;
 	overflow: visible;
 	--gallery-topbar-height: var(--project-filter-bar-height);
 }
@@ -4599,13 +4641,18 @@ div.project-view div.toolbar {
 /* Gallery view: filters bar — same layout as list view filter bar */
 .blocks-card-view .card-filters {
 	display: flex;
-	flex-wrap: nowrap;
+	flex-wrap: wrap;
 	align-items: center;
 	align-content: center;
 	gap: 8px;
 	padding: 0.5em 8px;
 	box-sizing: border-box;
-	height: var(--gallery-topbar-height);
+	min-height: var(--gallery-topbar-height);
+	height: auto;
+	width: calc(100% - 14px);
+	max-width: calc(100% - 14px);
+	min-width: 0;
+	margin: 7px;
 	overflow: visible;
 }
 /* Gallery view: vertically center form controls in the filter bar */
@@ -4626,9 +4673,10 @@ div.project-view div.toolbar {
 	position: relative;
 	display: inline-flex;
 	align-items: center;
-	flex-shrink: 1;
-	width: 160px;
-	min-width: 160px;
+	flex: 1 1 120px;
+	min-width: 0;
+	max-width: 200px;
+	width: auto;
 	box-sizing: border-box;
 }
 .blocks-card-view .card-filters .search-box-container .search-box {
@@ -4652,9 +4700,10 @@ div.project-view div.toolbar {
 .blocks-card-view .card-filters .type-filter,
 .blocks-card-view .card-filters .state-filter,
 .blocks-card-view .card-filters .sort-order {
-	width: 160px;
-	min-width: 80px;
-	flex-shrink: 1;
+	flex: 1 1 120px;
+	min-width: 0;
+	max-width: 200px;
+	width: auto;
 	box-sizing: border-box;
 }
 .blocks-card-view .card-filters .type-filter .form-control,
@@ -4664,26 +4713,34 @@ div.project-view div.toolbar {
 	box-sizing: border-box;
 }
 
-/* Gallery view: context menu bar — fixed height to prevent flicker when switching blocks */
+/* Gallery view: context menu bar — wraps on narrow viewports; horizontal scroll if still tight */
 .blocks-card-view .card-context-menu {
 	display: flex;
-	flex-wrap: nowrap;
+	flex-wrap: wrap;
 	align-items: center;
+	align-content: center;
 	gap: 6px;
 	padding: 0.5em 8px;
 	box-sizing: border-box;
 	margin: 7px;
+	width: calc(100% - 14px);
+	max-width: calc(100% - 14px);
+	min-width: 0;
 	background-color: #ffffff;
 	border-radius: 6px;
 	border: solid 1px #bdc1da;
 	box-shadow: 1px 2px 2px 0px #31344854;
-	height: var(--gallery-topbar-height);
+	min-height: var(--gallery-topbar-height);
+	height: auto;
 	overflow-x: auto;
-	overflow-y: hidden;
+	overflow-y: visible;
 }
 .blocks-card-view .card-context-menu .btn {
 	box-sizing: border-box;
 	white-space: nowrap;
+	flex-shrink: 0;
+}
+.blocks-card-view .card-context-menu .dropdown {
 	flex-shrink: 0;
 }
 
@@ -4708,7 +4765,7 @@ div.project-view div.toolbar {
 	display: flex;
 	flex-direction: column;
 	transition: box-shadow 0.15s ease;
-	/* Override shared .dock-window padding so the title bar is flush like graph nodes */
+	/* Override shared .dock-window padding */
 	padding: 0;
 	overflow: visible;
 }
@@ -4729,24 +4786,23 @@ div.project-view div.toolbar {
 	pointer-events: none;
 }
 
-/* Gallery view: card header — use original markup, but mirror graph node title styling */
+/* Gallery view: card header — plain row (no title-bar / graph-node styling) */
 .blocks-card-view .block-card-header {
-	background: linear-gradient(to bottom, #d9dfe6 0%, #b5bcc4 100%);
-	padding-right: 6px;
+	background: transparent;
+	padding: 6px 8px 4px;
 	border: none;
-	border-top-left-radius: 3px;
-	border-top-right-radius: 3px;
+	border-radius: 0;
 	display: flex;
 	flex-direction: row;
+	align-items: center;
 	cursor: pointer;
 }
 .blocks-card-view .block-card-header .block-type-icon {
-	margin-right: 4px;
-	background-color: #69696942;
-	padding-left: 4px;
-	padding-right: 4px;
-	line-height: 22px;
-	border-top-left-radius: 3px;
+	margin-right: 6px;
+	background-color: transparent;
+	padding: 0;
+	line-height: 1.2;
+	border-radius: 0;
 	flex-shrink: 0;
 }
 .blocks-card-view .block-card-header .block-card-title {
@@ -4757,7 +4813,7 @@ div.project-view div.toolbar {
 	white-space: nowrap;
 }
 .blocks-card-view .block-card-header .block-card-status {
-	line-height: 22px;
+	line-height: 1.2;
 	margin-left: 6px;
 	flex-shrink: 0;
 }
