@@ -224,6 +224,10 @@ class ProjectView(val project: ProjectData) : View {
 				}
 				selectionDropdown.separator()
 
+				selectionDropdown.ddLink("Run All").enableClickIf(project.canWrite()) {
+					driver.runSelectedNodes(selectedNodes)
+				}
+
 				selectionDropdown.ddLink("Copy All").enableClickIf(project.canWrite()) {
 					AppScope.launch {
 						driver.copySelectedNodes(selectedNodes)
@@ -1493,6 +1497,24 @@ class ProjectView(val project: ProjectData) : View {
 
 		private fun runAll() {
 			showRunPopup(diagram.nodes().filter { it.isRunnable() })
+		}
+
+		/** Runs [selectedNodes] that are runnable, without opening the run dialog (same job set as the dialog would allow). */
+		fun runSelectedNodes(selectedNodes: List<Node>) {
+			val runnable = selectedNodes.filter { it.isRunnable() }
+			if (runnable.isEmpty()) {
+				Toast.info("None of the selected blocks are runnable (nothing to run or already up to date).")
+				return
+			}
+			val jobIds = runnable.map { it.jobId }
+			AppScope.launch {
+				try {
+					Services.projects.run(project.owner.id, project.projectId, jobIds)
+				} catch (t: Throwable) {
+					t.reportError()
+					Toast.error(t.message ?: "(Unknown error)")
+				}
+			}
 		}
 
 		private fun showRunPopup(nodes: List<Node>) {
