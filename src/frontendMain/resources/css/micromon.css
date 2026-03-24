@@ -2016,28 +2016,42 @@ div.project-view div.jobs-monitor {
 	border: solid 1px #bdc1da;
 	box-shadow: 1px 2px 2px 0px #31344854;
 	box-sizing: border-box;
+	overflow: hidden;
 }
 
-/* Collapsible Jobs panel: disclosure fills space so runs area can scroll */
+/* Collapsible Jobs panel: disclosure fills space so runs area can scroll.
+   Row layout keeps the caret on the same line as the "Jobs" heading (default .disclosure is row).
+   Cross-axis stretch + overflow hidden on the content column bounds .runs so it scrolls inside the card
+   (align-items:flex-start made the column height content-sized and let the list spill past the box). */
 div.project-view div.jobs-monitor div.jobs-panel-disclosure {
 	flex-grow: 1;
 	display: flex;
-	flex-direction: column;
+	flex-direction: row;
+	align-items: stretch;
 	min-height: 0;
+	overflow: hidden;
+}
+
+div.project-view div.jobs-monitor div.jobs-panel-disclosure div.disclosure-icon {
+	flex-shrink: 0;
+	align-self: flex-start;
 }
 
 div.project-view div.jobs-monitor div.jobs-panel-disclosure div.disclosure-content {
 	flex-grow: 1;
+	min-width: 0;
+	min-height: 0;
 	display: flex;
 	flex-direction: column;
-	min-height: 0;
+	overflow: hidden;
 }
 
 div.project-view div.jobs-monitor div.jobs-panel-disclosure div.disclosure-disclosed {
-	flex-grow: 1;
+	flex: 1 1 auto;
 	min-height: 0;
 	display: flex;
 	flex-direction: column;
+	overflow: hidden;
 }
 
 div.project-view div.jobs-monitor h1 {
@@ -2046,7 +2060,8 @@ div.project-view div.jobs-monitor h1 {
 }
 
 div.project-view div.jobs-monitor div.runs {
-	flex-grow: 1;
+	flex: 1 1 auto;
+	min-height: 0;
 	overflow-y: auto;
 	overflow-x: clip;
 	padding-bottom: 80px;
@@ -4558,23 +4573,24 @@ div.project-view div.toolbar {
 	overflow: visible;
 }
 
-/* Gallery card context menu: block modified date and size */
+/* Gallery card context menu: block modified date and size (stacked lines, compact to fit toolbar-like bar) */
 .blocks-card-view .card-context-menu .card-job-info {
 	display: flex;
 	flex-direction: column;
 	justify-content: center;
-	gap: 1px;
+	gap: 0;
 	margin-left: 10px;
 	padding-left: 10px;
 	border-left: solid 1px #dee2e6;
 	flex: 1 1 180px;
 	min-width: 0;
+	box-sizing: border-box;
 }
 .blocks-card-view .card-context-menu .card-job-info .card-info-field {
-	font-size: 85%;
+	font-size: 80%;
 	color: #6c757d;
 	white-space: nowrap;
-	line-height: 1.4;
+	line-height: 1.2;
 }
 
 /* List view filters bar: floating panel */
@@ -4591,7 +4607,8 @@ div.project-view div.toolbar {
 	min-height: var(--project-filter-bar-height);
 	height: auto;
 	min-width: 0;
-	padding: 0 8px;
+	/* Match gallery .card-filters vertical padding */
+	padding: 8px;
 	margin: 7px var(--list-floating-panel-inset-x);
 	width: calc(100% - 14px);
 	max-width: calc(100% - 14px);
@@ -4661,7 +4678,7 @@ div.project-view div.toolbar {
 	overflow: visible;
 }
 
-/* Gallery view: selection/context bar — min height; grows when controls wrap */
+/* Gallery view: selection/context bar — padding and density aligned with div.project-view div.toolbar (Import Data row) */
 .blocks-card-view .selection {
 	flex-shrink: 0;
 	box-sizing: border-box;
@@ -4679,7 +4696,7 @@ div.project-view div.toolbar {
 	align-items: center;
 	align-content: center;
 	gap: 8px;
-	padding: 0.5em 8px;
+	padding: 8px;
 	box-sizing: border-box;
 	min-height: var(--gallery-topbar-height);
 	height: auto;
@@ -4754,7 +4771,7 @@ div.project-view div.toolbar {
 	align-items: center;
 	align-content: center;
 	gap: 6px;
-	padding: 0.5em 8px;
+	padding: 8px;
 	box-sizing: border-box;
 	margin: 7px;
 	width: calc(100% - 14px);

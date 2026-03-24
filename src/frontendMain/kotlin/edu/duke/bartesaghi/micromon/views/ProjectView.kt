@@ -699,18 +699,20 @@ class ProjectView(val project: ProjectData) : View {
 					}
 				}
 
-				// Date modified and size
+				// Date modified and size — render placeholders before the suspend so the bar
+				// height does not jump when getJobInfo completes.
 				val infoElem = ctx.div(classes = setOf("card-job-info"))
+				val modifiedSpan = infoElem.span("Modified: —", classes = setOf("card-info-field"))
+				val sizeSpan = infoElem.span("Size: —", classes = setOf("card-info-field"))
 				val info = try {
 					Services.projects.getJobInfo(node.jobId)
 				} catch (t: Throwable) {
 					null
 				}
-				infoElem.removeAll()
 				val dateStr = info?.createdMs?.let { Date(it.toDouble()).toLocaleString() } ?: "—"
 				val sizeStr = info?.sizeBytes?.toBytesString() ?: "—"
-				infoElem.span("Modified: $dateStr", classes = setOf("card-info-field"))
-				infoElem.span("Size: $sizeStr", classes = setOf("card-info-field"))
+				modifiedSpan.content = "Modified: $dateStr"
+				sizeSpan.content = "Size: $sizeStr"
 
 				// Filter JobsMonitor to only show logs for this block
 				jobsMonitor.filterByJob(node.jobId)
@@ -811,15 +813,20 @@ class ProjectView(val project: ProjectData) : View {
 
 					win.add(includeDownstreamCheck)
 					if (downstream.isNotEmpty()) {
-						win.div(classes = setOf("spaced")) {
-							content = (
-								"Downstream blocks that would be included:"
-							)
-						}
-						win.unorderedList {
-							for (n in downstream) {
-								element(n.baseJob.numberedName)
+						val downstreamSection = Div(classes = setOf("spaced")).apply {
+							visible = false
+							div {
+								content = "Downstream blocks that would be included:"
 							}
+							unorderedList {
+								for (n in downstream) {
+									element(n.baseJob.numberedName)
+								}
+							}
+						}
+						win.add(downstreamSection)
+						includeDownstreamCheck.onEvent {
+							change = { downstreamSection.visible = includeDownstreamCheck.value }
 						}
 					}
 					win.addButton(Button("Cancel").onClick { win.hide() })
