@@ -173,11 +173,6 @@ class ProjectView(val project: ProjectData) : View {
 			Storage.projectViewTabIndex = 2
 		}
 
-		// Wire up view toggle events
-		diagramViewButton.onClick { showDiagramView() }
-		tableViewButton.onClick { showTableView() }
-		galleryViewButton.onClick { showGalleryView() }
-
 		// Restore last view from storage
 		when (Storage.projectViewTabIndex) {
 			1 -> showTableView()
@@ -187,6 +182,17 @@ class ProjectView(val project: ProjectData) : View {
 		val runButton = toolbarRight.button("Run")
 
 		val driver = DiagramDriver(viewport, diagram, runButton, panelRight, panelBottom)
+
+		// Wire up view toggle events (after driver: gallery selection filters the jobs panel)
+		diagramViewButton.onClick {
+			showDiagramView()
+			driver.clearJobsPanelJobFilter()
+		}
+		tableViewButton.onClick {
+			showTableView()
+			driver.clearJobsPanelJobFilter()
+		}
+		galleryViewButton.onClick { showGalleryView() }
 
 		// wire up toolbar events
 		importDataButton.enableClickIf(project.canWrite()) {
@@ -367,6 +373,11 @@ class ProjectView(val project: ProjectData) : View {
 			runButton.enableClickIf(project.canWrite()) {
 				runAll()
 			}
+		}
+
+		/** Clears the per-block filter applied when a gallery card is selected ([buildCardContextMenu]). */
+		fun clearJobsPanelJobFilter() {
+			jobsMonitor.filterByJob(null)
 		}
 
 		fun init(msg: RealTimeS2C.ProjectStatus) {
