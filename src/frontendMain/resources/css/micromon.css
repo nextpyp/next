@@ -1709,7 +1709,7 @@ div.project-view div.panel-project-left {
 }
 
 .project-view .panel-project-left .panel-project-bottom {
-	background-color: #f8f9fa;
+	background-color: transparent;
 }
 
 div.project-view div.panel-project-right {
@@ -2383,24 +2383,38 @@ img.large-scale-down {
 }
 
 .cluster-job-logs-pinned {
-	padding: 8px;
+	padding: 10px 6px;
 	max-height: 400px;
 	display: flex;
 	flex-direction: column;
 	overflow-y: hidden;
+	margin: 7px;
+	background-color: #ffffff;
+	border-radius: 6px;
+	border: solid 1px #bdc1da;
+	box-shadow: 1px 2px 2px 0px #31344854;
+	box-sizing: border-box;
 }
 
 .cluster-job-logs-pinned .header {
 	display: flex;
 	flex-direction: row;
+	align-items: center;
+}
+
+/* Spacer that mirrors the 18px disclosure-icon column in the Jobs panel so the title aligns visually */
+.cluster-job-logs-pinned .header .cluster-job-logs-pinned-lead {
+	width: 18px;
+	flex-shrink: 0;
 }
 
 .cluster-job-logs-pinned .header .title {
 	flex-grow: 1;
-	font-size: 120%;
+	font-size: 130%;
+	margin: 0;
 }
 
-.cluster-job-logs-pinned .header .button {
+.cluster-job-logs-pinned .header button {
 	width: 24px;
 	height: 24px;
 	padding: 0;
