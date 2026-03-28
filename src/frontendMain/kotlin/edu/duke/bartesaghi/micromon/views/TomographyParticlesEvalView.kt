@@ -78,10 +78,13 @@ class TomographyParticlesEvalView(val project: ProjectData, val job: TomographyP
 			}
 		}
 
+		val bar = elem.div(classes = setOf("block-view-bar"))
+		val content = elem.div(classes = setOf("block-view-content"))
+
 		AppScope.launch {
 
 			// load all the tilt series
-			val loadingElem = elem.loading("Fetching tilt-series ...")
+			val loadingElem = content.loading("Fetching tilt-series ...")
 			val data = TiltSeriesesData()
 			val pypStats = try {
 				delayAtLeast(200) {
@@ -94,10 +97,10 @@ class TomographyParticlesEvalView(val project: ProjectData, val job: TomographyP
 					Services.jobs.pypStats(job.jobId)
 				}
 			} catch (t: Throwable) {
-				elem.errorMessage(t)
+				content.errorMessage(t)
 				return@launch
 			} finally {
-				elem.remove(loadingElem)
+				content.remove(loadingElem)
 			}
 
 			val args = try {
@@ -105,24 +108,22 @@ class TomographyParticlesEvalView(val project: ProjectData, val job: TomographyP
 					TomographyParticlesEvalNode.pypArgs.get()
 				}
 			} catch (t: Throwable) {
-				elem.errorMessage(t)
+				content.errorMessage(t)
 				return@launch
-			} finally {
-				elem.remove(loadingElem)
 			}
 			val finishedValues = job.args.finished?.values?.toArgValues(args)
 
 			// show tilt series stats
 			val tiltSeriesStats = TiltSeriesStats()
 			tiltSeriesStats.loadCounts(data, OwnerType.Project, job.jobId, pickingControls.list)
-			elem.add(tiltSeriesStats)
+			bar.add(tiltSeriesStats)
 
 			// show PYP stats
 			val statsLine = PypStatsLine(pypStats)
-				.also { elem.add(it) }
+				.also { bar.add(it) }
 
 			// make the tabs panel
-			tabs = elem.lazyTabPanel {
+			tabs = content.lazyTabPanel {
 
 				persistence = Storage::tomographyParticlesEvalTabIndex
 
@@ -215,7 +216,8 @@ class TomographyParticlesEvalView(val project: ProjectData, val job: TomographyP
 				}
 			}
 			this@TomographyParticlesEvalView.connector = connector
-			elem.add(WebsocketControl(connector))
+			bar.add(WebsocketControl(connector))
+			bar.visible = true
 			connector.connect()
 		}
 	}

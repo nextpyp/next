@@ -19,7 +19,8 @@ class AdminPerfTab(val elem: Container) {
 	val out = Tag(TAG.PRE)
 
 	init {
-		elem.div {
+		elem.addCssClass("tab")
+		elem.div(classes = setOf("tab-button-bar")) {
 			button("Refresh")
 				.onClick {
 					poll()

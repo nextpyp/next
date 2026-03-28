@@ -13,7 +13,7 @@ class TiltSeriesStats : Div(classes = setOf("tiltseries-stats")) {
 	private var particlesCount: Long = 0
 
 	init {
-		content = "(loading ...)"
+		content = ""
 	}
 
 	suspend fun loadCounts(data: TiltSeriesesData, ownerType: OwnerType, ownerId: String, list: ParticlesList?) {

@@ -81,24 +81,26 @@ class SingleParticleDrgnView(val project: ProjectData, val job: SingleParticleDr
 			}
 		}
 
+		val content = elem.div(classes = setOf("block-view-content"))
+
 		AppScope.launch {
 
 			// load all the converenge, if any
-			val loadingElem = elem.loading("Fetching analysis ...")
+			val loadingElem = content.loading("Fetching analysis ...")
 			val evalParams: SingleParticleDrgnParams? = try {
 				delayAtLeast(200) {
 					Services.singleParticleDrgn.getParams(job.jobId)
 						.unwrap()
 				}
 			} catch (t: Throwable) {
-				elem.errorMessage(t)
+				content.errorMessage(t)
 				return@launch
 			} finally {
-				elem.remove(loadingElem)
+				content.remove(loadingElem)
 			}
 
 			if (evalParams == null) {
-				elem.emptyMessage("No data to show yet")
+				content.emptyMessage("No data to show yet")
 				return@launch
 			}
 
@@ -111,7 +113,7 @@ class SingleParticleDrgnView(val project: ProjectData, val job: SingleParticleDr
 			dimensionsNav.newItem()
 
 			// make the tabs panel
-			tabs = elem.lazyTabPanel {
+			tabs = content.lazyTabPanel {
 
 				persistence = Storage::singleParticleDrgnTabIndex
 

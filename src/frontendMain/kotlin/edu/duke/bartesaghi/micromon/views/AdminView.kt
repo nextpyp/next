@@ -47,36 +47,33 @@ class AdminView : View {
 			}
 		}
 
-		update(viewport)
-	}
-
-	private fun update(viewport: Viewport) {
-
-		elem.removeAll()
+		val bar = elem.div(classes = setOf("block-view-bar"))
+		bar.h1("Administration")
+		val content = elem.div(classes = setOf("block-view-content"))
 
 		AppScope.launch {
 
 			// get the current admin info
-			val loadingElem = elem.loading("Fetching info ...")
+			val loadingElem = content.loading("Fetching info ...")
 			val info = try {
 				Admin.info.get()
 			} catch (t: Throwable) {
-				elem.errorMessage(t)
+				content.errorMessage(t)
 				return@launch
 			} finally {
-				elem.remove(loadingElem)
+				content.remove(loadingElem)
 			}
 
 			// what should we show?
 			when {
-				info.needsBootstrap -> elem.bootstrap(viewport, info.authType)
-				info.adminLoggedIn -> elem.adminTabs(info)
-				else -> elem.errorMessage("You're not an administrator")
+				info.needsBootstrap -> content.bootstrap(info.authType)
+				info.adminLoggedIn -> content.adminTabs(info)
+				else -> content.errorMessage("You're not an administrator")
 			}
 		}
 	}
 
-	private fun Container.bootstrap(viewport: Viewport, authType: AuthType) {
+	private fun Container.bootstrap(authType: AuthType) {
 
 		// first-time use of the system
 		// so we need to create the initial administrator
@@ -166,8 +163,8 @@ class AdminView : View {
 				.replace("\n", "\r\n")
 			}).then(
 				doneCallback = { _, _, _ ->
-					// reset the form
-					update(viewport)
+					// navigate back to admin to reload the page
+					routing.go(path())
 				},
 				failCallback = { _, _, error ->
 					Alert.show(

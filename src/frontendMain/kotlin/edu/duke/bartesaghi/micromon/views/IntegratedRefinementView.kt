@@ -229,10 +229,14 @@ class IntegratedRefinementView(
 			}
 		}
 
+		val bar = elem.div(classes = setOf("block-view-bar"))
+		bar.addJobMetaInfo(job)
+		val content = elem.div(classes = setOf("block-view-content"))
+
 		AppScope.launch {
 
 			// load all the 3D reconstructions
-			val loadingElem = elem.loading("Fetching 3D reconstructions ...")
+			val loadingElem = content.loading("Fetching 3D reconstructions ...")
 			val reconstructions: MutableList<ReconstructionData> = try {
 				delayAtLeast(200) {
 					Services.integratedRefinement.getReconstructions(job.jobId)
@@ -240,10 +244,10 @@ class IntegratedRefinementView(
 						.toMutableList()
 				}
 			} catch (t: Throwable) {
-				elem.errorMessage(t)
+				content.errorMessage(t)
 				return@launch
 			} finally {
-				elem.remove(loadingElem)
+				content.remove(loadingElem)
 			}
 
 			// initialize the shared state
@@ -288,7 +292,8 @@ class IntegratedRefinementView(
 				}
 			}
 			this@IntegratedRefinementView.connector = connector
-			elem.add(WebsocketControl(connector))
+			bar.add(WebsocketControl(connector))
+			bar.visible = true
 			connector.connect()
 
 			// make the tabs panel
@@ -474,7 +479,7 @@ class IntegratedRefinementView(
 			}
 
 			// show and activate the tabs
-			elem.add(tabsPanel)
+			content.add(tabsPanel)
 			tabsPanel.initWithDefaultTab()
 
 			val lazyTabs = LazyTabs(

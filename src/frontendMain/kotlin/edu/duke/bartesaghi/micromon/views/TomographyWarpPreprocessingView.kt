@@ -79,10 +79,13 @@ class TomographyWarpPreprocessingView(val project: ProjectData, val job: Tomogra
 			}
 		}
 
+		val bar = elem.div(classes = setOf("block-view-bar"))
+		val content = elem.div(classes = setOf("block-view-content"))
+
 		AppScope.launch {
 
 			// load all the tilt series
-			val loadingElem = elem.loading("Fetching tilt-series ...")
+			val loadingElem = content.loading("Fetching tilt-series ...")
 			val data = TiltSeriesesData()
 			val pypStats = try {
 				delayAtLeast(200) {
@@ -90,22 +93,22 @@ class TomographyWarpPreprocessingView(val project: ProjectData, val job: Tomogra
 					Services.jobs.pypStats(job.jobId)
 				}
 			} catch (t: Throwable) {
-				elem.errorMessage(t)
+				content.errorMessage(t)
 				return@launch
 			} finally {
-				elem.remove(loadingElem)
+				content.remove(loadingElem)
 			}
 
 			// show tilt series stats
 			tiltSeriesStats.loadCounts(data, OwnerType.Project, job.jobId, null)
-			elem.add(tiltSeriesStats)
+			bar.add(tiltSeriesStats)
 
 			// show PYP stats
 			statsLine = PypStatsLine(pypStats)
-				.also { elem.add(it) }
+				.also { bar.add(it) }
 
 			// make the tabs panel
-			tabs = elem.lazyTabPanel {
+			tabs = content.lazyTabPanel {
 
 				persistence = Storage::tomographyWarpPreprocessingTabIndex
 
@@ -211,7 +214,8 @@ class TomographyWarpPreprocessingView(val project: ProjectData, val job: Tomogra
 				}
 			}
 			this@TomographyWarpPreprocessingView.connector = connector
-			elem.add(WebsocketControl(connector))
+			bar.add(WebsocketControl(connector))
+			bar.visible = true
 			connector.connect()
 		}
 	}

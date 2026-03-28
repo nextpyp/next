@@ -225,11 +225,69 @@ div.viewport.mode-dock div.views {
 
 div.dock-page {
 	height: 100%;
-	padding: 10px;
 	border-top: solid 1px #848ca0;
 	box-shadow: inset 0px 2px 2px 0px #31344821;
-	background-color: #fff;
+	overflow: hidden;
+	display: flex;
+	flex-direction: column;
+}
+
+/* Floating info bar shown at the top of block views (stats, websocket status, etc.) */
+.block-view-bar {
+	margin: 7px;
+	padding: 4px 10px;
+	background-color: #ffffff;
+	border-radius: 6px;
+	border: solid 1px #bdc1da;
+	box-shadow: 1px 2px 2px 0px #31344854;
+	box-sizing: border-box;
+	flex-shrink: 0;
+	display: grid;
+	grid-template-columns: 1fr auto;
+	align-items: center;
+	row-gap: 2px;
+	column-gap: 10px;
+	font-size: 0.85em;
+	/* Reserve enough height for two rows of metadata even when the bar is empty */
+	min-height: 4em;
+}
+
+/* h1 titles inside the bar should not inherit the large view heading size */
+.block-view-bar h1 {
+	font-size: 1.1em;
+	margin: 0;
+}
+
+/* Stats elements are pinned to the left column so they always stack vertically */
+.block-view-bar .micrograph-stats,
+.block-view-bar .tiltseries-stats,
+.block-view-bar .pyp-stats,
+.block-view-bar .job-meta-info {
+	grid-column: 1;
+}
+
+/* WebsocketControl lives in the right column, first row — aligns with the primary content row */
+.block-view-bar .websocket-control {
+	grid-column: 2;
+	grid-row: 1;
+	align-self: center;
+	margin-left: 0;
+}
+
+/* Floating content panel that fills the remaining height in block views */
+.block-view-content {
+	margin: 0 7px 7px 7px;
+	background-color: #ffffff;
+	border-radius: 6px;
+	border: solid 1px #bdc1da;
+	box-shadow: 1px 2px 2px 0px #31344854;
+	box-sizing: border-box;
+	flex-grow: 1;
+	min-height: 0;
 	overflow-y: auto;
+	display: flex;
+	flex-direction: column;
+	padding: 10px;
 }
 
 div.dock-stage {
@@ -267,6 +325,28 @@ span.loading span {
 div.loading.no-height {
     position: absolute;
     transform: translateY(70px);
+}
+
+/* Loading indicator inside a floating content panel: center it and tone it down
+   so it doesn't look like a separate full-page loading state */
+.block-view-content > .loading {
+	flex-grow: 1;
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	opacity: 0.4;
+}
+.block-view-content > .loading span.icon {
+	font-size: 1em;
+	color: inherit;
+	margin-right: 0;
+}
+.block-view-content > .loading span {
+	font-size: 0.9em;
+	font-style: normal;
+	color: inherit;
 }
 
 div.error-message span.icon {
@@ -310,31 +390,8 @@ div.views .highlighted {
 
 /* SINGLE PARTICLE PREPROCESSING VIEW */
 
-div.single-particle-preprocessing {
-	position: relative;
-}
-
-div.single-particle-preprocessing .live .stats {
-	margin-left: 4px;
-	margin-top: 10px;
-	margin-bottom: 6px;
-}
-
 div.single-particle-preprocessing .live .stats .log-button {
 	margin-left: 20px;
-}
-
-div.single-particle-preprocessing div.pyp-stats {
-	margin-top: 6px;
-    margin-bottom: 6px;
-    margin-left: 10px;
-    color: #666666;
-}
-
-div.single-particle-preprocessing .websocket-control {
-	position: absolute;
-	top: 10px;
-	right: 10px;
 }
 
 .single-particle-preprocessing .hyper-gallery {
@@ -519,7 +576,7 @@ div.threeD-controls button {
 
 .flat-selector ul.nav {
   margin-top: 10px;
-  margin-bottom: 10px;
+  margin-bottom: 16px;
   margin-left: 4px;
   border: none !important;
 }
@@ -638,20 +695,10 @@ label.radio-selection .radio-selection-check:checked ~ span {
 /* TOMOGRAPHY PREPROCESSING VIEW */
 
 .tomography-preprocessing {
-	position: relative;
 
 	.pyp-stats,
 	.tiltseries-stats {
-		margin-top: 6px;
-		margin-bottom: 6px;
-		margin-left: 10px;
 		color: #666666;
-	}
-
-	.websocket-control {
-		position: absolute;
-		top: 10px;
-		right: 10px;
 	}
 
 	.live {
@@ -675,20 +722,10 @@ label.radio-selection .radio-selection-check:checked ~ span {
 /* TOMOGRAPHY PARTICLE PICKING VIEW */
 
 .tomography-picking {
-	position: relative;
 
 	.pyp-stats,
 	.tiltseries-stats {
-		margin-top: 6px;
-		margin-bottom: 6px;
-		margin-left: 10px;
 		color: #666666;
-	}
-
-	.websocket-control {
-		position: absolute;
-		top: 10px;
-		right: 10px;
 	}
 
 	.stats {
@@ -706,29 +743,15 @@ label.radio-selection .radio-selection-check:checked ~ span {
 /* TOMOGRAPHY SEGMENTATION VIEW */
 
 .tomography-segmentation {
-	position: relative;
 
 	.tiltseries-stats {
-		margin-top: 6px;
-		margin-bottom: 6px;
-		margin-left: 10px;
 		color: #666666;
 	}
 
 	.stats {
-		margin-left: 4px;
-		margin-top: 10px;
-		margin-bottom: 6px;
-
 		.log-button {
 			margin-left: 20px;
 		}
-	}
-
-	.websocket-control {
-		position: absolute;
-		top: 10px;
-		right: 10px;
 	}
 }
 
@@ -736,22 +759,11 @@ label.radio-selection .radio-selection-check:checked ~ span {
 /* TOMOGRAPHY MILOPYP EVAL VIEW */
 
 .tomography-milo-eval {
-	position: relative;
 
 	.stats {
-		margin-left: 4px;
-		margin-top: 10px;
-		margin-bottom: 6px;
-
 		.log-button {
 			margin-left: 20px;
 		}
-	}
-
-	.websocket-control {
-		position: absolute;
-		top: 10px;
-		right: 10px;
 	}
 
 	.files {
@@ -767,13 +779,6 @@ label.radio-selection .radio-selection-check:checked ~ span {
 /* REFINEMENT VIEW */
 
 .refinements-view {
-	position: relative;
-}
-
-.refinements-view .websocket-control {
-	position: absolute;
-	top: 10px;
-	right: 10px;
 }
 
 .refinements-view .maps-tab .tabnav {
@@ -1261,7 +1266,8 @@ div.admin .table {
 	width: 600px;
 }
 
-div.admin .table .actionsColumn button {
+div.admin .table .actionsColumn button,
+div.your-account .table .actionsColumn button {
 	width: 28px;
 	height: 28px;
 	padding: inherit;
@@ -1269,8 +1275,14 @@ div.admin .table .actionsColumn button {
 	margin-right: 6px;
 }
 
-div.admin div.tab {
+div.admin div.tab,
+div.your-account div.tab {
 	padding: 20px;
+}
+
+div.admin div.tab-button-bar,
+div.your-account div.tab-button-bar {
+	margin-bottom: 16px;
 }
 
 div.admin input.sessionSearch {
@@ -2012,7 +2024,9 @@ div.project-view div.jobs-monitor {
 	min-height: 0;
 	display: flex;
 	flex-direction: column;
-	margin: 7px;
+	/* top margin removed so the gap from the toolbar above is 7 px (toolbar's own bottom margin),
+	   matching the bar → content spacing used in block views */
+	margin: 0 7px 7px 7px;
 	background-color: #ffffff;
 	border-radius: 6px;
 	border: solid 1px #bdc1da;
@@ -2388,7 +2402,8 @@ img.large-scale-down {
 	display: flex;
 	flex-direction: column;
 	overflow-y: hidden;
-	margin: 7px;
+	/* right margin removed so the gap to the Jobs panel equals the Jobs panel's own left margin (7 px) rather than doubling it */
+	margin: 7px 0 7px 7px;
 	background-color: #ffffff;
 	border-radius: 6px;
 	border: solid 1px #bdc1da;
@@ -3534,13 +3549,24 @@ div.file-browser .file-browser-bottom .file-browser-controls .file-browser-glob 
 
 /* SESSION VIEW */
 
+/* In session views the bar uses the same two-column grid; place header (WS indicator)
+   in the right column regardless of DOM order */
+.session .block-view-bar .header {
+	grid-column: 2;
+	grid-row: 1;
+	align-self: center;
+	text-align: right;
+}
+
+.session .block-view-bar .stats {
+	grid-column: 1;
+	grid-row: 1;
+}
+
+/* Outside the bar (e.g. legacy usage) keep the old float behaviour */
 .session .header {
 	text-align: right;
 	float: right;
-}
-
-.session .stats {
-	margin-bottom: 20px;
 }
 
 .session .settings {
@@ -4433,13 +4459,6 @@ select.native {
 /* TOMOGRAPHY DRGN TRAIN VIEW */
 
 .tomography-drgn-train {
-	position: relative;
-
-	.websocket-control {
-		position: absolute;
-		top: 10px;
-		right: 10px;
-	}
 
 	.reconstruction-tab {
 		display: flex;
@@ -4570,7 +4589,6 @@ select.native {
 /* Project view: spacing below navbar, bottom-of-bar style to match dashboard */
 div.project-view {
 	--project-filter-bar-height: 52px;
-	padding-top: 4px;
 	border-top: solid 1px #848ca0;
 	box-shadow: inset 0px 2px 2px 0px #31344854;
 }
@@ -4616,9 +4634,10 @@ div.project-view {
 	min-width: 0;
 	/* Match gallery .card-filters vertical padding */
 	padding: 8px;
-	margin: 7px var(--list-floating-panel-inset-x);
-	width: calc(100% - 14px);
-	max-width: calc(100% - 14px);
+	/* top/right margin removed so gaps match the Jobs panel's own margins (7 px each side) rather than doubling them */
+	margin: 0 0 7px var(--list-floating-panel-inset-x);
+	width: calc(100% - 7px);
+	max-width: calc(100% - 7px);
 	flex-shrink: 0;
 	overflow: visible;
 	background-color: #ffffff;
@@ -4626,14 +4645,14 @@ div.project-view {
 	border: solid 1px #bdc1da;
 	box-shadow: 1px 2px 2px 0px #31344854;
 }
-/* List view table body: floating panel — top margin so filters-to-table gap matches gallery (filters bar margin 7px + cards padding 4px = 11px) */
+/* List view table body: floating panel — no top/right margin so gaps match the Jobs panel's own margins */
 .blocks-table .blocks-table-body {
 	flex-grow: 1;
 	min-height: 0;
 	overflow: auto;
 	box-sizing: border-box;
-	margin: 11px var(--list-floating-panel-inset-x) 7px;
-	width: calc(100% - 14px);
+	margin: 0 0 7px var(--list-floating-panel-inset-x);
+	width: calc(100% - 7px);
 	background-color: #ffffff;
 	border-radius: 6px;
 	border: solid 1px #bdc1da;
@@ -4707,10 +4726,14 @@ div.project-view {
 	box-sizing: border-box;
 	min-height: var(--gallery-topbar-height);
 	height: auto;
-	width: calc(100% - 14px);
-	max-width: calc(100% - 14px);
+	width: calc(100% - 7px);
+	max-width: calc(100% - 7px);
 	min-width: 0;
-	margin: 7px;
+	/* top margin removed so the gap from the toolbar matches the Jobs panel;
+	   bottom 7px to align with gallery card grid gap and list view panels;
+	   right margin removed so the combined gap to the Jobs panel equals the
+	   Jobs panel's own left margin (7 px) rather than doubling it (14 px) */
+	margin: 0 0 7px 7px;
 	overflow: visible;
 }
 /* Gallery view: vertically center form controls in the filter bar */
@@ -4780,9 +4803,12 @@ div.project-view {
 	gap: 6px;
 	padding: 8px;
 	box-sizing: border-box;
-	margin: 7px;
-	width: calc(100% - 14px);
-	max-width: calc(100% - 14px);
+	/* top margin removed so the gap from the toolbar matches the Jobs panel;
+	   bottom 7px to align with gallery card grid gap;
+	   right margin removed so the combined gap to the Jobs panel equals 7 px (not 14 px) */
+	margin: 0 0 7px 7px;
+	width: calc(100% - 7px);
+	max-width: calc(100% - 7px);
 	min-width: 0;
 	background-color: #ffffff;
 	border-radius: 6px;
@@ -4802,20 +4828,25 @@ div.project-view {
 	flex-shrink: 0;
 }
 
-/* Gallery view: cards grid container */
+/* Gallery view: cards grid container — gap only for spacing between cards (do not stack with .dock-window margins) */
 .blocks-card-view .cards-container {
 	display: flex;
 	flex-wrap: wrap;
 	align-content: flex-start;
-	gap: 4px;
-	padding: 4px 4px 4px 0;
+	gap: 7px;
+	padding: 0 0 7px 7px;
+	box-sizing: border-box;
 	flex-grow: 1;
 	min-height: 0;
 	overflow-y: auto;
 	overflow-x: hidden;
 }
 
-/* Gallery view: individual block card */
+/* Gallery view: individual block card — margin:0 so spacing matches list/Jobs rhythm (7px via container gap, not 7+gap+7) */
+.blocks-card-view .block-card.dock-window {
+	margin: 0;
+}
+
 .blocks-card-view .block-card {
 	width: 280px;
 	cursor: pointer;

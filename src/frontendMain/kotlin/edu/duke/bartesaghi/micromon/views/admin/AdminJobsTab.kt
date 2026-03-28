@@ -40,7 +40,7 @@ class AdminJobsTab(
 			}
 
 			// show a refresh button
-			elem.div {
+			elem.div(classes = setOf("tab-button-bar")) {
 				button("Refresh")
 					.onClick {  update() }
 			}

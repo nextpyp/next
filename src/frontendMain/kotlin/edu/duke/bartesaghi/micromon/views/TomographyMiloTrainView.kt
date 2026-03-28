@@ -3,6 +3,7 @@ package edu.duke.bartesaghi.micromon.views
 import edu.duke.bartesaghi.micromon.*
 import edu.duke.bartesaghi.micromon.components.*
 import edu.duke.bartesaghi.micromon.diagram.nodes.TomographyMiloTrainNode
+import edu.duke.bartesaghi.micromon.pyp.TiltSeriesesData
 import edu.duke.bartesaghi.micromon.services.*
 import io.kvision.core.Widget
 import io.kvision.html.*
@@ -44,6 +45,8 @@ class TomographyMiloTrainView(val project: ProjectData, val job: TomographyMiloT
 	override val routed = Companion
 	override val elem = Div(classes = setOf("dock-page", "tomography-picking"))
 
+	private val tiltSeriesStats = TiltSeriesStats()
+	private var connector: WebsocketConnector? = null
 
 	override fun init(viewport: Viewport) {
 
@@ -59,12 +62,36 @@ class TomographyMiloTrainView(val project: ProjectData, val job: TomographyMiloT
 			}
 		}
 
+		val bar = elem.div(classes = setOf("block-view-bar"))
+		val content = elem.div(classes = setOf("block-view-content"))
+
 		AppScope.launch {
 
-			elem.h1("MiLoPYP Training Results")
+			// load all the tilt series
+			val loadingElem = content.loading("Fetching tilt-series ...")
+			val data = TiltSeriesesData()
+			val pypStats = try {
+				delayAtLeast(200) {
+					data.loadForProject(job, job.args.finished?.values)
+					Services.jobs.pypStats(job.jobId)
+				}
+			} catch (t: Throwable) {
+				content.errorMessage(t)
+				return@launch
+			} finally {
+				content.remove(loadingElem)
+			}
+
+			// show tilt series stats
+			tiltSeriesStats.set(data)
+			bar.add(tiltSeriesStats)
+
+			// show PYP stats
+			val statsLine = PypStatsLine(pypStats)
+				.also { bar.add(it) }
 
 			// show the 2D results
-			elem.add(SizedPanel("Model loss", Storage.miloResults2dSize).apply {
+			content.add(SizedPanel("Model loss", Storage.miloResults2dSize).apply {
 				val img = image(ITomographyMiloTrainService.resultsPath(job.jobId), classes = setOf("full-width-image"))
 				img?.refresh()
 				// set the panel resize handler
@@ -73,6 +100,37 @@ class TomographyMiloTrainView(val project: ProjectData, val job: TomographyMiloT
 					Storage.miloResults2dSize = newSize
 				}
 			})
+
+			// open the websocket connection to listen for server-side updates
+			val connector = WebsocketConnector(RealTimeServices.tomographyPicking) { signaler, input, output ->
+
+				// tell the server we want to listen to this job
+				output.send(RealTimeC2S.ListenToTiltSerieses(job.jobId).toJson())
+
+				signaler.connected()
+
+				// wait for responses from the server
+				for (msgstr in input) {
+					when (val msg = RealTimeS2C.fromJson(msgstr)) {
+						is RealTimeS2C.UpdatedParameters -> {
+							statsLine.stats = msg.pypStats
+						}
+						is RealTimeS2C.UpdatedTiltSeries -> {
+							data.update(msg.tiltSeries)
+							tiltSeriesStats.increment(data, msg.tiltSeries)
+						}
+						else -> Unit
+					}
+				}
+			}
+			this@TomographyMiloTrainView.connector = connector
+			bar.add(WebsocketControl(connector))
+			bar.visible = true
+			connector.connect()
 		}
+	}
+
+	override fun close() {
+		connector?.disconnect()
 	}
 }

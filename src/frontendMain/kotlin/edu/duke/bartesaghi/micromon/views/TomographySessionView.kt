@@ -93,7 +93,7 @@ class TomographySessionView(
 	private val tiltSeriesesData = TiltSeriesesData()
 	private var twoDClassesTab: TwoDClassesTab? = null
 	private var sendSettingsSaved: (suspend () -> Unit)? = null
-
+	private val panelBottom = Div(classes = setOf("panel-project-bottom"))
 
 	override fun init(viewport: Viewport) {
 
@@ -109,10 +109,13 @@ class TomographySessionView(
 
 		this.viewport = viewport
 
-		// layout the view
-		elem.add(header)
-		elem.add(statsElem)
-		elem.add(tabs)
+		// layout the view with floating bar (header + stats) and content panel (tabs)
+		val bar = elem.div(classes = setOf("block-view-bar"))
+		bar.add(header)
+		bar.add(statsElem)
+		val content = elem.div(classes = setOf("block-view-content"))
+		content.add(tabs)
+		elem.add(panelBottom)
 
 		updateStatistics()
 
@@ -127,7 +130,7 @@ class TomographySessionView(
 		if (session == null) {
 			initNewSession()
 		} else {
-			initSession(session)
+			initSession(session, panelBottom)
 		}
 	}
 
@@ -140,7 +143,7 @@ class TomographySessionView(
 			.onGoToNewTomographySession()
 	}
 
-	private fun initSession(session: TomographySessionData) {
+	private fun initSession(session: TomographySessionData, panelBottom: Container) {
 
 		// add the session link to the nav bar
 		val viewport = viewport ?: return
@@ -149,7 +152,7 @@ class TomographySessionView(
 			.onGoToTomographySession(viewport, session)
 
 		// add the extra tabs
-		opsTab = SessionOps(session).apply {
+		opsTab = SessionOps(session, panelBottom).apply {
 			onClear = { daemon ->
 				if (daemon == SessionDaemon.Fypd) {
 					twoDClassesTab?.clearTwoDClasses()
@@ -419,7 +422,7 @@ class TomographySessionView(
 				routing.show(path(session.sessionId))
 
 				this@TomographySessionView.session = session
-				initSession(session)
+				initSession(session, panelBottom)
 				updateStatistics()
 				tiltSeriesTab?.listNav?.reshow()
 			}
@@ -760,10 +763,13 @@ class TomographySessionView(
 		AppScope.launch {
 
 			val args = pypArgs.get()
-			val argsValues = session?.newestArgs?.values?.toArgValues(args)
+
+			val session = session
+				?: return@launch
+
+			val argsValues = session.newestArgs?.values?.toArgValues(args)
 
 			statsElem.removeAll()
-
 			statsElem.add(tiltSeriesStats)
 			statsElem.add(PypStatsLine(PypStats.fromArgValues(argsValues)))
 		}

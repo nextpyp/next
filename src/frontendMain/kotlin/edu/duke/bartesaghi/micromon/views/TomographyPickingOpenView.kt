@@ -67,10 +67,13 @@ class TomographyPickingOpenView(val project: ProjectData, val job: TomographyPic
 			}
 		}
 
+		val bar = elem.div(classes = setOf("block-view-bar"))
+		val content = elem.div(classes = setOf("block-view-content"))
+
 		AppScope.launch {
 
 			// load all the tilt series
-			val loadingElem = elem.loading("Fetching tilt-series ...")
+			val loadingElem = content.loading("Fetching tilt-series ...")
 			val data = TiltSeriesesData()
 			try {
 				delayAtLeast(200) {
@@ -82,16 +85,16 @@ class TomographyPickingOpenView(val project: ProjectData, val job: TomographyPic
 					}
 				}
 			} catch (t: Throwable) {
-				elem.errorMessage(t)
+				content.errorMessage(t)
 				return@launch
 			} finally {
-				elem.remove(loadingElem)
+				content.remove(loadingElem)
 			}
 
 			// show tilt series stats
 			val tiltSeriesStats = TiltSeriesStats()
 			tiltSeriesStats.loadCounts(data, OwnerType.Project, job.jobId, pickingControls.list)
-			elem.add(tiltSeriesStats)
+			bar.add(tiltSeriesStats)
 
 			val tiltSeriesesElem = Div()
 			val listNav = BigListNav(data.tiltSerieses, onSearch=data::searchById) e@{ index ->
@@ -141,8 +144,8 @@ class TomographyPickingOpenView(val project: ProjectData, val job: TomographyPic
 				}
 			}
 
-			elem.add(listNav)
-			elem.add(tiltSeriesesElem)
+			content.add(listNav)
+			content.add(tiltSeriesesElem)
 
 			// start with the newest tilt series
 			listNav.showItem(data.tiltSerieses.size - 1, false)
@@ -171,7 +174,8 @@ class TomographyPickingOpenView(val project: ProjectData, val job: TomographyPic
 				}
 			}
 			this@TomographyPickingOpenView.connector = connector
-			elem.add(WebsocketControl(connector))
+			bar.add(WebsocketControl(connector))
+			bar.visible = true
 			connector.connect()
 		}
 	}

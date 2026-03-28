@@ -66,8 +66,10 @@ class AdminPypTab(val elem: Container) {
 	init {
 		// layout elements
 		elem.addCssClass("tab")
-		elem.div {
+		elem.div(classes = setOf("tab-button-bar")) {
 			add(pingButton)
+		}
+		elem.div {
 			add(p("Launches a PYP command that just sends a ping request to the website over the RPC channel."))
 			add(p("Useful for determining if PYP can access the website API or not."))
 		}

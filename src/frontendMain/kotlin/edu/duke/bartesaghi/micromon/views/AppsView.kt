@@ -31,12 +31,6 @@ class AppsView : View {
 	override val routed = Companion
 	override val elem = Div(classes = setOf("dock-page", "apps-view"))
 
-	private val requests = ArrayList<AppTokenRequestData>()
-	private val apps = ArrayList<AppTokenData>()
-
-	private val requestsElem = Div()
-	private val appsElem = Div()
-
 	override fun init(viewport: Viewport) {
 
 		// update the navbar
@@ -49,22 +43,34 @@ class AppsView : View {
 			}
 		}
 
-		// what's our login status?
-		val session = Session.get()
+		val bar = elem.div(classes = setOf("block-view-bar"))
+		bar.h1("Apps")
+		val content = elem.div(classes = setOf("block-view-content"))
 
-		// show the appropriate form
+		val session = Session.get()
 		if (session != null) {
-			elem.show(session)
+			content.add(AppsPanel(session))
 		} else {
-			elem.h1("Not logged in")
+			content.h1("Not logged in")
 		}
 	}
+}
 
-	private fun Container.show(session: User.Session) {
 
+/**
+ * A self-contained panel for managing app tokens (requests and granted apps).
+ * Used both by AppsView (standalone page) and YourAccountView (embedded in a tab).
+ */
+class AppsPanel(session: User.Session) : Div(classes = setOf("tab")) {
+
+	private val requests = ArrayList<AppTokenRequestData>()
+	private val apps = ArrayList<AppTokenData>()
+	private val requestsElem = Div()
+	private val appsElem = Div()
+
+	init {
 		AppScope.launch {
 
-			// check with the backend to see what kind of login system we're using
 			val loadingElem = loading("Loading apps...")
 			try {
 				requests.setAll(Services.apps.tokenRequests(session.id))
@@ -77,11 +83,9 @@ class AppsView : View {
 			}
 
 			batch {
-
 				h1("App Requests")
 				add(requestsElem)
 				updateRequests()
-
 				h1("Apps")
 				add(appsElem)
 				updateApps()
@@ -98,18 +102,16 @@ class AppsView : View {
 			return
 		}
 
-		requestsElem.table(classes = setOf("requests")) {
-			for (request in requests) {
-				showRequest(request)
-			}
+		val table = Table(classes = setOf("requests"))
+		requestsElem.add(table)
+		for (request in requests) {
+			addRequestRow(table, request)
 		}
 	}
 
-	private fun Table.showRequest(request: AppTokenRequestData) {
+	private fun addRequestRow(table: Table, request: AppTokenRequestData) {
 
-		// NOTE: the receiver container is a <table>
-
-		val elem = Tr(classes = setOf("request"))
+		val row = Tr(classes = setOf("request"))
 		val allowButton = Button("Allow", icon = "fas fa-thumbs-up")
 			.apply {
 				title = "Grant this app access to your account."
@@ -142,7 +144,7 @@ class AppsView : View {
 				val acceptance = Services.apps.acceptTokenRequest(request.requestId)
 				requests.remove(request)
 				apps.add(acceptance.tokenInfo)
-				elem.showToken(request, acceptance.token)
+				showToken(row, request, acceptance.token)
 				updateApps()
 			}
 		}
@@ -150,19 +152,18 @@ class AppsView : View {
 			useButtons {
 				Services.apps.rejectTokenRequest(request.requestId)
 				requests.remove(request)
-				elem.parent?.remove(elem)
+				row.parent?.remove(row)
 				Toast.success("Deined request from ${request.appName}")
 			}
 		}
 
 		// layout the UI
-		add(elem)
-		elem.td(request.appName, classes = setOf("name"))
-		elem.td {
-			div("Requested permissions:")
-			showPermissions(request.permissions)
-		}
-		elem.td(classes = setOf("buttons")) {
+		table.add(row)
+		row.td(request.appName, classes = setOf("name"))
+		val permsTd = row.td()
+		permsTd.div("Requested permissions:")
+		addPermissions(permsTd, request.permissions)
+		row.td(classes = setOf("buttons")) {
 			add(allowButton)
 			add(denyButton)
 		}
@@ -177,16 +178,16 @@ class AppsView : View {
 			return
 		}
 
-		appsElem.table(classes = setOf("apps")) {
-			for (app in apps) {
-				showApp(app)
-			}
+		val table = Table(classes = setOf("apps"))
+		appsElem.add(table)
+		for (app in apps) {
+			addAppRow(table, app)
 		}
 	}
 
-	private fun Table.showApp(app: AppTokenData) {
+	private fun addAppRow(table: Table, app: AppTokenData) {
 
-		val elem = Tr(classes = setOf("app"))
+		val row = Tr(classes = setOf("app"))
 		val revokeButton = Button("Revoke", icon = "fas fa-trash")
 			.apply {
 				title = "No longer allow this app to access your account."
@@ -212,25 +213,24 @@ class AppsView : View {
 			useButtons {
 				Services.apps.revokeToken(app.tokenId)
 				apps.remove(app)
-				elem.parent?.remove(elem)
+				row.parent?.remove(row)
 				Toast.success("Revoked access for ${app.appName}")
 			}
 		}
 
 		// layout the UI
-		add(elem)
-		elem.td(app.appName, classes = setOf("name"))
-		elem.td {
-			div("Granted permissions:")
-			showPermissions(app.permissions)
-		}
-		elem.td(classes = setOf("buttons")) {
+		table.add(row)
+		row.td(app.appName, classes = setOf("name"))
+		val permsTd = row.td()
+		permsTd.div("Granted permissions:")
+		addPermissions(permsTd, app.permissions)
+		row.td(classes = setOf("buttons")) {
 			add(revokeButton)
 		}
 	}
 
-	private fun Container.showPermissions(permissions: List<AppPermissionData>) {
-		table(classes = setOf("permissions")) {
+	private fun addPermissions(container: Container, permissions: List<AppPermissionData>) {
+		container.table(classes = setOf("permissions")) {
 			for (permission in permissions) {
 				tr(classes = setOf("permission")) {
 					td(permission.appPermissionId, classes = setOf("title"))
@@ -240,15 +240,15 @@ class AppsView : View {
 		}
 	}
 
-	private fun Tr.showToken(request: AppTokenRequestData, token: String) {
+	private fun showToken(row: Tr, request: AppTokenRequestData, token: String) {
 
-		removeAll()
+		row.removeAll()
 
-		td {
+		row.td {
 			div(request.appName, classes = setOf("name"))
 			div("Access approved!")
 		}
-		td {
+		row.td {
 			colspan = 2
 			div(classes = setOf("token-instructions")) {
 				div("Copy this token into the app to complete the connection:")

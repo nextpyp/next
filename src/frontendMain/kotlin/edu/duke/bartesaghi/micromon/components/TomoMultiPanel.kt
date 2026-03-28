@@ -175,14 +175,14 @@ class TomoMultiPanel(
 		}
 
 		if (self.half1Exists) {
-			addTab("Half tomogram 1") { lazyTab ->
+			addTab("Half 1") { lazyTab ->
 				lazyTab.elem.add(self.recDownloadBadgeHalf1)
 				lazyTab.elem.add(self.particlesImageHalf1)
 				lazyTab.elem.add(TomoSideViewImage(self.job.jobId, self.tiltSeries.id, self.tiltSeries.imageDims.sideViewDims(), pathSuffix = "Half1"))
 			}
 		}
 		if (self.half2Exists) {
-			addTab("Half tomogram 2") { lazyTab ->
+			addTab("Half 2") { lazyTab ->
 				lazyTab.elem.add(self.recDownloadBadgeHalf2)
 				lazyTab.elem.add(self.particlesImageHalf2)
 				lazyTab.elem.add(TomoSideViewImage(self.job.jobId, self.tiltSeries.id, self.tiltSeries.imageDims.sideViewDims(), pathSuffix = "Half2"))

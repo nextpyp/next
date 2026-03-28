@@ -90,24 +90,28 @@ class TomographyDrgnTrainView(val project: ProjectData, val job: TomographyDrgnT
 			}
 		}
 
+		val bar = elem.div(classes = setOf("block-view-bar"))
+		bar.addJobMetaInfo(job)
+		val content = elem.div(classes = setOf("block-view-content"))
+
 		AppScope.launch {
 
 			// load all the converenge, if any
-			val loadingElem = elem.loading("Fetching convergence information ...")
+			val loadingElem = content.loading("Fetching convergence information ...")
 			convergence = try {
 				delayAtLeast(200) {
 					Services.tomographyDrgnTrain.getConvergence(job.jobId)
 						.unwrap()
 				}
 			} catch (t: Throwable) {
-				elem.errorMessage(t)
+				content.errorMessage(t)
 				return@launch
 			} finally {
-				elem.remove(loadingElem)
+				content.remove(loadingElem)
 			}
 
 			// make the tabs panel
-			tabs = elem.lazyTabPanel {
+			tabs = content.lazyTabPanel {
 
 				persistence = Storage::tomographyDrgnTrainTabIndex
 
@@ -175,7 +179,8 @@ class TomographyDrgnTrainView(val project: ProjectData, val job: TomographyDrgnT
 				}
 			}
 			this@TomographyDrgnTrainView.connector = connector
-			elem.add(WebsocketControl(connector))
+			bar.add(WebsocketControl(connector))
+			bar.visible = true
 			connector.connect()
 		}
 	}

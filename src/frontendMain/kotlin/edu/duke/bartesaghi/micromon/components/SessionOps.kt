@@ -29,13 +29,13 @@ import kotlin.math.min
 import kotlin.reflect.KClass
 
 
-class SessionOps(val session: SessionData) {
+class SessionOps(val session: SessionData, val panelBottom: Container? = null) {
 
-	val jobsMonitor = SessionJobsMonitor(session)
+	val jobsMonitor = SessionJobsMonitor(session, panelBottom)
 	val filesystemMonitor = SessionFilesystemMonitor()
 	val transferMonitor = SessionTransferMonitor()
 	val speedsMonitor = SessionSpeedsMonitor(session)
-	val exportsMonitor = SessionExportsMonitor(session)
+	val exportsMonitor = SessionExportsMonitor(session, panelBottom)
 
 	var onClear: (SessionDaemon) -> Unit = {}
 
@@ -444,7 +444,7 @@ class SessionOps(val session: SessionData) {
 				win.hide()
 				val log = logs.find { it.clusterJobId == picker.value }
 					?: return@e
-				ClusterJobLogViewer(log.clusterJobId, "Session started at ${log.label()}")
+				ClusterJobLogViewer(log.clusterJobId, "Session started at ${log.label()}", panelBottom)
 			}
 
 			// init form state
@@ -559,7 +559,7 @@ class SessionFilesystemMonitor : Div(classes = setOf("session-filesystem-monitor
 	}
 }
 
-class SessionJobsMonitor(val session: SessionData) : Div(classes = setOf("session-jobs-monitor")) {
+class SessionJobsMonitor(val session: SessionData, val panelBottom: Container? = null) : Div(classes = setOf("session-jobs-monitor")) {
 
 	private class Info(
 		val jobId: String,
@@ -691,16 +691,16 @@ class SessionJobsMonitor(val session: SessionData) : Div(classes = setOf("sessio
 					div(classes = setOf("running-job")) {
 						span("${firstRunning.name}, size ${firstRunning.size}, ${firstRunning.status.name}")
 					}
-					val streamButton = Button("Show live stream").apply {
-						onClick {
-							win.hide()
-							ClusterJobLogViewer(
-								firstRunning.jobId,
-								"Session job: ${firstRunning.name}",
-								panelBottom = null
-							)
-						}
+				val streamButton = Button("Show live stream").apply {
+					onClick {
+						win.hide()
+						ClusterJobLogViewer(
+							firstRunning.jobId,
+							"Session job: ${firstRunning.name}",
+							this@SessionJobsMonitor.panelBottom
+						)
 					}
+				}
 					add(streamButton)
 				}
 			}
@@ -763,7 +763,7 @@ class SessionJobsMonitor(val session: SessionData) : Div(classes = setOf("sessio
 				win.hide()
 				val log = jobsLogs.jobs.find { it.clusterJobId == picker.value }
 					?: return@e
-				ClusterJobLogViewer(log.clusterJobId, "Session job started at ${log.label()}")
+				ClusterJobLogViewer(log.clusterJobId, "Session job started at ${log.label()}", panelBottom)
 			}
 
 			// init form state
@@ -1116,7 +1116,7 @@ private fun SessionExportRequest.display(): ExportRequestDisplay {
 }
 
 
-class SessionExportsMonitor(val session: SessionData) : Div(classes = setOf("session-exports-monitor")) {
+class SessionExportsMonitor(val session: SessionData, val panelBottom: Container? = null) : Div(classes = setOf("session-exports-monitor")) {
 
 	companion object {
 		const val TopSize = 3
@@ -1149,7 +1149,7 @@ class SessionExportsMonitor(val session: SessionData) : Div(classes = setOf("ses
 				button("", icon = "far fa-file-alt").apply {
 					title = "Show logs"
 					onClick {
-						ClusterJobLogViewer(clusterJobId, "Export")
+						ClusterJobLogViewer(clusterJobId, "Export", monitor.panelBottom)
 					}
 				}
 			} else {

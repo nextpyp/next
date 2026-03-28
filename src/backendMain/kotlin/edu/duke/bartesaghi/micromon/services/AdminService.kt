@@ -58,7 +58,8 @@ actual class AdminService : IAdminService {
 			demoLoggedIn = user?.isDemo ?: false,
 			authType = Config.instance.web.auth,
 			debug = Config.instance.web.debug,
-			clusterMode = Cluster.instance.clusterMode
+			clusterMode = Cluster.instance.clusterMode,
+			groups = user?.groups ?: emptySet()
 		)
 	}
 

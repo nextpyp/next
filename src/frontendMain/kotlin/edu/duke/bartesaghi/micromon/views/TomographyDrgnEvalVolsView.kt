@@ -81,24 +81,26 @@ class TomographyDrgnEvalVolsView(val project: ProjectData, val job: TomographyDr
 			}
 		}
 
+		val content = elem.div(classes = setOf("block-view-content"))
+
 		AppScope.launch {
 
 			// load all the converenge, if any
-			val loadingElem = elem.loading("Fetching analysis ...")
+			val loadingElem = content.loading("Fetching analysis ...")
 			val evalParams: TomographyDrgnEvalVolsParams? = try {
 				delayAtLeast(200) {
 					Services.tomographyDrgnEvalVols.getParams(job.jobId)
 						.unwrap()
 				}
 			} catch (t: Throwable) {
-				elem.errorMessage(t)
+				content.errorMessage(t)
 				return@launch
 			} finally {
-				elem.remove(loadingElem)
+				content.remove(loadingElem)
 			}
 
 			if (evalParams == null) {
-				elem.emptyMessage("No data to show yet")
+				content.emptyMessage("No data to show yet")
 				return@launch
 			}
 
@@ -111,7 +113,7 @@ class TomographyDrgnEvalVolsView(val project: ProjectData, val job: TomographyDr
 			dimensionsNav.newItem()
 
 			// make the tabs panel with two top-level tabs
-			tabs = elem.lazyTabPanel {
+			tabs = content.lazyTabPanel {
 
 				persistence = Storage::tomographyDrgnEvalVolsTabIndex
 

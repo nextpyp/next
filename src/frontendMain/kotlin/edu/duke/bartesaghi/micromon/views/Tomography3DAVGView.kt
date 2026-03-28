@@ -90,26 +90,28 @@ class Tomography3DAVGView(val project: ProjectData, val job: Tomography3DAVGData
 			}
 		}
 
-		elem.h1("Sub-tomogram averaging")
+		val bar = elem.div(classes = setOf("block-view-bar"))
+		bar.h1("Sub-tomogram averaging")
+		val content = elem.div(classes = setOf("block-view-content"))
 
 		AppScope.launch {
 
 			// load all the converenge, if any
-			val loadingElem = elem.loading("Fetching analysis ...")
+			val loadingElem = content.loading("Fetching analysis ...")
 			val evalParams: Tomography3DAVGParams? = try {
 				delayAtLeast(200) {
 					Services.tomography3DAVG.getParams(job.jobId)
 						.unwrap()
 				}
 			} catch (t: Throwable) {
-				elem.errorMessage(t)
+				content.errorMessage(t)
 				return@launch
 			} finally {
-				elem.remove(loadingElem)
+				content.remove(loadingElem)
 			}
 
 			if (evalParams == null) {
-				elem.emptyMessage("No data to show yet")
+				content.emptyMessage("No data to show yet")
 				return@launch
 			}
 
@@ -122,7 +124,7 @@ class Tomography3DAVGView(val project: ProjectData, val job: Tomography3DAVGData
 			iterationsNav.newItem()
 
 			// make the tabs panel (4 top-level tabs with nested sub-tabs where needed)
-			tabs = elem.lazyTabPanel {
+			tabs = content.lazyTabPanel {
 
 				// 1. Global average: Global averages + 3D view (global averages)
 				addTab("Centering", "fas fa-circle") { lazyTab ->

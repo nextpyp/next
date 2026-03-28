@@ -79,10 +79,13 @@ class SingleParticleSessionDataView(val project: ProjectData, val job: SinglePar
 			}
 		}
 
+		val bar = elem.div(classes = setOf("block-view-bar"))
+		val content = elem.div(classes = setOf("block-view-content"))
+
 		AppScope.launch {
 
 			// load all the micrographs
-			val loadingElem = elem.loading("Fetching micrographs ...")
+			val loadingElem = content.loading("Fetching micrographs ...")
 			val (micrographs, pypStats) = try {
 				delayAtLeast(200) {
 					Pair(
@@ -93,22 +96,22 @@ class SingleParticleSessionDataView(val project: ProjectData, val job: SinglePar
 					)
 				}
 			} catch (t: Throwable) {
-				elem.errorMessage(t)
+				content.errorMessage(t)
 				return@launch
 			} finally {
-				elem.remove(loadingElem)
+				content.remove(loadingElem)
 			}
 
 			// show micrograph stats
-			micrographStatsElem = elem.div("", classes = setOf("micrograph-stats"))
+			micrographStatsElem = bar.div("", classes = setOf("micrograph-stats"))
 			updateMicrographStats(micrographs)
 
 			// show PYP stats
 			statsLine = PypStatsLine(pypStats)
-				.also { elem.add(it) }
+				.also { bar.add(it) }
 
 			// make the tabs panel
-			tabs = elem.lazyTabPanel {
+			tabs = content.lazyTabPanel {
 
 				persistence = Storage::singleParticleSessionDataTabIndex
 
@@ -201,7 +204,8 @@ class SingleParticleSessionDataView(val project: ProjectData, val job: SinglePar
 				}
 			}
 			this@SingleParticleSessionDataView.connector = connector
-			elem.add(WebsocketControl(connector))
+			bar.add(WebsocketControl(connector))
+			bar.visible = true
 			connector.connect()
 		}
 	}

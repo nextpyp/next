@@ -93,7 +93,8 @@ data class AdminInfo(
 	val demoLoggedIn: Boolean,
 	val authType: AuthType,
 	val debug: Boolean,
-	val clusterMode: ClusterMode
+	val clusterMode: ClusterMode,
+	val groups: Set<Group> = emptySet()
 )
 
 @Serializable

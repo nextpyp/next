@@ -77,10 +77,13 @@ class TomographyDenoisingEvalView(val project: ProjectData, val job: TomographyD
 			}
 		}
 
+		val bar = elem.div(classes = setOf("block-view-bar"))
+		val content = elem.div(classes = setOf("block-view-content"))
+
 		AppScope.launch {
 
 			// load all the tilt series
-			val loadingElem = elem.loading("Fetching tilt-series ...")
+			val loadingElem = content.loading("Fetching tilt-series ...")
 			val data = TiltSeriesesData()
 			val pypStats = try {
 				delayAtLeast(200) {
@@ -88,26 +91,23 @@ class TomographyDenoisingEvalView(val project: ProjectData, val job: TomographyD
 					Services.jobs.pypStats(job.jobId)
 				}
 			} catch (t: Throwable) {
-				elem.errorMessage(t)
+				content.errorMessage(t)
 				return@launch
 			} finally {
-				elem.remove(loadingElem)
+				content.remove(loadingElem)
 			}
-
-			val live = elem.div(classes = setOf("live"))
 
 			// show tilt series stats
 			val tiltSeriesStats = TiltSeriesStats()
 			tiltSeriesStats.loadCounts(data, OwnerType.Project, job.jobId, null)
-			live.add(tiltSeriesStats)
+			bar.add(tiltSeriesStats)
 
 			// show PYP stats
 			val statsLine = PypStatsLine(pypStats)
-				.also { live.add(it) }
-
+				.also { bar.add(it) }
 
 			// make the tabs panel
-			tabs = elem.lazyTabPanel {
+			tabs = content.lazyTabPanel {
 
 				persistence = Storage::tomographyDenoisingEvalTabIndex
 
@@ -198,7 +198,8 @@ class TomographyDenoisingEvalView(val project: ProjectData, val job: TomographyD
 				}
 			}
 			this@TomographyDenoisingEvalView.connector = connector
-			elem.add(WebsocketControl(connector))
+			bar.add(WebsocketControl(connector))
+			bar.visible = true
 			connector.connect()
 		}
 	}

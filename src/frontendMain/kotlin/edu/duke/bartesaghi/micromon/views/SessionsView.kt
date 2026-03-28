@@ -71,6 +71,9 @@ class SessionsView : View {
 			}
 		}
 
+		val bar = elem.div(classes = setOf("block-view-bar"))
+		val pageContent = elem.div(classes = setOf("block-view-content"))
+
 		var sessions: List<SessionData> = ArrayList()
 		val tabulator = TabulatorProxy<SessionData>()
 
@@ -265,7 +268,7 @@ class SessionsView : View {
 			var runningSessions: RunningSessions? = null
 
 			// load sessions list and running sessions in parallel for a consistent snapshot
-			val loadingElem = elem.loading("Fetching sessions ...")
+			val loadingElem = pageContent.loading("Fetching sessions ...")
 			try {
 				coroutineScope {
 					val runningDeferred = async { Services.sessions.running() }
@@ -286,14 +289,21 @@ class SessionsView : View {
 					}
 				}
 			} catch (t: Throwable) {
-				elem.errorMessage(t)
+				pageContent.errorMessage(t)
 				return@launch
 			} finally {
-				elem.remove(loadingElem)
+				pageContent.remove(loadingElem)
 			}
 
+			// populate the bar with session counts and reveal it
+			val spaCount = sessions.count { it is SingleParticleSessionData }.toLong()
+			val tomoCount = sessions.count { it is TomographySessionData }.toLong()
+			bar.div("${spaCount.formatWithDigitGroupsSeparator()} single-particle session(s)", classes = setOf("job-meta-info"))
+			bar.div("${tomoCount.formatWithDigitGroupsSeparator()} tomography session(s)", classes = setOf("job-meta-info"))
+			bar.visible = true
+
 			// layout the page
-			elem.div {
+			pageContent.div {
 				if (canStartSessions) {
 					div(classes = setOf("start-buttons"))  {
 						add(startSpaButton)
@@ -312,7 +322,7 @@ class SessionsView : View {
 			// show the running sessions, if any
 			val running = runningSessions
 			if (running != null && (running.singleParticle.isNotEmpty() || running.tomography.isNotEmpty())) {
-				elem.div(classes = setOf("running-sessions")) {
+				pageContent.div(classes = setOf("running-sessions")) {
 					h1("Currently running sessions")
 					div(classes = setOf("sessions-list")) {
 						(running.singleParticle + running.tomography)

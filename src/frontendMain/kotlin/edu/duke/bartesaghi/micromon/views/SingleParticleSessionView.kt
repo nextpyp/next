@@ -91,7 +91,7 @@ class SingleParticleSessionView(
 	private val micrographs = ArrayList<MicrographMetadata>()
 	private var twoDClassesTab: TwoDClassesTab? = null
 	private var sendSettingsSaved: (suspend () -> Unit)? = null
-
+	private val panelBottom = Div(classes = setOf("panel-project-bottom"))
 
 	override fun init(viewport: Viewport) {
 
@@ -107,10 +107,13 @@ class SingleParticleSessionView(
 
 		this.viewport = viewport
 
-		// layout the view
-		elem.add(header)
-		elem.add(statsElem)
-		elem.add(tabs)
+		// layout the view with floating bar (header + stats) and content panel (tabs)
+		val bar = elem.div(classes = setOf("block-view-bar"))
+		bar.add(header)
+		bar.add(statsElem)
+		val content = elem.div(classes = setOf("block-view-content"))
+		content.add(tabs)
+		elem.add(panelBottom)
 
 		updateStatistics()
 
@@ -125,7 +128,7 @@ class SingleParticleSessionView(
 		if (session == null) {
 			initNewSession()
 		} else {
-			initSession(session)
+			initSession(session, panelBottom)
 		}
 	}
 
@@ -138,7 +141,7 @@ class SingleParticleSessionView(
 			.onGoToNewSingleParticleSession()
 	}
 
-	private fun initSession(session: SingleParticleSessionData) {
+	private fun initSession(session: SingleParticleSessionData, panelBottom: Container) {
 
 		// add the session link to the nav bar
 		val viewport = viewport ?: return
@@ -147,7 +150,7 @@ class SingleParticleSessionView(
 			.onGoToSingleParticleSession(viewport, session)
 
 		// add the extra tabs
-		opsTab = SessionOps(session).apply {
+		opsTab = SessionOps(session, panelBottom).apply {
 			onClear = { daemon ->
 				if (daemon == SessionDaemon.Fypd) {
 					twoDClassesTab?.clearTwoDClasses()
@@ -418,7 +421,7 @@ class SingleParticleSessionView(
 				// update the route
 				routing.show(path(session.sessionId))
 
-				initSession(session)
+				initSession(session, panelBottom)
 
 				this@SingleParticleSessionView.session = session
 				updateStatistics()
