@@ -81,6 +81,8 @@ class SingleParticleDrgnView(val project: ProjectData, val job: SingleParticleDr
 			}
 		}
 
+		val bar = elem.div(classes = setOf("block-view-bar"))
+		bar.addJobMetaInfo(job)
 		val content = elem.div(classes = setOf("block-view-content"))
 
 		AppScope.launch {
@@ -112,49 +114,60 @@ class SingleParticleDrgnView(val project: ProjectData, val job: SingleParticleDr
 			)
 			dimensionsNav.newItem()
 
-			// make the tabs panel
+			// make the tabs panel with two top-level tabs
 			tabs = content.lazyTabPanel {
 
 				persistence = Storage::singleParticleDrgnTabIndex
 
 				if (!evalParams.skipumap) {
+					addTab("K-means", "fas fa-chart-pie") { lazyTab ->
+						lazyTab.elem.flatLazyTabPanel {
+							persistence = Storage::singleParticleDrgnKmeansSubTabIndex
 
-					addTab("K-means (classes)", "fas fa-chart-pie") { lazyTab ->
-						umapReconstructionTab = UmapReconstructionTab(evalParams.numClasses).also {
-							lazyTab.elem.add(it)
-							lazyTab.onActivate = { it.revalidate() }
-						}
-					}
+							addTab("Classes", "fas fa-th-large") { subTab ->
+								umapReconstructionTab = UmapReconstructionTab(evalParams.numClasses).also {
+									subTab.elem.add(it)
+									subTab.onActivate = { it.revalidate() }
+								}
+							}
 
-					addTab("K-means (movie)", "fas fa-film") { lazyTab ->
-						umapClassesMovieTab = UmapClassesMovieTab(evalParams.numClasses).also {
-							lazyTab.elem.add(it)
-						}
-					}
+							addTab("Movie", "fas fa-film") { subTab ->
+								umapClassesMovieTab = UmapClassesMovieTab(evalParams.numClasses).also {
+									subTab.elem.add(it)
+								}
+							}
 
-					addTab("K-means (3D view)", "fas fa-cube") { lazyTab ->
-						umapThreeDeeTab = UmapThreeDeeTab(evalParams.numClasses).also {
-							lazyTab.elem.add(it)
+							addTab("3D View", "fas fa-cube") { subTab ->
+								umapThreeDeeTab = UmapThreeDeeTab(evalParams.numClasses).also {
+									subTab.elem.add(it)
+								}
+							}
 						}
 					}
 				}
 
-				addTab("PC sampling (classes)", "fas fa-ruler-horizontal") { lazyTab ->
-					pcaReconstructionTab = PcaReconstructionTab(10).also {
-						lazyTab.elem.add(it)
-						lazyTab.onActivate = { it.revalidate() }
-					}
-				}
+				addTab("PC sampling", "fas fa-ruler-horizontal") { lazyTab ->
+					lazyTab.elem.flatLazyTabPanel {
+						persistence = Storage::singleParticleDrgnPcaSubTabIndex
 
-				addTab("PC sampling (movie)", "fas fa-film") { lazyTab ->
-					pcaClassesMovieTab = PcaClassesMovieTab(10).also {
-						lazyTab.elem.add(it)
-					}
-				}
+						addTab("Classes", "fas fa-th-large") { subTab ->
+							pcaReconstructionTab = PcaReconstructionTab(10).also {
+								subTab.elem.add(it)
+								subTab.onActivate = { it.revalidate() }
+							}
+						}
 
-				addTab("PC sampling (3D view)", "fas fa-cube") { lazyTab ->
-					pcaThreeDeeTab = PcaThreeDeeTab(10).also {
-						lazyTab.elem.add(it)
+						addTab("Movie", "fas fa-film") { subTab ->
+							pcaClassesMovieTab = PcaClassesMovieTab(10).also {
+								subTab.elem.add(it)
+							}
+						}
+
+						addTab("3D View", "fas fa-cube") { subTab ->
+							pcaThreeDeeTab = PcaThreeDeeTab(10).also {
+								subTab.elem.add(it)
+							}
+						}
 					}
 				}
 			}

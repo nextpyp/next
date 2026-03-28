@@ -1378,6 +1378,10 @@ div.dashboard {
 	flex-direction: column;
 }
 
+div.dashboard.dock-stage {
+	padding: 0;
+}
+
 .dashboard .selection {
 	min-height: 56px;
 	padding: 4px;
@@ -1457,6 +1461,8 @@ div.dashboard div.projects {
 	flex-grow: 1;
 	align-items: flex-start;
 	align-content: flex-start;
+	gap: 7px;
+	padding: 0 0 7px 7px;
 	overflow-y: auto;
 }
 
@@ -1473,6 +1479,11 @@ div.dashboard div.projects div.empty {
 	max-width: calc(100% - 20px);
 }
 
+.dashboard .projects .project.dock-window {
+	margin: 0;
+	padding: 0;
+}
+
 .dashboard .projects .project.selected:after {
 	content: '';
 	position: absolute;
@@ -1487,13 +1498,12 @@ div.dashboard div.projects div.empty {
 .dashboard .projects .project .project-title {
 	display: flex;
 	flex-direction: row;
-	margin-bottom: 6px;
+	padding: 6px 8px 4px;
 }
 
 .dashboard .projects .project .project-name {
 	font-weight: bold;
 	flex-grow: 1;
-	padding-left: 6px;
 }
 
 .dashboard .projects .project .project-owner {
@@ -1510,8 +1520,8 @@ div.dashboard div.projects div.empty {
 	display: flex;
 	flex-direction: row;
 	gap: 12px;
-	margin-left: 6px;
-	margin-right: 6px;
+	margin-left: 8px;
+	margin-right: 8px;
 }
 
 .dashboard .projects .project .representative-images .representative-image-container {
@@ -4527,6 +4537,10 @@ select.native {
 
 .tomography-drgn-eval {
 	position: relative;
+
+	.flat-selector .tab-content {
+		margin-left: 4px;
+	}
 
 	.reconstruction-tab {
 		display: flex;

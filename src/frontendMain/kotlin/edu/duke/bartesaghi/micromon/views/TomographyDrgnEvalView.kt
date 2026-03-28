@@ -81,6 +81,8 @@ class TomographyDrgnEvalView(val project: ProjectData, val job: TomographyDrgnEv
 			}
 		}
 
+		val bar = elem.div(classes = setOf("block-view-bar"))
+		bar.addJobMetaInfo(job)
 		val content = elem.div(classes = setOf("block-view-content"))
 
 		AppScope.launch {

@@ -113,6 +113,8 @@ object Storage {
 	var singleParticleSessionDataTabIndex by IntStorageItem("singleParticleSessionDataIndex")
 	var singleParticleImportDataTabIndex by IntStorageItem("singleParticleImportDataIndex")
 	var singleParticleDrgnTabIndex by IntStorageItem("singleParticleDrgnTabIndex")
+	var singleParticleDrgnKmeansSubTabIndex by IntStorageItem("singleParticleDrgnKmeansSubTabIndex")
+	var singleParticleDrgnPcaSubTabIndex by IntStorageItem("singleParticleDrgnPcaSubTabIndex")
 	var tomography3DAVGTabIndex by IntStorageItem("tomography3DAVGTabIndex")
 	var tomography3DAVGGlobalSubTabIndex by IntStorageItem("tomography3DAVGGlobalSubTabIndex")
 	var tomography3DAVGClassesSubTabIndex by IntStorageItem("tomography3DAVGClassesSubTabIndex")
