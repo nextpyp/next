@@ -124,7 +124,7 @@ class TomographyDrgnEvalVolsView(val project: ProjectData, val job: TomographyDr
 						lazyTab.elem.flatLazyTabPanel {
 							persistence = Storage::tomographyDrgnEvalVolsKmeansSubTabIndex
 
-							addTab("Classes", "fas fa-chart-pie") { subTab ->
+							addTab("Classes", "fas fa-th-large") { subTab ->
 								umapReconstructionTab = UmapReconstructionTab(evalParams.numClasses).also {
 									subTab.elem.add(it)
 									subTab.onActivate = { it.revalidate() }
@@ -150,7 +150,7 @@ class TomographyDrgnEvalVolsView(val project: ProjectData, val job: TomographyDr
 					lazyTab.elem.flatLazyTabPanel {
 						persistence = Storage::tomographyDrgnEvalVolsPcaSubTabIndex
 
-						addTab("Classes", "fas fa-ruler-horizontal") { subTab ->
+						addTab("Classes", "fas fa-th-large") { subTab ->
 							pcaReconstructionTab = PcaReconstructionTab(10).also {
 								subTab.elem.add(it)
 								subTab.onActivate = { it.revalidate() }
