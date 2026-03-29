@@ -248,8 +248,7 @@ div.dock-page {
 	row-gap: 2px;
 	column-gap: 10px;
 	font-size: 0.85em;
-	/* Reserve enough height for two rows of metadata even when the bar is empty */
-	min-height: 4em;
+	min-height: calc(2.25rem + 20px);
 }
 
 /* h1 titles inside the bar should not inherit the large view heading size */
